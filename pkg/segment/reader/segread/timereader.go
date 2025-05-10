@@ -31,8 +31,8 @@ import (
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -41,7 +41,7 @@ var rawTimestampsBufferPool = sync.Pool{
 		// The Pool's New function should generally only return pointer
 		// types, since a pointer can be put into the return interface
 		// value without an allocation:
-		slice := make([]uint64, utils.DEFAULT_TIME_SLICE_SIZE)
+		slice := make([]uint64, sutils.DEFAULT_TIME_SLICE_SIZE)
 		return &slice
 	},
 }
@@ -186,7 +186,7 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 		}
 		trr.blockReadBuffer = segreader.GetBufFromPool(int64(cOffLen.Length))
 	}
-	checksumFile := &toputils.ChecksumFile{Fd: trr.timeFD}
+	checksumFile := &utils.ChecksumFile{Fd: trr.timeFD}
 	_, err = checksumFile.ReadAt(trr.blockReadBuffer[:cOffLen.Length], cOffLen.Offset)
 	if err != nil {
 		if err != io.EOF {
@@ -217,7 +217,7 @@ func (trr *TimeRangeReader) resizeSliceForBlock(blockNum uint16) error {
 		return errors.New("TimeRangeReader.resizeSliceForBlock blockNum not found")
 	}
 
-	trr.blockTimestamps = toputils.ResizeSlice(trr.blockTimestamps, int(numRecs))
+	trr.blockTimestamps = utils.ResizeSlice(trr.blockTimestamps, int(numRecs))
 
 	return nil
 }
@@ -259,16 +259,16 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 	}
 
 	oPtr := uint32(0)
-	if rawRec[oPtr] != utils.TIMESTAMP_TOPDIFF_VARENC[0] {
+	if rawRec[oPtr] != sutils.TIMESTAMP_TOPDIFF_VARENC[0] {
 		return nil, fmt.Errorf("convertRawRecordsToTimestamps: received an unknown encoding type for timestamp column! expected %+v got %+v",
-			utils.TIMESTAMP_TOPDIFF_VARENC[0], rawRec[oPtr])
+			sutils.TIMESTAMP_TOPDIFF_VARENC[0], rawRec[oPtr])
 	}
 	oPtr++
 
 	tsType := rawRec[oPtr]
 	oPtr++
 
-	lowTs := toputils.BytesToUint64LittleEndian(rawRec[oPtr:])
+	lowTs := utils.BytesToUint64LittleEndian(rawRec[oPtr:])
 	oPtr += 8
 
 	numValidRecs := numRecs
@@ -285,7 +285,7 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 		numValidRecs = min(numRecs, uint16((len(rawRec)-int(oPtr))/2))
 		var tsVal uint16
 		for i := uint16(0); i < numValidRecs; i++ {
-			tsVal = toputils.BytesToUint16LittleEndian(rawRec[oPtr:])
+			tsVal = utils.BytesToUint16LittleEndian(rawRec[oPtr:])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 2
 		}
@@ -293,7 +293,7 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 		numValidRecs = min(numRecs, uint16((len(rawRec)-int(oPtr))/4))
 		var tsVal uint32
 		for i := uint16(0); i < numValidRecs; i++ {
-			tsVal = toputils.BytesToUint32LittleEndian(rawRec[oPtr:])
+			tsVal = utils.BytesToUint32LittleEndian(rawRec[oPtr:])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 4
 		}
@@ -301,7 +301,7 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 		numValidRecs = min(numRecs, uint16((len(rawRec)-int(oPtr))/8))
 		var tsVal uint64
 		for i := uint16(0); i < numValidRecs; i++ {
-			tsVal = toputils.BytesToUint64LittleEndian(rawRec[oPtr:])
+			tsVal = utils.BytesToUint64LittleEndian(rawRec[oPtr:])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 8
 		}
@@ -317,7 +317,7 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 
 func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]byte, error) {
 	buf = buf[:blkLen]
-	checksumFile := &toputils.ChecksumFile{Fd: fd}
+	checksumFile := &utils.ChecksumFile{Fd: fd}
 	_, err := checksumFile.ReadAt(buf, blkOff)
 	if err != nil {
 		return nil, err

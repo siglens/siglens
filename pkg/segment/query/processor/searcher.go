@@ -38,9 +38,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/sortindex"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -49,7 +48,7 @@ type block struct {
 	parentQSR *query.QuerySegmentRequest
 
 	// For PQS blocks, these must be set.
-	parentPQMR toputils.Option[*pqmr.SegmentPQMRResults]
+	parentPQMR utils.Option[*pqmr.SegmentPQMRResults]
 
 	// For raw search blocks, these must be set.
 	parentSSR   *structs.SegmentSearchRequest
@@ -62,7 +61,7 @@ type sortIndexState struct {
 	numRecordsPerBatch int
 	didFirstFetch      bool
 	segKeyToInfo       map[string]*segInfo
-	exhaustedSegKey    toputils.Option[string]
+	exhaustedSegKey    utils.Option[string]
 	numRecordsSent     uint64
 	didEarlyExit       bool
 }
@@ -99,8 +98,8 @@ type Searcher struct {
 	processedBlocks       map[string]map[uint16]struct{}
 	gotAllSegments        bool
 
-	unsentRRCs           []*segutils.RecordResultContainer
-	segEncToKey          *toputils.TwoWayMap[uint32, string]
+	unsentRRCs           []*sutils.RecordResultContainer
+	segEncToKey          *utils.TwoWayMap[uint32, string]
 	segEncToKeyBaseValue uint32
 
 	setAsIqrStatsResults bool
@@ -116,10 +115,10 @@ func newSearcherHelper(queryInfo *query.QueryInformation, querySummary *summary.
 	sortMode sortMode, sortExpr *structs.SortExpr, startTime time.Time, checkforSubsearch bool) (*Searcher, error) {
 
 	if queryInfo == nil {
-		return nil, toputils.TeeErrorf("searcher.NewSearcher: queryInfo is nil")
+		return nil, utils.TeeErrorf("searcher.NewSearcher: queryInfo is nil")
 	}
 	if querySummary == nil {
-		return nil, toputils.TeeErrorf("searcher.NewSearcher: querySummary is nil")
+		return nil, utils.TeeErrorf("searcher.NewSearcher: querySummary is nil")
 	}
 
 	qid := queryInfo.GetQid()
@@ -132,8 +131,8 @@ func newSearcherHelper(queryInfo *query.QueryInformation, querySummary *summary.
 		sortExpr:              sortExpr,
 		startTime:             startTime,
 		remainingBlocksSorted: make([]*block, 0),
-		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
-		segEncToKey:           toputils.NewTwoWayMap[uint32, string](),
+		unsentRRCs:            make([]*sutils.RecordResultContainer, 0),
+		segEncToKey:           utils.NewTwoWayMap[uint32, string](),
 		segEncToKeyBaseValue:  queryInfo.GetSegEncToKeyBaseValue(),
 	}
 
@@ -224,8 +223,8 @@ func (s *Searcher) Rewind() {
 	s.unprocessedQSRs = nil
 	s.gotAllSegments = false
 	s.remainingBlocksSorted = make([]*block, 0)
-	s.unsentRRCs = make([]*segutils.RecordResultContainer, 0)
-	s.segEncToKey = toputils.NewTwoWayMap[uint32, string]()
+	s.unsentRRCs = make([]*sutils.RecordResultContainer, 0)
+	s.segEncToKey = utils.NewTwoWayMap[uint32, string]()
 }
 
 func (s *Searcher) Cleanup() {
@@ -281,7 +280,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 		if s.qsrs == nil {
 			err := s.initializeQSRs()
 			if err != nil {
-				return nil, toputils.TeeErrorf("qid=%v, searcher.Fetch: failed to get and set QSRs: %v", s.qid, err)
+				return nil, utils.TeeErrorf("qid=%v, searcher.Fetch: failed to get and set QSRs: %v", s.qid, err)
 			}
 			s.initUnprocessedQSRs()
 			query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(s.qsrs))), s.qid)
@@ -306,13 +305,13 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 
 		return s.fetchRRCs()
 	default:
-		return nil, toputils.TeeErrorf("qid=%v, searcher.Fetch: invalid query type: %v",
+		return nil, utils.TeeErrorf("qid=%v, searcher.Fetch: invalid query type: %v",
 			s.qid, s.queryInfo.GetQueryType())
 	}
 }
 
-func (s *Searcher) getPQMRsFromQSRs(qsrs []*query.QuerySegmentRequest) []toputils.Option[*pqmr.SegmentPQMRResults] {
-	pqmrs := make([]toputils.Option[*pqmr.SegmentPQMRResults], len(qsrs))
+func (s *Searcher) getPQMRsFromQSRs(qsrs []*query.QuerySegmentRequest) []utils.Option[*pqmr.SegmentPQMRResults] {
+	pqmrs := make([]utils.Option[*pqmr.SegmentPQMRResults], len(qsrs))
 
 	for i, qsr := range qsrs {
 		// The query may require filtering out records after search, so we
@@ -346,7 +345,7 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 
 	if s.numRecordsPerBatch == 0 {
 		if s.sortExpr == nil {
-			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: sortExpr is nil", s.qid)
+			return nil, utils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: sortExpr is nil", s.qid)
 		}
 
 		// This is chosen somewhat arbitrarily. We may want to tune this.
@@ -393,7 +392,7 @@ func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 		if segkey, ok := s.sortIndexState.exhaustedSegKey.Get(); ok {
 			segInfo, ok := s.sortIndexState.segKeyToInfo[segkey]
 			if !ok {
-				return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: segkey not found: %v",
+				return nil, utils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: segkey not found: %v",
 					s.qid, segkey)
 			}
 
@@ -426,14 +425,14 @@ func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 		}
 
 		if firstExhaustedIndex < 0 || firstExhaustedIndex >= len(iqrs) {
-			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: unexpected firstExhaustedIndex: %v",
+			return nil, utils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: unexpected firstExhaustedIndex: %v",
 				s.qid, firstExhaustedIndex)
 		}
 
 		segkey := segkeys[firstExhaustedIndex]
 		s.sortIndexState.exhaustedSegKey.Set(segkey)
 		if segInfo, ok := s.sortIndexState.segKeyToInfo[segkey]; !ok {
-			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: segkey not found: %v",
+			return nil, utils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: segkey not found: %v",
 				s.qid, segkey)
 		} else {
 			if sortindex.IsEOF(segInfo.checkpoint) {
@@ -460,7 +459,7 @@ func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 
 	err := result.DiscardAfter(numRecordsToSend)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to discard after %v; err=%v",
+		return nil, utils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to discard after %v; err=%v",
 			s.qid, numRecordsToSend, err)
 	}
 
@@ -475,11 +474,11 @@ func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 
 func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *pqmr.SegmentPQMRResults) (*iqr.IQR, error) {
 	if s.segKeyToInfo == nil {
-		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: segKeyToInfo is nil", s.qid)
+		return nil, utils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: segKeyToInfo is nil", s.qid)
 	}
 	segInfo, ok := s.segKeyToInfo[qsr.GetSegKey()]
 	if !ok {
-		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: segKey not found: %v", s.qid, qsr.GetSegKey())
+		return nil, utils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: segKey not found: %v", s.qid, qsr.GetSegKey())
 	}
 
 	cname := s.sortExpr.SortEles[0].Field
@@ -494,7 +493,7 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 	case "str":
 		sortMode = sortindex.SortAsString
 	default:
-		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: invalid sort mode: %v",
+		return nil, utils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: invalid sort mode: %v",
 			s.qid, s.sortExpr.SortEles[0].Op)
 	}
 
@@ -574,7 +573,7 @@ func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines
 	}
 
 	cname := s.sortExpr.SortEles[0].Field
-	err = iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{cname: values})
+	err = iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{cname: values})
 	if err != nil {
 		log.Errorf("qid=%v, searcher.handleSortIndexMatchAll: failed to append known values: %v", s.qid, err)
 		return nil, err
@@ -760,13 +759,13 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		s.gotBlocks = false
 	}
 
-	allRRCsSlices := make([][]*segutils.RecordResultContainer, 0, len(nextBlocks)+1)
+	allRRCsSlices := make([][]*sutils.RecordResultContainer, 0, len(nextBlocks)+1)
 
 	// Prepare to call BatchProcess.
 	getBatchKey := func(block *block) string {
 		return block.parentQSR.GetSegKey()
 	}
-	batchKeyLess := toputils.NewUnsetOption[func(string, string) bool]()
+	batchKeyLess := utils.NewUnsetOption[func(string, string) bool]()
 	// The return value is not needed, so use struct{} as a placeholder.
 	batchOperation := func(blocks []*block) ([]*struct{}, error) {
 		if len(blocks) == 0 {
@@ -782,7 +781,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		}
 
 		if s.segEncToKey.Conflicts(segEncToKey) {
-			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchRRCs: conflicting segEncToKey (%v and %v)",
+			return nil, utils.TeeErrorf("qid=%v, searcher.fetchRRCs: conflicting segEncToKey (%v and %v)",
 				s.qid, s.segEncToKey, segEncToKey)
 		}
 
@@ -795,7 +794,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, nil
 	}
 
-	_, err = toputils.BatchProcess(nextBlocks, getBatchKey, batchKeyLess, batchOperation, 1)
+	_, err = utils.BatchProcess(nextBlocks, getBatchKey, batchKeyLess, batchOperation, 1)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchRRCs: failed to batch process blocks: %v", s.qid, err)
 		return nil, err
@@ -809,7 +808,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
-	s.unsentRRCs = toputils.MergeSortedSlices(sortingFunc, allRRCsSlices...)
+	s.unsentRRCs = utils.MergeSortedSlices(sortingFunc, allRRCsSlices...)
 
 	validRRCs, err := getValidRRCs(s.unsentRRCs, endTime, s.sortMode)
 	if err != nil {
@@ -830,7 +829,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 
 	err = query.IncProgressForRRCCmd(getNumRecords(nextBlocks), uint64(len(nextBlocks)), s.qid)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchRRCs: failed to increment progress: %v", s.qid, err)
+		return nil, utils.TeeErrorf("qid=%v, searcher.fetchRRCs: failed to increment progress: %v", s.qid, err)
 	}
 
 	return iqr, nil
@@ -851,7 +850,7 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 	}
 	err = query.AssociateSearchResult(qid, searchResults)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to associate search results: %v", s.qid, err)
+		return nil, utils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to associate search results: %v", s.qid, err)
 	}
 
 	var nodeResult *structs.NodeResult
@@ -866,7 +865,7 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 			if err == io.EOF {
 				nodeResult = &structs.NodeResult{}
 			} else {
-				return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to get group by results: %v", s.qid, err)
+				return nil, utils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to get group by results: %v", s.qid, err)
 			}
 		}
 		if s.setAsIqrStatsResults {
@@ -882,12 +881,12 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 			}
 
 			if (!isGroupByBucketNil && !isGroupByBuckets) || (!isTimeBucketsNil && !isTimeBuckets) {
-				return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: Expected GroupByBuckets and TimeBuckets, got %T and %T",
+				return nil, utils.TeeErrorf("qid=%v, searcher.fetchStatsResults: Expected GroupByBuckets and TimeBuckets, got %T and %T",
 					qid, nodeResult.GroupByBuckets, nodeResult.TimeBuckets)
 			}
 		}
 	} else {
-		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: invalid query type: %v", qid, qType)
+		return nil, utils.TeeErrorf("qid=%v, searcher.fetchStatsResults: invalid query type: %v", qid, qType)
 	}
 
 	// post getting of stats results
@@ -896,7 +895,7 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 	if s.setAsIqrStatsResults {
 		err := iqr.SetIqrStatsResults(qType, nodeResult.SegStatsMap, groupByBuckets, timeBuckets, aggs)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to set IQR stats results: %v", qid, err)
+			return nil, utils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to set IQR stats results: %v", qid, err)
 		}
 	} else {
 		if aggs.StatisticExpr != nil {
@@ -905,7 +904,7 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 
 		err = iqr.CreateStatsResults(nodeResult.MeasureResults, nodeResult.MeasureFunctions, nodeResult.GroupByCols, nodeResult.BucketCount)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to create stats results: %v", qid, err)
+			return nil, utils.TeeErrorf("qid=%v, searcher.fetchStatsResults: failed to create stats results: %v", qid, err)
 		}
 	}
 
@@ -918,7 +917,7 @@ func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, 
 	if s.qsrs == nil {
 		err := s.initializeQSRs()
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchSegmentStatsResults: failed to get and set QSRs: %v", s.qid, err)
+			return nil, utils.TeeErrorf("qid=%v, searcher.fetchSegmentStatsResults: failed to get and set QSRs: %v", s.qid, err)
 		}
 	}
 
@@ -926,7 +925,7 @@ func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, 
 		return nil, io.EOF
 	}
 
-	bucketLimit := int(utils.QUERY_MAX_BUCKETS)
+	bucketLimit := int(sutils.QUERY_MAX_BUCKETS)
 	if aggs.BucketLimit != 0 && aggs.BucketLimit < bucketLimit {
 		bucketLimit = aggs.BucketLimit
 	}
@@ -937,7 +936,7 @@ func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, 
 		return nodeResult, nil
 	}
 
-	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
+	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(sutils.QUERY_MAX_BUCKETS))
 	nodeResult.MeasureResults = bucketHolderArr
 	nodeResult.MeasureFunctions = measureFuncs
 	nodeResult.GroupByCols = aggGroupByCols
@@ -946,22 +945,22 @@ func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, 
 	return nodeResult, nil
 }
 
-func getSortingFunc(sortMode sortMode) (func(a, b *segutils.RecordResultContainer) bool, error) {
+func getSortingFunc(sortMode sortMode) (func(a, b *sutils.RecordResultContainer) bool, error) {
 	switch sortMode {
 	case recentFirst:
-		return func(a, b *segutils.RecordResultContainer) bool {
+		return func(a, b *sutils.RecordResultContainer) bool {
 			return a.TimeStamp > b.TimeStamp
 		}, nil
 	case recentLast:
-		return func(a, b *segutils.RecordResultContainer) bool {
+		return func(a, b *sutils.RecordResultContainer) bool {
 			return a.TimeStamp < b.TimeStamp
 		}, nil
 	case anyOrder:
-		return func(a, b *segutils.RecordResultContainer) bool {
+		return func(a, b *sutils.RecordResultContainer) bool {
 			return true
 		}, nil
 	default:
-		return nil, toputils.TeeErrorf("getSortingFunc: invalid sort mode: %v", sortMode)
+		return nil, utils.TeeErrorf("getSortingFunc: invalid sort mode: %v", sortMode)
 	}
 }
 
@@ -1166,7 +1165,7 @@ func makeBlocksFromPQMR(allBlocksToSearch map[uint16]struct{},
 			BlockSummary: blockSummaries[blkNum],
 			BlkNum:       blkNum,
 			parentQSR:    qsr,
-			parentPQMR:   toputils.NewOptionWithValue(pqmr),
+			parentPQMR:   utils.NewOptionWithValue(pqmr),
 		})
 	}
 
@@ -1212,7 +1211,7 @@ func sortBlocks(blocks []*block, mode sortMode) error {
 			return blocks[i].LowTs < blocks[j].LowTs
 		})
 	default:
-		return toputils.TeeErrorf("sortBlocks: invalid sort mode: %v", mode)
+		return utils.TeeErrorf("sortBlocks: invalid sort mode: %v", mode)
 	}
 
 	return nil
@@ -1256,7 +1255,7 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 			return block.HighTs
 		}
 	default:
-		return nil, 0, toputils.TeeErrorf("getNextBlocks: invalid sort mode: %v", mode)
+		return nil, 0, utils.TeeErrorf("getNextBlocks: invalid sort mode: %v", mode)
 	}
 
 	numBlocks := 0
@@ -1300,7 +1299,7 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 			case recentLast:
 				overallEndTime = max(overallEndTime, endTime)
 			default:
-				return nil, 0, toputils.TeeErrorf("getNextBlocks: invalid sort mode: %v", mode)
+				return nil, 0, utils.TeeErrorf("getNextBlocks: invalid sort mode: %v", mode)
 			}
 		}
 
@@ -1311,7 +1310,7 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 }
 
 // All of the blocks must be for the same segment.
-func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.RecordResultContainer, map[uint32]string, error) {
+func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*sutils.RecordResultContainer, map[uint32]string, error) {
 	if len(blocks) == 0 {
 		return nil, nil, nil
 	}
@@ -1365,7 +1364,7 @@ func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 	return rrcs, searchResults.SegEncToKey, nil
 }
 
-func sortRRCs(rrcs []*segutils.RecordResultContainer, mode sortMode) error {
+func sortRRCs(rrcs []*sutils.RecordResultContainer, mode sortMode) error {
 	switch mode {
 	case recentFirst:
 		sort.Slice(rrcs, func(i, j int) bool {
@@ -1378,7 +1377,7 @@ func sortRRCs(rrcs []*segutils.RecordResultContainer, mode sortMode) error {
 	case anyOrder:
 		// Do nothing.
 	default:
-		return toputils.TeeErrorf("sortRRCs: invalid sort mode: %v", mode)
+		return utils.TeeErrorf("sortRRCs: invalid sort mode: %v", mode)
 	}
 
 	return nil
@@ -1394,7 +1393,7 @@ func (s *Searcher) addRRCsFromPQMR(searchResults *segresults.SearchResults, bloc
 	for _, block := range blocks {
 		allBlocksToSearch[block.BlkNum] = struct{}{}
 		if block.BlkNum >= uint16(len(summaries)) {
-			summaries = toputils.ResizeSlice(summaries, int(block.BlkNum+1))
+			summaries = utils.ResizeSlice(summaries, int(block.BlkNum+1))
 		}
 		summaries[block.BlkNum] = block.BlockSummary
 	}
@@ -1457,15 +1456,15 @@ func getPQMR(blocks []*block) (*pqmr.SegmentPQMRResults, error) {
 	// Each block should have come from the same PQMR.
 	firstPQMR, ok := blocks[0].parentPQMR.Get()
 	if !ok {
-		return nil, toputils.TeeErrorf("getPQMR: first block has no PQMR")
+		return nil, utils.TeeErrorf("getPQMR: first block has no PQMR")
 	}
 
 	for _, block := range blocks {
 		pqmr, ok := block.parentPQMR.Get()
 		if !ok {
-			return nil, toputils.TeeErrorf("getPQMR: block has no PQMR")
+			return nil, utils.TeeErrorf("getPQMR: block has no PQMR")
 		} else if pqmr != firstPQMR {
-			return nil, toputils.TeeErrorf("getPQMR: blocks are from different PQMRs")
+			return nil, utils.TeeErrorf("getPQMR: blocks are from different PQMRs")
 		}
 	}
 
@@ -1473,7 +1472,7 @@ func getPQMR(blocks []*block) (*pqmr.SegmentPQMRResults, error) {
 	for _, block := range blocks {
 		blockResults, ok := firstPQMR.GetBlockResults(block.BlkNum)
 		if !ok {
-			return nil, toputils.TeeErrorf("getPQMR: block %v not found", block.BlkNum)
+			return nil, utils.TeeErrorf("getPQMR: block %v not found", block.BlkNum)
 		}
 
 		finalPQMR.SetBlockResults(block.BlkNum, blockResults)
@@ -1493,7 +1492,7 @@ func getSSRs(blocks []*block, blockToValidRecNums map[uint16][]uint16) (map[stri
 	firstSSR := blocks[0].parentSSR
 	for _, block := range blocks {
 		if block.parentSSR != firstSSR {
-			return nil, toputils.TeeErrorf("getSSRs: blocks are from different SSRs")
+			return nil, utils.TeeErrorf("getSSRs: blocks are from different SSRs")
 		}
 	}
 
@@ -1514,8 +1513,8 @@ func getSSRs(blocks []*block, blockToValidRecNums map[uint16][]uint16) (map[stri
 	return fileToSSR, nil
 }
 
-func getValidRRCs(sortedRRCs []*segutils.RecordResultContainer, lastTimestamp uint64,
-	mode sortMode) ([]*segutils.RecordResultContainer, error) {
+func getValidRRCs(sortedRRCs []*sutils.RecordResultContainer, lastTimestamp uint64,
+	mode sortMode) ([]*sutils.RecordResultContainer, error) {
 
 	switch mode {
 	case recentFirst:
@@ -1531,6 +1530,6 @@ func getValidRRCs(sortedRRCs []*segutils.RecordResultContainer, lastTimestamp ui
 	case anyOrder:
 		return sortedRRCs, nil
 	default:
-		return nil, toputils.TeeErrorf("getValidRRCs: invalid sort mode: %v", mode)
+		return nil, utils.TeeErrorf("getValidRRCs: invalid sort mode: %v", mode)
 	}
 }

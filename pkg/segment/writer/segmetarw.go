@@ -36,7 +36,6 @@ import (
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -714,7 +713,7 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 	wg.Wait()
 
 	if hook := hooks.GlobalHooks.UploadPQMRFilesExtrasHook; hook != nil {
-		err := hook(toputils.GetKeysOfMap(pqmrFiles))
+		err := hook(utils.GetKeysOfMap(pqmrFiles))
 		if err != nil {
 			log.Errorf("processBackFillAndEmptyPQSRequests: failed at UploadPQMRFilesExtrasHook: %v", err)
 		}

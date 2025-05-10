@@ -22,7 +22,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,7 +35,7 @@ func Test_recordHeapAscending(t *testing.T) {
 	heap.Init(&pq)
 
 	for i := count; i > 0; i-- {
-		currRRC := &utils.RecordResultContainer{
+		currRRC := &sutils.RecordResultContainer{
 			SortColumnValue: float64(i),
 		}
 		currItem := &ResultRecordSort{
@@ -44,7 +44,7 @@ func Test_recordHeapAscending(t *testing.T) {
 		}
 		heap.Push(&pq, currItem)
 	}
-	currRRC := &utils.RecordResultContainer{
+	currRRC := &sutils.RecordResultContainer{
 		SortColumnValue: float64(1.1),
 	}
 	currItem := &ResultRecordSort{
@@ -77,7 +77,7 @@ func Test_recordHeapDescending(t *testing.T) {
 	pq := make(SortedResultRecords, 0)
 	heap.Init(&pq)
 
-	currRRC := &utils.RecordResultContainer{
+	currRRC := &sutils.RecordResultContainer{
 		SortColumnValue: float64(1.1),
 	}
 	currItem := &ResultRecordSort{
@@ -87,7 +87,7 @@ func Test_recordHeapDescending(t *testing.T) {
 	heap.Push(&pq, currItem)
 
 	for i := count; i > 0; i-- {
-		currRRC := &utils.RecordResultContainer{
+		currRRC := &sutils.RecordResultContainer{
 			SortColumnValue: rand.Float64(),
 		}
 		currItem := &ResultRecordSort{

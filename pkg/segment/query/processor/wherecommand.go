@@ -22,7 +22,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -39,7 +39,7 @@ func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	requiredFields := p.options.GetFields()
-	valuesOfRequiredFields := make([][]segutils.CValueEnclosure, 0, len(requiredFields))
+	valuesOfRequiredFields := make([][]sutils.CValueEnclosure, 0, len(requiredFields))
 	for _, field := range requiredFields {
 		values, err := iqr.ReadColumn(field)
 		if err != nil {
@@ -59,7 +59,7 @@ func (p *whereProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	rowsToDiscard := make([]int, 0, iqr.NumberOfRecords())
-	singleRow := make(map[string]segutils.CValueEnclosure, len(requiredFields))
+	singleRow := make(map[string]sutils.CValueEnclosure, len(requiredFields))
 	for row := 0; row < iqr.NumberOfRecords(); row++ {
 		for col, field := range requiredFields {
 			singleRow[field] = valuesOfRequiredFields[col][row]

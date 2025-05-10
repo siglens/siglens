@@ -31,7 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -565,10 +565,10 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 	return wsResponse, nil
 }
 
-func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint32, anySegKey bool, sizeLimit uint64,
+func getRawLogsAndColumns(inrrcs []*sutils.RecordResultContainer, skEnc uint32, anySegKey bool, sizeLimit uint64,
 	segencmap map[uint32]string, aggs *structs.QueryAggregators, qid uint64, allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
 	found := uint64(0)
-	rrcs := make([]*segutils.RecordResultContainer, len(inrrcs))
+	rrcs := make([]*sutils.RecordResultContainer, len(inrrcs))
 	for i := 0; i < len(inrrcs); i++ {
 		if !inrrcs[i].SegKeyInfo.IsRemote && (anySegKey || inrrcs[i].SegKeyInfo.SegKeyEnc == skEnc) {
 			rrcs[found] = inrrcs[i]

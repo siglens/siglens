@@ -28,7 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/scroll"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -222,9 +222,9 @@ func getIndexNameAggOnly(aggName string, myid int64) *structs.NodeResult {
 	}
 
 	return &structs.NodeResult{
-		AllRecords:   make([]*segutils.RecordResultContainer, 0),
+		AllRecords:   make([]*sutils.RecordResultContainer, 0),
 		Histogram:    aggResult,
-		TotalResults: &structs.QueryCount{TotalCount: totalHits, Op: segutils.Equals},
+		TotalResults: &structs.QueryCount{TotalCount: totalHits, Op: sutils.Equals},
 		SegEncToKey:  make(map[uint32]string),
 	}
 }

@@ -27,7 +27,7 @@ import (
 	"time"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -256,7 +256,7 @@ func ConvertGroupByKeyFromBytes(rec []byte) ([]interface{}, error) {
 		switch rec[idx] {
 		case VALTYPE_ENC_SMALL_STRING[0]:
 			idx += 1
-			len := int(toputils.BytesToUint16LittleEndian(rec[idx:]))
+			len := int(utils.BytesToUint16LittleEndian(rec[idx:]))
 			idx += 2
 			resultArr = append(resultArr, string(rec[idx:idx+len]))
 			idx += len
@@ -267,28 +267,28 @@ func ConvertGroupByKeyFromBytes(rec []byte) ([]interface{}, error) {
 			resultArr = append(resultArr, int8(rec[idx+1]))
 			idx += 2
 		case VALTYPE_ENC_INT16[0]:
-			resultArr = append(resultArr, toputils.BytesToInt16LittleEndian(rec[idx+1:]))
+			resultArr = append(resultArr, utils.BytesToInt16LittleEndian(rec[idx+1:]))
 			idx += 3
 		case VALTYPE_ENC_INT32[0]:
-			resultArr = append(resultArr, toputils.BytesToInt32LittleEndian(rec[idx+1:]))
+			resultArr = append(resultArr, utils.BytesToInt32LittleEndian(rec[idx+1:]))
 			idx += 5
 		case VALTYPE_ENC_INT64[0]:
-			resultArr = append(resultArr, toputils.BytesToInt64LittleEndian(rec[idx+1:]))
+			resultArr = append(resultArr, utils.BytesToInt64LittleEndian(rec[idx+1:]))
 			idx += 9
 		case VALTYPE_ENC_UINT8[0]:
 			resultArr = append(resultArr, uint8(rec[idx+1]))
 			idx += 2
 		case VALTYPE_ENC_UINT16[0]:
-			resultArr = append(resultArr, toputils.BytesToUint16LittleEndian(rec[idx+1:]))
+			resultArr = append(resultArr, utils.BytesToUint16LittleEndian(rec[idx+1:]))
 			idx += 3
 		case VALTYPE_ENC_UINT32[0]:
-			resultArr = append(resultArr, toputils.BytesToUint32LittleEndian(rec[idx+1:]))
+			resultArr = append(resultArr, utils.BytesToUint32LittleEndian(rec[idx+1:]))
 			idx += 5
 		case VALTYPE_ENC_UINT64[0]:
-			resultArr = append(resultArr, toputils.BytesToUint64LittleEndian(rec[idx+1:]))
+			resultArr = append(resultArr, utils.BytesToUint64LittleEndian(rec[idx+1:]))
 			idx += 9
 		case VALTYPE_ENC_FLOAT64[0]:
-			resultArr = append(resultArr, toputils.BytesToFloat64LittleEndian(rec[idx+1:]))
+			resultArr = append(resultArr, utils.BytesToFloat64LittleEndian(rec[idx+1:]))
 			idx += 9
 		case VALTYPE_ENC_BACKFILL[0]:
 			resultArr = append(resultArr, nil)

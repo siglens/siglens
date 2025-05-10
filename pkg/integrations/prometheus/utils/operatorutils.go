@@ -25,56 +25,55 @@ import (
 
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
-func GetLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndArithmeticOperator {
+func GetLogicalAndArithmeticOperation(op parser.ItemType) sutils.LogicalAndArithmeticOperator {
 	switch op {
 	case parser.ADD:
-		return segutils.LetAdd
+		return sutils.LetAdd
 	case parser.SUB:
-		return segutils.LetSubtract
+		return sutils.LetSubtract
 	case parser.MUL:
-		return segutils.LetMultiply
+		return sutils.LetMultiply
 	case parser.DIV:
-		return segutils.LetDivide
+		return sutils.LetDivide
 	case parser.MOD:
-		return segutils.LetModulo
+		return sutils.LetModulo
 	case parser.POW:
-		return segutils.LetPower
+		return sutils.LetPower
 	case parser.GTR:
-		return segutils.LetGreaterThan
+		return sutils.LetGreaterThan
 	case parser.GTE:
-		return segutils.LetGreaterThanOrEqualTo
+		return sutils.LetGreaterThanOrEqualTo
 	case parser.LSS:
-		return segutils.LetLessThan
+		return sutils.LetLessThan
 	case parser.LTE:
-		return segutils.LetLessThanOrEqualTo
+		return sutils.LetLessThanOrEqualTo
 	case parser.EQLC:
-		return segutils.LetEquals
+		return sutils.LetEquals
 	case parser.NEQ:
-		return segutils.LetNotEquals
+		return sutils.LetNotEquals
 	case parser.LAND:
-		return segutils.LetAnd
+		return sutils.LetAnd
 	case parser.LOR:
-		return segutils.LetOr
+		return sutils.LetOr
 	case parser.LUNLESS:
-		return segutils.LetUnless
+		return sutils.LetUnless
 	default:
 		log.Errorf("getArithmeticOperation: unexpected op: %v", op)
 		return 0
 	}
 }
 
-func IsLogicalOperator(op segutils.LogicalAndArithmeticOperator) bool {
+func IsLogicalOperator(op sutils.LogicalAndArithmeticOperator) bool {
 	switch op {
-	case segutils.LetAnd:
+	case sutils.LetAnd:
 		return true
-	case segutils.LetOr:
+	case sutils.LetOr:
 		return true
-	case segutils.LetUnless:
+	case sutils.LetUnless:
 		return true
 	default:
 		return false
@@ -94,23 +93,23 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 	}
 
 	switch queryOp.Operation {
-	case utils.LetAdd:
+	case sutils.LetAdd:
 		finalResult[groupID][timestamp] = valueLHS + valueRHS
-	case utils.LetDivide:
+	case sutils.LetDivide:
 		if valueRHS == 0 {
 			return
 		}
 		finalResult[groupID][timestamp] = valueLHS / valueRHS
-	case utils.LetMultiply:
+	case sutils.LetMultiply:
 		finalResult[groupID][timestamp] = valueLHS * valueRHS
-	case utils.LetSubtract:
+	case sutils.LetSubtract:
 		val := valueLHS - valueRHS
 		finalResult[groupID][timestamp] = val
-	case utils.LetModulo:
+	case sutils.LetModulo:
 		finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
-	case utils.LetPower:
+	case sutils.LetPower:
 		finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
-	case utils.LetGreaterThan:
+	case sutils.LetGreaterThan:
 		isGtr := valueLHS > valueRHS
 		if isGtr {
 			if queryOp.ReturnBool {
@@ -124,7 +123,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 				finalResult[groupID][timestamp] = valueLHS
 			}
 		}
-	case utils.LetGreaterThanOrEqualTo:
+	case sutils.LetGreaterThanOrEqualTo:
 		isGte := valueLHS >= valueRHS
 		if isGte {
 			if queryOp.ReturnBool {
@@ -137,7 +136,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 				finalResult[groupID][timestamp] = valueLHS
 			}
 		}
-	case utils.LetLessThan:
+	case sutils.LetLessThan:
 		isLss := valueLHS < valueRHS
 		if isLss {
 			if queryOp.ReturnBool {
@@ -150,7 +149,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 				finalResult[groupID][timestamp] = valueLHS
 			}
 		}
-	case utils.LetLessThanOrEqualTo:
+	case sutils.LetLessThanOrEqualTo:
 		isLte := valueLHS <= valueRHS
 		if isLte {
 			if queryOp.ReturnBool {
@@ -163,7 +162,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 				finalResult[groupID][timestamp] = valueLHS
 			}
 		}
-	case utils.LetEquals:
+	case sutils.LetEquals:
 		if valueLHS == valueRHS {
 			if queryOp.ReturnBool {
 				finalResult[groupID][timestamp] = 1
@@ -171,7 +170,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 				finalResult[groupID][timestamp] = valueLHS
 			}
 		}
-	case utils.LetNotEquals:
+	case sutils.LetNotEquals:
 		if valueLHS != valueRHS {
 			if queryOp.ReturnBool {
 				finalResult[groupID][timestamp] = 1
@@ -187,11 +186,11 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 	// Logical ops can only been used between 2 vectors
 	if !queryOp.ConstantOp && IsLogicalOperator(queryOp.Operation) {
 		switch queryOp.Operation {
-		case utils.LetAnd:
+		case sutils.LetAnd:
 			finalResult[groupID][timestamp] = valueLHS
-		case utils.LetOr:
+		case sutils.LetOr:
 			finalResult[groupID][timestamp] = valueLHS
-		case utils.LetUnless:
+		case sutils.LetUnless:
 			finalResult[groupID][timestamp] = valueLHS
 		default:
 			// TODO: fix the flooding of this log

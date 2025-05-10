@@ -35,8 +35,8 @@ import (
 	"github.com/siglens/siglens/pkg/ast/spl"
 	segquery "github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	putils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -233,7 +233,7 @@ func Test_searchFieldEqualToQuotedString(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, "ok", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }
 
@@ -250,7 +250,7 @@ func Test_searchFieldNotEqualToQuotedString(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.NotEquals, expressionFilter.FilterOperator)
+	assert.Equal(t, sutils.NotEquals, expressionFilter.FilterOperator)
 	assert.Equal(t, "ok", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }
 
@@ -295,7 +295,7 @@ func Test_searchFieldEqualToBooleanTrue(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, uint8(1), expressionFilter.RightInput.Expression.LeftInput.ColumnValue.BoolVal)
 }
 
@@ -312,7 +312,7 @@ func Test_searchFieldEqualToBooleanFalse(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, uint8(0), expressionFilter.RightInput.Expression.LeftInput.ColumnValue.BoolVal)
 }
 
@@ -329,7 +329,7 @@ func Test_searchFieldEqualToUnquotedString(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, "ok", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }
 
@@ -346,7 +346,7 @@ func Test_searchFieldNotEqualToUnquotedString(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.NotEquals, expressionFilter.FilterOperator)
+	assert.Equal(t, sutils.NotEquals, expressionFilter.FilterOperator)
 	assert.Equal(t, "ok", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }
 
@@ -391,8 +391,8 @@ func Test_searchInteger(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "*", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("123"), 0 /* qid */)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("123"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -410,8 +410,8 @@ func Test_searchIntegerLeadingZeros(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "*", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("00123"), 0 /* qid */)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("00123"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -429,8 +429,8 @@ func Test_searchIntegerLeadingPlusSign(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "*", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("+123"), 0 /* qid */)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("+123"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -448,8 +448,8 @@ func Test_searchNegativeInteger(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "*", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("-123"), 0 /* qid */)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("-123"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -467,8 +467,8 @@ func Test_searchFloat(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "*", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("123.5"), 0 /* qid */)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("123.5"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -486,8 +486,8 @@ func Test_searchFloatLeadingDecimal(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "*", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number(".375"), 0 /* qid */)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number(".375"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -505,8 +505,8 @@ func Test_searchFloatLeadingPlusSign(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "*", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("+0.375"), 0 /* qid */)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("+0.375"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -524,8 +524,8 @@ func Test_searchFieldEqualToNumber(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("400"), 0 /* qid */)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("400"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -543,8 +543,8 @@ func Test_searchFieldNotEqualToNumber(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.NotEquals, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("400"), 0 /* qid */)
+	assert.Equal(t, sutils.NotEquals, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("400"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -562,8 +562,8 @@ func Test_searchFieldLessThanNumber(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "latency", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.LessThan, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("1000"), 0 /* qid */)
+	assert.Equal(t, sutils.LessThan, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("1000"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -581,8 +581,8 @@ func Test_searchFieldLessThanOrEqualToNumber(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "latency", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.LessThanOrEqualTo, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("0.5"), 0 /* qid */)
+	assert.Equal(t, sutils.LessThanOrEqualTo, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("0.5"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -600,8 +600,8 @@ func Test_searchFieldGreaterThanNumber(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "latency", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.GreaterThan, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("3.175"), 0 /* qid */)
+	assert.Equal(t, sutils.GreaterThan, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("3.175"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -619,8 +619,8 @@ func Test_searchFieldGreaterThanOrEqualToNumber(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "latency", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.GreaterThanOrEqualTo, expressionFilter.FilterOperator)
-	dtype, err := utils.CreateDtypeEnclosure(json.Number("1200"), 0 /* qid */)
+	assert.Equal(t, sutils.GreaterThanOrEqualTo, expressionFilter.FilterOperator)
+	dtype, err := sutils.CreateDtypeEnclosure(json.Number("1200"), 0 /* qid */)
 	assert.Nil(t, err)
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
@@ -650,10 +650,10 @@ func Test_searchSimpleAND(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "ok")
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "latency")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.LessThan)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.LessThan)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1000))
 }
 
@@ -688,15 +688,15 @@ func Test_searchChainedAND(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 }
 
@@ -725,10 +725,10 @@ func Test_searchSimpleOR(t *testing.T) {
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "ok")
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "latency")
-	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.LessThan)
+	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.LessThan)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1000))
 }
 
@@ -763,15 +763,15 @@ func Test_searchChainedOR(t *testing.T) {
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 	assert.Len(t, astNode.OrFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.OrFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 }
 
@@ -807,15 +807,15 @@ func Test_searchANDThenOR(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 }
 
@@ -851,15 +851,15 @@ func Test_searchORThenAND(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 }
 
@@ -876,7 +876,7 @@ func Test_SimpleParentheses(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, "ok", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }
 
@@ -911,15 +911,15 @@ func Test_searchParenthesesToChangePrecedence(t *testing.T) {
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Len(t, astNode.OrFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 }
 
@@ -948,10 +948,10 @@ func Test_searchImplicitAND(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "ok")
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "latency")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.LessThan)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.LessThan)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1000))
 }
 
@@ -986,15 +986,15 @@ func Test_searchChainedImplicitAND(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 }
 
@@ -1029,15 +1029,15 @@ func Test_searchMixedImplicitAndExplicitAND(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 }
 
@@ -1061,7 +1061,7 @@ func Test_searchSimpleNOTEquals(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.NotEquals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.NotEquals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(200))
 }
 
@@ -1085,7 +1085,7 @@ func Test_searchSimpleNOTNotEquals(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(200))
 }
 
@@ -1109,7 +1109,7 @@ func Test_searchSimpleNOTLessThan(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.GreaterThanOrEqualTo)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.GreaterThanOrEqualTo)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(200))
 }
 
@@ -1133,7 +1133,7 @@ func Test_searchSimpleNOTGreaterThan(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.LessThanOrEqualTo)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.LessThanOrEqualTo)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(200))
 }
 
@@ -1157,7 +1157,7 @@ func Test_searchSimpleNOTLessThanOrEqual(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.GreaterThan)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.GreaterThan)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(200))
 }
 
@@ -1181,7 +1181,7 @@ func Test_searchSimpleNOTGreaterThanOrEqual(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.LessThan)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.LessThan)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(200))
 }
 
@@ -1205,7 +1205,7 @@ func Test_searchCancelingNots(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(200))
 }
 
@@ -1241,14 +1241,14 @@ func Test_searchCompoundNOT(t *testing.T) {
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.NotEquals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.NotEquals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "ok")
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.LessThanOrEqualTo)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.LessThanOrEqualTo)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.GreaterThanOrEqualTo)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.GreaterThanOrEqualTo)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(10))
 }
 
@@ -1273,7 +1273,7 @@ func Test_searchQuotedWildcard(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "day")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "t*day")
 }
 
@@ -1298,7 +1298,7 @@ func Test_searchUnquotedWildcard(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "day")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "t*day")
 }
 
@@ -1321,7 +1321,7 @@ func Test_searchNumberedWildcardBecomesString(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "status_code")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "50*")
 }
 
@@ -1351,10 +1351,10 @@ func Test_chainedSearch(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 }
 
@@ -1396,24 +1396,24 @@ func Test_manyChainedSearch(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	andFilter := astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition
 	assert.Len(t, andFilter.FilterCriteria, 1)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes, 1)
 	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[0].AndFilterCondition
 	assert.Len(t, andFilter.FilterCriteria, 2)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "D")
-	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(4))
 }
 
@@ -1455,24 +1455,24 @@ func Test_manyChainedSearchOptionalPipeSpacing(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	andFilter := astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition
 	assert.Len(t, andFilter.FilterCriteria, 1)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "apple")
 
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes, 1)
 	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[0].AndFilterCondition
 	assert.Len(t, andFilter.FilterCriteria, 2)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "D")
-	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(4))
 }
 
@@ -1527,7 +1527,7 @@ func Test_manyChainedCompoundSearch(t *testing.T) {
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	andFilter := astNode.AndFilterCondition
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
@@ -1535,22 +1535,22 @@ func Test_manyChainedCompoundSearch(t *testing.T) {
 	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[0].AndFilterCondition
 	assert.Len(t, andFilter.FilterCriteria, 2)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 
 	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[1].AndFilterCondition
 	assert.Len(t, andFilter.NestedNodes, 1)
 	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "D")
-	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(4))
 	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "E")
-	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(5))
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "F")
-	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(6))
 }
 
@@ -1605,7 +1605,7 @@ func Test_searchBlockWithoutUsingSearchKeyword(t *testing.T) {
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	andFilter := astNode.AndFilterCondition
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
@@ -1613,22 +1613,22 @@ func Test_searchBlockWithoutUsingSearchKeyword(t *testing.T) {
 	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[0].AndFilterCondition
 	assert.Len(t, andFilter.FilterCriteria, 2)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 
 	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[1].AndFilterCondition
 	assert.Len(t, andFilter.NestedNodes, 1)
 	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "D")
-	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(4))
 	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "E")
-	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(5))
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "F")
-	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(6))
 }
 
@@ -1658,10 +1658,10 @@ func Test_regexSingleColumnEquals(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, `^\d$`)
 
 	compiledRegex, err := regexp.Compile(`^\d$`)
@@ -1696,10 +1696,10 @@ func Test_regexSingleColumnNotEquals(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.NotEquals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.NotEquals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, `^\d$`)
 
 	compiledRegex, err := regexp.Compile(`^\d$`)
@@ -1741,10 +1741,10 @@ func Test_regexAnyColumn(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "*")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, `^\d$`)
 
 	compiledRegex, err := regexp.Compile(`^\d$`)
@@ -1791,7 +1791,7 @@ func Test_aggCountWithoutField(t *testing.T) {
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, pipeCommands.MeasureOperations, 1)
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "*")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Count)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, sutils.Count)
 
 	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
@@ -1801,13 +1801,13 @@ func Test_aggCountWithoutField(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "*")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Count)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Count)
 }
 
 func Test_aggCountAlias(t *testing.T) {
@@ -1827,7 +1827,7 @@ func Test_aggCountAlias(t *testing.T) {
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, pipeCommands.MeasureOperations, 1)
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Count)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, sutils.Count)
 
 	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
@@ -1837,13 +1837,13 @@ func Test_aggCountAlias(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Count)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Count)
 }
 
 func Test_aggDistinctCount(t *testing.T) {
@@ -1863,7 +1863,7 @@ func Test_aggDistinctCount(t *testing.T) {
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, pipeCommands.MeasureOperations, 1)
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Cardinality)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
 
 	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
@@ -1873,13 +1873,13 @@ func Test_aggDistinctCount(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Cardinality)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
 }
 
 func Test_aggDistinctCountAlias(t *testing.T) {
@@ -1899,7 +1899,7 @@ func Test_aggDistinctCountAlias(t *testing.T) {
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, pipeCommands.MeasureOperations, 1)
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Cardinality)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
 
 	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
@@ -1909,13 +1909,13 @@ func Test_aggDistinctCountAlias(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Cardinality)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
 }
 
 func Test_groupbyOneField(t *testing.T) {
@@ -1935,7 +1935,7 @@ func Test_groupbyOneField(t *testing.T) {
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
 	assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 1)
 	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 	assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
 	assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "http_status")
 	assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -1947,13 +1947,13 @@ func Test_groupbyOneField(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.GroupByType)
 	assert.Len(t, aggregator.GroupByRequest.MeasureOperations, 1)
 	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 	assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "http_status")
 	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -1976,7 +1976,7 @@ func Test_groupbyManyFields(t *testing.T) {
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
 	assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 1)
 	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 	assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 3)
 	assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "http_status")
 	assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[1], "weekday")
@@ -1991,13 +1991,13 @@ func Test_groupbyManyFields(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.GroupByType)
 	assert.Len(t, aggregator.GroupByRequest.MeasureOperations, 1)
 	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 	assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 3)
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "http_status")
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[1], "weekday")
@@ -2028,9 +2028,9 @@ func Test_timechartHasGroupby(t *testing.T) {
 		assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
 		assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 2)
 		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureCol, "latitude")
-		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Sum)
+		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc, sutils.Sum)
 		assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
 		assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "timestamp")
 		assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -2052,15 +2052,15 @@ func Test_timechartHasGroupby(t *testing.T) {
 
 		assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 		assert.Equal(t, aggregator.PipeCommandType, structs.GroupByType)
 		assert.Len(t, aggregator.GroupByRequest.MeasureOperations, 2)
 		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureCol, "latitude")
-		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Sum)
+		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, sutils.Sum)
 		assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
 		assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "timestamp")
 		assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -2099,9 +2099,9 @@ func Test_timechartWithoutGroupby(t *testing.T) {
 		assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
 		assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 2)
 		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Min)
+		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Min)
 		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureCol, "longitude")
-		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Range)
+		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc, sutils.Range)
 		assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
 		assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "timestamp")
 		assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -2120,15 +2120,15 @@ func Test_timechartWithoutGroupby(t *testing.T) {
 
 		assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 		assert.Equal(t, aggregator.PipeCommandType, structs.GroupByType)
 		assert.Len(t, aggregator.GroupByRequest.MeasureOperations, 2)
 		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Min)
+		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Min)
 		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureCol, "longitude")
-		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Range)
+		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, sutils.Range)
 		assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
 		assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "timestamp")
 		assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -2163,9 +2163,9 @@ func Test_timechartWithoutGroupBy(t *testing.T) {
 		assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
 		assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 2)
 		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureCol, "latitude")
-		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Sum)
+		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc, sutils.Sum)
 		assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
 		assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "timestamp")
 		assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -2182,15 +2182,15 @@ func Test_timechartWithoutGroupBy(t *testing.T) {
 
 		assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 		assert.Equal(t, aggregator.PipeCommandType, structs.GroupByType)
 		assert.Len(t, aggregator.GroupByRequest.MeasureOperations, 2)
 		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureCol, "latitude")
-		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Sum)
+		assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, sutils.Sum)
 		assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
 		assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "timestamp")
 		assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -2226,7 +2226,7 @@ func Test_TimechartSpanArgWithoutGroupBy(t *testing.T) {
 		assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
 		assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 1)
 		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 		assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
 		assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "timestamp")
 		assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -2261,7 +2261,7 @@ func Test_LogHistogramIntervalCalculation(t *testing.T) {
 	assert.NotNil(t, aggregator.TimeHistogram.Timechart.BinOptions.SpanOptions)
 	assert.NotNil(t, aggregator.TimeHistogram.Timechart.BinOptions.SpanOptions.DefaultSettings)
 	assert.Equal(t, 1, aggregator.TimeHistogram.Timechart.BinOptions.SpanOptions.SpanLength.Num)
-	assert.Equal(t, utils.TimeUnit(utils.TMMinute), aggregator.TimeHistogram.Timechart.BinOptions.SpanOptions.SpanLength.TimeScalr)
+	assert.Equal(t, sutils.TimeUnit(sutils.TMMinute), aggregator.TimeHistogram.Timechart.BinOptions.SpanOptions.SpanLength.TimeScalr)
 
 }
 
@@ -2284,10 +2284,10 @@ func Test_aggHasEvalFuncWithoutGroupBy(t *testing.T) {
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, pipeCommands.MeasureOperations, 2)
 	assert.Equal(t, "latitude", pipeCommands.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, utils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
 
 	assert.Equal(t, "range(eval(latitude >= 0))", pipeCommands.MeasureOperations[1].StrEnc)
-	assert.Equal(t, utils.Range, pipeCommands.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, sutils.Range, pipeCommands.MeasureOperations[1].MeasureFunc)
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMBooleanExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr)
@@ -2318,7 +2318,7 @@ func Test_aggHasEvalFuncWithGroupBy(t *testing.T) {
 	assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 2)
 
 	assert.Equal(t, "count(eval(http_status >= 100))", pipeCommands.GroupByRequest.MeasureOperations[0].StrEnc)
-	assert.Equal(t, utils.Count, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Count, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc)
 	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest)
 	assert.Equal(t, structs.VEMBooleanExpr, int(pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.ValueExprMode))
 	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.BooleanExpr)
@@ -2330,7 +2330,7 @@ func Test_aggHasEvalFuncWithGroupBy(t *testing.T) {
 	assert.Equal(t, "100", pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.BooleanExpr.RightValue.NumericExpr.Value)
 
 	assert.Equal(t, "values(eval(if(len(state) > 5, job_title, city)))", pipeCommands.GroupByRequest.MeasureOperations[1].StrEnc)
-	assert.Equal(t, utils.Values, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, sutils.Values, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc)
 	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMConditionExpr, int(pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ValueExprMode))
 	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr)
@@ -2384,7 +2384,7 @@ func Test_fieldSelectImplicitPlus(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
@@ -2420,7 +2420,7 @@ func Test_fieldSelectExplicitPlus(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
@@ -2456,7 +2456,7 @@ func Test_fieldSelectMinus(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
@@ -2494,7 +2494,7 @@ func Test_fieldSelectManyFields(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
@@ -2524,7 +2524,7 @@ func Test_commentAtStart(t *testing.T) {
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 }
 
@@ -2554,10 +2554,10 @@ func Test_commentInMiddle(t *testing.T) {
 	assert.Len(t, astNode.OrFilterCondition.NestedNodes, 0)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 }
 
@@ -2580,7 +2580,7 @@ func Test_commentAtEnd(t *testing.T) {
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 }
 
@@ -2603,7 +2603,7 @@ func Test_commentContainingQuotes(t *testing.T) {
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 }
 
@@ -2626,7 +2626,7 @@ func Test_commentContainingBackticks(t *testing.T) {
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 }
 
@@ -2650,7 +2650,7 @@ func Test_commentInsideQuotes(t *testing.T) {
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 0)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "Hello, ```this is not commented out``` world!")
 }
 
@@ -2674,13 +2674,13 @@ func Test_renameOneAggField(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Avg)
 
 	renameAgg := aggregator.Next
 	assert.NotNil(t, renameAgg)
@@ -2712,17 +2712,17 @@ func Test_renameManyAggFields(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 3)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Avg)
 	assert.Equal(t, aggregator.MeasureOperations[1].MeasureCol, "*")
-	assert.Equal(t, aggregator.MeasureOperations[1].MeasureFunc, utils.Count)
+	assert.Equal(t, aggregator.MeasureOperations[1].MeasureFunc, sutils.Count)
 	assert.Equal(t, aggregator.MeasureOperations[2].MeasureCol, "latency")
-	assert.Equal(t, aggregator.MeasureOperations[2].MeasureFunc, utils.Min)
+	assert.Equal(t, aggregator.MeasureOperations[2].MeasureFunc, sutils.Min)
 
 	renameAgg := aggregator.Next
 	assert.NotNil(t, renameAgg)
@@ -2753,15 +2753,15 @@ func Test_renameFieldsWithGroupby(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.GroupByType)
 	assert.Len(t, aggregator.GroupByRequest.MeasureOperations, 2)
 	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureCol, "*")
-	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Count)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, sutils.Count)
 	assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 2)
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "weekday")
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[1], "city")
@@ -3965,7 +3965,7 @@ func Test_evalFunctionsIfAndSearchMatch(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "searchmatch")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.RawString, "x=hi y=*")
-	assert.True(t, putils.CompareStringSlices(expectedFields, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
+	assert.True(t, utils.CompareStringSlices(expectedFields, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
 	assert.Nil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue)
 
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "yes")
@@ -4164,8 +4164,8 @@ func Test_evalFunctionsRelativeTime(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Op, "now")
 	assert.True(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.IsTerminal)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.RelativeTime.Offset, int64(-1))
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.RelativeTime.TimeUnit, utils.TMDay)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.RelativeTime.Snap, fmt.Sprintf("%d", utils.TMDay))
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.RelativeTime.TimeUnit, sutils.TMDay)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.RelativeTime.Snap, fmt.Sprintf("%d", sutils.TMDay))
 }
 
 func Test_evalFunctionsStrfTime(t *testing.T) {
@@ -5498,15 +5498,15 @@ func Test_evalWithMultipleSpaces2(t *testing.T) {
 	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Len(t, astNode.OrFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 }
 
@@ -5541,10 +5541,10 @@ func Test_multilineQuery(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, `^\d$`)
 
 	compiledRegex, err := regexp.Compile(`^\d$`)
@@ -6382,7 +6382,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 								MatchWords: [][]byte{
 									[]byte("foo"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: sutils.And,
 								MatchPhrase:   []byte("foo"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -6393,7 +6393,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 								MatchWords: [][]byte{
 									[]byte("bar2"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: sutils.And,
 								MatchPhrase:   []byte("bar2"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -6420,16 +6420,16 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											ColumnValue: nil,
 											ColumnName:  "status",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.Equals,
+								FilterOperator: sutils.Equals,
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:     utils.SS_DT_STRING,
+											ColumnValue: &sutils.DtypeEnclosure{
+												Dtype:     sutils.SS_DT_STRING,
 												StringVal: "ok",
 											},
 										},
@@ -6451,7 +6451,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 								MatchWords: [][]byte{
 									[]byte("bar"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: sutils.And,
 								MatchPhrase:   []byte("bar"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -6467,7 +6467,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											MatchWords: [][]byte{
 												[]byte("foo"),
 											},
-											MatchOperator: utils.And,
+											MatchOperator: sutils.And,
 											MatchPhrase:   []byte("foo"),
 											MatchType:     structs.MATCH_PHRASE,
 										},
@@ -6478,7 +6478,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											MatchWords: [][]byte{
 												[]byte("foo1"),
 											},
-											MatchOperator: utils.And,
+											MatchOperator: sutils.And,
 											MatchPhrase:   []byte("foo1"),
 											MatchType:     structs.MATCH_PHRASE,
 										},
@@ -6508,16 +6508,16 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											ColumnValue: nil,
 											ColumnName:  "duration",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.GreaterThan,
+								FilterOperator: sutils.GreaterThan,
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+											ColumnValue: &sutils.DtypeEnclosure{
+												Dtype:       sutils.SS_DT_UNSIGNED_NUM,
 												UnsignedVal: uint64(10),
 												SignedVal:   int64(10),
 												FloatVal:    float64(10),
@@ -6572,16 +6572,16 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											ColumnValue: nil,
 											ColumnName:  "status",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.Equals,
+								FilterOperator: sutils.Equals,
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:     utils.SS_DT_STRING,
+											ColumnValue: &sutils.DtypeEnclosure{
+												Dtype:     sutils.SS_DT_STRING,
 												StringVal: "Ok",
 											},
 										},
@@ -6614,15 +6614,15 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											ColumnValue: nil,
 											ColumnName:  "status",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+											ColumnValue: &sutils.DtypeEnclosure{
+												Dtype:       sutils.SS_DT_UNSIGNED_NUM,
 												StringVal:   "300",
 												UnsignedVal: uint64(300),
 												SignedVal:   int64(300),
@@ -6630,11 +6630,11 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											},
 											ColumnName: "",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.Equals,
+								FilterOperator: sutils.Equals,
 							},
 						},
 						{
@@ -6645,24 +6645,24 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											ColumnValue: nil,
 											ColumnName:  "status",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:     utils.SS_DT_STRING,
+											ColumnValue: &sutils.DtypeEnclosure{
+												Dtype:     sutils.SS_DT_STRING,
 												StringVal: "bar",
 											},
 											ColumnName: "",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.Equals,
+								FilterOperator: sutils.Equals,
 							},
 						},
 					},
@@ -6691,24 +6691,24 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											ColumnValue: nil,
 											ColumnName:  "action",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:     utils.SS_DT_STRING,
+											ColumnValue: &sutils.DtypeEnclosure{
+												Dtype:     sutils.SS_DT_STRING,
 												StringVal: "login",
 											},
 											ColumnName: "",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.Equals,
+								FilterOperator: sutils.Equals,
 							},
 						},
 					},
@@ -6724,24 +6724,24 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 														ColumnValue: nil,
 														ColumnName:  "status",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: sutils.Add,
 													RightInput:   nil,
 												},
 											},
 											RightInput: &structs.FilterInput{
 												Expression: &structs.Expression{
 													LeftInput: &structs.ExpressionInput{
-														ColumnValue: &utils.DtypeEnclosure{
-															Dtype:     utils.SS_DT_STRING,
+														ColumnValue: &sutils.DtypeEnclosure{
+															Dtype:     sutils.SS_DT_STRING,
 															StringVal: "foo",
 														},
 														ColumnName: "",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: sutils.Add,
 													RightInput:   nil,
 												},
 											},
-											FilterOperator: utils.Equals,
+											FilterOperator: sutils.Equals,
 										},
 									},
 									{
@@ -6752,24 +6752,24 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 														ColumnValue: nil,
 														ColumnName:  "status",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: sutils.Add,
 													RightInput:   nil,
 												},
 											},
 											RightInput: &structs.FilterInput{
 												Expression: &structs.Expression{
 													LeftInput: &structs.ExpressionInput{
-														ColumnValue: &utils.DtypeEnclosure{
-															Dtype:     utils.SS_DT_STRING,
+														ColumnValue: &sutils.DtypeEnclosure{
+															Dtype:     sutils.SS_DT_STRING,
 															StringVal: "bar",
 														},
 														ColumnName: "",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: sutils.Add,
 													RightInput:   nil,
 												},
 											},
-											FilterOperator: utils.Equals,
+											FilterOperator: sutils.Equals,
 										},
 									},
 								},
@@ -6820,16 +6820,16 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											ColumnValue: nil,
 											ColumnName:  "status",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.GreaterThan,
+								FilterOperator: sutils.GreaterThan,
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+											ColumnValue: &sutils.DtypeEnclosure{
+												Dtype:       sutils.SS_DT_UNSIGNED_NUM,
 												UnsignedVal: uint64(300),
 												SignedVal:   int64(300),
 												FloatVal:    float64(300),
@@ -6848,16 +6848,16 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											ColumnValue: nil,
 											ColumnName:  "status",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.Equals,
+								FilterOperator: sutils.Equals,
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+											ColumnValue: &sutils.DtypeEnclosure{
+												Dtype:       sutils.SS_DT_UNSIGNED_NUM,
 												UnsignedVal: uint64(201),
 												SignedVal:   int64(201),
 												FloatVal:    float64(201),
@@ -6884,24 +6884,24 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 											ColumnValue: nil,
 											ColumnName:  "action",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:     utils.SS_DT_STRING,
+											ColumnValue: &sutils.DtypeEnclosure{
+												Dtype:     sutils.SS_DT_STRING,
 												StringVal: "login",
 											},
 											ColumnName: "",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: sutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.Equals,
+								FilterOperator: sutils.Equals,
 							},
 						},
 					},
@@ -6917,24 +6917,24 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 														ColumnValue: nil,
 														ColumnName:  "status",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: sutils.Add,
 													RightInput:   nil,
 												},
 											},
 											RightInput: &structs.FilterInput{
 												Expression: &structs.Expression{
 													LeftInput: &structs.ExpressionInput{
-														ColumnValue: &utils.DtypeEnclosure{
-															Dtype:     utils.SS_DT_STRING,
+														ColumnValue: &sutils.DtypeEnclosure{
+															Dtype:     sutils.SS_DT_STRING,
 															StringVal: "foo",
 														},
 														ColumnName: "",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: sutils.Add,
 													RightInput:   nil,
 												},
 											},
-											FilterOperator: utils.Equals,
+											FilterOperator: sutils.Equals,
 										},
 									},
 									{
@@ -6945,24 +6945,24 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 														ColumnValue: nil,
 														ColumnName:  "status",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: sutils.Add,
 													RightInput:   nil,
 												},
 											},
 											RightInput: &structs.FilterInput{
 												Expression: &structs.Expression{
 													LeftInput: &structs.ExpressionInput{
-														ColumnValue: &utils.DtypeEnclosure{
-															Dtype:     utils.SS_DT_STRING,
+														ColumnValue: &sutils.DtypeEnclosure{
+															Dtype:     sutils.SS_DT_STRING,
 															StringVal: "bar",
 														},
 														ColumnName: "",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: sutils.Add,
 													RightInput:   nil,
 												},
 											},
-											FilterOperator: utils.Equals,
+											FilterOperator: sutils.Equals,
 										},
 									},
 								},
@@ -6989,7 +6989,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 								MatchWords: [][]byte{
 									[]byte("GET"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: sutils.And,
 								MatchPhrase:   []byte("GET"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -7000,7 +7000,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 								MatchWords: [][]byte{
 									[]byte("POST1"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: sutils.And,
 								MatchPhrase:   []byte("POST1"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -7019,7 +7019,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 								MatchWords: [][]byte{
 									[]byte("DELETE"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: sutils.And,
 								MatchPhrase:   []byte("DELETE"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -7030,7 +7030,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 								MatchWords: [][]byte{
 									[]byte("POST2"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: sutils.And,
 								MatchPhrase:   []byte("POST2"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -7055,7 +7055,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 								MatchWords: [][]byte{
 									[]byte("GET"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: sutils.And,
 								MatchPhrase:   []byte("GET"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -7066,7 +7066,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 								MatchWords: [][]byte{
 									[]byte("POST1"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: sutils.And,
 								MatchPhrase:   []byte("POST1"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -7085,7 +7085,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 								MatchWords: [][]byte{
 									[]byte("DELETE"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: sutils.And,
 								MatchPhrase:   []byte("DELETE"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -7842,9 +7842,9 @@ func Test_CalculateRelativeTime_2(t *testing.T) {
 		RelativeTime: ast.RelativeTimeModifier{
 			RelativeTimeOffset: ast.RelativeTimeOffset{
 				Offset:   -1,
-				TimeUnit: utils.TMHour,
+				TimeUnit: sutils.TMHour,
 			},
-			Snap: strconv.Itoa(int(utils.TMHour)),
+			Snap: strconv.Itoa(int(sutils.TMHour)),
 		},
 	}
 	epoch, err := spl.CalculateRelativeTime(tm, currTime)
@@ -7860,7 +7860,7 @@ func Test_CalculateRelativeTime_3(t *testing.T) {
 		RelativeTime: ast.RelativeTimeModifier{
 			RelativeTimeOffset: ast.RelativeTimeOffset{
 				Offset:   -24,
-				TimeUnit: utils.TMHour,
+				TimeUnit: sutils.TMHour,
 			},
 		},
 	}
@@ -7877,7 +7877,7 @@ func Test_CalculateRelativeTime_4(t *testing.T) {
 		RelativeTime: ast.RelativeTimeModifier{
 			RelativeTimeOffset: ast.RelativeTimeOffset{
 				Offset:   -1,
-				TimeUnit: utils.TMYear,
+				TimeUnit: sutils.TMYear,
 			},
 			Snap: "w0",
 		},
@@ -7910,9 +7910,9 @@ func Test_CalculateRelativeTime_6(t *testing.T) {
 		RelativeTime: ast.RelativeTimeModifier{
 			RelativeTimeOffset: ast.RelativeTimeOffset{
 				Offset:   -7,
-				TimeUnit: utils.TMDay,
+				TimeUnit: sutils.TMDay,
 			},
-			Snap: strconv.Itoa(int(utils.TMMinute)),
+			Snap: strconv.Itoa(int(sutils.TMMinute)),
 		},
 	}
 	epoch, err := spl.CalculateRelativeTime(tm, currTime)
@@ -7928,9 +7928,9 @@ func Test_CalculateRelativeTime_7(t *testing.T) {
 		RelativeTime: ast.RelativeTimeModifier{
 			RelativeTimeOffset: ast.RelativeTimeOffset{
 				Offset:   -1,
-				TimeUnit: utils.TMYear,
+				TimeUnit: sutils.TMYear,
 			},
-			Snap: strconv.Itoa(int(utils.TMYear)),
+			Snap: strconv.Itoa(int(sutils.TMYear)),
 		},
 	}
 	epoch, err := spl.CalculateRelativeTime(tm, currTime)
@@ -7944,7 +7944,7 @@ func Test_CalculateRelativeTime_8(t *testing.T) {
 	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
 	tm := ast.TimeModifier{
 		RelativeTime: ast.RelativeTimeModifier{
-			Snap: strconv.Itoa(int(utils.TMQuarter)),
+			Snap: strconv.Itoa(int(sutils.TMQuarter)),
 		},
 	}
 	epoch, err := spl.CalculateRelativeTime(tm, currTime)
@@ -7960,9 +7960,9 @@ func Test_CalculateRelativeTime_9(t *testing.T) {
 		RelativeTime: ast.RelativeTimeModifier{
 			RelativeTimeOffset: ast.RelativeTimeOffset{
 				Offset:   -1,
-				TimeUnit: utils.TMWeek,
+				TimeUnit: sutils.TMWeek,
 			},
-			Snap: strconv.Itoa(int(utils.TMMonth)),
+			Snap: strconv.Itoa(int(sutils.TMMonth)),
 		},
 	}
 	epoch, err := spl.CalculateRelativeTime(tm, currTime)
@@ -7978,9 +7978,9 @@ func Test_CalculateRelativeTime_10(t *testing.T) {
 		RelativeTime: ast.RelativeTimeModifier{
 			RelativeTimeOffset: ast.RelativeTimeOffset{
 				Offset:   -1,
-				TimeUnit: utils.TMQuarter,
+				TimeUnit: sutils.TMQuarter,
 			},
-			Snap: strconv.Itoa(int(utils.TMMonth)),
+			Snap: strconv.Itoa(int(sutils.TMMonth)),
 		},
 	}
 	epoch, err := spl.CalculateRelativeTime(tm, currTime)
@@ -8298,7 +8298,7 @@ func performSearchMatchCheck(t *testing.T, query string, expectedFields []string
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "searchmatch")
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.RawString, searchStr)
-	assert.True(t, putils.CompareStringSlices(expectedFields, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
+	assert.True(t, utils.CompareStringSlices(expectedFields, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue)
 
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "yes")
@@ -8933,7 +8933,7 @@ func Test_Bin(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength)
 	assert.Equal(t, float64(1), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.Num)
-	assert.Equal(t, utils.TMHour, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
+	assert.Equal(t, sutils.TMHour, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
 
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
@@ -8961,7 +8961,7 @@ func Test_Bin2(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
 	assert.Equal(t, float64(1), aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan.Num)
-	assert.Equal(t, utils.TMMonth, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan.TimeScale)
+	assert.Equal(t, sutils.TMMonth, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan.TimeScale)
 
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
@@ -9104,7 +9104,7 @@ func Test_Bin7(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength)
 	assert.Equal(t, float64(123.456), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.Num)
-	assert.Equal(t, utils.TMInvalid, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
+	assert.Equal(t, sutils.TMInvalid, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.LogSpan)
 
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
@@ -9224,7 +9224,7 @@ func Test_Bin13(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength)
 	assert.Equal(t, float64(123.456), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.Num)
-	assert.Equal(t, utils.TMInvalid, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
+	assert.Equal(t, sutils.TMInvalid, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.LogSpan)
 
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
@@ -9292,7 +9292,7 @@ func Test_Bin15(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength)
 	assert.Equal(t, float64(250.5), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.Num)
-	assert.Equal(t, utils.TMInvalid, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
+	assert.Equal(t, sutils.TMInvalid, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.LogSpan)
 
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
@@ -9411,7 +9411,7 @@ func Test_Bin22(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength)
 	assert.Equal(t, float64(2), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.Num)
-	assert.Equal(t, utils.TMDecisecond, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
+	assert.Equal(t, sutils.TMDecisecond, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
 
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
@@ -9440,7 +9440,7 @@ func Test_Bin23(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength)
 	assert.Equal(t, float64(10), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.Num)
-	assert.Equal(t, utils.TMCentisecond, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
+	assert.Equal(t, sutils.TMCentisecond, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
 
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
@@ -9504,14 +9504,14 @@ func Test_StreamStats(t *testing.T) {
 	assert.Equal(t, false, aggregator.StreamStatsOptions.ResetOnChange)
 	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
 	assert.Equal(t, float64(1), aggregator.StreamStatsOptions.TimeWindow.Num)
-	assert.Equal(t, utils.TMHour, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+	assert.Equal(t, sutils.TMHour, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
 	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter)
 	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore)
 
 	assert.Nil(t, aggregator.GroupByRequest)
 	assert.NotNil(t, aggregator.MeasureOperations)
 	assert.Equal(t, 1, len(aggregator.MeasureOperations))
-	assert.Equal(t, utils.Count, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Count, aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "timestamp", aggregator.MeasureOperations[0].MeasureCol)
 
 	assert.Nil(t, aggregator.OutputTransforms)
@@ -9549,22 +9549,22 @@ func Test_StreamStats_2(t *testing.T) {
 	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetOnChange)
 	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
 	assert.Equal(t, float64(7), aggregator.StreamStatsOptions.TimeWindow.Num)
-	assert.Equal(t, utils.TMSecond, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+	assert.Equal(t, sutils.TMSecond, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
 	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter)
 	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore)
 
 	assert.Nil(t, aggregator.GroupByRequest)
 	assert.NotNil(t, aggregator.MeasureOperations)
 	assert.Equal(t, 5, len(aggregator.MeasureOperations))
-	assert.Equal(t, utils.Count, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Count, aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "*", aggregator.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, utils.Median, aggregator.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, sutils.Median, aggregator.MeasureOperations[1].MeasureFunc)
 	assert.Equal(t, "sale_amount", aggregator.MeasureOperations[1].MeasureCol)
-	assert.Equal(t, utils.Stdev, aggregator.MeasureOperations[2].MeasureFunc)
+	assert.Equal(t, sutils.Stdev, aggregator.MeasureOperations[2].MeasureFunc)
 	assert.Equal(t, "revenue", aggregator.MeasureOperations[2].MeasureCol)
-	assert.Equal(t, utils.Range, aggregator.MeasureOperations[3].MeasureFunc)
+	assert.Equal(t, sutils.Range, aggregator.MeasureOperations[3].MeasureFunc)
 	assert.Equal(t, "price", aggregator.MeasureOperations[3].MeasureCol)
-	assert.Equal(t, utils.Mode, aggregator.MeasureOperations[4].MeasureFunc)
+	assert.Equal(t, sutils.Mode, aggregator.MeasureOperations[4].MeasureFunc)
 	assert.Equal(t, "product_category", aggregator.MeasureOperations[4].MeasureCol)
 
 	assert.Nil(t, aggregator.OutputTransforms)
@@ -9615,12 +9615,12 @@ func Test_StreamStats_3(t *testing.T) {
 	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetOnChange)
 	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
 	assert.Equal(t, float64(7), aggregator.StreamStatsOptions.TimeWindow.Num)
-	assert.Equal(t, utils.TMSecond, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+	assert.Equal(t, sutils.TMSecond, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
 
 	assert.Nil(t, aggregator.GroupByRequest)
 	assert.NotNil(t, aggregator.MeasureOperations)
 	assert.Equal(t, 1, len(aggregator.MeasureOperations))
-	assert.Equal(t, utils.Max, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Max, aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "abc", aggregator.MeasureOperations[0].MeasureCol)
 
 	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore)
@@ -9680,12 +9680,12 @@ func Test_StreamStats_4(t *testing.T) {
 	assert.Equal(t, true, aggregator.StreamStatsOptions.ResetOnChange)
 	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
 	assert.Equal(t, float64(7), aggregator.StreamStatsOptions.TimeWindow.Num)
-	assert.Equal(t, utils.TMSecond, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+	assert.Equal(t, sutils.TMSecond, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
 
 	assert.Nil(t, aggregator.GroupByRequest)
 	assert.NotNil(t, aggregator.MeasureOperations)
 	assert.Equal(t, 1, len(aggregator.MeasureOperations))
-	assert.Equal(t, utils.Median, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Median, aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "abc", aggregator.MeasureOperations[0].MeasureCol)
 
 	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore)
@@ -9745,21 +9745,21 @@ func Test_StreamStats_5(t *testing.T) {
 	assert.Equal(t, false, aggregator.StreamStatsOptions.ResetOnChange)
 	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
 	assert.Equal(t, float64(1), aggregator.StreamStatsOptions.TimeWindow.Num)
-	assert.Equal(t, utils.TMQuarter, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+	assert.Equal(t, sutils.TMQuarter, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
 	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore)
 
 	assert.Nil(t, aggregator.MeasureOperations)
 	assert.NotNil(t, aggregator.GroupByRequest)
 	assert.Equal(t, 3, len(aggregator.GroupByRequest.MeasureOperations))
-	assert.Equal(t, utils.Count, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Count, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "*", aggregator.GroupByRequest.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, utils.Sum, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, sutils.Sum, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc)
 	assert.Equal(t, "latency", aggregator.GroupByRequest.MeasureOperations[1].MeasureCol)
-	assert.Equal(t, utils.Min, aggregator.GroupByRequest.MeasureOperations[2].MeasureFunc)
+	assert.Equal(t, sutils.Min, aggregator.GroupByRequest.MeasureOperations[2].MeasureFunc)
 	assert.Equal(t, "bytes", aggregator.GroupByRequest.MeasureOperations[2].MeasureCol)
 
 	assert.NotNil(t, aggregator.GroupByRequest.GroupByColumns)
-	assert.Equal(t, true, putils.CompareStringSlices([]string{"first_name", "city"}, aggregator.GroupByRequest.GroupByColumns))
+	assert.Equal(t, true, utils.CompareStringSlices([]string{"first_name", "city"}, aggregator.GroupByRequest.GroupByColumns))
 
 	assert.NotNil(t, aggregator.StreamStatsOptions.ResetAfter)
 	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter.LeftValue)
@@ -9888,21 +9888,21 @@ func Test_StreamStats_11(t *testing.T) {
 
 	assert.NotNil(t, aggregator.GroupByRequest)
 	assert.Equal(t, 6, len(aggregator.GroupByRequest.MeasureOperations))
-	assert.Equal(t, utils.Count, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Count, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "*", aggregator.GroupByRequest.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, utils.Cardinality, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, sutils.Cardinality, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc)
 	assert.Equal(t, "user", aggregator.GroupByRequest.MeasureOperations[1].MeasureCol)
-	assert.Equal(t, utils.Avg, aggregator.GroupByRequest.MeasureOperations[2].MeasureFunc)
+	assert.Equal(t, sutils.Avg, aggregator.GroupByRequest.MeasureOperations[2].MeasureFunc)
 	assert.Equal(t, "response_time", aggregator.GroupByRequest.MeasureOperations[2].MeasureCol)
-	assert.Equal(t, utils.Max, aggregator.GroupByRequest.MeasureOperations[3].MeasureFunc)
+	assert.Equal(t, sutils.Max, aggregator.GroupByRequest.MeasureOperations[3].MeasureFunc)
 	assert.Equal(t, "response_time", aggregator.GroupByRequest.MeasureOperations[3].MeasureCol)
-	assert.Equal(t, utils.Min, aggregator.GroupByRequest.MeasureOperations[4].MeasureFunc)
+	assert.Equal(t, sutils.Min, aggregator.GroupByRequest.MeasureOperations[4].MeasureFunc)
 	assert.Equal(t, "response_time", aggregator.GroupByRequest.MeasureOperations[4].MeasureCol)
-	assert.Equal(t, utils.Sum, aggregator.GroupByRequest.MeasureOperations[5].MeasureFunc)
+	assert.Equal(t, sutils.Sum, aggregator.GroupByRequest.MeasureOperations[5].MeasureFunc)
 	assert.Equal(t, "bytes", aggregator.GroupByRequest.MeasureOperations[5].MeasureCol)
 
 	assert.NotNil(t, aggregator.GroupByRequest.GroupByColumns)
-	assert.Equal(t, true, putils.CompareStringSlices([]string{"host", "application"}, aggregator.GroupByRequest.GroupByColumns))
+	assert.Equal(t, true, utils.CompareStringSlices([]string{"host", "application"}, aggregator.GroupByRequest.GroupByColumns))
 
 	assert.NotNil(t, aggregator.Next)
 	assert.Nil(t, aggregator.Next.Next)
@@ -9958,11 +9958,11 @@ func Test_StreamStats_12(t *testing.T) {
 
 	assert.NotNil(t, aggregator.GroupByRequest)
 	assert.Equal(t, 1, len(aggregator.GroupByRequest.MeasureOperations))
-	assert.Equal(t, utils.Count, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Count, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "*", aggregator.GroupByRequest.MeasureOperations[0].MeasureCol)
 
 	assert.NotNil(t, aggregator.GroupByRequest.GroupByColumns)
-	assert.Equal(t, true, putils.CompareStringSlices([]string{"first_name", "city", "age"}, aggregator.GroupByRequest.GroupByColumns))
+	assert.Equal(t, true, utils.CompareStringSlices([]string{"first_name", "city", "age"}, aggregator.GroupByRequest.GroupByColumns))
 
 	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore)
 	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore.LeftValue)
@@ -10041,18 +10041,18 @@ func Test_StreamStats_16(t *testing.T) {
 	assert.Equal(t, false, aggregator.StreamStatsOptions.ResetOnChange)
 	assert.NotNil(t, aggregator.StreamStatsOptions.TimeWindow)
 	assert.Equal(t, float64(11), aggregator.StreamStatsOptions.TimeWindow.Num)
-	assert.Equal(t, utils.TMYear, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
+	assert.Equal(t, sutils.TMYear, aggregator.StreamStatsOptions.TimeWindow.TimeScale)
 	assert.Nil(t, aggregator.StreamStatsOptions.ResetAfter)
 	assert.Nil(t, aggregator.StreamStatsOptions.ResetBefore)
 	assert.Nil(t, aggregator.GroupByRequest)
 
 	assert.NotNil(t, aggregator.MeasureOperations)
 	assert.Equal(t, 3, len(aggregator.MeasureOperations))
-	assert.Equal(t, utils.Count, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Count, aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "*", aggregator.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, utils.Max, aggregator.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, sutils.Max, aggregator.MeasureOperations[1].MeasureFunc)
 	assert.Equal(t, "abc", aggregator.MeasureOperations[1].MeasureCol)
-	assert.Equal(t, utils.Avg, aggregator.MeasureOperations[2].MeasureFunc)
+	assert.Equal(t, sutils.Avg, aggregator.MeasureOperations[2].MeasureFunc)
 	assert.Equal(t, "def", aggregator.MeasureOperations[2].MeasureCol)
 
 	assert.Nil(t, aggregator.OutputTransforms)
@@ -10145,11 +10145,11 @@ func Test_FillNull_ValueArg_FieldList(t *testing.T) {
 	assert.Equal(t, []string{"field1", "field2"}, aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList)
 }
 
-func getMeasureFuncStr(measureFunc utils.AggregateFunctions) (string, string) {
+func getMeasureFuncStr(measureFunc sutils.AggregateFunctions) (string, string) {
 	switch measureFunc {
-	case utils.Cardinality:
+	case sutils.Cardinality:
 		return "dc", ""
-	case utils.Perc, utils.ExactPerc, utils.UpperPerc:
+	case sutils.Perc, sutils.ExactPerc, sutils.UpperPerc:
 		percentStr := fmt.Sprintf("%v", rand.Float64()*100)
 		return measureFunc.String() + percentStr, percentStr
 	default:
@@ -10157,9 +10157,9 @@ func getMeasureFuncStr(measureFunc utils.AggregateFunctions) (string, string) {
 	}
 }
 
-func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions) {
+func testSingleAggregateFunction(t *testing.T, aggFunc sutils.AggregateFunctions) {
 	measureFuncStr, param := getMeasureFuncStr(aggFunc)
-	measureCol := putils.GetRandomString(10, putils.Alpha)
+	measureCol := utils.GetRandomString(10, utils.Alpha)
 	query := []byte(`search A=1 | stats ` + measureFuncStr + `(` + measureCol + `)`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
@@ -10185,7 +10185,7 @@ func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions)
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
@@ -10195,7 +10195,7 @@ func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions)
 	assert.Equal(t, aggregator.MeasureOperations[0].Param, param)
 }
 
-func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc utils.AggregateFunctions) {
+func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc sutils.AggregateFunctions) {
 	// Query Form: city=Boston | stats max(latitude), measureFunc(eval(latitude >= 0 AND http_method="GET"))
 	measureFuncStr, param := getMeasureFuncStr(measureFunc)
 	measureWithEvalStr := measureFuncStr + `(eval(latitude >= 0 AND http_method="GET"))`
@@ -10217,7 +10217,7 @@ func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc utils.AggregateFun
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, pipeCommands.MeasureOperations, 2)
 	assert.Equal(t, "latitude", pipeCommands.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, utils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
 
 	assert.Equal(t, measureWithEvalStr, pipeCommands.MeasureOperations[1].StrEnc)
 	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
@@ -10245,11 +10245,11 @@ func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc utils.AggregateFun
 	assert.Equal(t, "GET", pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightBool.RightValue.StringExpr.RawString)
 }
 
-func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.AggregateFunctions, isField bool) {
+func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc sutils.AggregateFunctions, isField bool) {
 	// Query Form: city=Boston | stats max(latitude), measureFunc(eval(constantNum))
 	var randomStr string
 	if isField {
-		randomStr = putils.GetRandomString(10, putils.Alpha)
+		randomStr = utils.GetRandomString(10, utils.Alpha)
 	} else {
 		randomStr = fmt.Sprintf("%v", rand.Float64())
 	}
@@ -10274,7 +10274,7 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.Aggreg
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, pipeCommands.MeasureOperations, 2)
 	assert.Equal(t, "latitude", pipeCommands.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, utils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
 
 	assert.Equal(t, measureWithEvalStr, pipeCommands.MeasureOperations[1].StrEnc)
 	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
@@ -10288,10 +10288,10 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc utils.Aggreg
 	assert.Equal(t, isField, pipeCommands.MeasureOperations[1].ValueColRequest.NumericExpr.ValueIsField)
 }
 
-func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc utils.AggregateFunctions) {
+func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc sutils.AggregateFunctions) {
 	// Query Form: app_name=bracecould | stats sum(http_status), measureFunc(eval(if(http_status=500, trueValueField, falseValueConstant)))
 	measureFuncStr, param := getMeasureFuncStr(measureFunc)
-	trueValueField := putils.GetRandomString(10, putils.Alpha)
+	trueValueField := utils.GetRandomString(10, utils.Alpha)
 	falseValueConstant := fmt.Sprintf("%v", rand.Float64())
 	measureWithEvalStr := measureFuncStr + `(eval(if(http_status=500, ` + trueValueField + `, ` + falseValueConstant + `)))`
 
@@ -10311,7 +10311,7 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc utils.Aggre
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, pipeCommands.MeasureOperations, 2)
 	assert.Equal(t, "http_status", pipeCommands.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, utils.Sum, pipeCommands.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, sutils.Sum, pipeCommands.MeasureOperations[0].MeasureFunc)
 
 	assert.Equal(t, measureWithEvalStr, pipeCommands.MeasureOperations[1].StrEnc)
 	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
@@ -10342,14 +10342,14 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc utils.Aggre
 	assert.Equal(t, false, pipeCommands.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue.NumericExpr.ValueIsField)
 }
 
-func getAggFunctions() []utils.AggregateFunctions {
-	return []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Min, utils.Max,
-		utils.Range, utils.Cardinality, utils.Values, utils.List,
-		utils.Estdc, utils.EstdcError, utils.Median,
-		utils.Mode, utils.Stdev, utils.Stdevp, utils.Sumsq, utils.Var,
-		utils.Varp, utils.First, utils.Last, utils.Earliest, utils.Latest,
-		utils.EarliestTime, utils.LatestTime, utils.StatsRate,
-		utils.Perc, utils.ExactPerc, utils.UpperPerc,
+func getAggFunctions() []sutils.AggregateFunctions {
+	return []sutils.AggregateFunctions{sutils.Count, sutils.Sum, sutils.Avg, sutils.Min, sutils.Max,
+		sutils.Range, sutils.Cardinality, sutils.Values, sutils.List,
+		sutils.Estdc, sutils.EstdcError, sutils.Median,
+		sutils.Mode, sutils.Stdev, sutils.Stdevp, sutils.Sumsq, sutils.Var,
+		sutils.Varp, sutils.First, sutils.Last, sutils.Earliest, sutils.Latest,
+		sutils.EarliestTime, sutils.LatestTime, sutils.StatsRate,
+		sutils.Perc, sutils.ExactPerc, sutils.UpperPerc,
 	}
 }
 
@@ -10380,7 +10380,7 @@ func Test_MVExpand_NoLimit(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
 	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
 	assert.Equal(t, "batch", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
-	assert.Equal(t, putils.NewUnsetOption[int64](), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+	assert.Equal(t, utils.NewUnsetOption[int64](), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_WithLimit(t *testing.T) {
@@ -10398,7 +10398,7 @@ func Test_MVExpand_WithLimit(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
 	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
 	assert.Equal(t, "app_name", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
-	assert.Equal(t, putils.NewOptionWithValue(int64(5)), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+	assert.Equal(t, utils.NewOptionWithValue(int64(5)), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_InvalidLimit(t *testing.T) {
@@ -10416,13 +10416,13 @@ func Test_MVExpand_MissingField(t *testing.T) {
 func getTimeAfterOffsetAndSnapDay(t *testing.T, offset int, currTime time.Time) (uint64, error) {
 	var err error
 
-	currTime, err = utils.ApplyOffsetToTime(int64(offset), utils.TMDay, currTime)
+	currTime, err = sutils.ApplyOffsetToTime(int64(offset), sutils.TMDay, currTime)
 	if err != nil {
 		return uint64(0), err
 	}
 
-	snapStr := fmt.Sprintf("%v", utils.TMDay)
-	currTime, err = utils.ApplySnap(snapStr, currTime)
+	snapStr := fmt.Sprintf("%v", sutils.TMDay)
+	currTime, err = sutils.ApplySnap(snapStr, currTime)
 	if err != nil {
 		return uint64(0), err
 	}
@@ -10456,7 +10456,7 @@ func Test_GenTimes(t *testing.T) {
 
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
 	assert.Equal(t, 1, aggregator.GenerateEvent.GenTimes.Interval.Num)
-	assert.Equal(t, utils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+	assert.Equal(t, sutils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
 }
 
 func Test_GenTimes_2(t *testing.T) {
@@ -10485,7 +10485,7 @@ func Test_GenTimes_2(t *testing.T) {
 
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
 	assert.Equal(t, 1, aggregator.GenerateEvent.GenTimes.Interval.Num)
-	assert.Equal(t, utils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+	assert.Equal(t, sutils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
 }
 
 func Test_GenTimes_3(t *testing.T) {
@@ -10502,17 +10502,17 @@ func Test_GenTimes_3(t *testing.T) {
 	assert.NotNil(t, aggregator.GenerateEvent)
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
 
-	expectedStartTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("10/01/2022:00:00:00")
+	expectedStartTime, err := sutils.ConvertCustomDateTimeFormatToEpochMs("10/01/2022:00:00:00")
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(expectedStartTime), aggregator.GenerateEvent.GenTimes.StartTime)
 
-	expectedEndTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:12:20:56")
+	expectedEndTime, err := sutils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:12:20:56")
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(expectedEndTime), aggregator.GenerateEvent.GenTimes.EndTime)
 
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
 	assert.Equal(t, 1, aggregator.GenerateEvent.GenTimes.Interval.Num)
-	assert.Equal(t, utils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+	assert.Equal(t, sutils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
 }
 
 func Test_GenTimes_4(t *testing.T) {
@@ -10529,7 +10529,7 @@ func Test_GenTimes_4(t *testing.T) {
 	assert.NotNil(t, aggregator.GenerateEvent)
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
 
-	expectedStartTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("10/01/2022:00:00:00")
+	expectedStartTime, err := sutils.ConvertCustomDateTimeFormatToEpochMs("10/01/2022:00:00:00")
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(expectedStartTime), aggregator.GenerateEvent.GenTimes.StartTime)
 
@@ -10539,7 +10539,7 @@ func Test_GenTimes_4(t *testing.T) {
 
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
 	assert.Equal(t, 3, aggregator.GenerateEvent.GenTimes.Interval.Num)
-	assert.Equal(t, utils.TMMinute, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+	assert.Equal(t, sutils.TMMinute, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
 }
 
 func Test_GenTimes_5(t *testing.T) {
@@ -10556,7 +10556,7 @@ func Test_GenTimes_5(t *testing.T) {
 	assert.NotNil(t, aggregator.GenerateEvent)
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
 
-	expectedStartTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:23:11:56")
+	expectedStartTime, err := sutils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:23:11:56")
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(expectedStartTime), aggregator.GenerateEvent.GenTimes.StartTime)
 
@@ -10566,7 +10566,7 @@ func Test_GenTimes_5(t *testing.T) {
 
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
 	assert.Equal(t, 11, aggregator.GenerateEvent.GenTimes.Interval.Num)
-	assert.Equal(t, utils.TMHour, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+	assert.Equal(t, sutils.TMHour, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
 }
 
 func Test_GenTimes_6(t *testing.T) {
@@ -10601,7 +10601,7 @@ func Test_GenTimes_7(t *testing.T) {
 
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
 	assert.Equal(t, 1, aggregator.GenerateEvent.GenTimes.Interval.Num)
-	assert.Equal(t, utils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+	assert.Equal(t, sutils.TMDay, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
 
 	assert.Equal(t, aggregator.Next.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns)
@@ -10632,17 +10632,17 @@ func Test_GenTimes_8(t *testing.T) {
 	assert.NotNil(t, aggregator.GenerateEvent)
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes)
 
-	expectedStartTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("10/01/2022:00:00:00")
+	expectedStartTime, err := sutils.ConvertCustomDateTimeFormatToEpochMs("10/01/2022:00:00:00")
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(expectedStartTime), aggregator.GenerateEvent.GenTimes.StartTime)
 
-	expectedEndTime, err := utils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:12:20:56")
+	expectedEndTime, err := sutils.ConvertCustomDateTimeFormatToEpochMs("12/03/2023:12:20:56")
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(expectedEndTime), aggregator.GenerateEvent.GenTimes.EndTime)
 
 	assert.NotNil(t, aggregator.GenerateEvent.GenTimes.Interval)
 	assert.Equal(t, 2, aggregator.GenerateEvent.GenTimes.Interval.Num)
-	assert.Equal(t, utils.TMSecond, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
+	assert.Equal(t, sutils.TMSecond, aggregator.GenerateEvent.GenTimes.Interval.TimeScalr)
 }
 
 // FIXME: This test is disabled, as it is flaky and failing on CI/CD pipeline
@@ -11409,15 +11409,15 @@ func Test_Index_4(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 }
 
@@ -11454,15 +11454,15 @@ func Test_Index_5(t *testing.T) {
 	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.NotEquals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.NotEquals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
 	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.GreaterThanOrEqualTo)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.GreaterThanOrEqualTo)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
-	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.LessThan)
+	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, sutils.LessThan)
 	assert.Equal(t, astNode.AndFilterCondition.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
 }
 
@@ -11483,7 +11483,7 @@ func Test_Index_6(t *testing.T) {
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
 	assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 1)
 	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 	assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
 	assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "http_status")
 	assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -11496,13 +11496,13 @@ func Test_Index_6(t *testing.T) {
 
 	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
 	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.GroupByType)
 	assert.Len(t, aggregator.GroupByRequest.MeasureOperations, 1)
 	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, sutils.Avg)
 	assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "http_status")
 	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
@@ -11635,7 +11635,7 @@ func Test_searchField_Dash(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status-1", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, "ok", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }
 
@@ -11652,6 +11652,6 @@ func Test_searchField_Slash(t *testing.T) {
 
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status/1", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, "ok", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }

@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -38,13 +38,13 @@ func Test_simpleRecordSortAscendingInvalid(t *testing.T) {
 	sort, _ := InitializeSort(count, sortReq)
 
 	for i := count; i > 0; i-- {
-		currItem := &utils.RecordResultContainer{
+		currItem := &sutils.RecordResultContainer{
 			SortColumnValue: float64(i),
 		}
 		sort.Add(currItem)
 	}
 
-	currItem := &utils.RecordResultContainer{
+	currItem := &sutils.RecordResultContainer{
 		SortColumnValue: float64(count + 1),
 	}
 	sort.Add(currItem)
@@ -81,17 +81,17 @@ func Test_RecordSortAscendingReplace(t *testing.T) {
 	sort, _ := InitializeSort(count, sortReq)
 
 	for i := count; i > 0; i-- {
-		currItem := &utils.RecordResultContainer{
+		currItem := &sutils.RecordResultContainer{
 			SortColumnValue: float64(i),
 		}
 		sort.Add(currItem)
 	}
-	currItem := &utils.RecordResultContainer{
+	currItem := &sutils.RecordResultContainer{
 		SortColumnValue: float64(1.1),
 	}
 	sort.Add(currItem)
 
-	currItem = &utils.RecordResultContainer{
+	currItem = &sutils.RecordResultContainer{
 		SortColumnValue: float64(count + 1),
 	}
 	sort.Add(currItem)
@@ -128,19 +128,19 @@ func Test_RecordSortDescendingInvalid(t *testing.T) {
 	}
 	sort, _ := InitializeSort(count, sortReq)
 
-	currItem := &utils.RecordResultContainer{
+	currItem := &sutils.RecordResultContainer{
 		SortColumnValue: float64(1.1),
 	}
 	sort.Add(currItem)
 
 	for i := count; i > 0; i-- {
-		currItem := &utils.RecordResultContainer{
+		currItem := &sutils.RecordResultContainer{
 			SortColumnValue: rand.Float64(),
 		}
 		sort.Add(currItem)
 	}
 
-	currItem = &utils.RecordResultContainer{
+	currItem = &sutils.RecordResultContainer{
 		SortColumnValue: float64(count + 1),
 	}
 	sort.Add(currItem)
@@ -175,19 +175,19 @@ func Test_RecordSortDescendingReplace(t *testing.T) {
 	}
 	sort, _ := InitializeSort(count, sortReq)
 
-	currItem := &utils.RecordResultContainer{
+	currItem := &sutils.RecordResultContainer{
 		SortColumnValue: float64(1.1),
 	}
 	sort.Add(currItem)
 
 	for i := count; i > 0; i-- {
-		currItem := &utils.RecordResultContainer{
+		currItem := &sutils.RecordResultContainer{
 			SortColumnValue: rand.Float64(),
 		}
 		sort.Add(currItem)
 	}
 
-	currItem = &utils.RecordResultContainer{
+	currItem = &sutils.RecordResultContainer{
 		SortColumnValue: float64(count + 1),
 	}
 	sort.Add(currItem)

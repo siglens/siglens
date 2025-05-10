@@ -33,7 +33,7 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -413,7 +413,7 @@ func evaluateMeasureResultsAlertCondition(searchResponse *structs.PipeSearchResp
 
 	for _, bucket := range searchResponse.MeasureResults {
 		for _, measureVal := range bucket.MeasureVal {
-			floatVal, err := utils.ParseHumanizedValueToFloat(measureVal)
+			floatVal, err := sutils.ParseHumanizedValueToFloat(measureVal)
 			if err != nil {
 				log.Errorf("ALERTSERVICE: evaluateMeasureResultsAlertCondition: Error converting value to float. Value=%v, err=%v", measureVal, err)
 				continue
@@ -452,7 +452,7 @@ func evaluateRecordsMeasureAggsAlertCondition(searchResponse *structs.PipeSearch
 	for _, record := range searchResponse.Hits.Hits {
 		for _, col := range searchResponse.MeasureAggregationCols {
 			if value, ok := record[col]; ok {
-				floatVal, err := utils.ParseHumanizedValueToFloat(value)
+				floatVal, err := sutils.ParseHumanizedValueToFloat(value)
 				if err != nil {
 					log.Errorf("ALERTSERVICE: evaluateRecordsMeasureAggsCondition: Error converting value to float. Value=%v, err=%v", value, err)
 					continue

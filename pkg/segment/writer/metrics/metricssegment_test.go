@@ -29,9 +29,9 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/series"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -45,7 +45,7 @@ func writeMockMetricsBlockSummaryFile(file string, blockSums []*structs.MBlockSu
 
 	defer fd.Close()
 
-	if _, err := fd.Write(utils.VERSION_MBLOCKSUMMARY); err != nil {
+	if _, err := fd.Write(sutils.VERSION_MBLOCKSUMMARY); err != nil {
 		log.Errorf("writeMockMetricsBlockSummaryFile: Cannot write version byte for filename=%v: err= %v", file, err)
 		return err
 	}
@@ -212,12 +212,12 @@ func Test_ReadOldTso(t *testing.T) {
 
 	// A version 1 TSO file
 	tsoData := make([]byte, 1+2+12)
-	tsoData[0] = utils.VERSION_TSOFILE_V1[0]
-	copy(tsoData[1:], toputils.Uint16ToBytesLittleEndian(uint16(1)))
+	tsoData[0] = sutils.VERSION_TSOFILE_V1[0]
+	copy(tsoData[1:], utils.Uint16ToBytesLittleEndian(uint16(1)))
 	tsid := uint64(42)
-	copy(tsoData[3:], toputils.Uint64ToBytesLittleEndian(tsid))
+	copy(tsoData[3:], utils.Uint64ToBytesLittleEndian(tsid))
 	offset := uint32(0)
-	copy(tsoData[11:], toputils.Uint32ToBytesLittleEndian(offset))
+	copy(tsoData[11:], utils.Uint32ToBytesLittleEndian(offset))
 	err = os.WriteFile("data/mock_0.tso", tsoData, 0644)
 	assert.NoError(t, err)
 
@@ -229,9 +229,9 @@ func Test_ReadOldTso(t *testing.T) {
 	// only requirement is that it's at least 32 bytes (for the gorilla
 	// encoding header).
 	tsgData := make([]byte, 1+12+100)
-	copy(tsgData[0:], utils.VERSION_TSGFILE)
-	copy(tsgData[1:], toputils.Uint64ToBytesLittleEndian(tsid))
-	copy(tsgData[9:], toputils.Uint32ToBytesLittleEndian(uint32(100)))
+	copy(tsgData[0:], sutils.VERSION_TSGFILE)
+	copy(tsgData[1:], utils.Uint64ToBytesLittleEndian(tsid))
+	copy(tsgData[9:], utils.Uint32ToBytesLittleEndian(uint32(100)))
 	err = os.WriteFile("data/mock_0.tsg", tsgData, 0644)
 	assert.NoError(t, err)
 

@@ -33,7 +33,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -421,7 +421,7 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 	dataBuf := make([]byte, metadataSize)
 	totalBytesWritten := 0
 	startOff := metadataSize
-	copy(metadataBuf[:1], segutils.VERSION_TAGSTREE) // Write version byte as 0x01
+	copy(metadataBuf[:1], sutils.VERSION_TAGSTREE) // Write version byte as 0x01
 	utils.Uint32ToBytesLittleEndianInplace(metadataSize, metadataBuf[1:5])
 	idx := uint32(5)
 	for hashedMName, tagInfo := range tree.rawValues {
@@ -440,9 +440,9 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 					log.Errorf("TagTree.encodeTagsTree: Failed to parse %v as string for tag tree %v. Error: %v", tInfo.tagValue, tree.name, err)
 					return nil, err
 				}
-				if _, err = tagBuf.Write(segutils.VALTYPE_ENC_SMALL_STRING[:]); err != nil {
+				if _, err = tagBuf.Write(sutils.VALTYPE_ENC_SMALL_STRING[:]); err != nil {
 					log.Errorf("TagTree.encodeTagsTree: Failed to write tag value type: %+v to buffer for tag tree %v. Error: %v",
-						segutils.VALTYPE_ENC_SMALL_STRING[:], tree.name, err)
+						sutils.VALTYPE_ENC_SMALL_STRING[:], tree.name, err)
 					return nil, err
 				}
 				id += 1
@@ -469,10 +469,10 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 						log.Errorf("TagTree.encodeTagsTree: Failed to parse tag value %v as int or float for tag tree %v. Error: %v", tInfo.tagValue, tree.name, err)
 						return nil, err
 					}
-					valueType = segutils.VALTYPE_ENC_FLOAT64
+					valueType = sutils.VALTYPE_ENC_FLOAT64
 					valueInBytes = utils.Float64ToBytesLittleEndian(value.(float64))
 				} else {
-					valueType = segutils.VALTYPE_ENC_INT64
+					valueType = sutils.VALTYPE_ENC_INT64
 					valueInBytes = utils.Int64ToBytesLittleEndian(value.(int64))
 				}
 
@@ -602,16 +602,16 @@ func (uitr *UnrotatedItr) Next() (uint64, []byte, []uint64, []byte, bool) {
 	var valueType []byte
 	switch ti.tagValueType {
 	case jp.String:
-		valueType = segutils.VALTYPE_ENC_SMALL_STRING
+		valueType = sutils.VALTYPE_ENC_SMALL_STRING
 	case jp.Number:
 		_, err := jp.ParseInt(ti.tagValue)
 		if err != nil {
-			valueType = segutils.VALTYPE_ENC_FLOAT64
+			valueType = sutils.VALTYPE_ENC_FLOAT64
 		} else {
-			valueType = segutils.VALTYPE_ENC_INT64
+			valueType = sutils.VALTYPE_ENC_INT64
 		}
 	default:
-		valueType = segutils.VALTYPE_ENC_SMALL_STRING
+		valueType = sutils.VALTYPE_ENC_SMALL_STRING
 	}
 
 	return ti.tagHashValue, ti.tagValue, ti.matchingtsids, valueType, true
@@ -629,7 +629,7 @@ func (uitr *UnrotatedItr) Next() (uint64, []byte, []uint64, []byte, bool) {
 // The return values are (mNameFound, tagValueFound, rawTagValueToTSIDs, error)
 func (tth *TagsTreeHolder) GetOrInsertMatchingTSIDs(mName uint64, tagKey string,
 	tagHashValue uint64,
-	tagOperator segutils.TagOperator,
+	tagOperator sutils.TagOperator,
 	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, error) {
 
 	tth.rwLock.RLock()
@@ -674,12 +674,12 @@ func (tth *TagsTreeHolder) GetOrInsertMatchingTSIDs(mName uint64, tagKey string,
 }
 
 // Returns two bools; first is true if it matches this value, second is true if it might match a different value.
-func TagValueMatches(actualValue uint64, pattern uint64, tagOperator segutils.TagOperator) (matchesThis bool, mightMatchOtherValue bool) {
+func TagValueMatches(actualValue uint64, pattern uint64, tagOperator sutils.TagOperator) (matchesThis bool, mightMatchOtherValue bool) {
 	switch tagOperator {
-	case segutils.Equal:
+	case sutils.Equal:
 		matchesThis = (actualValue == pattern)
 		mightMatchOtherValue = !matchesThis
-	case segutils.NotEqual:
+	case sutils.NotEqual:
 		matchesThis = (actualValue != pattern)
 		mightMatchOtherValue = true
 	default:

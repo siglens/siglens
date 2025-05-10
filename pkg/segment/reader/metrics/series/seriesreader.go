@@ -27,7 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/memorypool"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -343,9 +343,9 @@ func getOffsetFromTsoFile(tsoVersion byte, low uint32, high uint32, nTsids uint3
 	tsoBuf []byte) (bool, uint32, uint32) {
 
 	switch tsoVersion {
-	case segutils.VERSION_TSOFILE_V1[0]:
+	case sutils.VERSION_TSOFILE_V1[0]:
 		tsoBuf = tsoBuf[3:] // strip the version and number of entries
-	case segutils.VERSION_TSOFILE_V2[0]:
+	case sutils.VERSION_TSOFILE_V2[0]:
 		tsoBuf = tsoBuf[9:] // strip the version and number of entries
 	default:
 		log.Errorf("getOffsetFromTsoFile: invalid TSO version: %v", tsoVersion)
@@ -402,9 +402,9 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) (byte, []byte,
 	tsoVersion := tssr.tsoBuf[0]
 	nEntries := uint64(0)
 	switch tsoVersion {
-	case segutils.VERSION_TSOFILE_V1[0]:
+	case sutils.VERSION_TSOFILE_V1[0]:
 		nEntries = uint64(utils.BytesToUint16LittleEndian(tssr.tsoBuf[1:3]))
-	case segutils.VERSION_TSOFILE_V2[0]:
+	case sutils.VERSION_TSOFILE_V2[0]:
 		nEntries = utils.BytesToUint64LittleEndian(tssr.tsoBuf[1:9])
 	default:
 		return 0, nil, 0, fmt.Errorf("loadFileIntoPoolBuffer: invalid TSO version: %+v", tsoVersion)
@@ -422,8 +422,8 @@ func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error
 
 	versionTsgFile := make([]byte, 1)
 	copy(versionTsgFile, tssr.tsgBuf[:1])
-	if versionTsgFile[0] != segutils.VERSION_TSGFILE[0] {
-		return nil, fmt.Errorf("loadTSGFile: the file version doesn't match; expected=%+v, got=%+v", segutils.VERSION_TSGFILE[0], versionTsgFile[0])
+	if versionTsgFile[0] != sutils.VERSION_TSGFILE[0] {
+		return nil, fmt.Errorf("loadTSGFile: the file version doesn't match; expected=%+v, got=%+v", sutils.VERSION_TSGFILE[0], versionTsgFile[0])
 	}
 	return tssr.tsgBuf, nil
 }

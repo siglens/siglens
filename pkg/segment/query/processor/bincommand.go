@@ -26,7 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -81,14 +81,14 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			qid, p.options.Field, err)
 	}
 
-	var newColResultValues []segutils.CValueEnclosure
+	var newColResultValues []sutils.CValueEnclosure
 
 	newName, newNameExists := p.options.NewFieldName.Get()
 
 	// If the new field name is different from the current field name,
 	// we need to create a new slice to store the results
 	if newNameExists && newName != p.options.Field {
-		newColResultValues = make([]segutils.CValueEnclosure, len(values))
+		newColResultValues = make([]sutils.CValueEnclosure, len(values))
 	} else {
 		newNameExists = false
 	}
@@ -96,7 +96,7 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	timestampField := p.options.Field == config.GetTimeStampKey()
 
 	for i := range values {
-		var value *segutils.CValueEnclosure
+		var value *sutils.CValueEnclosure
 		if newNameExists {
 			newColResultValues[i] = values[i]
 			value = &newColResultValues[i]
@@ -118,7 +118,7 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 
 			value.CVal = bucket
-			value.Dtype = segutils.SS_DT_UNSIGNED_NUM
+			value.Dtype = sutils.SS_DT_UNSIGNED_NUM
 		} else {
 			err = p.performBinWithSpan(value)
 			if err != nil {
@@ -129,7 +129,7 @@ func (p *binProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	if newNameExists {
-		knownValues := map[string][]segutils.CValueEnclosure{
+		knownValues := map[string][]sutils.CValueEnclosure{
 			newName: newColResultValues,
 		}
 		err = iqr.AppendKnownValues(knownValues)
@@ -177,7 +177,7 @@ func (p *binProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 	return nil, false
 }
 
-func (p *binProcessor) performBinWithSpan(cval *segutils.CValueEnclosure) error {
+func (p *binProcessor) performBinWithSpan(cval *sutils.CValueEnclosure) error {
 	value, err := cval.GetFloatValue()
 	if err != nil {
 		p.batchErr.AddError("bin.performBinWithSpan:GetFloatValue", fmt.Errorf("value=%v; err=%v", cval, err))
@@ -186,11 +186,11 @@ func (p *binProcessor) performBinWithSpan(cval *segutils.CValueEnclosure) error 
 
 	if p.options.BinSpanOptions.BinSpanLength != nil {
 		lowerBound, upperBound := getBinRange(value, p.options.BinSpanOptions.BinSpanLength.Num)
-		if p.options.BinSpanOptions.BinSpanLength.TimeScale == segutils.TMInvalid {
-			cval.Dtype = segutils.SS_DT_STRING
+		if p.options.BinSpanOptions.BinSpanLength.TimeScale == sutils.TMInvalid {
+			cval.Dtype = sutils.SS_DT_STRING
 			cval.CVal = fmt.Sprintf("%v-%v", lowerBound, upperBound)
 		} else {
-			cval.Dtype = segutils.SS_DT_FLOAT
+			cval.Dtype = sutils.SS_DT_FLOAT
 			cval.CVal = lowerBound
 		}
 
@@ -199,7 +199,7 @@ func (p *binProcessor) performBinWithSpan(cval *segutils.CValueEnclosure) error 
 
 	if p.options.BinSpanOptions.LogSpan != nil {
 		if value <= 0 {
-			cval.Dtype = segutils.SS_DT_FLOAT
+			cval.Dtype = sutils.SS_DT_FLOAT
 			cval.CVal = value
 			return nil
 		}
@@ -214,7 +214,7 @@ func (p *binProcessor) performBinWithSpan(cval *segutils.CValueEnclosure) error 
 		lowerBound := math.Pow(p.options.BinSpanOptions.LogSpan.Base, floorVal) * p.options.BinSpanOptions.LogSpan.Coefficient
 		upperBound := math.Pow(p.options.BinSpanOptions.LogSpan.Base, ceilVal) * p.options.BinSpanOptions.LogSpan.Coefficient
 
-		cval.Dtype = segutils.SS_DT_STRING
+		cval.Dtype = sutils.SS_DT_STRING
 		cval.CVal = fmt.Sprintf("%v-%v", lowerBound, upperBound)
 		return nil
 	}
@@ -248,37 +248,37 @@ func (p *binProcessor) performBinWithSpanTime(value float64, alignTime *uint64) 
 
 	//Align time is only supported for units less than days
 	switch spanLength.TimeScale {
-	case segutils.TMMillisecond:
+	case sutils.TMMillisecond:
 		durationScale := time.Millisecond
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, numIntervals, alignTime)
-	case segutils.TMCentisecond:
+	case sutils.TMCentisecond:
 		durationScale := time.Millisecond * 10
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, numIntervals, alignTime)
-	case segutils.TMDecisecond:
+	case sutils.TMDecisecond:
 		durationScale := time.Millisecond * 100
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, numIntervals, alignTime)
-	case segutils.TMSecond:
+	case sutils.TMSecond:
 		durationScale := time.Second
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, numIntervals, alignTime)
-	case segutils.TMMinute:
+	case sutils.TMMinute:
 		durationScale := time.Minute
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, numIntervals, alignTime)
-	case segutils.TMHour:
+	case sutils.TMHour:
 		durationScale := time.Hour
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, numIntervals, alignTime)
-	case segutils.TMDay:
+	case sutils.TMDay:
 		totalDays := int(utcTime.Sub(startTime).Hours() / 24)
 		slotDays := (totalDays / (int(numIntervals))) * (int(numIntervals))
 		bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
-	case segutils.TMWeek:
+	case sutils.TMWeek:
 		totalDays := int(utcTime.Sub(startTime).Hours() / 24)
 		slotDays := (totalDays / (int(numIntervals) * 7)) * (int(numIntervals) * 7)
 		bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
-	case segutils.TMMonth:
+	case sutils.TMMonth:
 		return findBucketMonth(utcTime, int(numIntervals)), nil
-	case segutils.TMQuarter:
+	case sutils.TMQuarter:
 		return findBucketMonth(utcTime, int(numIntervals)*3), nil
-	case segutils.TMYear:
+	case sutils.TMYear:
 		num := int(numIntervals)
 		currYear := int(utcTime.Year())
 		bucketYear := ((currYear-1970)/num)*num + 1970
@@ -329,7 +329,7 @@ func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *struc
 		return &structs.BinSpanOptions{
 			BinSpanLength: &structs.BinSpanLength{
 				Num:       1,
-				TimeScale: segutils.TMInvalid,
+				TimeScale: sutils.TMInvalid,
 			},
 		}, nil
 	}
@@ -366,7 +366,7 @@ func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *struc
 	return &structs.BinSpanOptions{
 		BinSpanLength: &structs.BinSpanLength{
 			Num:       spanRange,
-			TimeScale: segutils.TMInvalid,
+			TimeScale: sutils.TMInvalid,
 		},
 	}, nil
 }
@@ -377,18 +377,18 @@ func getSecsFromMinSpan(minSpan *structs.BinSpanLength) (float64, error) {
 	}
 
 	switch minSpan.TimeScale {
-	case segutils.TMMillisecond, segutils.TMCentisecond, segutils.TMDecisecond:
+	case sutils.TMMillisecond, sutils.TMCentisecond, sutils.TMDecisecond:
 		// smallest granularity of estimated span is 1 second
 		return 1, nil
-	case segutils.TMSecond:
+	case sutils.TMSecond:
 		return minSpan.Num, nil
-	case segutils.TMMinute:
+	case sutils.TMMinute:
 		return minSpan.Num * 60, nil
-	case segutils.TMHour:
+	case sutils.TMHour:
 		return minSpan.Num * 3600, nil
-	case segutils.TMDay:
+	case sutils.TMDay:
 		return minSpan.Num * 86400, nil
-	case segutils.TMWeek, segutils.TMMonth, segutils.TMQuarter, segutils.TMYear:
+	case sutils.TMWeek, sutils.TMMonth, sutils.TMQuarter, sutils.TMYear:
 		// default returning num*(seconds in a month)
 		return minSpan.Num * 2592000, nil
 	default:
@@ -406,7 +406,7 @@ func findEstimatedTimeSpan(minValueMillis float64, maxValueMillis float64, maxBi
 		intervalSec = minSpanSecs
 	}
 	var num float64
-	timeUnit := segutils.TMSecond
+	timeUnit := sutils.TMSecond
 	if intervalSec < 1 {
 		num = 1
 	} else if intervalSec <= 10 {
@@ -415,26 +415,26 @@ func findEstimatedTimeSpan(minValueMillis float64, maxValueMillis float64, maxBi
 		num = 30
 	} else if intervalSec <= 60 {
 		num = 1
-		timeUnit = segutils.TMMinute
+		timeUnit = sutils.TMMinute
 	} else if intervalSec <= 300 {
 		num = 5
-		timeUnit = segutils.TMMinute
+		timeUnit = sutils.TMMinute
 	} else if intervalSec <= 600 {
 		num = 10
-		timeUnit = segutils.TMMinute
+		timeUnit = sutils.TMMinute
 	} else if intervalSec <= 1800 {
 		num = 30
-		timeUnit = segutils.TMMinute
+		timeUnit = sutils.TMMinute
 	} else if intervalSec <= 3600 {
 		num = 1
-		timeUnit = segutils.TMHour
+		timeUnit = sutils.TMHour
 	} else if intervalSec <= 86400 {
 		num = 1
-		timeUnit = segutils.TMDay
+		timeUnit = sutils.TMDay
 	} else {
 		// maximum granularity is 1 month as per experiments
 		num = 1
-		timeUnit = segutils.TMMonth
+		timeUnit = sutils.TMMonth
 	}
 
 	estimatedSpan := &structs.BinSpanOptions{

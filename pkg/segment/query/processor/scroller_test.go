@@ -25,7 +25,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,14 +47,14 @@ func Test_Scroll(t *testing.T) {
 	scrollFrom := uint64(3)
 	dp := NewScrollerDP(scrollFrom, qid)
 	stream := &mockStreamer{
-		allRecords: map[string][]utils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
-				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
-				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "f"},
 			},
 		},
 		qid: 0,
@@ -81,10 +81,10 @@ func Test_Scroll(t *testing.T) {
 		}
 	}
 
-	expectedValues := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "d"},
-		{Dtype: utils.SS_DT_STRING, CVal: "e"},
-		{Dtype: utils.SS_DT_STRING, CVal: "f"},
+	expectedValues := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "f"},
 	}
 
 	assert.Equal(t, 3, finalIQR.NumberOfRecords())

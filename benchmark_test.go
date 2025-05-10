@@ -46,10 +46,10 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
-	putils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fastrand"
 
@@ -234,7 +234,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 
 func Benchmark_RRCToJson(b *testing.B) {
 	config.InitializeTestingConfig(b.TempDir())
-	currTime := utils.GetCurrentTimeMillis()
+	currTime := sutils.GetCurrentTimeMillis()
 	startTime := uint64(0)
 	tRange := &dtu.TimeRange{
 		StartEpochMs: startTime,
@@ -249,7 +249,7 @@ func Benchmark_RRCToJson(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Failed to initialize query node: %v", err)
 	}
-	colVal, err := utils.CreateDtypeEnclosure("batch-101", 1)
+	colVal, err := sutils.CreateDtypeEnclosure("batch-101", 1)
 	// colVal, err := utils.CreateDtypeEnclosure("*", 1)
 	if err != nil {
 		log.Fatal(err)
@@ -257,7 +257,7 @@ func Benchmark_RRCToJson(b *testing.B) {
 	valueFilter := structs.FilterCriteria{
 		ExpressionFilter: &structs.ExpressionFilter{
 			LeftInput:      &structs.FilterInput{Expression: &structs.Expression{LeftInput: &structs.ExpressionInput{ColumnName: "*"}}},
-			FilterOperator: utils.Equals,
+			FilterOperator: sutils.Equals,
 			RightInput:     &structs.FilterInput{Expression: &structs.Expression{LeftInput: &structs.ExpressionInput{ColumnValue: colVal}}},
 		},
 	}
@@ -493,7 +493,7 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 func Benchmark_E2E_AgileTree(b *testing.B) {
 	config.InitializeTestingConfig(b.TempDir())
 	config.SetAggregationsFlag(true)
-	currTime := utils.GetCurrentTimeMillis()
+	currTime := sutils.GetCurrentTimeMillis()
 	startTime := uint64(0)
 	tRange := &dtu.TimeRange{
 		StartEpochMs: startTime,
@@ -509,14 +509,14 @@ func Benchmark_E2E_AgileTree(b *testing.B) {
 		b.Fatalf("Failed to initialize query node: %v", err)
 	}
 
-	colVal, err := utils.CreateDtypeEnclosure("*", 1)
+	colVal, err := sutils.CreateDtypeEnclosure("*", 1)
 	if err != nil {
 		log.Fatal(err)
 	}
 	valueFilter := structs.FilterCriteria{
 		ExpressionFilter: &structs.ExpressionFilter{
 			LeftInput:      &structs.FilterInput{Expression: &structs.Expression{LeftInput: &structs.ExpressionInput{ColumnName: "*"}}},
-			FilterOperator: utils.Equals,
+			FilterOperator: sutils.Equals,
 			RightInput:     &structs.FilterInput{Expression: &structs.Expression{LeftInput: &structs.ExpressionInput{ColumnValue: colVal}}},
 		},
 	}
@@ -533,7 +533,7 @@ func Benchmark_E2E_AgileTree(b *testing.B) {
 
 	grpByCols := []string{"passenger_count", "pickup_date", "trip_distance"}
 	measureOps := []*structs.MeasureAggregator{
-		{MeasureCol: "total_amount", MeasureFunc: utils.Count},
+		{MeasureCol: "total_amount", MeasureFunc: sutils.Count},
 	}
 	grpByRequest := &structs.GroupByRequest{MeasureOperations: measureOps, GroupByColumns: grpByCols}
 
@@ -621,7 +621,7 @@ func Benchmark_S3_segupload(b *testing.B) {
 func benchmarkBloom(strs [][]byte) {
 	numItems := uint(len(strs)) // num of items the filter will store
 	// false positive rate (BLOOM_COLL_PROBABILITY): 0.001
-	bloom := bloom.NewWithEstimates(numItems, utils.BLOOM_COLL_PROBABILITY)
+	bloom := bloom.NewWithEstimates(numItems, sutils.BLOOM_COLL_PROBABILITY)
 
 	for _, str := range strs {
 		bloom.Add(str)
@@ -809,7 +809,7 @@ func Benchmark_Filters(b *testing.B) {
 	randomStrs := make([][]byte, N)
 	hashedKeys := make([]uint64, N)
 	for i := 0; i < N; i++ {
-		randomStrs[i] = []byte(putils.GetRandomString(100, putils.AlphaNumeric))
+		randomStrs[i] = []byte(utils.GetRandomString(100, utils.AlphaNumeric))
 		hashedKeys[i] = xxhash.Sum64(randomStrs[i])
 	}
 

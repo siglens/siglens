@@ -22,8 +22,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -33,7 +33,7 @@ type fillnullProcessor struct {
 	secondPass   bool
 }
 
-func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cTypeFillValue utils.CValueEnclosure) {
+func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cTypeFillValue sutils.CValueEnclosure) {
 
 	for field := range fields {
 		values, err := iqr.ReadColumn(field)
@@ -43,7 +43,7 @@ func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cType
 		}
 
 		if values == nil {
-			values = toputils.ResizeSliceWithDefault(values, iqr.NumberOfRecords(), cTypeFillValue)
+			values = utils.ResizeSliceWithDefault(values, iqr.NumberOfRecords(), cTypeFillValue)
 		} else {
 
 			for i := range values {
@@ -54,7 +54,7 @@ func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cType
 			}
 		}
 
-		err = iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{field: values})
+		err = iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{field: values})
 		if err != nil {
 			log.Errorf("performFillNullForTheFields: failed to append known values; err=%v", err)
 		}
@@ -66,15 +66,15 @@ func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, io.EOF
 	}
 
-	cTypeFillValue := utils.CValueEnclosure{}
+	cTypeFillValue := sutils.CValueEnclosure{}
 	err := cTypeFillValue.ConvertValue(p.options.Value)
 	if err != nil {
-		return nil, toputils.TeeErrorf("performFillNullForTheFields: cannot convert fill value; err=%v", err)
+		return nil, utils.TeeErrorf("performFillNullForTheFields: cannot convert fill value; err=%v", err)
 	}
 
 	if len(p.options.FieldList) > 0 {
 		fieldListMap := make(map[string]struct{}, len(p.options.FieldList))
-		toputils.AddSliceToSet(fieldListMap, p.options.FieldList)
+		utils.AddSliceToSet(fieldListMap, p.options.FieldList)
 
 		performFillNullForTheFields(iqr, fieldListMap, cTypeFillValue)
 		return iqr, nil
@@ -92,13 +92,13 @@ func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	// If we are in first Pass: Then Fetch all columns from the IQR and store in knownColumns.
 	columns, err := iqr.GetColumns()
 	if err != nil {
-		return nil, toputils.TeeErrorf("fillnull.Process: cannot get columns; err=%v", err)
+		return nil, utils.TeeErrorf("fillnull.Process: cannot get columns; err=%v", err)
 	}
 
 	if p.knownColumns == nil {
 		p.knownColumns = columns
 	} else {
-		toputils.AddMapKeysToSet(p.knownColumns, columns)
+		utils.AddMapKeysToSet(p.knownColumns, columns)
 	}
 
 	return iqr, nil

@@ -26,9 +26,9 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -126,9 +126,9 @@ func (str *AgileTreeReader) resetBlkVars() {
 
 func validateTreeEncodingVersion(version byte) error {
 	switch version {
-	case utils.VERSION_STAR_TREE_BLOCK[0]:
+	case sutils.VERSION_STAR_TREE_BLOCK[0]:
 		// do nothing, this is the expected encoding
-	case utils.VERSION_STAR_TREE_BLOCK_LEGACY[0]:
+	case sutils.VERSION_STAR_TREE_BLOCK_LEGACY[0]:
 		log.Warnf("AgileTreeReader.ReadTreeMeta: received a legacy encoding type for agileTree: %v", version)
 		return errors.New("received legacy agileTree encoding")
 	default:
@@ -187,7 +187,7 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	idx += 1
 
 	// LenMetaData
-	lenMeta := toputils.BytesToUint32LittleEndian(str.metaBuf[idx : idx+4])
+	lenMeta := utils.BytesToUint32LittleEndian(str.metaBuf[idx : idx+4])
 	idx += 4
 
 	// MetaData
@@ -201,9 +201,9 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	meta.levsOffsets = make([]int64, meta.numGroupByCols+1)
 	meta.levsSizes = make([]uint32, meta.numGroupByCols+1)
 	for i := range meta.levsOffsets {
-		meta.levsOffsets[i] = toputils.BytesToInt64LittleEndian(str.metaBuf[idx : idx+8])
+		meta.levsOffsets[i] = utils.BytesToInt64LittleEndian(str.metaBuf[idx : idx+8])
 		idx += 8
-		meta.levsSizes[i] = toputils.BytesToUint32LittleEndian(str.metaBuf[idx : idx+4])
+		meta.levsSizes[i] = utils.BytesToUint32LittleEndian(str.metaBuf[idx : idx+4])
 		idx += 4
 	}
 
@@ -240,7 +240,7 @@ func (str *AgileTreeReader) CanUseAgileTree(grpReq *structs.GroupByRequest) (boo
 
 	// walk through grpColnames
 	for _, cname := range grpReq.GroupByColumns {
-		ok := toputils.SearchStr(cname, str.treeMeta.groupByKeys)
+		ok := utils.SearchStr(cname, str.treeMeta.groupByKeys)
 		if !ok {
 			return false, nil
 		}
@@ -248,7 +248,7 @@ func (str *AgileTreeReader) CanUseAgileTree(grpReq *structs.GroupByRequest) (boo
 
 	// walk through measure colname
 	for _, m := range grpReq.MeasureOperations {
-		if m.MeasureCol == "*" && m.MeasureFunc == utils.Count {
+		if m.MeasureCol == "*" && m.MeasureFunc == sutils.Count {
 			continue // we treat count(*) as just as a bucket count
 		}
 		found := false
@@ -271,13 +271,13 @@ func (str *AgileTreeReader) decodeMetadata(buf []byte) (*StarTreeMetadata, error
 	idx := uint32(0)
 
 	// Len of groupByKeys
-	tmeta.numGroupByCols = toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
+	tmeta.numGroupByCols = utils.BytesToUint16LittleEndian(buf[idx : idx+2])
 	idx += 2
 
 	tmeta.groupByKeys = make([]string, tmeta.numGroupByCols)
 	for i := uint16(0); i < tmeta.numGroupByCols; i++ {
 		// grp str len
-		l1 := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
+		l1 := utils.BytesToUint16LittleEndian(buf[idx : idx+2])
 		idx += 2
 
 		// grp actual str
@@ -286,14 +286,14 @@ func (str *AgileTreeReader) decodeMetadata(buf []byte) (*StarTreeMetadata, error
 	}
 
 	// Len of MeasureColNames
-	lenMcolNames := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
+	lenMcolNames := utils.BytesToUint16LittleEndian(buf[idx : idx+2])
 	idx += 2
 
 	tmeta.measureColNames = make([]string, lenMcolNames)
 
 	for i := uint16(0); i < lenMcolNames; i++ {
 		// Mcol Len
-		l1 := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
+		l1 := utils.BytesToUint16LittleEndian(buf[idx : idx+2])
 		idx += 2
 
 		// Mcol strname
@@ -307,7 +307,7 @@ func (str *AgileTreeReader) decodeMetadata(buf []byte) (*StarTreeMetadata, error
 	for j := uint16(0); j < tmeta.numGroupByCols; j++ {
 
 		// colname strlen
-		l1 := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
+		l1 := utils.BytesToUint16LittleEndian(buf[idx : idx+2])
 		idx += 2
 
 		// colname str : we only store the offsets to save on string copy
@@ -316,7 +316,7 @@ func (str *AgileTreeReader) decodeMetadata(buf []byte) (*StarTreeMetadata, error
 		eoff = idx
 
 		// numKeys
-		numDictEncodings := toputils.BytesToUint32LittleEndian(buf[idx : idx+4])
+		numDictEncodings := utils.BytesToUint32LittleEndian(buf[idx : idx+4])
 		idx += 4
 
 		if numDictEncodings == 0 {
@@ -328,7 +328,7 @@ func (str *AgileTreeReader) decodeMetadata(buf []byte) (*StarTreeMetadata, error
 
 		for i := uint32(0); i < numDictEncodings; i += 1 {
 			// enc col val strlen
-			l1 := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
+			l1 := utils.BytesToUint16LittleEndian(buf[idx : idx+2])
 			idx += 2
 
 			// enc col val str
@@ -362,20 +362,20 @@ func (str *AgileTreeReader) getRawVal(key uint32, dictEncoding map[uint32][]byte
 }
 
 func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
-	desiredLevel uint16, combiner map[string][]utils.NumTypeEnclosure,
+	desiredLevel uint16, combiner map[string][]sutils.NumTypeEnclosure,
 	measResIndices []int, lenMri int, grpTreeLevels []uint16, grpColNames []string,
 ) error {
 	var wvInt64 int64
 	var wvFloat64 float64
-	var dtype utils.SS_DTYPE
+	var dtype sutils.SS_DTYPE
 	idx := uint32(0)
 
 	// level
-	curLevel := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
+	curLevel := utils.BytesToUint16LittleEndian(buf[idx : idx+2])
 	idx += 2
 
 	// numNodes at this level
-	numNodes := toputils.BytesToUint32LittleEndian(buf[idx : idx+4])
+	numNodes := utils.BytesToUint32LittleEndian(buf[idx : idx+4])
 	idx += 4
 
 	if curLevel != desiredLevel {
@@ -415,7 +415,7 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 			}
 			kidx += 4
 		}
-		wvNodeKey := toputils.UnsafeByteSliceToString(wvBuf[wvIdx : wvIdx+kidx])
+		wvNodeKey := utils.UnsafeByteSliceToString(wvBuf[wvIdx : wvIdx+kidx])
 		wvIdx += kidx
 		idx += uint32(desiredLevel-1) * 4
 
@@ -440,19 +440,19 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 				}
 			}
 
-			aggVal = make([]utils.NumTypeEnclosure, lenMri)
+			aggVal = make([]sutils.NumTypeEnclosure, lenMri)
 			combiner[wvNodeKey] = aggVal
 		}
 
 		if aggVal == nil {
-			aggVal = make([]utils.NumTypeEnclosure, lenMri)
+			aggVal = make([]sutils.NumTypeEnclosure, lenMri)
 		}
 
 		for j := 0; j < lenMri; j++ {
 			agIdx := idx                           // set to the start of aggValue for this node's data
 			agIdx += uint32(measResIndices[j]) * 9 // jump to the AgValue for this meas's index
 
-			wvInt64, wvFloat64, dtype = utils.ConvertBytesToNumber(buf[agIdx : agIdx+9])
+			wvInt64, wvFloat64, dtype = sutils.ConvertBytesToNumber(buf[agIdx : agIdx+9])
 
 			// remainder will give us MeasFnIdx
 			fn := writer.IdxToAgFn[measResIndices[j]%writer.TotalMeasFns]
@@ -512,7 +512,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		measResIndices = append(measResIndices, tcidx*writer.TotalMeasFns+fnidx) // see where it is in agileTree
 	}
 
-	combiner := make(map[string][]utils.NumTypeEnclosure)
+	combiner := make(map[string][]sutils.NumTypeEnclosure)
 
 	err := str.computeAggsJit(combiner, maxGrpLevel, measResIndices, agileTreeBuf,
 		grpTreeLevels, grpColNames)
@@ -525,7 +525,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		usedDictEncodings[i] = str.treeMeta.allDictEncodings[grpCol]
 	}
 
-	unsetRecord := make(map[string]utils.CValueEnclosure)
+	unsetRecord := make(map[string]sutils.CValueEnclosure)
 	var retErr error
 	for mkey, ntAgvals := range combiner {
 		if len(ntAgvals) == 0 {
@@ -544,26 +544,26 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 			str.buckets.rawVals[rawVal] = struct{}{}
 		}
 
-		cvaggvalues := make([]utils.CValueEnclosure, len(internalMops))
+		cvaggvalues := make([]sutils.CValueEnclosure, len(internalMops))
 		resCvIdx := 0
 		var colCntVal uint64
-		extVal := utils.CValueEnclosure{}
+		extVal := sutils.CValueEnclosure{}
 		for i := 0; i < len(ntAgvals); i++ {
 			switch ntAgvals[i].Ntype {
-			case utils.SS_DT_SIGNED_NUM, utils.SS_DT_UNSIGNED_NUM:
-				extVal.Dtype = utils.SS_DT_SIGNED_NUM
+			case sutils.SS_DT_SIGNED_NUM, sutils.SS_DT_UNSIGNED_NUM:
+				extVal.Dtype = sutils.SS_DT_SIGNED_NUM
 				extVal.CVal = ntAgvals[i].IntgrVal
-			case utils.SS_DT_FLOAT:
-				extVal.Dtype = utils.SS_DT_FLOAT
+			case sutils.SS_DT_FLOAT:
+				extVal.Dtype = sutils.SS_DT_FLOAT
 				extVal.CVal = ntAgvals[i].FloatVal
-			case utils.SS_DT_BACKFILL:
-				extVal.Dtype = utils.SS_DT_SIGNED_NUM
+			case sutils.SS_DT_BACKFILL:
+				extVal.Dtype = sutils.SS_DT_SIGNED_NUM
 				extVal.CVal = ntAgvals[i].IntgrVal
-			case utils.SS_INVALID:
-				retErr = fmt.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: invalid dtype: %v", qid, utils.SS_DTYPE(ntAgvals[i].Ntype))
+			case sutils.SS_INVALID:
+				retErr = fmt.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: invalid dtype: %v", qid, sutils.SS_DTYPE(ntAgvals[i].Ntype))
 				continue
 			default:
-				retErr = fmt.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: unknown dtype: %v", qid, utils.SS_DTYPE(ntAgvals[i].Ntype))
+				retErr = fmt.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: unknown dtype: %v", qid, sutils.SS_DTYPE(ntAgvals[i].Ntype))
 				continue
 			}
 			// todo count is stored multiple times in the nodeAggvalue (per measCol), store only once
@@ -580,7 +580,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 	return retErr
 }
 
-func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEnclosure,
+func (str *AgileTreeReader) computeAggsJit(combiner map[string][]sutils.NumTypeEnclosure,
 	desiredLevel uint16, measResIndices []int, agileTreeBuf []byte, grpTreeLevels []uint16,
 	grpColNames []string,
 ) error {
@@ -597,7 +597,7 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 	myLevsOff := str.treeMeta.levsOffsets[desiredLevel]
 	myLevsSize := int64(str.treeMeta.levsSizes[desiredLevel])
 
-	agileTreeBuf = toputils.ResizeSlice(agileTreeBuf, int(myLevsSize))
+	agileTreeBuf = utils.ResizeSlice(agileTreeBuf, int(myLevsSize))
 
 	_, err = str.levDataFd.ReadAt(agileTreeBuf[:myLevsSize], myLevsOff)
 	if err != nil {
@@ -622,7 +622,7 @@ func (str *AgileTreeReader) decodeRawValBytes(mkey string, usedGrpDictEncodings 
 	buf := []byte(mkey)
 	idx := uint32(0)
 	for i, dictEncoding := range usedGrpDictEncodings {
-		nk := toputils.BytesToUint32LittleEndian(buf[idx : idx+4])
+		nk := utils.BytesToUint32LittleEndian(buf[idx : idx+4])
 		idx += 4
 
 		cname := grpColNames[i]

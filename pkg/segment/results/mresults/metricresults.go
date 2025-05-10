@@ -34,7 +34,7 @@ import (
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
@@ -541,7 +541,7 @@ func (r *MetricsResult) ApplyHistogramToResults(parallelism int, agg *structs.Hi
 	}
 
 	switch agg.Function {
-	case segutils.HistogramQuantile:
+	case sutils.HistogramQuantile:
 		return r.applyHistogramQunatile(seriesIds, agg)
 	}
 
@@ -969,13 +969,13 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	switch pqlQuerytype {
 	case parser.ValueTypeVector:
 		for groupId := range httpResp.AggStats {
-			startDuration = (startEpoch.UnixMilli() / segutils.MS_IN_MIN) * segutils.MS_IN_MIN
-			endDuration = (endEpoch.UnixMilli() / segutils.MS_IN_MIN) * segutils.MS_IN_MIN
+			startDuration = (startEpoch.UnixMilli() / sutils.MS_IN_MIN) * sutils.MS_IN_MIN
+			endDuration = (endEpoch.UnixMilli() / sutils.MS_IN_MIN) * sutils.MS_IN_MIN
 			runningTs = startEpoch
 
-			for endDuration > startDuration+segutils.MS_IN_MIN {
+			for endDuration > startDuration+sutils.MS_IN_MIN {
 				runningTs = runningTs.Add(1 * time.Minute)
-				startDuration = startDuration + segutils.MS_IN_MIN
+				startDuration = startDuration + sutils.MS_IN_MIN
 				bucketInterval := runningTs.Format("2006-01-02T15:04")
 				if _, ok := httpResp.AggStats[groupId][bucketInterval]; !ok {
 					httpResp.AggStats[groupId][bucketInterval] = 0
@@ -1094,15 +1094,15 @@ func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregati
 
 	var err error
 	switch aggregation.AggregatorFunction {
-	case segutils.Count:
+	case sutils.Count:
 		r.computeAggCount(aggregation, seriesEntriesMap)
-	case segutils.TopK:
+	case sutils.TopK:
 		err = r.computeExtremesKElements(aggregation.FuncConstant, -1.0, seriesEntriesMap)
-	case segutils.BottomK:
+	case sutils.BottomK:
 		err = r.computeExtremesKElements(aggregation.FuncConstant, 1.0, seriesEntriesMap)
-	case segutils.Stdvar:
+	case sutils.Stdvar:
 		fallthrough
-	case segutils.Stddev:
+	case sutils.Stddev:
 		r.computeAggStdvarOrStddev(aggregation, seriesEntriesMap)
 	default:
 		return fmt.Errorf("aggregateFromAllTimeseries: Unsupported aggregation: %v", aggregation)
@@ -1261,7 +1261,7 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 			r.Results[grpID] = make(map[uint32]float64)
 			for timestamp, values := range entry {
 				resVal := utils.CalculateStandardVariance(values)
-				if aggregation.AggregatorFunction == segutils.Stddev {
+				if aggregation.AggregatorFunction == sutils.Stddev {
 					resVal = math.Sqrt(resVal)
 				}
 				r.Results[grpID][timestamp] = resVal
@@ -1281,7 +1281,7 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 
 		for timestamp, values := range timestampToVals {
 			resVal := utils.CalculateStandardVariance(values)
-			if aggregation.AggregatorFunction == segutils.Stddev {
+			if aggregation.AggregatorFunction == sutils.Stddev {
 				resVal = math.Sqrt(resVal)
 			}
 			resultMap[timestamp] = resVal

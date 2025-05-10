@@ -20,13 +20,13 @@ package writer
 import (
 	"testing"
 
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeDictionaryColumn(t *testing.T) {
 	type args struct {
-		columnValueMap map[segutils.CValueDictEnclosure][]uint16
+		columnValueMap map[sutils.CValueDictEnclosure][]uint16
 		riValue        map[string]*RangeIndex
 	}
 	var recNum uint16 = 0
@@ -36,17 +36,17 @@ func TestEncodeDictionaryColumn(t *testing.T) {
 		want []byte
 	}{
 		{
-			args: args{columnValueMap: map[segutils.CValueDictEnclosure][]uint16{
-				{Dtype: segutils.SS_DT_STRING, CValString: "test"}: {5, 10, 11},
-				{Dtype: segutils.SS_DT_STRING, CValString: "abc"}:  {3},
-				{Dtype: segutils.SS_DT_BOOL, CValBool: false}:      {6, 7, 9, 20, 21},
+			args: args{columnValueMap: map[sutils.CValueDictEnclosure][]uint16{
+				{Dtype: sutils.SS_DT_STRING, CValString: "test"}: {5, 10, 11},
+				{Dtype: sutils.SS_DT_STRING, CValString: "abc"}:  {3},
+				{Dtype: sutils.SS_DT_BOOL, CValBool: false}:      {6, 7, 9, 20, 21},
 			}},
 		},
 		{
-			args: args{columnValueMap: map[segutils.CValueDictEnclosure][]uint16{
-				{Dtype: segutils.SS_DT_STRING, CValString: "abc"}:             {1},
-				{Dtype: segutils.SS_DT_FLOAT, CValFloat64: 1.34}:              {32},
-				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CValUInt64: uint64(134)}: {3, 10},
+			args: args{columnValueMap: map[sutils.CValueDictEnclosure][]uint16{
+				{Dtype: sutils.SS_DT_STRING, CValString: "abc"}:             {1},
+				{Dtype: sutils.SS_DT_FLOAT, CValFloat64: 1.34}:              {32},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CValUInt64: uint64(134)}: {3, 10},
 			}},
 		},
 	}

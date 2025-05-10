@@ -36,7 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -202,7 +202,7 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 
 	queryStruct, ok := res.(ast.QueryStruct)
 	if !ok {
-		return nil, nil, []string{}, toputils.TeeErrorf("qid=%d, parsePipeSearch: expected QueryStruct, got %T", qid, res)
+		return nil, nil, []string{}, utils.TeeErrorf("qid=%d, parsePipeSearch: expected QueryStruct, got %T", qid, res)
 	}
 
 	searchNode := queryStruct.SearchFilter

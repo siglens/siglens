@@ -34,11 +34,11 @@ import (
 	"github.com/siglens/siglens/pkg/health"
 	segstructs "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
-	"github.com/siglens/siglens/pkg/segment/tracing/utils"
+	tutils "github.com/siglens/siglens/pkg/segment/tracing/utils"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/usageStats"
-	putils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -53,7 +53,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
-	nowTs := putils.GetCurrentTimeInMs()
+	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	page := 1
@@ -170,7 +170,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		Traces: traces,
 	}
 
-	putils.WriteJsonResponse(ctx, traceResult)
+	utils.WriteJsonResponse(ctx, traceResult)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
@@ -227,7 +227,7 @@ func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchReque
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("ParseAndValidateRequestBody: Received empty search request body")
-		putils.SetBadMsg(ctx, "")
+		utils.SetBadMsg(ctx, "")
 		return nil, nil, errors.New("received empty search request body")
 	}
 
@@ -451,7 +451,7 @@ func ProcessRedTracesIngest(myid int64) {
 	spans := make([]*structs.Span, 0)
 
 	cnameCacheByteHashToStr := make(map[uint64]string)
-	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 
 	for {
 		ctx := &fasthttp.RequestCtx{}
@@ -569,10 +569,10 @@ func ProcessRedTracesIngest(myid int64) {
 			durations[i] = duration / 1000000 // convert duration from nanoseconds to milliseconds
 		}
 		if exists {
-			redMetrics.P50 = utils.FindPercentileData(durations, 50)
-			redMetrics.P90 = utils.FindPercentileData(durations, 90)
-			redMetrics.P95 = utils.FindPercentileData(durations, 95)
-			redMetrics.P99 = utils.FindPercentileData(durations, 99)
+			redMetrics.P50 = tutils.FindPercentileData(durations, 50)
+			redMetrics.P90 = tutils.FindPercentileData(durations, 90)
+			redMetrics.P95 = tutils.FindPercentileData(durations, 95)
+			redMetrics.P99 = tutils.FindPercentileData(durations, 99)
 		}
 
 		serviceToMetrics[service] = redMetrics
@@ -584,7 +584,7 @@ func ProcessRedTracesIngest(myid int64) {
 		}
 
 		// Setup ingestion parameters
-		now := putils.GetCurrentTimeInMs()
+		now := utils.GetCurrentTimeInMs()
 
 		ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
 		if err != nil {
@@ -596,7 +596,7 @@ func ProcessRedTracesIngest(myid int64) {
 	}
 
 	localIndexMap := make(map[string]string)
-	tsNow := putils.GetCurrentTimeInMs()
+	tsNow := utils.GetCurrentTimeInMs()
 
 	err := writer.ProcessIndexRequestPle(tsNow, indexName, shouldFlush, localIndexMap,
 		myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
@@ -705,7 +705,7 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int, myid int6
 	}
 
 	// Setup ingestion parameters
-	now := putils.GetCurrentTimeInMs()
+	now := utils.GetCurrentTimeInMs()
 	indexName := "service-dependency"
 	shouldFlush := false
 	localIndexMap := make(map[string]string)
@@ -713,7 +713,7 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int, myid int6
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
-	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	defer segwriter.ReleasePLEs(pleArray)
 
@@ -777,7 +777,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 	processedData := make(map[string]interface{})
 	if dependencyResponseOuter.Hits.Hits == nil || len(dependencyResponseOuter.Hits.Hits) == 0 {
 		ctx.SetStatusCode(fasthttp.StatusOK)
-		_, writeErr := ctx.WriteString(putils.ErrNoDependencyGraphs)
+		_, writeErr := ctx.WriteString(utils.ErrNoDependencyGraphs)
 		if writeErr != nil {
 			log.Errorf("ProcessAggregatedDependencyGraphs: Error writing to context: %v", writeErr)
 		}
@@ -857,7 +857,7 @@ func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
-	nowTs := putils.GetCurrentTimeInMs()
+	nowTs := utils.GetCurrentTimeInMs()
 	_, startEpoch, endEpoch, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	startEpochInt64 := int64(startEpoch)
@@ -896,7 +896,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("ProcessGanttChartRequest: received empty search request body")
-		putils.SetBadMsg(ctx, "")
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 
@@ -1037,13 +1037,13 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		searchRequestBody.From += 1000
 	}
 
-	res, err := utils.BuildSpanTree(idToSpanMap, idToParentId)
+	res, err := tutils.BuildSpanTree(idToSpanMap, idToParentId)
 	if err != nil {
 		writeErrMsg(ctx, "ProcessGanttChartRequest", err.Error(), nil)
 		return
 	}
 
-	putils.WriteJsonResponse(ctx, res)
+	utils.WriteJsonResponse(ctx, res)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
@@ -1069,7 +1069,7 @@ func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
-	nowTs := putils.GetCurrentTimeInMs()
+	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	// Validate query

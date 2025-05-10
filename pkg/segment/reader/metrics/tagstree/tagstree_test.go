@@ -29,7 +29,7 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	log "github.com/sirupsen/logrus"
@@ -56,7 +56,7 @@ func writeMockMetrics(forceRotate bool, allTimeSeries []timeSeries) ([]*metrics.
 		entry["timestamp"] = timestamp + uint64(i)
 		entry["value"] = rand.Intn(500)
 		rawJson, _ := json.Marshal(entry)
-		err := writer.AddTimeSeriesEntryToInMemBuf(rawJson, segutils.SIGNAL_METRICS_OTSDB, 0)
+		err := writer.AddTimeSeriesEntryToInMemBuf(rawJson, sutils.SIGNAL_METRICS_OTSDB, 0)
 		if err != nil {
 			log.Errorf("writeMockMetrics: error adding time series entry to in memory buffer: %s", err)
 			return nil, err
@@ -115,7 +115,7 @@ func Test_ReadWriteTagsTree(t *testing.T) {
 	tagValue = xxhash.Sum64String("yellow")
 	tagKeyFileExists := attr.tagTreeFileExists(tagKey)
 	assert.True(t, tagKeyFileExists)
-	exists, tagValExists, rawTagValueToTSIDs, err := attr.getOrInsertMatchingTSIDs(metricName, tagKey, tagValue, segutils.Equal, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err := attr.getOrInsertMatchingTSIDs(metricName, tagKey, tagValue, sutils.Equal, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
@@ -179,7 +179,7 @@ func Test_SelectOneTagKeyValuePair(t *testing.T) {
 	// Test selecting for key = value
 	colorTagKeyFileExists := attr.tagTreeFileExists("color")
 	assert.True(t, colorTagKeyFileExists)
-	exists, tagValExists, rawTagValueToTSIDs, err := attr.getOrInsertMatchingTSIDs(metric1, "color", xxhash.Sum64String("blue"), segutils.Equal, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err := attr.getOrInsertMatchingTSIDs(metric1, "color", xxhash.Sum64String("blue"), sutils.Equal, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
@@ -187,26 +187,26 @@ func Test_SelectOneTagKeyValuePair(t *testing.T) {
 
 	fruitTagKeyFileExists := attr.tagTreeFileExists("fruit")
 	assert.True(t, fruitTagKeyFileExists)
-	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), segutils.Equal, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), sutils.Equal, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 3)
 
 	// Test selecting for key != value
-	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "color", xxhash.Sum64String("green"), segutils.NotEqual, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "color", xxhash.Sum64String("green"), sutils.NotEqual, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 4)
 
-	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), segutils.NotEqual, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), sutils.NotEqual, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 2)
 
-	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("this-doesn't-match-anything"), segutils.NotEqual, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("this-doesn't-match-anything"), sutils.NotEqual, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)

@@ -6,7 +6,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	statswriter "github.com/siglens/siglens/pkg/segment/writer/stats"
 	"github.com/stretchr/testify/assert"
 )
@@ -14,7 +14,7 @@ import (
 func getDummyMeasureAggregator() *structs.MeasureAggregator {
 	return &structs.MeasureAggregator{
 		MeasureCol:      "vals",
-		MeasureFunc:     utils.Sum,
+		MeasureFunc:     sutils.Sum,
 		StrEnc:          "vals",
 		ValueColRequest: getDummyNumericValueExpr("vals"),
 	}
@@ -34,18 +34,18 @@ func getDummySegStats() *structs.SegStats {
 			},
 			StrList: []string{"1", "4", "10"},
 		},
-		Records: []*utils.CValueEnclosure{
+		Records: []*sutils.CValueEnclosure{
 			{
 				CVal:  1.0,
-				Dtype: utils.SS_DT_FLOAT,
+				Dtype: sutils.SS_DT_FLOAT,
 			},
 			{
 				CVal:  4.0,
-				Dtype: utils.SS_DT_FLOAT,
+				Dtype: sutils.SS_DT_FLOAT,
 			},
 			{
 				CVal:  10.0,
-				Dtype: utils.SS_DT_FLOAT,
+				Dtype: sutils.SS_DT_FLOAT,
 			},
 		},
 	}
@@ -111,7 +111,7 @@ func TestComputeAggEvalForList_InvalidRunningEvalStatsConversion(t *testing.T) {
 		"vals": 123, // Invalid type, cannot convert to a list.
 	}
 	sstMap := map[string]*structs.SegStats{dummyMeasureAggr.MeasureCol: getDummySegStats()}
-	measureResults := make(map[string]utils.CValueEnclosure)
+	measureResults := make(map[string]sutils.CValueEnclosure)
 
 	expectedError := fmt.Errorf("ComputeAggEvalForList: can not convert to list for measureAgg: %v", "vals")
 
@@ -128,7 +128,7 @@ func TestComputeAggEvalForList_EmptyFields(t *testing.T) {
 	timestampKey := config.GetTimeStampKey()
 	dummyMeasureAggr.ValueColRequest = getDummyNumericValueExprWithoutField()
 	sstMap := map[string]*structs.SegStats{dummyMeasureAggr.MeasureCol: getDummySegStats(), timestampKey: getDummySegStats()}
-	measureResults := make(map[string]utils.CValueEnclosure)
+	measureResults := make(map[string]sutils.CValueEnclosure)
 
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
@@ -140,7 +140,7 @@ func TestComputeAggEvalForList_MissingSSTMapKey(t *testing.T) {
 		"vals": []string{},
 	}
 	sstMap := map[string]*structs.SegStats{"otherKey": getDummySegStats()}
-	measureResults := make(map[string]utils.CValueEnclosure)
+	measureResults := make(map[string]sutils.CValueEnclosure)
 
 	expectedError := fmt.Errorf("ComputeAggEvalForList: sstMap did not have segstats for field %v, measureAgg: %v", "vals", "vals")
 
@@ -159,7 +159,7 @@ func TestComputeAggEvalForList_CorrectInputsWithoutField(t *testing.T) {
 
 	dummyMeasureAggr.ValueColRequest = getDummyNumericValueExprWithoutField()
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats(), timestampKey: getDummySegStats()}
-	measureResults := make(map[string]utils.CValueEnclosure)
+	measureResults := make(map[string]sutils.CValueEnclosure)
 	expected := []string{"100", "100", "100"}
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
@@ -175,7 +175,7 @@ func TestComputeAggEvalForList_CorrectInputsWithField(t *testing.T) {
 		"vals": []string{},
 	}
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
-	measureResults := make(map[string]utils.CValueEnclosure)
+	measureResults := make(map[string]sutils.CValueEnclosure)
 	expected := []string{"0.5", "2", "5"}
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
@@ -190,21 +190,21 @@ func TestComputeAggEvalForList_largeLists(t *testing.T) {
 	runningEvalStats := map[string]interface{}{
 		"vals": []string{},
 	}
-	list := make([]*utils.CValueEnclosure, utils.MAX_SPL_LIST_SIZE+100)
+	list := make([]*sutils.CValueEnclosure, sutils.MAX_SPL_LIST_SIZE+100)
 
 	for i := range list {
-		list[i] = &utils.CValueEnclosure{
+		list[i] = &sutils.CValueEnclosure{
 			CVal:  1.0,
-			Dtype: utils.SS_DT_FLOAT,
+			Dtype: sutils.SS_DT_FLOAT,
 		}
 	}
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
 	sstMap["vals"].Records = list
-	measureResults := make(map[string]utils.CValueEnclosure)
+	measureResults := make(map[string]sutils.CValueEnclosure)
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
-	assert.Equal(t, utils.MAX_SPL_LIST_SIZE, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be MAX_SPL_LIST_SIZE")
-	assert.Equal(t, utils.MAX_SPL_LIST_SIZE, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be MAX_SPL_LIST_SIZE")
+	assert.Equal(t, sutils.MAX_SPL_LIST_SIZE, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be MAX_SPL_LIST_SIZE")
+	assert.Equal(t, sutils.MAX_SPL_LIST_SIZE, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be MAX_SPL_LIST_SIZE")
 }
 
 func TestComputeAggEvalForList_TestUpdateWithMultipleEvals(t *testing.T) {
@@ -213,7 +213,7 @@ func TestComputeAggEvalForList_TestUpdateWithMultipleEvals(t *testing.T) {
 		"vals": []string{},
 	}
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
-	measureResults := make(map[string]utils.CValueEnclosure)
+	measureResults := make(map[string]sutils.CValueEnclosure)
 	expected := []string{"0.5", "2", "5"}
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
@@ -223,7 +223,7 @@ func TestComputeAggEvalForList_TestUpdateWithMultipleEvals(t *testing.T) {
 	assert.Equal(t, expected, runningEvalStats["vals"].([]string), "The runningEvalStats slice should be equal to the expected slice")
 
 	expected = []string{"0.5", "2", "5", "0.5", "2", "5"}
-	measureResults = make(map[string]utils.CValueEnclosure)
+	measureResults = make(map[string]sutils.CValueEnclosure)
 	err = ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be 6")
@@ -236,7 +236,7 @@ func TestComputeAggEvalForList_TestUpdateWithMultipleEvals(t *testing.T) {
 func TestComputeAggEvalForValues_NoFields(t *testing.T) {
 	measureAgg := getDummyMeasureAggregator()
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
-	measureResults := map[string]utils.CValueEnclosure{}
+	measureResults := map[string]sutils.CValueEnclosure{}
 	runningEvalStats := map[string]interface{}{
 		"vals": map[string]struct{}{},
 	}
@@ -247,13 +247,13 @@ func TestComputeAggEvalForValues_NoFields(t *testing.T) {
 
 	result, ok := measureResults[measureAgg.String()]
 	assert.True(t, ok)
-	assert.Equal(t, utils.SS_DT_STRING_SLICE, result.Dtype)
+	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 }
 
 func TestComputeAggEvalForValues_MissingSSTMapKey(t *testing.T) {
 	measureAgg := getDummyMeasureAggregator()
 	sstMap := map[string]*structs.SegStats{"other": getDummySegStats()}
-	measureResults := map[string]utils.CValueEnclosure{}
+	measureResults := map[string]sutils.CValueEnclosure{}
 	runningEvalStats := map[string]interface{}{
 		"vals": map[string]struct{}{},
 	}
@@ -266,7 +266,7 @@ func TestComputeAggEvalForValues_MissingSSTMapKey(t *testing.T) {
 func TestComputeAggEvalForValues_InvalidStrSetConversion(t *testing.T) {
 	measureAgg := getDummyMeasureAggregator()
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
-	measureResults := map[string]utils.CValueEnclosure{}
+	measureResults := map[string]sutils.CValueEnclosure{}
 	runningEvalStats := map[string]interface{}{
 		"vals": []string{},
 	}
@@ -279,7 +279,7 @@ func TestComputeAggEvalForValues_InvalidStrSetConversion(t *testing.T) {
 func TestComputeAggEvalForValues_WithFieldsAndValidData(t *testing.T) {
 	measureAgg := getDummyMeasureAggregator()
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
-	measureResults := map[string]utils.CValueEnclosure{}
+	measureResults := map[string]sutils.CValueEnclosure{}
 	runningEvalStats := map[string]interface{}{
 		"vals": map[string]struct{}{},
 	}
@@ -289,7 +289,7 @@ func TestComputeAggEvalForValues_WithFieldsAndValidData(t *testing.T) {
 	expected := []string{"0.5", "2", "5"}
 	result, ok := measureResults[measureAgg.String()]
 	assert.True(t, ok)
-	assert.Equal(t, utils.SS_DT_STRING_SLICE, result.Dtype)
+	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
 	uniqueStrings, ok := result.CVal.([]string)
 	assert.True(t, ok)
@@ -299,7 +299,7 @@ func TestComputeAggEvalForValues_WithFieldsAndValidData(t *testing.T) {
 func TestComputeAggEvalForValues_WithoutFieldsAndValidData(t *testing.T) {
 	measureAgg := getDummyMeasureAggregator()
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
-	measureResults := map[string]utils.CValueEnclosure{}
+	measureResults := map[string]sutils.CValueEnclosure{}
 	runningEvalStats := map[string]interface{}{
 		"vals": map[string]struct{}{},
 	}
@@ -309,7 +309,7 @@ func TestComputeAggEvalForValues_WithoutFieldsAndValidData(t *testing.T) {
 	expected := []string{"100"}
 	result, ok := measureResults[measureAgg.String()]
 	assert.True(t, ok)
-	assert.Equal(t, utils.SS_DT_STRING_SLICE, result.Dtype)
+	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
 	uniqueStrings, ok := result.CVal.([]string)
 	assert.True(t, ok)
@@ -319,7 +319,7 @@ func TestComputeAggEvalForValues_WithoutFieldsAndValidData(t *testing.T) {
 func TestComputeAggEvalForValues_UpdateWithMultipleEvals(t *testing.T) {
 	measureAgg := getDummyMeasureAggregator()
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
-	measureResults := map[string]utils.CValueEnclosure{}
+	measureResults := map[string]sutils.CValueEnclosure{}
 	runningEvalStats := map[string]interface{}{
 		"vals": map[string]struct{}{},
 	}
@@ -329,7 +329,7 @@ func TestComputeAggEvalForValues_UpdateWithMultipleEvals(t *testing.T) {
 	expected := []string{"0.5", "2", "5"}
 	result, ok := measureResults[measureAgg.String()]
 	assert.True(t, ok)
-	assert.Equal(t, utils.SS_DT_STRING_SLICE, result.Dtype)
+	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
 	uniqueStrings, ok := result.CVal.([]string)
 	assert.True(t, ok)
@@ -339,7 +339,7 @@ func TestComputeAggEvalForValues_UpdateWithMultipleEvals(t *testing.T) {
 	assert.NoError(t, err)
 	result, ok = measureResults[measureAgg.String()]
 	assert.True(t, ok)
-	assert.Equal(t, utils.SS_DT_STRING_SLICE, result.Dtype)
+	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
 	uniqueStrings, ok = result.CVal.([]string)
 	assert.True(t, ok)
@@ -350,7 +350,7 @@ func TestComputeAggEvalForValues_UpdateWithMultipleEvals(t *testing.T) {
 func TestComputeAggEvalForValues_UpdateWithMultipleEvalsWithoutField(t *testing.T) {
 	measureAgg := getDummyMeasureAggregator()
 	sstMap := map[string]*structs.SegStats{"vals": getDummySegStats()}
-	measureResults := map[string]utils.CValueEnclosure{}
+	measureResults := map[string]sutils.CValueEnclosure{}
 	runningEvalStats := map[string]interface{}{
 		"vals": map[string]struct{}{},
 	}
@@ -360,7 +360,7 @@ func TestComputeAggEvalForValues_UpdateWithMultipleEvalsWithoutField(t *testing.
 	expected := []string{"100"}
 	result, ok := measureResults[measureAgg.String()]
 	assert.True(t, ok)
-	assert.Equal(t, utils.SS_DT_STRING_SLICE, result.Dtype)
+	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
 	uniqueStrings, ok := result.CVal.([]string)
 	assert.True(t, ok)
@@ -370,7 +370,7 @@ func TestComputeAggEvalForValues_UpdateWithMultipleEvalsWithoutField(t *testing.
 	assert.NoError(t, err)
 	result, ok = measureResults[measureAgg.String()]
 	assert.True(t, ok)
-	assert.Equal(t, utils.SS_DT_STRING_SLICE, result.Dtype)
+	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
 	uniqueStrings, ok = result.CVal.([]string)
 	assert.True(t, ok)

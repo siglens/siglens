@@ -26,38 +26,38 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-func getTestInput(timeNow uint64) map[string][]utils.CValueEnclosure {
+func getTestInput(timeNow uint64) map[string][]sutils.CValueEnclosure {
 	minute := uint64(time.Minute.Milliseconds())
 	secondsIncrement := uint64(10 * time.Second.Milliseconds()) // 10 seconds
 
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]sutils.CValueEnclosure{
 		"timestamp": {
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: timeNow},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + secondsIncrement)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + 2*secondsIncrement)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + minute)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + minute + secondsIncrement)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + 2*minute)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: timeNow},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + secondsIncrement)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + 2*secondsIncrement)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + minute)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + minute + secondsIncrement)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + 2*minute)},
 		},
 		"measurecol": {
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
 		},
 		"groupbycol": {
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "b"},
 		},
 	}
 
@@ -75,7 +75,7 @@ func getTimechartProcessor(startTime uint64) *timechartProcessor {
 		MeasureOperations: []*structs.MeasureAggregator{
 			{
 				MeasureCol:  "measurecol",
-				MeasureFunc: utils.Sum,
+				MeasureFunc: sutils.Sum,
 				StrEnc:      "sum_measurecol",
 			},
 		},
