@@ -41,11 +41,11 @@ const MAX_POINTS_TO_EVALUATE float64 = 250
 Struct to represent a single metrics query request.
 */
 type MetricsQuery struct {
-	isQueryCancelled       uint32               // flag to indicate if the query is cancelled/deleted. 1 if cancelled/deleted, 0 otherwise
-	MetricName             string               // metric name to query for.
+	isQueryCancelled       uint32             // flag to indicate if the query is cancelled/deleted. 1 if cancelled/deleted, 0 otherwise
+	MetricName             string             // metric name to query for.
 	MetricOperator         sutils.TagOperator // operator to apply on metric name
-	MetricNameRegexPattern string               // regex pattern to apply on metric name
-	QueryHash              uint64               // hash of the query
+	MetricNameRegexPattern string             // regex pattern to apply on metric name
+	QueryHash              uint64             // hash of the query
 	HashedMName            uint64
 	// Some queries include lookback time and for those queries, this field will be set.
 	// Example: sum_over_time(metrics[1m]) - in this case, the LookBackToInclude will be the 1m

@@ -35,12 +35,12 @@ import (
 )
 
 type Numbers struct {
-	Min_uint64  uint64                `json:"Min_uint64"`
-	Max_uint64  uint64                `json:"Max_uint64"`
-	Min_int64   int64                 `json:"Min_int64"`
-	Max_int64   int64                 `json:"Max_int64"`
-	Min_float64 float64               `json:"Min_float64"`
-	Max_float64 float64               `json:"Max_float64"`
+	Min_uint64  uint64              `json:"Min_uint64"`
+	Max_uint64  uint64              `json:"Max_uint64"`
+	Min_int64   int64               `json:"Min_int64"`
+	Max_int64   int64               `json:"Max_int64"`
+	Min_float64 float64             `json:"Min_float64"`
+	Max_float64 float64             `json:"Max_float64"`
 	NumType     sutils.RangeNumType `json:"NumType"`
 }
 
@@ -317,19 +317,19 @@ type GroupByRequest struct {
 }
 
 type MeasureAggregator struct {
-	MeasureCol         string                      `json:"measureCol,omitempty"`
+	MeasureCol         string                    `json:"measureCol,omitempty"`
 	MeasureFunc        sutils.AggregateFunctions `json:"measureFunc,omitempty"`
-	StrEnc             string                      `json:"strEnc,omitempty"`
-	ValueColRequest    *ValueExpr                  `json:"valueColRequest,omitempty"`
-	OverrodeMeasureAgg *MeasureAggregator          `json:"overrideFunc,omitempty"`
+	StrEnc             string                    `json:"strEnc,omitempty"`
+	ValueColRequest    *ValueExpr                `json:"valueColRequest,omitempty"`
+	OverrodeMeasureAgg *MeasureAggregator        `json:"overrideFunc,omitempty"`
 	Param              string
 }
 
 type MathEvaluator struct {
-	MathCol         string                 `json:"mathCol,omitempty"`
+	MathCol         string               `json:"mathCol,omitempty"`
 	MathFunc        sutils.MathFunctions `json:"mathFunc,omitempty"`
-	StrEnc          string                 `json:"strEnc,omitempty"`
-	ValueColRequest *ValueExpr             `json:"valueCol,omitempty"`
+	StrEnc          string               `json:"strEnc,omitempty"`
+	ValueColRequest *ValueExpr           `json:"valueCol,omitempty"`
 }
 
 type ColumnsRequest struct {
@@ -449,9 +449,9 @@ type MultiValueColLetRequest struct {
 }
 
 type BucketResult struct {
-	ElemCount   uint64                              // total number of elements in bucket
+	ElemCount   uint64                            // total number of elements in bucket
 	StatRes     map[string]sutils.CValueEnclosure // results of statistic functions
-	BucketKey   interface{}                         // bucket key
+	BucketKey   interface{}                       // bucket key
 	GroupByKeys []string
 }
 
@@ -547,7 +547,7 @@ type SegStats struct {
 }
 
 type NumericStats struct {
-	NumericCount uint64                    `json:"numericCount,omitempty"`
+	NumericCount uint64                  `json:"numericCount,omitempty"`
 	Sum          sutils.NumTypeEnclosure `json:"sum,omitempty"`
 }
 

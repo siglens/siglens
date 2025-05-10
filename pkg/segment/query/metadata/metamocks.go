@@ -178,7 +178,7 @@ func writeMockBlockBloom(file string, blockBlooms []*bloom.BloomFilter) {
 		}
 
 		bytesWritten += sutils.LEN_BLKNUM_CMI_SIZE // for blkNum
-		bytesWritten += 1                            // reserve for CMI type
+		bytesWritten += 1                          // reserve for CMI type
 
 		if _, err = bffd.Write(utils.Uint32ToBytesLittleEndian(uint32(bytesWritten))); err != nil {
 			log.Errorf("writeMockBlockBloom: bloomsize write failed fname=%v, err=%v", file, err)
