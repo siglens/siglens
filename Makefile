@@ -31,7 +31,7 @@ test:
 test_all:
 	$(GO) test ./... -count 1 --tags=e2e_all
 
-build:
+build: pkg/ast/spl/spl.go
 	$(GO) mod tidy
 	$(GO) build -o siglens cmd/siglens/main.go
 
