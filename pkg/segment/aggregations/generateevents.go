@@ -11,7 +11,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
@@ -52,7 +52,7 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 	if aggs.GenerateEvent.GenTimes.Interval == nil {
 		aggs.GenerateEvent.GenTimes.Interval = &structs.SpanLength{
 			Num:       1,
-			TimeScalr: segutils.TMDay,
+			TimeScalr: sutils.TMDay,
 		}
 	}
 	genCols := []string{"starttime", "endtime", "starthuman", "endhuman"}
@@ -82,11 +82,11 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 	for start < end {
 		recordKey := fmt.Sprintf("%v_%v", aggs.GenerateEvent.EventPosition, key)
 
-		endTime, err := segutils.ApplyOffsetToTime(int64(interval), aggs.GenerateEvent.GenTimes.Interval.TimeScalr, currTime)
+		endTime, err := sutils.ApplyOffsetToTime(int64(interval), aggs.GenerateEvent.GenTimes.Interval.TimeScalr, currTime)
 		if err != nil {
 			return fmt.Errorf("PerformGenTimes: Error while calculating end time, err: %v", err)
 		}
-		intervalEndTime, err := segutils.ApplyOffsetToTime(-1, segutils.TMSecond, endTime)
+		intervalEndTime, err := sutils.ApplyOffsetToTime(-1, sutils.TMSecond, endTime)
 		if err != nil {
 			return fmt.Errorf("PerformGenTimes: Error while calculating interval end time, err: %v", err)
 		}
@@ -158,7 +158,7 @@ func PerformInputLookup(aggs *structs.QueryAggregators) error {
 
 	key := 0
 	count := 0
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
 	for count < int(aggs.GenerateEvent.InputLookup.Max) {
 		count++
 		recordKey := fmt.Sprintf("%v_%v", aggs.GenerateEvent.EventPosition, key)

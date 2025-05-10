@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/querytracker"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -43,7 +43,7 @@ type Node struct {
 	myKey          uint32
 	parent         *Node
 	children       map[uint32]*Node
-	aggValues      []*segutils.Number
+	aggValues      []*sutils.Number
 	commonChildren map[uint32][]*Node
 }
 
@@ -119,19 +119,19 @@ func (stbHolder *STBHolder) ReleaseSTB() {
 	stbHolder.currentlyInUse = false
 }
 
-var IdxToAgFn []segutils.AggregateFunctions = []segutils.AggregateFunctions{
-	segutils.Min, segutils.Max,
-	segutils.Sum, segutils.Count}
+var IdxToAgFn []sutils.AggregateFunctions = []sutils.AggregateFunctions{
+	sutils.Min, sutils.Max,
+	sutils.Sum, sutils.Count}
 
-func AgFnToIdx(fn segutils.AggregateFunctions) int {
+func AgFnToIdx(fn sutils.AggregateFunctions) int {
 	switch fn {
-	case segutils.Min:
+	case sutils.Min:
 		return MeasFnMinIdx
-	case segutils.Max:
+	case sutils.Max:
 		return MeasFnMaxIdx
-	case segutils.Sum:
+	case sutils.Sum:
 		return MeasFnSumIdx
-	case segutils.Count:
+	case sutils.Count:
 		return MeasFnCountIdx
 	default:
 		log.Errorf("AgFnToIdx: invalid fn: %v", fn)
@@ -349,7 +349,7 @@ func (stb *StarTreeBuilder) newNode() *Node {
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 	ans.aggValues = utils.ResizeSlice(ans.aggValues, lenAggValues)
 	for i := range ans.aggValues {
-		ans.aggValues[i] = &segutils.Number{}
+		ans.aggValues[i] = &sutils.Number{}
 	}
 
 	return ans
@@ -382,25 +382,25 @@ func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 		for mcNum := range stb.mColNames {
 			midx := mcNum * TotalMeasFns
 			agidx := midx + MeasFnMinIdx
-			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], segutils.Min)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], sutils.Min)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating min err:%v", err)
 				return err
 			}
 			agidx = midx + MeasFnMaxIdx
-			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], segutils.Max)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], sutils.Max)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating max err:%v", err)
 				return err
 			}
 			agidx = midx + MeasFnSumIdx
-			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], segutils.Sum)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], sutils.Sum)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating sum err:%v", err)
 				return err
 			}
 			agidx = midx + MeasFnCountIdx
-			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], segutils.Count)
+			err = cur.aggValues[agidx].ReduceFast(child.aggValues[agidx], sutils.Count)
 			if err != nil {
 				log.Errorf("Aggregate: error in aggregating count err:%v", err)
 				return err
@@ -432,9 +432,9 @@ func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
 		return nil
 	}
 	if node.aggValues == nil {
-		node.aggValues = make([]*segutils.Number, len(stb.mColNames)*TotalMeasFns)
+		node.aggValues = make([]*sutils.Number, len(stb.mColNames)*TotalMeasFns)
 		for i := range node.aggValues {
-			node.aggValues[i] = &segutils.Number{}
+			node.aggValues[i] = &sutils.Number{}
 		}
 	}
 
@@ -442,25 +442,25 @@ func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
 	for mcNum := range stb.mColNames {
 		midx := mcNum * TotalMeasFns
 		agvidx := midx + MeasFnMinIdx
-		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], segutils.Min)
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], sutils.Min)
 		if err != nil {
 			return fmt.Errorf("updateAggVals: error in min err:%v", err)
 		}
 
 		agvidx = midx + MeasFnMaxIdx
-		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], segutils.Max)
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], sutils.Max)
 		if err != nil {
 			return fmt.Errorf("updateAggVals: error in max err:%v", err)
 		}
 
 		agvidx = midx + MeasFnSumIdx
-		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], segutils.Sum)
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], sutils.Sum)
 		if err != nil {
 			return fmt.Errorf("updateAggVals: error in sum err:%v", err)
 		}
 
 		agvidx = midx + MeasFnCountIdx
-		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], segutils.Count)
+		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], sutils.Count)
 		if err != nil {
 			return fmt.Errorf("updateAggVals: error in count err:%v", err)
 		}
@@ -618,7 +618,7 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 	lenAggValues := len(stb.mColNames) * TotalMeasFns
 	measCidx := make([]uint32, len(stb.mColNames))
 
-	num := &segutils.Number{}
+	num := &sutils.Number{}
 
 	for recNum := uint16(0); recNum < numRecs; recNum += 1 {
 		for colNum := range stb.groupByKeys {
@@ -643,7 +643,7 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 	return nil
 }
 
-func (stb *StarTreeBuilder) addMeasures(val *segutils.Number,
+func (stb *StarTreeBuilder) addMeasures(val *sutils.Number,
 	lenAggValues int, midx int, node *Node) error {
 
 	if len(node.aggValues) != lenAggValues {
@@ -653,27 +653,27 @@ func (stb *StarTreeBuilder) addMeasures(val *segutils.Number,
 	var err error
 	// always calculate all meas Fns
 	agvidx := midx + MeasFnMinIdx
-	err = node.aggValues[agvidx].ReduceFast(val, segutils.Min)
+	err = node.aggValues[agvidx].ReduceFast(val, sutils.Min)
 	if err != nil {
 		return fmt.Errorf("addMeasures: error in min err:%v", err)
 	}
 	agvidx = midx + MeasFnMaxIdx
-	err = node.aggValues[agvidx].ReduceFast(val, segutils.Max)
+	err = node.aggValues[agvidx].ReduceFast(val, sutils.Max)
 	if err != nil {
 		return fmt.Errorf("addMeasures: error in max err:%v", err)
 	}
 	agvidx = midx + MeasFnSumIdx
-	err = node.aggValues[agvidx].ReduceFast(val, segutils.Sum)
+	err = node.aggValues[agvidx].ReduceFast(val, sutils.Sum)
 	if err != nil {
 		return fmt.Errorf("addMeasures: error in sum err:%v", err)
 	}
 
-	one := &segutils.Number{}
+	one := &sutils.Number{}
 	one.SetInt64(1)
 
 	agvidx = midx + MeasFnCountIdx
 	// for count we always use 1 instead of val
-	err = node.aggValues[agvidx].ReduceFast(one, segutils.Count)
+	err = node.aggValues[agvidx].ReduceFast(one, sutils.Count)
 	if err != nil {
 		return fmt.Errorf("addMeasures: error in count err:%v", err)
 	}
@@ -745,7 +745,7 @@ func (stb *StarTreeBuilder) logStarTreeIds(node *Node, level int) {
 */
 
 func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
-	colName string, num *segutils.Number) error {
+	colName string, num *sutils.Number) error {
 
 	deData := cwip.deData
 	if deData.deCount < wipCardLimit {

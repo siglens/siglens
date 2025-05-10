@@ -28,7 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -129,11 +129,11 @@ func (mm *allMetricsSegmentMetadata) rebalanceMetricsSsm(ssmSizeBytes uint64) {
 	inMemSize, inMemSearchMetaCount, newloaded := mm.loadSsmUntilIndex(searchIndex)
 
 	log.Infof("rebalanceMetricsSsm SSM, inMem: %+v SSM, allocated: %+v MB, evicted: %v, newloaded: %v, took: %vms",
-		inMemSearchMetaCount, segutils.ConvertUintBytesToMB(inMemSize),
+		inMemSearchMetaCount, sutils.ConvertUintBytesToMB(inMemSize),
 		evicted, newloaded, int(time.Since(sTime).Milliseconds()))
 
 	GlobalSegStoreSummary.SetInMemoryMetricsSearchmetadataCount(uint64(inMemSearchMetaCount))
-	GlobalSegStoreSummary.SetInMemoryMetricsSsmSizeMB(segutils.ConvertUintBytesToMB(inMemSize))
+	GlobalSegStoreSummary.SetInMemoryMetricsSsmSizeMB(sutils.ConvertUintBytesToMB(inMemSize))
 }
 
 /*

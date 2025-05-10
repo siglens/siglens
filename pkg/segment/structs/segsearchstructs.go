@@ -27,7 +27,7 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -535,15 +535,15 @@ func (match *MatchFilter) GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled bool
 		mVal := match.MatchDictArray.MatchValue
 		var mValStr string
 		switch mVal.Dtype {
-		case segutils.SS_DT_BOOL:
+		case sutils.SS_DT_BOOL:
 			mValStr = fmt.Sprintf("%v", mVal.BoolVal)
-		case segutils.SS_DT_STRING:
+		case sutils.SS_DT_STRING:
 			mValStr = fmt.Sprintf("%v", mVal.StringVal)
-		case segutils.SS_DT_UNSIGNED_NUM:
+		case sutils.SS_DT_UNSIGNED_NUM:
 			mValStr = fmt.Sprintf("%v", mVal.UnsignedVal)
-		case segutils.SS_DT_SIGNED_NUM:
+		case sutils.SS_DT_SIGNED_NUM:
 			mValStr = fmt.Sprintf("%v", mVal.SignedVal)
-		case segutils.SS_DT_FLOAT:
+		case sutils.SS_DT_FLOAT:
 			mValStr = fmt.Sprintf("%v", mVal.FloatVal)
 		default:
 			log.Errorf("MatchFilter.GetAllBlockBloomKeysToSearch: unsupported dtype: %v", mVal.Dtype)

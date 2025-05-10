@@ -42,7 +42,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -197,7 +197,7 @@ func ApplyVectorArithmetic(aggs *structs.QueryAggregators, qid uint64) *structs.
 
 	vectorExpr := aggs.VectorArithmeticExpr
 
-	result, err := vectorExpr.Evaluate(map[string]segutils.CValueEnclosure{})
+	result, err := vectorExpr.Evaluate(map[string]sutils.CValueEnclosure{})
 	if err != nil {
 		nodeRes.ErrList = []error{err}
 		return nodeRes
@@ -673,7 +673,7 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 					// Reuse the bucket keys from the previous segments so we
 					// sync which buckets we're using across segments.
 					str.SetBuckets(agileTreeBuckets)
-					str.SetBucketLimit(segutils.QUERY_MAX_BUCKETS)
+					str.SetBucketLimit(sutils.QUERY_MAX_BUCKETS)
 				}
 
 				search.ApplyAgileTree(str, segReq.aggs, allSegFileResults, segReq.sizeLimit, queryInfo.qid,

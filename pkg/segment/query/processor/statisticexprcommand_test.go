@@ -26,46 +26,46 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func getMockRRCsReader() *record.MockRRCsReader {
-	rrcs := []*segutils.RecordResultContainer{
-		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
-		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
-		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
-		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
-		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 5},
-		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 6},
+	rrcs := []*sutils.RecordResultContainer{
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 5},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 6},
 	}
 	mockReader := &record.MockRRCsReader{
 		RRCs: rrcs,
-		FieldToValues: map[string][]segutils.CValueEnclosure{
+		FieldToValues: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "e"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 
-				{Dtype: segutils.SS_DT_STRING, CVal: "e"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "c"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 			"col2": {
-				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
 			},
 			"col3": {
-				{Dtype: segutils.SS_DT_STRING, CVal: "c"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "e"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "e"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "c"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 		},
 	}
@@ -91,7 +91,7 @@ func getTestStatisticExprProcessor(sfMode structs.StatisticFunctionMode, withGro
 		MeasureOperations: []*structs.MeasureAggregator{
 			{
 				MeasureCol:  "*",
-				MeasureFunc: segutils.Count,
+				MeasureFunc: sutils.Count,
 			},
 		},
 		GroupByColumns: []string{"col1"},
@@ -146,24 +146,24 @@ func Test_StatisticTopExpr_withRRCs(t *testing.T) {
 	assert.True(t, processor.hasFinalResult)
 	assert.NotNil(t, processor.finalAggregationResults)
 
-	expectedResults := map[string][]segutils.CValueEnclosure{
+	expectedResults := map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "e"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "other"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "other"},
 		},
 		"count": {
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(0)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(0)},
 		},
 		"percent": {
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: float64(50)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: float64(33.333333333)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: float64(16.666666666667)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: float64(0)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: float64(50)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: float64(33.333333333)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: float64(16.666666666667)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: float64(0)},
 		},
 	}
 
@@ -217,24 +217,24 @@ func Test_StatisticRareExpr_withRRCs(t *testing.T) {
 	assert.True(t, processor.hasFinalResult)
 	assert.NotNil(t, processor.finalAggregationResults)
 
-	expectedResults := map[string][]segutils.CValueEnclosure{
+	expectedResults := map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "e"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "other"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "other"},
 		},
 		"count": {
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(0)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(0)},
 		},
 		"percent": {
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: float64(16.666666666666)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: float64(33.333333333333)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: float64(50)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: float64(0)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: float64(16.666666666666)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: float64(33.333333333333)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: float64(50)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: float64(0)},
 		},
 	}
 
@@ -289,30 +289,30 @@ func Test_StatisticExpr_withRRCs_GroupBy(t *testing.T) {
 	actualKnownValues, err := finalIqr.ReadAllColumns()
 	assert.Nil(t, err)
 
-	expectedValues := map[string][]segutils.CValueEnclosure{
+	expectedValues := map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "e"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 		},
 		"col3": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "e"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
 		},
 		"count": {
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
 		},
 		"percent": {
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(33.333)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(33.333)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(16.666)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(16.666)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(33.333)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(33.333)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(16.666)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(16.666)},
 		},
 	}
 

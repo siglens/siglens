@@ -23,28 +23,28 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-func getColValues(col string, num int) []segutils.CValueEnclosure {
-	values := make([]segutils.CValueEnclosure, num)
+func getColValues(col string, num int) []sutils.CValueEnclosure {
+	values := make([]sutils.CValueEnclosure, num)
 	for i := 0; i < num; i++ {
-		values[i] = segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: col + fmt.Sprintf("%v", i)}
+		values[i] = sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: col + fmt.Sprintf("%v", i)}
 	}
 	return values
 }
 
-func getKnownValues(cols []string, numRecords int) map[string][]segutils.CValueEnclosure {
-	knownValues := map[string][]segutils.CValueEnclosure{}
+func getKnownValues(cols []string, numRecords int) map[string][]sutils.CValueEnclosure {
+	knownValues := map[string][]sutils.CValueEnclosure{}
 	for _, col := range cols {
 		knownValues[col] = getColValues(col, numRecords)
 	}
 	return knownValues
 }
 
-func validateCols(t *testing.T, iqr *iqr.IQR, expectedCols []string, numRecords int, knownValues map[string][]segutils.CValueEnclosure) {
+func validateCols(t *testing.T, iqr *iqr.IQR, expectedCols []string, numRecords int, knownValues map[string][]sutils.CValueEnclosure) {
 	cols, err := iqr.ReadAllColumns()
 	assert.NoError(t, err)
 	assert.Equal(t, numRecords, iqr.NumberOfRecords())

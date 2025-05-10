@@ -28,7 +28,7 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -186,7 +186,7 @@ func absoluteTimeFormat(timeStr string) string {
 }
 
 func parseMetricTag(m string) (string, uint64, []*structs.TagsFilter, error) {
-	logicalOperator := segutils.And
+	logicalOperator := sutils.And
 	metricStart := strings.LastIndex(m, ":") + 1
 	metricEnd := strings.Index(m, "{")
 	if metricEnd == -1 {
@@ -216,7 +216,7 @@ func parseMetricTag(m string) (string, uint64, []*structs.TagsFilter, error) {
 		key, multipleTagValues = strings.TrimSpace(pair[0]), strings.TrimSpace(pair[1])
 		valuesList := strings.Split(multipleTagValues, "|")
 		if len(valuesList) > 1 {
-			logicalOperator = segutils.Or
+			logicalOperator = sutils.Or
 		}
 		for _, val = range valuesList {
 			switch v := val.(type) {
@@ -248,19 +248,19 @@ func parseMetricTag(m string) (string, uint64, []*structs.TagsFilter, error) {
 	return metric, hashedMName, tags, nil
 }
 
-func parseAggregatorDownsampler(m string) (segutils.AggregateFunctions, structs.Downsampler, error) {
+func parseAggregatorDownsampler(m string) (sutils.AggregateFunctions, structs.Downsampler, error) {
 	aggregaterDownsamplerList := strings.Split(m, ":")
-	aggregator := segutils.Sum
+	aggregator := sutils.Sum
 	downsamplerStr := ""
 	var ok bool
-	var aggregatorMapping = map[string]segutils.AggregateFunctions{
-		"count":       segutils.Count,
-		"avg":         segutils.Avg,
-		"min":         segutils.Min,
-		"max":         segutils.Max,
-		"sum":         segutils.Sum,
-		"cardinality": segutils.Cardinality,
-		"quantile":    segutils.Quantile,
+	var aggregatorMapping = map[string]sutils.AggregateFunctions{
+		"count":       sutils.Count,
+		"avg":         sutils.Avg,
+		"min":         sutils.Min,
+		"max":         sutils.Max,
+		"sum":         sutils.Sum,
+		"cardinality": sutils.Cardinality,
+		"quantile":    sutils.Quantile,
 	}
 	agg := structs.Aggregation{AggregatorFunction: aggregatorMapping["avg"]}
 	downsampler := structs.Downsampler{Interval: 1, Unit: "m", Aggregator: agg}
@@ -269,7 +269,7 @@ func parseAggregatorDownsampler(m string) (segutils.AggregateFunctions, structs.
 		aggregator, ok = aggregatorMapping[aggregaterDownsamplerList[0]]
 		if !ok {
 			log.Errorf("parseAggregatorDownsampler: unsupported aggregator function: %s", aggregaterDownsamplerList[0])
-			return segutils.Sum, downsampler, fmt.Errorf("unsupported aggregator function: %s", aggregaterDownsamplerList[0])
+			return sutils.Sum, downsampler, fmt.Errorf("unsupported aggregator function: %s", aggregaterDownsamplerList[0])
 		}
 		if len(aggregaterDownsamplerList) > 2 {
 			downsamplerStr = aggregaterDownsamplerList[1]

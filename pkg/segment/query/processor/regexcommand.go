@@ -24,7 +24,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
@@ -75,7 +75,7 @@ func (p *regexProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 	return nil, false
 }
 
-func (p *regexProcessor) performRegexMatch(value segutils.CValueEnclosure) bool {
+func (p *regexProcessor) performRegexMatch(value sutils.CValueEnclosure) bool {
 	stringVal, err := value.GetString()
 	if err != nil {
 		stringVal = fmt.Sprintf("%v", value.CVal)

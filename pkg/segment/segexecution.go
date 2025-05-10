@@ -32,7 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -449,14 +449,14 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 					rGroupID = resultRHS.MetricName + labelStr
 				}
 
-				if queryOp.Operation == segutils.LetOr || queryOp.Operation == segutils.LetUnless {
+				if queryOp.Operation == sutils.LetOr || queryOp.Operation == sutils.LetUnless {
 					labelStrSet[labelStr] = struct{}{}
 				}
 			}
 
 			// If 'and' operation cannot find a matching label set in the right vector, we should skip the current label set in the left vector.
 			// However, for the 'or', 'unless' we do not want to skip that.
-			if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != segutils.LetOr && queryOp.Operation != segutils.LetUnless {
+			if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != sutils.LetOr && queryOp.Operation != sutils.LetUnless {
 				continue
 			} //Entries for which no matching entry in the right-hand vector are dropped
 			finalResult[lGroupID] = make(map[uint32]float64)
@@ -465,7 +465,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 				putils.SetFinalResult(queryOp, finalResult, lGroupID, timestamp, valueLHS, valueRHS, swapped)
 			}
 		}
-		if queryOp.Operation == segutils.LetOr || queryOp.Operation == segutils.LetUnless {
+		if queryOp.Operation == sutils.LetOr || queryOp.Operation == sutils.LetUnless {
 			for rGroupID, tsRHS := range resultRHS.Results {
 				labelStr := ""
 				if len(rGroupID) >= len(resultRHS.MetricName) {
@@ -473,7 +473,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 				}
 
 				// For 'unless' op, all matching elements in both vectors are dropped
-				if queryOp.Operation == segutils.LetUnless {
+				if queryOp.Operation == sutils.LetUnless {
 					lGroupID := resultLHS.MetricName + labelStr
 					delete(finalResult, lGroupID)
 					continue

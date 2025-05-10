@@ -37,7 +37,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
@@ -220,7 +220,7 @@ type NumericExpr struct {
 	Left         *NumericExpr
 	Right        *NumericExpr
 	Val          *StringExpr
-	RelativeTime segutils.RelativeTimeExpr
+	RelativeTime sutils.RelativeTimeExpr
 }
 
 type StringExpr struct {
@@ -308,7 +308,7 @@ type BinCmdOptions struct {
 
 type BinSpanLength struct {
 	Num       float64
-	TimeScale segutils.TimeUnit
+	TimeScale sutils.TimeUnit
 }
 
 type BinSpanOptions struct {
@@ -332,7 +332,7 @@ type LogSpan struct {
 
 type SpanLength struct {
 	Num       int
-	TimeScalr segutils.TimeUnit
+	TimeScalr sutils.TimeUnit
 }
 
 type SplitByClause struct {
@@ -351,10 +351,10 @@ type Cluster struct {
 // This structure is used to store values which are not within limit. And These values will be merged into the 'other' category.
 type TMLimitResult struct {
 	ValIsInLimit     map[string]bool
-	GroupValScoreMap map[string]*segutils.CValueEnclosure
+	GroupValScoreMap map[string]*sutils.CValueEnclosure
 	Hll              *utils.GobbableHll
 	StrSet           map[string]struct{}
-	OtherCValArr     []*segutils.CValueEnclosure
+	OtherCValArr     []*sutils.CValueEnclosure
 }
 
 // To extract information from the structured data formats XML and JSON.
@@ -502,14 +502,14 @@ func (self *SortExpr) ReleaseProcessedSegmentsLock() {
 	self.processedSegmentsLock.Unlock()
 }
 
-func findNullFields(fields []string, fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func findNullFields(fields []string, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	nullFields := []string{}
 	for _, field := range fields {
 		val, exists := fieldToValue[field]
 		if !exists {
 			return []string{}, fmt.Errorf("findNullFields: Expression has a field for which value is not present")
 		}
-		if val.Dtype == segutils.SS_DT_BACKFILL {
+		if val.Dtype == sutils.SS_DT_BACKFILL {
 			nullFields = append(nullFields, field)
 		}
 	}
@@ -517,43 +517,43 @@ func findNullFields(fields []string, fieldToValue map[string]segutils.CValueEncl
 	return nullFields, nil
 }
 
-func (self *BoolExpr) GetNullFields(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *BoolExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	return findNullFields(self.GetFields(), fieldToValue)
 }
 
-func (self *NumericExpr) GetNullFields(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *NumericExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	return findNullFields(self.GetFields(), fieldToValue)
 }
 
-func (self *StringExpr) GetNullFields(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *StringExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	return findNullFields(self.GetFields(), fieldToValue)
 }
 
-func (self *RenameExpr) GetNullFields(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *RenameExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	return findNullFields(self.GetFields(), fieldToValue)
 }
 
-func (self *ConcatExpr) GetNullFields(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *ConcatExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	return findNullFields(self.GetFields(), fieldToValue)
 }
 
-func (self *TextExpr) GetNullFields(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *TextExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	return findNullFields(self.GetFields(), fieldToValue)
 }
 
-func (self *ValueExpr) GetNullFields(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *ValueExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	return findNullFields(self.GetFields(), fieldToValue)
 }
 
-func (self *ConditionExpr) GetNullFields(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *ConditionExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	return findNullFields(self.GetFields(), fieldToValue)
 }
 
-func (self *RexExpr) GetNullFields(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *RexExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	return findNullFields(self.GetFields(), fieldToValue)
 }
 
-func checkStringInFields(searchStr string, fieldToValue map[string]segutils.CValueEnclosure) (bool, error) {
+func checkStringInFields(searchStr string, fieldToValue map[string]sutils.CValueEnclosure) (bool, error) {
 	for _, fieldCValue := range fieldToValue {
 		stringValue, err := fieldCValue.GetString()
 		if err != nil {
@@ -568,7 +568,7 @@ func checkStringInFields(searchStr string, fieldToValue map[string]segutils.CVal
 	return false, nil
 }
 
-func handleSearchMatch(self *BoolExpr, searchStr string, fieldToValue map[string]segutils.CValueEnclosure) (bool, error) {
+func handleSearchMatch(self *BoolExpr, searchStr string, fieldToValue map[string]sutils.CValueEnclosure) (bool, error) {
 
 	kvPairs := strings.Fields(searchStr)
 	nullMap := make(map[string]bool)
@@ -619,10 +619,10 @@ func handleSearchMatch(self *BoolExpr, searchStr string, fieldToValue map[string
 	return true, nil
 }
 
-func validateBoolExprError(err error, errInfo string) (*segutils.CValueEnclosure, error) {
+func validateBoolExprError(err error, errInfo string) (*sutils.CValueEnclosure, error) {
 	if utils.IsNilValueError(err) {
-		return &segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_BACKFILL,
+		return &sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_BACKFILL,
 			CVal:  nil,
 		}, nil
 	} else if utils.IsNonNilValueError(err) {
@@ -632,9 +632,9 @@ func validateBoolExprError(err error, errInfo string) (*segutils.CValueEnclosure
 	return nil, nil
 }
 
-func getBoolCValueEnclosure(boolVal bool) *segutils.CValueEnclosure {
-	return &segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_BOOL,
+func getBoolCValueEnclosure(boolVal bool) *sutils.CValueEnclosure {
+	return &sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_BOOL,
 		CVal:  boolVal,
 	}
 }
@@ -642,7 +642,7 @@ func getBoolCValueEnclosure(boolVal bool) *segutils.CValueEnclosure {
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
 // with the value specified by fieldToValue. if the field is not present in the fieldToValue map
 // then NULL is returned.
-func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]segutils.CValueEnclosure) (*segutils.CValueEnclosure, error) {
+func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.CValueEnclosure) (*sutils.CValueEnclosure, error) {
 
 	if self.IsTerminal {
 		switch self.ValueOp {
@@ -702,7 +702,7 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]segutils
 				return getBoolCValueEnclosure(true), nil
 			}
 			// Check if the value's Dtype is SS_DT_BACKFILL
-			if value.Dtype == segutils.SS_DT_BACKFILL {
+			if value.Dtype == sutils.SS_DT_BACKFILL {
 				return getBoolCValueEnclosure(true), nil
 			}
 			return getBoolCValueEnclosure(false), nil
@@ -791,7 +791,7 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]segutils
 		if isLeftValNull || isRightValNull {
 			// If any of the values are NULL, then the result cannot be determined.
 			// Return NULL.
-			return &segutils.CValueEnclosure{Dtype: segutils.SS_DT_BACKFILL, CVal: nil}, nil
+			return &sutils.CValueEnclosure{Dtype: sutils.SS_DT_BACKFILL, CVal: nil}, nil
 		}
 
 		switch self.ValueOp {
@@ -828,16 +828,16 @@ func GetBoolResult(leftVal bool, rightVal bool, Op BoolOperator) (bool, error) {
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
 // with the value specified by fieldToValue. If the field is not present in the fieldToValue map
 // then false is returned.
-func (self *BoolExpr) Evaluate(fieldToValue map[string]segutils.CValueEnclosure) (bool, error) {
+func (self *BoolExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (bool, error) {
 	if self.IsTerminal {
 		cValueEnclosure, err := self.evaluateToCValueEnclosure(fieldToValue)
 		if err != nil {
 			return false, err
 		}
 
-		if cValueEnclosure.Dtype == segutils.SS_DT_BACKFILL {
+		if cValueEnclosure.Dtype == sutils.SS_DT_BACKFILL {
 			return false, nil
-		} else if cValueEnclosure.Dtype != segutils.SS_DT_BOOL {
+		} else if cValueEnclosure.Dtype != sutils.SS_DT_BOOL {
 			return false, fmt.Errorf("BoolExpr.Evaluate: result is not a boolean")
 		}
 
@@ -870,28 +870,28 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]segutils.CValueEnclosure)
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
 // with the value specified by fieldToValue.
 // Will be evaluated to either true, false, or NULL.
-func (self *BoolExpr) EvaluateWithNull(fieldToValue map[string]segutils.CValueEnclosure) (segutils.CValueEnclosure, error) {
+func (self *BoolExpr) EvaluateWithNull(fieldToValue map[string]sutils.CValueEnclosure) (sutils.CValueEnclosure, error) {
 	if self.IsTerminal {
 		cValEnc, err := self.evaluateToCValueEnclosure(fieldToValue)
 		if err != nil {
-			return segutils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating terminal BoolExpr: %v", err)
+			return sutils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating terminal BoolExpr: %v", err)
 		}
 		return *cValEnc, nil
 	} else {
 		left, err := self.LeftBool.EvaluateWithNull(fieldToValue)
 		if err != nil {
-			return segutils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating left BoolExpr: %v", err)
+			return sutils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating left BoolExpr: %v", err)
 		}
 
 		if left.IsNull() {
 			return left, nil
 		}
 
-		right := segutils.CValueEnclosure{CVal: false}
+		right := sutils.CValueEnclosure{CVal: false}
 		if self.RightBool != nil {
 			right, err = self.RightBool.EvaluateWithNull(fieldToValue)
 			if err != nil {
-				return segutils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating right BoolExpr: %v", err)
+				return sutils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating right BoolExpr: %v", err)
 			}
 
 			if right.IsNull() {
@@ -901,10 +901,10 @@ func (self *BoolExpr) EvaluateWithNull(fieldToValue map[string]segutils.CValueEn
 
 		boolResult, err := GetBoolResult(left.CVal.(bool), right.CVal.(bool), self.BoolOp)
 		if err != nil {
-			return segutils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating BoolExpr: %v", err)
+			return sutils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating BoolExpr: %v", err)
 		}
 
-		return segutils.CValueEnclosure{Dtype: segutils.SS_DT_BOOL, CVal: boolResult}, nil
+		return sutils.CValueEnclosure{Dtype: sutils.SS_DT_BOOL, CVal: boolResult}, nil
 	}
 }
 
@@ -913,7 +913,7 @@ func (self *BoolExpr) EvaluateWithNull(fieldToValue map[string]segutils.CValueEn
 // Strings and numbers are compared as strings.
 // Strings are compared lexicographically and are case-insensitive.
 // Wildcards can be used to match a string with a pattern. Only * is supported.
-func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]segutils.CValueEnclosure) (bool, error) {
+func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]sutils.CValueEnclosure) (bool, error) {
 	if self.IsTerminal {
 		leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
 		rightStr, errRightStr := self.RightValue.EvaluateToString(fieldToValue)
@@ -1019,7 +1019,7 @@ func isIPInCIDR(cidrStr, ipStr string) (bool, error) {
 	return cidrNet.Contains(ip), nil
 }
 
-func isInValueList(fieldToValue map[string]segutils.CValueEnclosure, value *ValueExpr, valueList []*ValueExpr) (bool, error) {
+func isInValueList(fieldToValue map[string]sutils.CValueEnclosure, value *ValueExpr, valueList []*ValueExpr) (bool, error) {
 	valueStr, err := value.EvaluateToString(fieldToValue)
 	if utils.IsNonNilValueError(err) {
 		return false, utils.WrapErrorf(err, "isInValueList: can not evaluate to String: %v", err)
@@ -1069,7 +1069,7 @@ func (self *BoolExpr) GetFields() []string {
 	}
 }
 
-func (self *ValueExpr) EvaluateToMultiValue(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *ValueExpr) EvaluateToMultiValue(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	switch self.ValueExprMode {
 	case VEMMultiValueExpr:
 		return self.MultiValueExpr.Evaluate(fieldToValue)
@@ -1078,7 +1078,7 @@ func (self *ValueExpr) EvaluateToMultiValue(fieldToValue map[string]segutils.CVa
 	}
 }
 
-func handleSplit(self *MultiValueExpr, fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func handleSplit(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if len(self.StringExprParams) != 2 {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: split requires two arguments")
 	}
@@ -1098,7 +1098,7 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]segutils.CValueEn
 	return stringsList, nil
 }
 
-func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvindex requires one multiValueExpr argument")
 	}
@@ -1141,7 +1141,7 @@ func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]segutils.CValue
 	return mvSlice[startIndex : endIndex+1], nil
 }
 
-func (self *MultiValueExpr) Evaluate(fieldToValue map[string]segutils.CValueEnclosure) ([]string, error) {
+func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self == nil {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: self is nil")
 	}
@@ -1153,7 +1153,7 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]segutils.CValueEncl
 		if fieldValue.CVal == nil {
 			return nil, utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("MultiValueExpr.Evaluate: field %v is nil", self.FieldName))
 		}
-		if fieldValue.Dtype != segutils.SS_DT_STRING_SLICE {
+		if fieldValue.Dtype != sutils.SS_DT_STRING_SLICE {
 			value := fmt.Sprintf("%v", fieldValue.CVal)
 			return []string{value}, nil
 		}
@@ -1177,7 +1177,7 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]segutils.CValueEncl
 //
 // A ValueExpr can be evaluated to a string or float, so if this fails you may
 // want to call ValueExpr.EvaluateToFloat().
-func (self *ValueExpr) EvaluateToString(fieldToValue map[string]segutils.CValueEnclosure) (string, error) {
+func (self *ValueExpr) EvaluateToString(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
 	switch self.ValueExprMode {
 	case VEMStringExpr:
 		str, err := self.StringExpr.Evaluate(fieldToValue)
@@ -1231,14 +1231,14 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]segutils.CValueE
 			return mvSlice[0], nil
 		}
 
-		CVal := segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING_SLICE, CVal: mvSlice}
+		CVal := sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING_SLICE, CVal: mvSlice}
 		return CVal.GetString()
 	default:
 		return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string, not a valid ValueExprMode")
 	}
 }
 
-func (self *StringExpr) Evaluate(fieldToValue map[string]segutils.CValueEnclosure) (string, error) {
+func (self *StringExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
 	switch self.StringExprMode {
 	case SEMRawString:
 		return self.RawString, nil
@@ -1274,7 +1274,7 @@ func (self *StringExpr) Evaluate(fieldToValue map[string]segutils.CValueEnclosur
 //
 // A ValueExpr can be evaluated to a string or float, so if this fails you may
 // want to call ValueExpr.EvaluateToString().
-func (self *ValueExpr) EvaluateToFloat(fieldToValue map[string]segutils.CValueEnclosure) (float64, error) {
+func (self *ValueExpr) EvaluateToFloat(fieldToValue map[string]sutils.CValueEnclosure) (float64, error) {
 	switch self.ValueExprMode {
 	case VEMNumericExpr:
 		return self.NumericExpr.Evaluate(fieldToValue)
@@ -1283,7 +1283,7 @@ func (self *ValueExpr) EvaluateToFloat(fieldToValue map[string]segutils.CValueEn
 	}
 }
 
-func (valueExpr *ValueExpr) EvaluateToNumber(fieldToValue map[string]segutils.CValueEnclosure) (interface{}, error) {
+func (valueExpr *ValueExpr) EvaluateToNumber(fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 	floatValue, err := valueExpr.EvaluateToFloat(fieldToValue)
 	if err != nil {
 		return 0, err
@@ -1298,7 +1298,7 @@ func (valueExpr *ValueExpr) EvaluateToNumber(fieldToValue map[string]segutils.CV
 }
 
 // TODO: Migrate so that every Evaluation Expression returns an utils.CValueEnclosure
-func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]segutils.CValueEnclosure) (interface{}, error) {
+func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 	var value interface{}
 	var err error
 	switch valueExpr.ValueExprMode {
@@ -1328,7 +1328,7 @@ func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]segutils.C
 // This function will first try to evaluate the ValueExpr to a Number (float64 or int64). If that
 // fails, it will try to evaluate it to a string. If that fails, it will return
 // an error.
-func (expr *ValueExpr) EvaluateValueExprToNumberOrString(fieldToValue map[string]segutils.CValueEnclosure) (interface{}, error) {
+func (expr *ValueExpr) EvaluateValueExprToNumberOrString(fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 
 	switch expr.ValueExprMode {
 	case VEMNumericExpr, VEMStringExpr:
@@ -1450,7 +1450,7 @@ func (self *StringExpr) GetFields() []string {
 // Concatenate all the atoms in this ConcatExpr, replacing all fields with the
 // values specified by fieldToValue. Each field listed by GetFields() must be in
 // fieldToValue.
-func (self *ConcatExpr) Evaluate(fieldToValue map[string]segutils.CValueEnclosure) (string, error) {
+func (self *ConcatExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
 	result := ""
 	for _, atom := range self.Atoms {
 		if atom.IsField {
@@ -1548,17 +1548,17 @@ func (self *StatisticExpr) OverrideGroupByCol(bucketResult *BucketResult, resTot
 	return nil
 }
 
-func (self *StatisticExpr) SetCountToStatRes(statRes map[string]segutils.CValueEnclosure, elemCount uint64) {
-	statRes[self.StatisticOptions.CountField] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_UNSIGNED_NUM,
+func (self *StatisticExpr) SetCountToStatRes(statRes map[string]sutils.CValueEnclosure, elemCount uint64) {
+	statRes[self.StatisticOptions.CountField] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_UNSIGNED_NUM,
 		CVal:  elemCount,
 	}
 }
 
-func (self *StatisticExpr) SetPercToStatRes(statRes map[string]segutils.CValueEnclosure, elemCount uint64, resTotal uint64) {
+func (self *StatisticExpr) SetPercToStatRes(statRes map[string]sutils.CValueEnclosure, elemCount uint64, resTotal uint64) {
 	percent := float64(elemCount) / float64(resTotal) * 100
-	statRes[self.StatisticOptions.PercentField] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_FLOAT,
+	statRes[self.StatisticOptions.PercentField] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  float64(math.Round(percent*1e6) / 1e6),
 	}
 }
@@ -1766,11 +1766,11 @@ func (self *StatisticExpr) GetFields() []string {
 	return append(self.FieldList, self.ByClause...)
 }
 
-func (self *RenameExpr) Evaluate(fieldToValue map[string]segutils.CValueEnclosure, fieldName string) (string, error) {
+func (self *RenameExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure, fieldName string) (string, error) {
 	return getValueAsString(fieldToValue, fieldName)
 }
 
-func (self *RexExpr) Evaluate(fieldToValue map[string]segutils.CValueEnclosure, rexExp *regexp.Regexp) (map[string]string, error) {
+func (self *RexExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure, rexExp *regexp.Regexp) (map[string]string, error) {
 
 	fieldValue, err := getValueAsString(fieldToValue, self.FieldName)
 	if utils.IsNilValueError(err) {
@@ -2009,7 +2009,7 @@ func handleNoArgFunction(op string) (float64, error) {
 	}
 }
 
-func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue map[string]segutils.CValueEnclosure, functionName string) (interface{}, error) {
+func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue map[string]sutils.CValueEnclosure, functionName string) (interface{}, error) {
 	switch functionName {
 	case "validate":
 		for _, cvPair := range self.ConditionValuePairs {
@@ -2041,7 +2041,7 @@ func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue m
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
-func (self *NumericExpr) Evaluate(fieldToValue map[string]segutils.CValueEnclosure) (float64, error) {
+func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (float64, error) {
 	if self.IsTerminal {
 		if self.ValueIsField {
 			switch self.NumericExprMode {
@@ -2242,7 +2242,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]segutils.CValueEnclosu
 				return 0, fmt.Errorf("NumericExpr.Evaluate: relative_time operation requires a valid timestamp")
 			}
 
-			relTime, err := segutils.CalculateAdjustedTimeForRelativeTimeCommand(self.RelativeTime, time.Unix(epochTime, 0))
+			relTime, err := sutils.CalculateAdjustedTimeForRelativeTimeCommand(self.RelativeTime, time.Unix(epochTime, 0))
 			if err != nil {
 				return 0, fmt.Errorf("NumericExpr.Evaluate: error calculating relative time: %v", err)
 			}
@@ -2345,7 +2345,7 @@ func parseTime(dateStr, format string) (time.Time, error) {
 	return time.Parse(format, dateStr)
 }
 
-func (self *TextExpr) EvaluateText(fieldToValue map[string]segutils.CValueEnclosure) (string, error) {
+func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
 	case "strftime":
@@ -2469,16 +2469,16 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]segutils.CValueEnclos
 				return "Invalid", nil
 			}
 			switch val.Dtype {
-			case segutils.SS_DT_BOOL:
+			case sutils.SS_DT_BOOL:
 				return "Boolean", nil
-			case segutils.SS_DT_SIGNED_NUM, segutils.SS_DT_UNSIGNED_NUM, segutils.SS_DT_FLOAT,
-				segutils.SS_DT_SIGNED_32_NUM, segutils.SS_DT_USIGNED_32_NUM,
-				segutils.SS_DT_SIGNED_16_NUM, segutils.SS_DT_USIGNED_16_NUM,
-				segutils.SS_DT_SIGNED_8_NUM, segutils.SS_DT_USIGNED_8_NUM:
+			case sutils.SS_DT_SIGNED_NUM, sutils.SS_DT_UNSIGNED_NUM, sutils.SS_DT_FLOAT,
+				sutils.SS_DT_SIGNED_32_NUM, sutils.SS_DT_USIGNED_32_NUM,
+				sutils.SS_DT_SIGNED_16_NUM, sutils.SS_DT_USIGNED_16_NUM,
+				sutils.SS_DT_SIGNED_8_NUM, sutils.SS_DT_USIGNED_8_NUM:
 				return "Number", nil
-			case segutils.SS_DT_STRING, segutils.SS_DT_STRING_SET, segutils.SS_DT_RAW_JSON:
+			case sutils.SS_DT_STRING, sutils.SS_DT_STRING_SET, sutils.SS_DT_RAW_JSON:
 				return "String", nil
-			case segutils.SS_DT_BACKFILL:
+			case sutils.SS_DT_BACKFILL:
 				return "Null", nil
 			default:
 				return "Invalid", nil
@@ -2488,7 +2488,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]segutils.CValueEnclos
 			if self.Val.NumericExpr != nil {
 				return "Number", nil
 			} else if self.Val.StringExpr != nil {
-				if segutils.IsBoolean(self.Val.StringExpr.RawString) {
+				if sutils.IsBoolean(self.Val.StringExpr.RawString) {
 					return "Boolean", nil
 				}
 				return "String", nil
@@ -2630,7 +2630,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]segutils.CValueEnclos
 }
 
 // In this case, if we can not evaluate numeric expr to a float, we should evaluate it as a str
-func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]segutils.CValueEnclosure) (string, error) {
+func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
 	var str string
 	var err error
 	switch self.ValueExprMode {
@@ -2652,7 +2652,7 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]segutil
 	return str, nil
 }
 
-func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]segutils.CValueEnclosure) (interface{}, error) {
+func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 
 	for _, cvPair := range self.ConditionValuePairs {
 		res, err := cvPair.Condition.Evaluate(fieldToValue)
@@ -2675,7 +2675,7 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]segutils.CV
 	return "", nil
 }
 
-func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]segutils.CValueEnclosure) (interface{}, error) {
+func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 	for _, valueExpr := range self.ValueList {
 		nullFields, err := valueExpr.GetNullFields(fieldToValue)
 		if err != nil || len(nullFields) > 0 {
@@ -2692,7 +2692,7 @@ func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]segutil
 	return "", nil
 }
 
-func handleNullIfFunction(expr *ConditionExpr, fieldToValue map[string]segutils.CValueEnclosure) (interface{}, error) {
+func handleNullIfFunction(expr *ConditionExpr, fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 	if len(expr.ValueList) != 2 {
 		return nil, fmt.Errorf("handleNullIfFunction: nullif requires exactly two arguments")
 	}
@@ -2715,7 +2715,7 @@ func handleNullIfFunction(expr *ConditionExpr, fieldToValue map[string]segutils.
 }
 
 // Field may come from BoolExpr or ValueExpr
-func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]segutils.CValueEnclosure) (interface{}, error) {
+func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 
 	switch expr.Op {
 	case "if":
@@ -2846,7 +2846,7 @@ func (self *NumericExpr) GetFields() []string {
 	}
 }
 
-func getValueAsString(fieldToValue map[string]segutils.CValueEnclosure, field string) (string, error) {
+func getValueAsString(fieldToValue map[string]sutils.CValueEnclosure, field string) (string, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
 		return "", utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("getValueAsString: Missing field %v", field))
@@ -2855,7 +2855,7 @@ func getValueAsString(fieldToValue map[string]segutils.CValueEnclosure, field st
 	return enclosure.GetString()
 }
 
-func getValueAsFloat(fieldToValue map[string]segutils.CValueEnclosure, field string) (float64, error) {
+func getValueAsFloat(fieldToValue map[string]sutils.CValueEnclosure, field string) (float64, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
 		return 0, utils.NewErrorWithCode(utils.NIL_VALUE_ERR, errors.New("getValueAsFloat: Missing field"))
@@ -2870,7 +2870,7 @@ func getValueAsFloat(fieldToValue map[string]segutils.CValueEnclosure, field str
 	}
 
 	// Check if the string value is a number.
-	if enclosure.Dtype == segutils.SS_DT_STRING {
+	if enclosure.Dtype == sutils.SS_DT_STRING {
 		if value, err := strconv.ParseFloat(enclosure.CVal.(string), 64); err == nil {
 			return value, nil
 		}
@@ -2961,18 +2961,18 @@ func GetDefaultTimechartSpanOptions(startEpoch, endEpoch uint64, qid uint64) (*S
 
 	// 15 minutes
 	if duration <= 15*60*1000 {
-		return &SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: segutils.TMSecond}}, nil
+		return &SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: sutils.TMSecond}}, nil
 	} else if duration <= 60*60*1000 {
-		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMinute}}, nil
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMMinute}}, nil
 	} else if duration <= 4*60*60*1000 {
-		return &SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: segutils.TMMinute}}, nil
+		return &SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: sutils.TMMinute}}, nil
 	} else if duration <= 24*60*60*1000 {
-		return &SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: segutils.TMMinute}}, nil
+		return &SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: sutils.TMMinute}}, nil
 	} else if duration <= 7*24*60*60*1000 {
-		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMHour}}, nil
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMHour}}, nil
 	} else if duration <= 180*24*60*60*1000 {
-		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMDay}}, nil
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMDay}}, nil
 	} else {
-		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMonth}}, nil
+		return &SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMMonth}}, nil
 	}
 }

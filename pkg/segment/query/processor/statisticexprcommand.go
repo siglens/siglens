@@ -24,7 +24,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
@@ -176,11 +176,11 @@ func (p *statisticExprProcessor) processAggregationResult(aggResults map[string]
 
 		//If useother=true, a row representing all other values is added to the results.
 		if p.options.StatisticOptions.UseOther {
-			statRes := make(map[string]segutils.CValueEnclosure)
+			statRes := make(map[string]sutils.CValueEnclosure)
 			groupByKeys := aggregationResult.Results[0].GroupByKeys
 			bucketKey := make([]interface{}, len(groupByKeys))
-			otherEnclosure := segutils.CValueEnclosure{
-				Dtype: segutils.SS_DT_STRING,
+			otherEnclosure := sutils.CValueEnclosure{
+				Dtype: sutils.SS_DT_STRING,
 				CVal:  p.options.StatisticOptions.OtherStr,
 			}
 			for i := 0; i < len(groupByKeys); i++ {
@@ -235,7 +235,7 @@ func (p *statisticExprProcessor) getIQRFromAggregationResults() (*iqr.IQR, error
 
 	inputIQR := iqr.NewIQR(p.qid)
 
-	bucketHolderArr, measureFuncs, bucketCount := segresults.CreateMeasResultsFromAggResults(int(segutils.QUERY_MAX_BUCKETS), p.finalAggregationResults)
+	bucketHolderArr, measureFuncs, bucketCount := segresults.CreateMeasResultsFromAggResults(int(sutils.QUERY_MAX_BUCKETS), p.finalAggregationResults)
 
 	err := inputIQR.CreateStatsResults(bucketHolderArr, measureFuncs, p.groupByColumns, bucketCount)
 	if err != nil {

@@ -27,7 +27,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
@@ -243,8 +243,8 @@ func ReadMetricsBlockSummaries(fileName string) ([]*structs.MBlockSummary, error
 
 	versionBlockSummary := make([]byte, 1)
 	copy(versionBlockSummary, data[:1])
-	if versionBlockSummary[0] != segutils.VERSION_MBLOCKSUMMARY[0] {
-		return mBlockSummaries, fmt.Errorf("ReadMetricsBlockSummaries: the file version doesn't match. Expected Version: %v, Got Version: %v", segutils.VERSION_MBLOCKSUMMARY[0], versionBlockSummary[0])
+	if versionBlockSummary[0] != sutils.VERSION_MBLOCKSUMMARY[0] {
+		return mBlockSummaries, fmt.Errorf("ReadMetricsBlockSummaries: the file version doesn't match. Expected Version: %v, Got Version: %v", sutils.VERSION_MBLOCKSUMMARY[0], versionBlockSummary[0])
 	}
 	offset := int64(1)
 	for offset < fileSize {

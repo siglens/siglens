@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -56,7 +56,7 @@ func Test_Getters(t *testing.T) {
 }
 
 type mockStreamer struct {
-	allRecords map[string][]segutils.CValueEnclosure
+	allRecords map[string][]sutils.CValueEnclosure
 	numSent    int
 	qid        uint64
 }
@@ -73,10 +73,10 @@ func (ms *mockStreamer) Fetch() (*iqr.IQR, error) {
 	}
 
 	// Send one at a time.
-	knownValues := map[string][]segutils.CValueEnclosure{}
+	knownValues := map[string][]sutils.CValueEnclosure{}
 
 	for col, values := range ms.allRecords {
-		knownValues[col] = []segutils.CValueEnclosure{values[ms.numSent]}
+		knownValues[col] = []sutils.CValueEnclosure{values[ms.numSent]}
 	}
 
 	iqr := iqr.NewIQR(ms.qid)
@@ -101,11 +101,11 @@ func (ms mockStreamer) String() string {
 
 func Test_Fetch_nonBottleneck(t *testing.T) {
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 		},
 		qid: 0,
@@ -163,11 +163,11 @@ func (mbp *mockBottleneckProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 
 func Test_Fetch_bottleneck(t *testing.T) {
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 		},
 		qid: 0,
@@ -219,11 +219,11 @@ func (mtp *mockTwoPassProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 
 func Test_Fetch_twoPass(t *testing.T) {
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 		},
 		qid: 0,
@@ -252,22 +252,22 @@ func Test_Fetch_twoPass(t *testing.T) {
 
 func Test_Fetch_multipleStreams(t *testing.T) {
 	stream1 := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "f"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "f"},
 			},
 		},
 		qid: 0,
 	}
 
 	stream2 := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "e"},
 			},
 		},
 		qid: 0,
@@ -312,11 +312,11 @@ func Test_Fetch_multipleStreams(t *testing.T) {
 
 func Test_Fetch_multipleBottleneck(t *testing.T) {
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 		},
 		qid: 0,
@@ -352,7 +352,7 @@ func Test_Fetch_multipleBottleneck(t *testing.T) {
 
 func Test_Fetch_multipleBottleneck_inputNil(t *testing.T) {
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{},
+		allRecords: map[string][]sutils.CValueEnclosure{},
 		qid:        0,
 	}
 
@@ -386,11 +386,11 @@ func Test_Fetch_multipleBottleneck_inputNil(t *testing.T) {
 
 func Test_Fetch_multipleBottleneck_twoPass(t *testing.T) {
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 		},
 	}
@@ -436,7 +436,7 @@ func Test_Fetch_multipleBottleneck_twoPass(t *testing.T) {
 
 func Test_Fetch_multipleBottleneck_twoPass_inputNil(t *testing.T) {
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{},
+		allRecords: map[string][]sutils.CValueEnclosure{},
 	}
 
 	dp1 := &DataProcessor{
@@ -469,11 +469,11 @@ func Test_Fetch_multipleBottleneck_twoPass_inputNil(t *testing.T) {
 
 func Test_Fetch_twoPass_Multiplebottleneck(t *testing.T) {
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 		},
 		qid: 0,
@@ -515,7 +515,7 @@ func Test_Fetch_twoPass_Multiplebottleneck(t *testing.T) {
 
 func Test_Fetch_twoPass_Multiplebottleneck_inputNil(t *testing.T) {
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{},
+		allRecords: map[string][]sutils.CValueEnclosure{},
 		qid:        0,
 	}
 
@@ -548,11 +548,11 @@ func Test_Fetch_twoPass_Multiplebottleneck_inputNil(t *testing.T) {
 
 func Test_Fetch_Multiple_TwoPass(t *testing.T) {
 	stream1 := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "f"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "f"},
 			},
 		},
 		qid: 0,

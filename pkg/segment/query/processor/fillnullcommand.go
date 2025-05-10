@@ -22,7 +22,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -33,7 +33,7 @@ type fillnullProcessor struct {
 	secondPass   bool
 }
 
-func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cTypeFillValue segutils.CValueEnclosure) {
+func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cTypeFillValue sutils.CValueEnclosure) {
 
 	for field := range fields {
 		values, err := iqr.ReadColumn(field)
@@ -54,7 +54,7 @@ func performFillNullForTheFields(iqr *iqr.IQR, fields map[string]struct{}, cType
 			}
 		}
 
-		err = iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{field: values})
+		err = iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{field: values})
 		if err != nil {
 			log.Errorf("performFillNullForTheFields: failed to append known values; err=%v", err)
 		}
@@ -66,7 +66,7 @@ func (p *fillnullProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, io.EOF
 	}
 
-	cTypeFillValue := segutils.CValueEnclosure{}
+	cTypeFillValue := sutils.CValueEnclosure{}
 	err := cTypeFillValue.ConvertValue(p.options.Value)
 	if err != nil {
 		return nil, utils.TeeErrorf("performFillNullForTheFields: cannot convert fill value; err=%v", err)

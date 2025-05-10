@@ -31,7 +31,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -366,11 +366,11 @@ func performInputLookupOnHistogram(nodeResult *structs.NodeResult, agg *structs.
 				return fmt.Errorf("performInputLookupOnHistogram: Generated record not found for recordKey: %v", recordKey)
 			}
 
-			statRes := make(map[string]segutils.CValueEnclosure, 0)
+			statRes := make(map[string]sutils.CValueEnclosure, 0)
 
 			for col, recordValue := range record {
-				statRes[col] = segutils.CValueEnclosure{
-					Dtype: segutils.SS_DT_STRING,
+				statRes[col] = sutils.CValueEnclosure{
+					Dtype: sutils.SS_DT_STRING,
 					CVal:  fmt.Sprintf("%v", recordValue),
 				}
 			}
@@ -493,7 +493,7 @@ func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, rec
 // only called when headExpr has BoolExpr
 func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr) error {
 	fieldsInExpr := headExpr.BoolExpr.GetFields()
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
 	for _, aggregationResult := range nodeResult.Histogram {
 		newResults := make([]*structs.BucketResult, 0)
@@ -587,7 +587,7 @@ func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recordMap map[
 			return fmt.Errorf("processSegmentRecordsForHeadExpr: record %v not found in segment records", recordKey)
 		}
 
-		fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+		fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 		err := getRecordFieldValues(fieldToValue, fieldsInExpr, rec)
 		if err != nil {
 			return fmt.Errorf("processSegmentRecordsForHeadExpr: Error while retrieving values, err: %v", err)
@@ -1534,9 +1534,9 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 
 func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
 	fieldList := letColReq.DedupColRequest.FieldList
-	dedupRawValues := make(map[string]segutils.CValueEnclosure, len(fieldList))
+	dedupRawValues := make(map[string]sutils.CValueEnclosure, len(fieldList))
 	combinationSlice := make([]interface{}, len(fieldList))
-	sortbyRawValues := make(map[string]segutils.CValueEnclosure, len(letColReq.DedupColRequest.DedupSortEles))
+	sortbyRawValues := make(map[string]sutils.CValueEnclosure, len(letColReq.DedupColRequest.DedupSortEles))
 	sortbyValues := make([]structs.SortValue, len(letColReq.DedupColRequest.DedupSortEles))
 	sortbyFields := make([]string, len(letColReq.DedupColRequest.DedupSortEles))
 
@@ -1609,8 +1609,8 @@ func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 
 				for _, field := range fieldList {
 					if _, exists := bucketResult.StatRes[field]; exists {
-						bucketResult.StatRes[field] = segutils.CValueEnclosure{
-							Dtype: segutils.SS_DT_BACKFILL,
+						bucketResult.StatRes[field] = sutils.CValueEnclosure{
+							Dtype: sutils.SS_DT_BACKFILL,
 						}
 					} else {
 						for i, groupByCol := range bucketResult.GroupByKeys {
@@ -1652,9 +1652,9 @@ func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 
 func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
 	fieldList := letColReq.DedupColRequest.FieldList
-	dedupRawValues := make(map[string]segutils.CValueEnclosure, len(fieldList))
+	dedupRawValues := make(map[string]sutils.CValueEnclosure, len(fieldList))
 	combinationSlice := make([]interface{}, len(fieldList))
-	sortbyRawValues := make(map[string]segutils.CValueEnclosure, len(letColReq.DedupColRequest.DedupSortEles))
+	sortbyRawValues := make(map[string]sutils.CValueEnclosure, len(letColReq.DedupColRequest.DedupSortEles))
 	sortbyValues := make([]structs.SortValue, len(letColReq.DedupColRequest.DedupSortEles))
 	sortbyFields := make([]string, len(letColReq.DedupColRequest.DedupSortEles))
 
@@ -1913,7 +1913,7 @@ func performSortColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColR
 func performSortColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
 
 	// Setup a map from each of the fields used in this expression to its value for a certain row.
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
 	sortbyFields := make([]string, len(letColReq.SortColRequest.SortEles))
 	for i, sortEle := range letColReq.SortColRequest.SortEles {
@@ -1975,7 +1975,7 @@ func performSortColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq 
 
 func performSortColRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
 
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
 	sortbyFields := make([]string, len(letColReq.SortColRequest.SortEles))
 	for i, sortEle := range letColReq.SortColRequest.SortEles {
@@ -2357,11 +2357,11 @@ func performStatisticColRequestOnHistogram(nodeResult *structs.NodeResult, letCo
 
 		//If useother=true, a row representing all other values is added to the results.
 		if letColReq.StatisticColRequest.StatisticOptions.UseOther {
-			statRes := make(map[string]segutils.CValueEnclosure)
+			statRes := make(map[string]sutils.CValueEnclosure)
 			groupByKeys := aggregationResult.Results[0].GroupByKeys
 			bucketKey := make([]string, len(groupByKeys))
-			otherEnclosure := segutils.CValueEnclosure{
-				Dtype: segutils.SS_DT_STRING,
+			otherEnclosure := sutils.CValueEnclosure{
+				Dtype: sutils.SS_DT_STRING,
 				CVal:  letColReq.StatisticColRequest.StatisticOptions.OtherStr,
 			}
 			for i := 0; i < len(groupByKeys); i++ {
@@ -2598,7 +2598,7 @@ func performRexColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *
 	}
 
 	fieldsInExpr := letColReq.RexColRequest.GetFields()
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
 	for _, aggregationResult := range nodeResult.Histogram {
 		for rowIndex, bucketResult := range aggregationResult.Results {
@@ -2635,8 +2635,8 @@ func performRexColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *
 
 					}
 				} else {
-					aggregationResult.Results[rowIndex].StatRes[rexColName] = segutils.CValueEnclosure{
-						Dtype: segutils.SS_DT_STRING,
+					aggregationResult.Results[rowIndex].StatRes[rexColName] = sutils.CValueEnclosure{
+						Dtype: sutils.SS_DT_STRING,
 						CVal:  rexColVal,
 					}
 				}
@@ -2679,7 +2679,7 @@ func performRexColRequestOnMeasureResults(nodeResult *structs.NodeResult, letCol
 
 	// Setup a map from each of the fields used in this expression to its value for a certain row.
 	fieldsInExpr := letColReq.RexColRequest.GetFields()
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 	rexExp, err := regexp.Compile(letColReq.RexColRequest.Pattern)
 	if err != nil {
 		return fmt.Errorf("performRexColRequestOnMeasureResults: There are some errors in the pattern: %v", err)
@@ -2734,7 +2734,7 @@ func performValueColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 
 // Get the float/numeric value from the record or fieldToValue map if possible
 // Should pass either record or fieldToValue
-func getFloatValForBin(fieldToValue map[string]segutils.CValueEnclosure, record map[string]interface{}, field string) (float64, error) {
+func getFloatValForBin(fieldToValue map[string]sutils.CValueEnclosure, record map[string]interface{}, field string) (float64, error) {
 	var fieldValue interface{}
 	var exist bool
 	if record != nil {
@@ -2767,7 +2767,7 @@ func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *struc
 		return &structs.BinSpanOptions{
 			BinSpanLength: &structs.BinSpanLength{
 				Num:       1,
-				TimeScale: segutils.TMInvalid,
+				TimeScale: sutils.TMInvalid,
 			},
 		}, nil
 	}
@@ -2804,7 +2804,7 @@ func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *struc
 	return &structs.BinSpanOptions{
 		BinSpanLength: &structs.BinSpanLength{
 			Num:       spanRange,
-			TimeScale: segutils.TMInvalid,
+			TimeScale: sutils.TMInvalid,
 		},
 	}, nil
 }
@@ -2826,18 +2826,18 @@ func getSecsFromMinSpan(minSpan *structs.BinSpanLength) (float64, error) {
 	}
 
 	switch minSpan.TimeScale {
-	case segutils.TMMillisecond, segutils.TMCentisecond, segutils.TMDecisecond:
+	case sutils.TMMillisecond, sutils.TMCentisecond, sutils.TMDecisecond:
 		// smallest granularity of estimated span is 1 second
 		return 1, nil
-	case segutils.TMSecond:
+	case sutils.TMSecond:
 		return minSpan.Num, nil
-	case segutils.TMMinute:
+	case sutils.TMMinute:
 		return minSpan.Num * 60, nil
-	case segutils.TMHour:
+	case sutils.TMHour:
 		return minSpan.Num * 3600, nil
-	case segutils.TMDay:
+	case sutils.TMDay:
 		return minSpan.Num * 86400, nil
-	case segutils.TMWeek, segutils.TMMonth, segutils.TMQuarter, segutils.TMYear:
+	case sutils.TMWeek, sutils.TMMonth, sutils.TMQuarter, sutils.TMYear:
 		// default returning num*(seconds in a month)
 		return minSpan.Num * 2592000, nil
 	default:
@@ -2856,7 +2856,7 @@ func findEstimatedTimeSpan(minValueMillis float64, maxValueMillis float64, maxBi
 		intervalSec = minSpanSecs
 	}
 	var num float64
-	timeUnit := segutils.TMSecond
+	timeUnit := sutils.TMSecond
 	if intervalSec < 1 {
 		num = 1
 	} else if intervalSec <= 10 {
@@ -2865,26 +2865,26 @@ func findEstimatedTimeSpan(minValueMillis float64, maxValueMillis float64, maxBi
 		num = 30
 	} else if intervalSec <= 60 {
 		num = 1
-		timeUnit = segutils.TMMinute
+		timeUnit = sutils.TMMinute
 	} else if intervalSec <= 300 {
 		num = 5
-		timeUnit = segutils.TMMinute
+		timeUnit = sutils.TMMinute
 	} else if intervalSec <= 600 {
 		num = 10
-		timeUnit = segutils.TMMinute
+		timeUnit = sutils.TMMinute
 	} else if intervalSec <= 1800 {
 		num = 30
-		timeUnit = segutils.TMMinute
+		timeUnit = sutils.TMMinute
 	} else if intervalSec <= 3600 {
 		num = 1
-		timeUnit = segutils.TMHour
+		timeUnit = sutils.TMHour
 	} else if intervalSec <= 86400 {
 		num = 1
-		timeUnit = segutils.TMDay
+		timeUnit = sutils.TMDay
 	} else {
 		// maximum granularity is 1 month as per experiments
 		num = 1
-		timeUnit = segutils.TMMonth
+		timeUnit = sutils.TMMonth
 	}
 
 	estimatedSpan := &structs.BinSpanOptions{
@@ -2939,7 +2939,7 @@ func performBinWithSpanOptions(value float64, spanOptions *structs.BinSpanOption
 func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interface{}, error) {
 	if spanOpt.BinSpanLength != nil {
 		lowerBound, upperBound := getBinRange(value, spanOpt.BinSpanLength.Num)
-		if spanOpt.BinSpanLength.TimeScale == segutils.TMInvalid {
+		if spanOpt.BinSpanLength.TimeScale == sutils.TMInvalid {
 			return fmt.Sprintf("%v-%v", lowerBound, upperBound), nil
 		} else {
 			return lowerBound, nil
@@ -3011,37 +3011,37 @@ func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions, alig
 
 	//Align time is only supported for units less than days
 	switch spanOpt.BinSpanLength.TimeScale {
-	case segutils.TMMillisecond:
+	case sutils.TMMillisecond:
 		durationScale := time.Millisecond
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-	case segutils.TMCentisecond:
+	case sutils.TMCentisecond:
 		durationScale := time.Millisecond * 10
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-	case segutils.TMDecisecond:
+	case sutils.TMDecisecond:
 		durationScale := time.Millisecond * 100
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-	case segutils.TMSecond:
+	case sutils.TMSecond:
 		durationScale := time.Second
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-	case segutils.TMMinute:
+	case sutils.TMMinute:
 		durationScale := time.Minute
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-	case segutils.TMHour:
+	case sutils.TMHour:
 		durationScale := time.Hour
 		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-	case segutils.TMDay:
+	case sutils.TMDay:
 		totalDays := int(utcTime.Sub(startTime).Hours() / 24)
 		slotDays := (totalDays / (int(spanOpt.BinSpanLength.Num))) * (int(spanOpt.BinSpanLength.Num))
 		bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
-	case segutils.TMWeek:
+	case sutils.TMWeek:
 		totalDays := int(utcTime.Sub(startTime).Hours() / 24)
 		slotDays := (totalDays / (int(spanOpt.BinSpanLength.Num) * 7)) * (int(spanOpt.BinSpanLength.Num) * 7)
 		bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
-	case segutils.TMMonth:
+	case sutils.TMMonth:
 		return findBucketMonth(utcTime, int(spanOpt.BinSpanLength.Num)), nil
-	case segutils.TMQuarter:
+	case sutils.TMQuarter:
 		return findBucketMonth(utcTime, int(spanOpt.BinSpanLength.Num)*3), nil
-	case segutils.TMYear:
+	case sutils.TMYear:
 		num := int(spanOpt.BinSpanLength.Num)
 		currYear := int(utcTime.Year())
 		bucketYear := ((currYear-1970)/num)*num + 1970
@@ -3181,7 +3181,7 @@ func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *str
 
 	// Setup a map for fetching values of field
 	fieldsInExpr := []string{letColReq.BinRequest.Field}
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
 	minVal := math.MaxFloat64
 	maxVal := -math.MaxFloat64
@@ -3235,15 +3235,15 @@ func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *str
 				return fmt.Errorf("performBinRequestOnHistogram: Error while performing bin, err: %v", err)
 			}
 
-			var valType segutils.SS_DTYPE
+			var valType sutils.SS_DTYPE
 
 			switch binValue.(type) {
 			case float64:
-				valType = segutils.SS_DT_FLOAT
+				valType = sutils.SS_DT_FLOAT
 			case uint64:
-				valType = segutils.SS_DT_UNSIGNED_NUM
+				valType = sutils.SS_DT_UNSIGNED_NUM
 			case string:
-				valType = segutils.SS_DT_STRING
+				valType = sutils.SS_DT_STRING
 			default:
 				return fmt.Errorf("performBinRequestOnHistogram: binValue has unexpected type: %T", binValue)
 			}
@@ -3272,7 +3272,7 @@ func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *str
 					}
 				}
 			} else {
-				aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = segutils.CValueEnclosure{
+				aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = sutils.CValueEnclosure{
 					Dtype: valType,
 					CVal:  binValue,
 				}
@@ -3315,7 +3315,7 @@ func performBinRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq
 
 	// Setup a map for fetching values of field
 	fieldsInExpr := []string{letColReq.BinRequest.Field}
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
 	minVal := math.MaxFloat64
 	maxVal := -math.MaxFloat64
@@ -3377,21 +3377,21 @@ func performBinRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq
 	return nil
 }
 
-func getRecordFieldValues(fieldToValue map[string]segutils.CValueEnclosure, fieldsInExpr []string, record map[string]interface{}) error {
+func getRecordFieldValues(fieldToValue map[string]sutils.CValueEnclosure, fieldsInExpr []string, record map[string]interface{}) error {
 	for _, field := range fieldsInExpr {
 		value, exists := record[field]
 		if !exists {
 			return fmt.Errorf("getRecordFieldValues: field %v does not exist in record", field)
 		}
 
-		dVal, err := segutils.CreateDtypeEnclosure(value, 0)
+		dVal, err := sutils.CreateDtypeEnclosure(value, 0)
 		if err != nil {
 			log.Errorf("failed to create dtype enclosure for field %s, err=%v", field, err)
-			dVal = &segutils.DtypeEnclosure{Dtype: segutils.SS_DT_STRING, StringVal: fmt.Sprintf("%v", value), StringValBytes: []byte(fmt.Sprintf("%v", value))}
+			dVal = &sutils.DtypeEnclosure{Dtype: sutils.SS_DT_STRING, StringVal: fmt.Sprintf("%v", value), StringValBytes: []byte(fmt.Sprintf("%v", value))}
 			value = fmt.Sprintf("%v", value)
 		}
 
-		fieldToValue[field] = segutils.CValueEnclosure{Dtype: dVal.Dtype, CVal: value}
+		fieldToValue[field] = sutils.CValueEnclosure{Dtype: dVal.Dtype, CVal: value}
 	}
 
 	return nil
@@ -3411,7 +3411,7 @@ func performValueColRequestWithoutGroupBy(nodeResult *structs.NodeResult, letCol
 	}
 
 	for _, record := range recs {
-		fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+		fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 		err := getRecordFieldValues(fieldToValue, fieldsInExpr, record)
 		if err != nil {
 			log.Errorf("performValueColRequestWithoutGroupBy: %v", err)
@@ -3431,7 +3431,7 @@ func performValueColRequestWithoutGroupBy(nodeResult *structs.NodeResult, letCol
 	return nil
 }
 
-func performValueColRequestOnRawRecord(letColReq *structs.LetColumnsRequest, fieldToValue map[string]segutils.CValueEnclosure) (interface{}, error) {
+func performValueColRequestOnRawRecord(letColReq *structs.LetColumnsRequest, fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 	if letColReq == nil || letColReq.ValueColRequest == nil {
 		return nil, fmt.Errorf("invalid letColReq")
 	}
@@ -3445,7 +3445,7 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 
 	// Setup a map from each of the fields used in this expression to its value for a certain row.
 	fieldsInExpr := letColReq.ValueColRequest.GetFields()
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
 	for _, aggregationResult := range nodeResult.Histogram {
 		for rowIndex, bucketResult := range aggregationResult.Results {
@@ -3531,18 +3531,18 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 				}
 			} else {
 				if len(cellValueSlice) > 0 {
-					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = segutils.CValueEnclosure{
-						Dtype: segutils.SS_DT_STRING_SLICE,
+					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = sutils.CValueEnclosure{
+						Dtype: sutils.SS_DT_STRING_SLICE,
 						CVal:  cellValueSlice,
 					}
 				} else if len(cellValueStr) > 0 {
-					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = segutils.CValueEnclosure{
-						Dtype: segutils.SS_DT_STRING,
+					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = sutils.CValueEnclosure{
+						Dtype: sutils.SS_DT_STRING,
 						CVal:  cellValueStr,
 					}
 				} else {
-					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = segutils.CValueEnclosure{
-						Dtype: segutils.SS_DT_FLOAT,
+					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = sutils.CValueEnclosure{
+						Dtype: sutils.SS_DT_FLOAT,
 						CVal:  cellValueFloat,
 					}
 				}
@@ -3584,7 +3584,7 @@ func performValueColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 
 	// Setup a map from each of the fields used in this expression to its value for a certain row.
 	fieldsInExpr := letColReq.ValueColRequest.GetFields()
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
 	// Compute the value for each row.
 	for rowIndex, bucketHolder := range nodeResult.MeasureResults {
@@ -3642,7 +3642,7 @@ func performFilterRowsWithoutGroupBy(filterRows *structs.BoolExpr, recs map[stri
 	fieldsInExpr := filterRows.GetFields()
 
 	for key, record := range recs {
-		fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+		fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 		err := getRecordFieldValues(fieldToValue, fieldsInExpr, record)
 		if err != nil {
 			log.Errorf("performFilterRowsWithoutGroupBy: %v", err)
@@ -3665,7 +3665,7 @@ func performFilterRowsWithoutGroupBy(filterRows *structs.BoolExpr, recs map[stri
 
 func performFilterRowsOnHistogram(nodeResult *structs.NodeResult, filterRows *structs.BoolExpr) error {
 	fieldsInExpr := filterRows.GetFields()
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
 	for _, aggregationResult := range nodeResult.Histogram {
 		newResults := make([]*structs.BucketResult, 0, len(aggregationResult.Results))
@@ -3696,7 +3696,7 @@ func performFilterRowsOnHistogram(nodeResult *structs.NodeResult, filterRows *st
 
 func performFilterRowsOnMeasureResults(nodeResult *structs.NodeResult, filterRows *structs.BoolExpr) error {
 	fieldsInExpr := filterRows.GetFields()
-	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 	newMeasureResults := make([]*structs.BucketHolder, 0, len(nodeResult.MeasureResults))
 
 	for rowIndex, bucketHolder := range nodeResult.MeasureResults {
@@ -3758,7 +3758,7 @@ func getAggregationResultCell(aggResult *structs.AggregationResult, rowIndex int
 	return nil, false
 }
 
-func getAggregationResultMeasureFunctionCell(aggResult *structs.AggregationResult, rowIndex int, measureCol string) (segutils.CValueEnclosure, bool) {
+func getAggregationResultMeasureFunctionCell(aggResult *structs.AggregationResult, rowIndex int, measureCol string) (sutils.CValueEnclosure, bool) {
 	value, ok := aggResult.Results[rowIndex].StatRes[measureCol]
 	return value, ok
 }
@@ -3790,11 +3790,11 @@ func getAggregationResultGroupByCell(aggResult *structs.AggregationResult, rowIn
 
 // Replaces values in `fieldToValue` for the specified `fields`, but doesn't
 // remove the extra entries in `fieldToValue`.
-func getMeasureResultsFieldValues(fieldToValue map[string]segutils.CValueEnclosure, fields []string,
+func getMeasureResultsFieldValues(fieldToValue map[string]sutils.CValueEnclosure, fields []string,
 	nodeResult *structs.NodeResult, rowIndex int) error {
 
 	for _, field := range fields {
-		var enclosure segutils.CValueEnclosure
+		var enclosure sutils.CValueEnclosure
 
 		value, ok := getMeasureResultsCell(nodeResult, rowIndex, field)
 		if !ok {
@@ -3803,16 +3803,16 @@ func getMeasureResultsFieldValues(fieldToValue map[string]segutils.CValueEnclosu
 
 		switch value := value.(type) {
 		case string:
-			enclosure.Dtype = segutils.SS_DT_STRING
+			enclosure.Dtype = sutils.SS_DT_STRING
 			enclosure.CVal = value
 		case float64:
-			enclosure.Dtype = segutils.SS_DT_FLOAT
+			enclosure.Dtype = sutils.SS_DT_FLOAT
 			enclosure.CVal = value
 		case uint64:
-			enclosure.Dtype = segutils.SS_DT_UNSIGNED_NUM
+			enclosure.Dtype = sutils.SS_DT_UNSIGNED_NUM
 			enclosure.CVal = value
 		case int64:
-			enclosure.Dtype = segutils.SS_DT_SIGNED_NUM
+			enclosure.Dtype = sutils.SS_DT_SIGNED_NUM
 			enclosure.CVal = value
 		default:
 			return fmt.Errorf("getMeasureResultsFieldValues: expected field to have a string or float value but got %T", value)
@@ -3826,11 +3826,11 @@ func getMeasureResultsFieldValues(fieldToValue map[string]segutils.CValueEnclosu
 
 // Replaces values in `fieldToValue` for the specified `fields`, but doesn't
 // remove the extra entries in `fieldToValue`.
-func getAggregationResultFieldValues(fieldToValue map[string]segutils.CValueEnclosure, fields []string,
+func getAggregationResultFieldValues(fieldToValue map[string]sutils.CValueEnclosure, fields []string,
 	aggResult *structs.AggregationResult, rowIndex int) error {
 
 	for _, field := range fields {
-		var enclosure segutils.CValueEnclosure
+		var enclosure sutils.CValueEnclosure
 		value, ok := getAggregationResultCell(aggResult, rowIndex, field)
 		if !ok {
 			return fmt.Errorf("getAggregationResultFieldValues: failed to extract field %v from row %v of AggregationResult", field, rowIndex)
@@ -3838,9 +3838,9 @@ func getAggregationResultFieldValues(fieldToValue map[string]segutils.CValueEncl
 
 		switch value := value.(type) {
 		case string:
-			enclosure.Dtype = segutils.SS_DT_STRING
+			enclosure.Dtype = sutils.SS_DT_STRING
 			enclosure.CVal = value
-		case segutils.CValueEnclosure:
+		case sutils.CValueEnclosure:
 			enclosure = value
 		default:
 			return fmt.Errorf("getAggregationResultFieldValues: expected field to have a string or float value but got %T", value)
@@ -4051,23 +4051,23 @@ func conditionMatch(fieldValue interface{}, Op string, searchValue interface{}) 
 }
 
 func evaluateASTNode(node *structs.ASTNode, record map[string]interface{}, recordMapStr string) bool {
-	if node.AndFilterCondition != nil && !evaluateCondition(node.AndFilterCondition, record, recordMapStr, segutils.And) {
+	if node.AndFilterCondition != nil && !evaluateCondition(node.AndFilterCondition, record, recordMapStr, sutils.And) {
 		return false
 	}
 
-	if node.OrFilterCondition != nil && !evaluateCondition(node.OrFilterCondition, record, recordMapStr, segutils.Or) {
+	if node.OrFilterCondition != nil && !evaluateCondition(node.OrFilterCondition, record, recordMapStr, sutils.Or) {
 		return false
 	}
 
 	// If the node has an exclusion filter, and the exclusion filter matches, return false.
-	if node.ExclusionFilterCondition != nil && evaluateCondition(node.ExclusionFilterCondition, record, recordMapStr, segutils.Exclusion) {
+	if node.ExclusionFilterCondition != nil && evaluateCondition(node.ExclusionFilterCondition, record, recordMapStr, sutils.Exclusion) {
 		return false
 	}
 
 	return true
 }
 
-func evaluateCondition(condition *structs.Condition, record map[string]interface{}, recordMapStr string, logicalOp segutils.LogicalOperator) bool {
+func evaluateCondition(condition *structs.Condition, record map[string]interface{}, recordMapStr string, logicalOp sutils.LogicalOperator) bool {
 	for _, nestedNode := range condition.NestedNodes {
 		if !evaluateASTNode(nestedNode, record, recordMapStr) {
 			return false
@@ -4083,14 +4083,14 @@ func evaluateCondition(condition *structs.Condition, record map[string]interface
 		}
 
 		// If the logical operator is Or and at least one of the criteria matches, return true.
-		if logicalOp == segutils.Or && validMatch {
+		if logicalOp == sutils.Or && validMatch {
 			return true
-		} else if logicalOp == segutils.And && !validMatch { // If the logical operator is And and at least one of the criteria does not match, return false.
+		} else if logicalOp == sutils.And && !validMatch { // If the logical operator is And and at least one of the criteria does not match, return false.
 			return false
 		}
 	}
 
-	return logicalOp == segutils.And
+	return logicalOp == sutils.And
 }
 
 func evaluateMatchFilter(matchFilter *structs.MatchFilter, record map[string]interface{}, recordMapStr string) bool {
@@ -4106,7 +4106,7 @@ func evaluateMatchFilter(matchFilter *structs.MatchFilter, record map[string]int
 		}
 	}
 
-	dVal, err := segutils.CreateDtypeEnclosure(fieldValue, 0)
+	dVal, err := sutils.CreateDtypeEnclosure(fieldValue, 0)
 	if err != nil {
 		return false
 	}
@@ -4124,15 +4124,15 @@ func evaluateMatchFilter(matchFilter *structs.MatchFilter, record map[string]int
 func evaluateMatchWords(matchFilter *structs.MatchFilter, fieldValueStr string) bool {
 	for _, word := range matchFilter.MatchWords {
 		if evaluateMatchPhrase(string(word), fieldValueStr) {
-			if matchFilter.MatchOperator == segutils.Or {
+			if matchFilter.MatchOperator == sutils.Or {
 				return true
 			}
-		} else if matchFilter.MatchOperator == segutils.And {
+		} else if matchFilter.MatchOperator == sutils.And {
 			return false
 		}
 	}
 
-	return matchFilter.MatchOperator == segutils.And
+	return matchFilter.MatchOperator == sutils.And
 }
 
 func evaluateMatchPhrase(matchPhrase string, fieldValueStr string) bool {
@@ -4194,9 +4194,9 @@ func evaluateExpression(expr *structs.Expression, record map[string]interface{})
 	return leftValue, nil
 }
 
-func performArithmeticOperation(leftValue interface{}, rightValue interface{}, Op segutils.ArithmeticOperator) (interface{}, error) {
+func performArithmeticOperation(leftValue interface{}, rightValue interface{}, Op sutils.ArithmeticOperator) (interface{}, error) {
 	switch Op {
-	case segutils.Add:
+	case sutils.Add:
 		// Handle the case where both operands are strings
 		if lv, ok := leftValue.(string); ok {
 			if rv, ok := rightValue.(string); ok {
@@ -4206,31 +4206,31 @@ func performArithmeticOperation(leftValue interface{}, rightValue interface{}, O
 		}
 		// Continue to handle the case where both operands are numbers
 		fallthrough
-	case segutils.Subtract, segutils.Multiply, segutils.Divide, segutils.Modulo, segutils.BitwiseAnd, segutils.BitwiseOr, segutils.BitwiseExclusiveOr:
+	case sutils.Subtract, sutils.Multiply, sutils.Divide, sutils.Modulo, sutils.BitwiseAnd, sutils.BitwiseOr, sutils.BitwiseExclusiveOr:
 		lv, errL := dtypeutils.ConvertToFloat(leftValue, 64)
 		rv, errR := dtypeutils.ConvertToFloat(rightValue, 64)
 		if errL != nil || errR != nil {
 			return nil, fmt.Errorf("performArithmeticOperation: leftValue or rightValue is not a number")
 		}
 		switch Op {
-		case segutils.Add:
+		case sutils.Add:
 			return lv + rv, nil
-		case segutils.Subtract:
+		case sutils.Subtract:
 			return lv - rv, nil
-		case segutils.Multiply:
+		case sutils.Multiply:
 			return lv * rv, nil
-		case segutils.Divide:
+		case sutils.Divide:
 			if rv == 0 {
 				return nil, fmt.Errorf("performArithmeticOperation: cannot divide by zero")
 			}
 			return lv / rv, nil
-		case segutils.Modulo:
+		case sutils.Modulo:
 			return int64(lv) % int64(rv), nil
-		case segutils.BitwiseAnd:
+		case sutils.BitwiseAnd:
 			return int64(lv) & int64(rv), nil
-		case segutils.BitwiseOr:
+		case sutils.BitwiseOr:
 			return int64(lv) | int64(rv), nil
-		case segutils.BitwiseExclusiveOr:
+		case sutils.BitwiseExclusiveOr:
 			return int64(lv) ^ int64(rv), nil
 		default:
 			return nil, fmt.Errorf("performArithmeticOperation: invalid arithmetic operator")
@@ -4246,7 +4246,7 @@ func getInputValueFromExpression(expr *structs.ExpressionInput, record map[strin
 		if !exists {
 			return nil, fmt.Errorf("getInputValueFromExpression: expr.ColumnName does not exist in record")
 		}
-		dval, err := segutils.CreateDtypeEnclosure(value, 0)
+		dval, err := sutils.CreateDtypeEnclosure(value, 0)
 		if err != nil {
 			return value, nil
 		} else {

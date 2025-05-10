@@ -31,7 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/metadata"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -184,7 +184,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			numBytes := len(line)
 			bytesReceived += numBytes
 			// update only if body is less than MAX_RECORD_SIZE
-			if numBytes < segutils.MAX_RECORD_SIZE {
+			if numBytes < sutils.MAX_RECORD_SIZE {
 				processedCount++
 				success = true
 				if strings.Contains(indexName, ".kibana") {
@@ -376,12 +376,12 @@ func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
 	tsKey := config.GetTimeStampKey()
 
-	var docType segutils.SIGNAL_TYPE
+	var docType sutils.SIGNAL_TYPE
 	if strings.HasPrefix(indexNameConverted, "jaeger-") {
-		docType = segutils.SIGNAL_JAEGER_TRACES
+		docType = sutils.SIGNAL_JAEGER_TRACES
 		tsKey = "startTimeMillis"
 	} else {
-		docType = segutils.SIGNAL_EVENTS
+		docType = sutils.SIGNAL_EVENTS
 	}
 
 	for _, ple := range pleArray {

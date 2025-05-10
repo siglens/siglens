@@ -38,7 +38,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/sortindex"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -98,7 +98,7 @@ type Searcher struct {
 	processedBlocks       map[string]map[uint16]struct{}
 	gotAllSegments        bool
 
-	unsentRRCs           []*segutils.RecordResultContainer
+	unsentRRCs           []*sutils.RecordResultContainer
 	segEncToKey          *utils.TwoWayMap[uint32, string]
 	segEncToKeyBaseValue uint32
 
@@ -131,7 +131,7 @@ func newSearcherHelper(queryInfo *query.QueryInformation, querySummary *summary.
 		sortExpr:              sortExpr,
 		startTime:             startTime,
 		remainingBlocksSorted: make([]*block, 0),
-		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
+		unsentRRCs:            make([]*sutils.RecordResultContainer, 0),
 		segEncToKey:           utils.NewTwoWayMap[uint32, string](),
 		segEncToKeyBaseValue:  queryInfo.GetSegEncToKeyBaseValue(),
 	}
@@ -223,7 +223,7 @@ func (s *Searcher) Rewind() {
 	s.unprocessedQSRs = nil
 	s.gotAllSegments = false
 	s.remainingBlocksSorted = make([]*block, 0)
-	s.unsentRRCs = make([]*segutils.RecordResultContainer, 0)
+	s.unsentRRCs = make([]*sutils.RecordResultContainer, 0)
 	s.segEncToKey = utils.NewTwoWayMap[uint32, string]()
 }
 
@@ -573,7 +573,7 @@ func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines
 	}
 
 	cname := s.sortExpr.SortEles[0].Field
-	err = iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{cname: values})
+	err = iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{cname: values})
 	if err != nil {
 		log.Errorf("qid=%v, searcher.handleSortIndexMatchAll: failed to append known values: %v", s.qid, err)
 		return nil, err
@@ -759,7 +759,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		s.gotBlocks = false
 	}
 
-	allRRCsSlices := make([][]*segutils.RecordResultContainer, 0, len(nextBlocks)+1)
+	allRRCsSlices := make([][]*sutils.RecordResultContainer, 0, len(nextBlocks)+1)
 
 	// Prepare to call BatchProcess.
 	getBatchKey := func(block *block) string {
@@ -925,7 +925,7 @@ func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, 
 		return nil, io.EOF
 	}
 
-	bucketLimit := int(segutils.QUERY_MAX_BUCKETS)
+	bucketLimit := int(sutils.QUERY_MAX_BUCKETS)
 	if aggs.BucketLimit != 0 && aggs.BucketLimit < bucketLimit {
 		bucketLimit = aggs.BucketLimit
 	}
@@ -936,7 +936,7 @@ func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, 
 		return nodeResult, nil
 	}
 
-	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(segutils.QUERY_MAX_BUCKETS))
+	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(sutils.QUERY_MAX_BUCKETS))
 	nodeResult.MeasureResults = bucketHolderArr
 	nodeResult.MeasureFunctions = measureFuncs
 	nodeResult.GroupByCols = aggGroupByCols
@@ -945,18 +945,18 @@ func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, 
 	return nodeResult, nil
 }
 
-func getSortingFunc(sortMode sortMode) (func(a, b *segutils.RecordResultContainer) bool, error) {
+func getSortingFunc(sortMode sortMode) (func(a, b *sutils.RecordResultContainer) bool, error) {
 	switch sortMode {
 	case recentFirst:
-		return func(a, b *segutils.RecordResultContainer) bool {
+		return func(a, b *sutils.RecordResultContainer) bool {
 			return a.TimeStamp > b.TimeStamp
 		}, nil
 	case recentLast:
-		return func(a, b *segutils.RecordResultContainer) bool {
+		return func(a, b *sutils.RecordResultContainer) bool {
 			return a.TimeStamp < b.TimeStamp
 		}, nil
 	case anyOrder:
-		return func(a, b *segutils.RecordResultContainer) bool {
+		return func(a, b *sutils.RecordResultContainer) bool {
 			return true
 		}, nil
 	default:
@@ -1310,7 +1310,7 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 }
 
 // All of the blocks must be for the same segment.
-func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.RecordResultContainer, map[uint32]string, error) {
+func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*sutils.RecordResultContainer, map[uint32]string, error) {
 	if len(blocks) == 0 {
 		return nil, nil, nil
 	}
@@ -1364,7 +1364,7 @@ func (s *Searcher) readSortedRRCs(blocks []*block, segkey string) ([]*segutils.R
 	return rrcs, searchResults.SegEncToKey, nil
 }
 
-func sortRRCs(rrcs []*segutils.RecordResultContainer, mode sortMode) error {
+func sortRRCs(rrcs []*sutils.RecordResultContainer, mode sortMode) error {
 	switch mode {
 	case recentFirst:
 		sort.Slice(rrcs, func(i, j int) bool {
@@ -1513,8 +1513,8 @@ func getSSRs(blocks []*block, blockToValidRecNums map[uint16][]uint16) (map[stri
 	return fileToSSR, nil
 }
 
-func getValidRRCs(sortedRRCs []*segutils.RecordResultContainer, lastTimestamp uint64,
-	mode sortMode) ([]*segutils.RecordResultContainer, error) {
+func getValidRRCs(sortedRRCs []*sutils.RecordResultContainer, lastTimestamp uint64,
+	mode sortMode) ([]*sutils.RecordResultContainer, error) {
 
 	switch mode {
 	case recentFirst:

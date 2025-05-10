@@ -35,7 +35,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -147,7 +147,7 @@ type RunningQueryState struct {
 	astNode                  *structs.ASTNode
 	qc                       *structs.QueryContext
 	searchRes                *segresults.SearchResults
-	rawRecords               []*segutils.RecordResultContainer
+	rawRecords               []*sutils.RecordResultContainer
 	queryCount               *structs.QueryCount
 	aggs                     *structs.QueryAggregators
 	searchHistogram          map[string]*structs.AggregationResult
@@ -974,7 +974,7 @@ func GetQueryType(qid uint64) structs.QueryType {
 }
 
 // Get remote raw logs and columns based on the remoteID and all RRCs
-func GetRemoteRawLogInfo(remoteID string, inrrcs []*segutils.RecordResultContainer, qid uint64) ([]map[string]interface{}, []string, error) {
+func GetRemoteRawLogInfo(remoteID string, inrrcs []*sutils.RecordResultContainer, qid uint64) ([]map[string]interface{}, []string, error) {
 	arqMapLock.RLock()
 	defer arqMapLock.RUnlock()
 
@@ -986,7 +986,7 @@ func GetRemoteRawLogInfo(remoteID string, inrrcs []*segutils.RecordResultContain
 	return rQuery.searchRes.GetRemoteInfo(remoteID, inrrcs, false)
 }
 
-func GetAllRemoteLogs(inrrcs []*segutils.RecordResultContainer, qid uint64) ([]map[string]interface{}, []string, error) {
+func GetAllRemoteLogs(inrrcs []*sutils.RecordResultContainer, qid uint64) ([]map[string]interface{}, []string, error) {
 	arqMapLock.RLock()
 	defer arqMapLock.RUnlock()
 
@@ -1030,7 +1030,7 @@ func checkForCancelledQuery(qid uint64) (bool, error) {
 }
 
 // returns the rrcs, query counts, map of segkey encoding, and errors
-func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*segutils.RecordResultContainer, uint64, map[uint32]string, map[string]struct{}, error) {
+func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*sutils.RecordResultContainer, uint64, map[uint32]string, map[string]struct{}, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
@@ -1041,12 +1041,12 @@ func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*segutils.RecordResultCon
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	if rQuery.queryCount == nil || rQuery.rawRecords == nil {
-		eres := make([]*segutils.RecordResultContainer, 0)
+		eres := make([]*sutils.RecordResultContainer, 0)
 		return eres, 0, nil, nil, nil
 	}
 
 	if len(rQuery.rawRecords) <= scroll {
-		eres := make([]*segutils.RecordResultContainer, 0)
+		eres := make([]*sutils.RecordResultContainer, 0)
 		return eres, 0, nil, nil, nil
 	}
 	skCopy := make(map[uint32]string, len(rQuery.searchRes.SegEncToKey))
@@ -1057,7 +1057,7 @@ func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*segutils.RecordResultCon
 }
 
 // returns rrcs, raw time buckets, raw groupby buckets, querycounts, map of segkey encoding, and errors
-func GetQueryResponseForRPC(scroll int, qid uint64) ([]*segutils.RecordResultContainer, *blockresults.TimeBuckets,
+func GetQueryResponseForRPC(scroll int, qid uint64) ([]*sutils.RecordResultContainer, *blockresults.TimeBuckets,
 	*blockresults.GroupByBuckets, *segresults.RemoteStats, map[uint32]string, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
@@ -1067,14 +1067,14 @@ func GetQueryResponseForRPC(scroll int, qid uint64) ([]*segutils.RecordResultCon
 	}
 
 	if rQuery.queryCount == nil || rQuery.rawRecords == nil {
-		eres := make([]*segutils.RecordResultContainer, 0)
+		eres := make([]*sutils.RecordResultContainer, 0)
 		return eres, nil, nil, nil, nil, nil
 	}
-	var eres []*segutils.RecordResultContainer
+	var eres []*sutils.RecordResultContainer
 	if rQuery.rawRecords == nil {
-		eres = make([]*segutils.RecordResultContainer, 0)
+		eres = make([]*sutils.RecordResultContainer, 0)
 	} else if len(rQuery.rawRecords) <= scroll {
-		eres = make([]*segutils.RecordResultContainer, 0)
+		eres = make([]*sutils.RecordResultContainer, 0)
 	} else {
 		eres = rQuery.rawRecords[scroll:]
 	}
@@ -1152,7 +1152,7 @@ func GetQueryInfoForQid(qid uint64) (*structs.QueryCount, uint64, error) {
 func zeroHitsQueryCount() *structs.QueryCount {
 	return &structs.QueryCount{
 		TotalCount: 0,
-		Op:         segutils.Equals,
+		Op:         sutils.Equals,
 		EarlyExit:  true,
 	}
 }
@@ -1471,7 +1471,7 @@ func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, pro
 	if progress.TotalUnits > 0 {
 		percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
 	}
-	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom+segutils.QUERY_EARLY_EXIT_LIMIT)
+	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom+sutils.QUERY_EARLY_EXIT_LIMIT)
 	completion = math.Max(float64(percCompleteBySearch), percCompleteByRecordsSent)
 	// TODO: fix completion percentage so that it is accurate - correctly identify UnitsSearched and TotalUnits.
 	completion = math.Min(completion, 100.0)

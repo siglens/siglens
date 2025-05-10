@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -61,31 +61,31 @@ func FindTimeRangeBucket(timePoints []uint64, timestamp uint64, intervalMillis u
 	return timePoints[index]
 }
 
-func GetIntervalInMillis(num int, timeUnit segutils.TimeUnit) uint64 {
+func GetIntervalInMillis(num int, timeUnit sutils.TimeUnit) uint64 {
 	numD := time.Duration(num)
 
 	switch timeUnit {
-	case segutils.TMMicrosecond:
+	case sutils.TMMicrosecond:
 		// Might not has effect for 'us', because smallest time unit for timestamp in siglens is ms
-	case segutils.TMMillisecond:
+	case sutils.TMMillisecond:
 		return uint64(numD)
-	case segutils.TMCentisecond:
+	case sutils.TMCentisecond:
 		return uint64(numD * 10 * time.Millisecond)
-	case segutils.TMDecisecond:
+	case sutils.TMDecisecond:
 		return uint64(numD * 100 * time.Millisecond)
-	case segutils.TMSecond:
+	case sutils.TMSecond:
 		return uint64((numD * time.Second).Milliseconds())
-	case segutils.TMMinute:
+	case sutils.TMMinute:
 		return uint64((numD * time.Minute).Milliseconds())
-	case segutils.TMHour:
+	case sutils.TMHour:
 		return uint64((numD * time.Hour).Milliseconds())
-	case segutils.TMDay:
+	case sutils.TMDay:
 		return uint64((numD * 24 * time.Hour).Milliseconds())
-	case segutils.TMWeek:
+	case sutils.TMWeek:
 		return uint64((numD * 7 * 24 * time.Hour).Milliseconds())
-	case segutils.TMMonth:
+	case sutils.TMMonth:
 		return uint64((numD * 30 * 24 * time.Hour).Milliseconds())
-	case segutils.TMQuarter:
+	case sutils.TMQuarter:
 		return uint64((numD * 120 * 24 * time.Hour).Milliseconds())
 	default:
 		log.Errorf("GetIntervalInMillis: unexpected time unit: %v", timeUnit)
@@ -93,7 +93,7 @@ func GetIntervalInMillis(num int, timeUnit segutils.TimeUnit) uint64 {
 	return uint64((10 * time.Minute).Milliseconds()) // 10 Minutes
 }
 
-func InitTimeBucket(num int, timeUnit segutils.TimeUnit, byField string, limitExpr *structs.LimitExpr, measureAggLength int, bOptions *structs.BinOptions) *structs.TimeBucket {
+func InitTimeBucket(num int, timeUnit sutils.TimeUnit, byField string, limitExpr *structs.LimitExpr, measureAggLength int, bOptions *structs.BinOptions) *structs.TimeBucket {
 
 	intervalMillis := GetIntervalInMillis(num, timeUnit)
 
@@ -130,7 +130,7 @@ func AddAggCountToTimechartRunningStats(m *structs.MeasureAggregator, allConvert
 	colToIdx[m.MeasureCol] = append(colToIdx[m.MeasureCol], idx)
 	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
 		MeasureCol:  m.MeasureCol,
-		MeasureFunc: segutils.Count,
+		MeasureFunc: sutils.Count,
 		StrEnc:      m.StrEnc,
 	})
 }
@@ -140,7 +140,7 @@ func AddAggAvgToTimechartRunningStats(m *structs.MeasureAggregator, allConverted
 	colToIdx[m.MeasureCol] = append(colToIdx[m.MeasureCol], idx)
 	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
 		MeasureCol:  m.MeasureCol,
-		MeasureFunc: segutils.Sum,
+		MeasureFunc: sutils.Sum,
 		StrEnc:      m.StrEnc,
 	})
 	idx++
@@ -148,7 +148,7 @@ func AddAggAvgToTimechartRunningStats(m *structs.MeasureAggregator, allConverted
 	colToIdx[m.MeasureCol] = append(colToIdx[m.MeasureCol], idx)
 	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
 		MeasureCol:  m.MeasureCol,
-		MeasureFunc: segutils.Count,
+		MeasureFunc: sutils.Count,
 		StrEnc:      m.StrEnc,
 	})
 }
@@ -156,7 +156,7 @@ func AddAggAvgToTimechartRunningStats(m *structs.MeasureAggregator, allConverted
 // Timechart will only display N highest/lowest scoring distinct values of the split-by field
 // For Single agg, the score is based on the sum of the values in the aggregation. Therefore, we can only know groupByColVal's ranking after processing all the runningStats
 // For multiple aggs, the score is based on the freq of the field. Which means we can rank groupByColVal at this time.
-func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByColValCnt map[string]int, groupValScoreMap map[string]*segutils.CValueEnclosure,
+func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByColValCnt map[string]int, groupValScoreMap map[string]*sutils.CValueEnclosure,
 	measureOperations []*structs.MeasureAggregator, batchErr *utils.BatchError) map[string]bool {
 
 	if timechart == nil || timechart.LimitExpr == nil {
@@ -165,7 +165,7 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 
 	// When there is only one agg and agg is values(), we can not score that based on the sum of the values in the aggregation
 	onlyUseByValuesFunc := false
-	if len(measureOperations) == 1 && measureOperations[0].MeasureFunc == segutils.Values {
+	if len(measureOperations) == 1 && measureOperations[0].MeasureFunc == sutils.Values {
 		onlyUseByValuesFunc = true
 	}
 
@@ -248,15 +248,15 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 }
 
 // Initial score map for single agg: the score is based on the sum of the values in the aggregation
-func InitialScoreMap(timechart *structs.TimechartExpr, groupByColValCnt map[string]int) map[string]*segutils.CValueEnclosure {
+func InitialScoreMap(timechart *structs.TimechartExpr, groupByColValCnt map[string]int) map[string]*sutils.CValueEnclosure {
 
 	if timechart == nil || timechart.LimitExpr == nil || timechart.LimitExpr.LimitScoreMode == structs.LSMByFreq {
 		return nil
 	}
 
-	groupByColValScoreMap := make(map[string]*segutils.CValueEnclosure, 0)
+	groupByColValScoreMap := make(map[string]*sutils.CValueEnclosure, 0)
 	for groupByColVal := range groupByColValCnt {
-		groupByColValScoreMap[groupByColVal] = &segutils.CValueEnclosure{CVal: nil, Dtype: segutils.SS_INVALID}
+		groupByColValScoreMap[groupByColVal] = &sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 	}
 
 	return groupByColValScoreMap
@@ -326,35 +326,35 @@ func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
 
 // For numeric agg(not include dc), we can simply use addition to merge them
 // For string values, it depends on the aggregation function
-func MergeVal(eVal *segutils.CValueEnclosure, eValToMerge segutils.CValueEnclosure, hll *utils.GobbableHll, hllToMerge *utils.GobbableHll,
-	strSet map[string]struct{}, strSetToMerge map[string]struct{}, aggFunc segutils.AggregateFunctions, useAdditionForMerge bool, batchErr *utils.BatchError) {
+func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, hll *utils.GobbableHll, hllToMerge *utils.GobbableHll,
+	strSet map[string]struct{}, strSetToMerge map[string]struct{}, aggFunc sutils.AggregateFunctions, useAdditionForMerge bool, batchErr *utils.BatchError) {
 
 	switch aggFunc {
-	case segutils.Count:
+	case sutils.Count:
 		fallthrough
-	case segutils.Avg:
+	case sutils.Avg:
 		fallthrough
-	case segutils.Min:
+	case sutils.Min:
 		fallthrough
-	case segutils.Max:
+	case sutils.Max:
 		fallthrough
-	case segutils.Range:
+	case sutils.Range:
 		fallthrough
-	case segutils.Sum:
-		aggFunc = segutils.Sum
-	case segutils.Cardinality:
+	case sutils.Sum:
+		aggFunc = sutils.Sum
+	case sutils.Cardinality:
 		if useAdditionForMerge {
-			aggFunc = segutils.Sum
+			aggFunc = sutils.Sum
 		} else {
 			err := hll.StrictUnion(hllToMerge.Hll)
 			if err != nil {
 				batchErr.AddError("MergeVal:HLL_STATS", err)
 			}
 			eVal.CVal = hll.Cardinality()
-			eVal.Dtype = segutils.SS_DT_UNSIGNED_NUM
+			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 			return
 		}
-	case segutils.Values:
+	case sutils.Values:
 		// Can not do addition for values func
 		if useAdditionForMerge {
 			return
@@ -369,17 +369,17 @@ func MergeVal(eVal *segutils.CValueEnclosure, eValToMerge segutils.CValueEnclosu
 		sort.Strings(uniqueStrings)
 
 		eVal.CVal = uniqueStrings
-		eVal.Dtype = segutils.SS_DT_STRING_SLICE
+		eVal.Dtype = sutils.SS_DT_STRING_SLICE
 		return
 	default:
 		log.Errorf("MergeVal: unsupported aggregation function: %v", aggFunc)
 	}
 
-	tmp := segutils.CValueEnclosure{
+	tmp := sutils.CValueEnclosure{
 		Dtype: eVal.Dtype,
 		CVal:  eVal.CVal,
 	}
-	retVal, err := segutils.Reduce(eValToMerge, tmp, aggFunc)
+	retVal, err := sutils.Reduce(eValToMerge, tmp, aggFunc)
 	if err != nil {
 		batchErr.AddError("MergeVal:eVAL_INTO_cVAL", err)
 		return
@@ -412,8 +412,8 @@ func IsRankBySum(timechart *structs.TimechartExpr) bool {
 	return false
 }
 
-func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, index int, eVal segutils.CValueEnclosure,
-	hllToMerge *utils.GobbableHll, strSetToMerge map[string]struct{}, aggFunc segutils.AggregateFunctions, groupByColVal string,
+func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, index int, eVal sutils.CValueEnclosure,
+	hllToMerge *utils.GobbableHll, strSetToMerge map[string]struct{}, aggFunc sutils.AggregateFunctions, groupByColVal string,
 	isOtherCol bool, batchErr *utils.BatchError) bool {
 
 	useAdditionForMerge := (tmLimitResult.OtherCValArr == nil)

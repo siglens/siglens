@@ -25,7 +25,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -72,7 +72,7 @@ func (p *makemvProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	return iqr, nil
 }
 
-func (p *makemvProcessor) processOneValue(value *segutils.CValueEnclosure) error {
+func (p *makemvProcessor) processOneValue(value *sutils.CValueEnclosure) error {
 	if value == nil {
 		return utils.TeeErrorf("makemv.processOneValue: value is nil")
 	}
@@ -108,10 +108,10 @@ func (p *makemvProcessor) processOneValue(value *segutils.CValueEnclosure) error
 	}
 
 	if p.options.Setsv {
-		value.Dtype = segutils.SS_DT_STRING
+		value.Dtype = sutils.SS_DT_STRING
 		value.CVal = strings.Join(values, " ")
 	} else {
-		value.Dtype = segutils.SS_DT_STRING_SLICE
+		value.Dtype = sutils.SS_DT_STRING_SLICE
 		value.CVal = values
 	}
 

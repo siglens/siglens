@@ -28,7 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -51,11 +51,11 @@ func Test_SortResultsArossMultipleFiles(t *testing.T) {
 	_, err := metadata.InitMockColumnarMetadataStore(0, indexName, fileCount, numBuffers, numEntriesForBuffer)
 	assert.Nil(t, err)
 
-	value1, _ := segutils.CreateDtypeEnclosure("*", 0)
+	value1, _ := sutils.CreateDtypeEnclosure("*", 0)
 	valueFilter := structs.FilterCriteria{
 		ExpressionFilter: &structs.ExpressionFilter{
 			LeftInput:      &structs.FilterInput{Expression: &structs.Expression{LeftInput: &structs.ExpressionInput{ColumnName: "*"}}},
-			FilterOperator: segutils.Equals,
+			FilterOperator: sutils.Equals,
 			RightInput:     &structs.FilterInput{Expression: &structs.Expression{LeftInput: &structs.ExpressionInput{ColumnValue: value1}}},
 		},
 	}

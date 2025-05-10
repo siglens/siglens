@@ -26,7 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -126,9 +126,9 @@ func (str *AgileTreeReader) resetBlkVars() {
 
 func validateTreeEncodingVersion(version byte) error {
 	switch version {
-	case segutils.VERSION_STAR_TREE_BLOCK[0]:
+	case sutils.VERSION_STAR_TREE_BLOCK[0]:
 		// do nothing, this is the expected encoding
-	case segutils.VERSION_STAR_TREE_BLOCK_LEGACY[0]:
+	case sutils.VERSION_STAR_TREE_BLOCK_LEGACY[0]:
 		log.Warnf("AgileTreeReader.ReadTreeMeta: received a legacy encoding type for agileTree: %v", version)
 		return errors.New("received legacy agileTree encoding")
 	default:
@@ -248,7 +248,7 @@ func (str *AgileTreeReader) CanUseAgileTree(grpReq *structs.GroupByRequest) (boo
 
 	// walk through measure colname
 	for _, m := range grpReq.MeasureOperations {
-		if m.MeasureCol == "*" && m.MeasureFunc == segutils.Count {
+		if m.MeasureCol == "*" && m.MeasureFunc == sutils.Count {
 			continue // we treat count(*) as just as a bucket count
 		}
 		found := false
@@ -362,12 +362,12 @@ func (str *AgileTreeReader) getRawVal(key uint32, dictEncoding map[uint32][]byte
 }
 
 func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
-	desiredLevel uint16, combiner map[string][]segutils.NumTypeEnclosure,
+	desiredLevel uint16, combiner map[string][]sutils.NumTypeEnclosure,
 	measResIndices []int, lenMri int, grpTreeLevels []uint16, grpColNames []string,
 ) error {
 	var wvInt64 int64
 	var wvFloat64 float64
-	var dtype segutils.SS_DTYPE
+	var dtype sutils.SS_DTYPE
 	idx := uint32(0)
 
 	// level
@@ -440,19 +440,19 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 				}
 			}
 
-			aggVal = make([]segutils.NumTypeEnclosure, lenMri)
+			aggVal = make([]sutils.NumTypeEnclosure, lenMri)
 			combiner[wvNodeKey] = aggVal
 		}
 
 		if aggVal == nil {
-			aggVal = make([]segutils.NumTypeEnclosure, lenMri)
+			aggVal = make([]sutils.NumTypeEnclosure, lenMri)
 		}
 
 		for j := 0; j < lenMri; j++ {
 			agIdx := idx                           // set to the start of aggValue for this node's data
 			agIdx += uint32(measResIndices[j]) * 9 // jump to the AgValue for this meas's index
 
-			wvInt64, wvFloat64, dtype = segutils.ConvertBytesToNumber(buf[agIdx : agIdx+9])
+			wvInt64, wvFloat64, dtype = sutils.ConvertBytesToNumber(buf[agIdx : agIdx+9])
 
 			// remainder will give us MeasFnIdx
 			fn := writer.IdxToAgFn[measResIndices[j]%writer.TotalMeasFns]
@@ -512,7 +512,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		measResIndices = append(measResIndices, tcidx*writer.TotalMeasFns+fnidx) // see where it is in agileTree
 	}
 
-	combiner := make(map[string][]segutils.NumTypeEnclosure)
+	combiner := make(map[string][]sutils.NumTypeEnclosure)
 
 	err := str.computeAggsJit(combiner, maxGrpLevel, measResIndices, agileTreeBuf,
 		grpTreeLevels, grpColNames)
@@ -525,7 +525,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		usedDictEncodings[i] = str.treeMeta.allDictEncodings[grpCol]
 	}
 
-	unsetRecord := make(map[string]segutils.CValueEnclosure)
+	unsetRecord := make(map[string]sutils.CValueEnclosure)
 	var retErr error
 	for mkey, ntAgvals := range combiner {
 		if len(ntAgvals) == 0 {
@@ -544,26 +544,26 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 			str.buckets.rawVals[rawVal] = struct{}{}
 		}
 
-		cvaggvalues := make([]segutils.CValueEnclosure, len(internalMops))
+		cvaggvalues := make([]sutils.CValueEnclosure, len(internalMops))
 		resCvIdx := 0
 		var colCntVal uint64
-		extVal := segutils.CValueEnclosure{}
+		extVal := sutils.CValueEnclosure{}
 		for i := 0; i < len(ntAgvals); i++ {
 			switch ntAgvals[i].Ntype {
-			case segutils.SS_DT_SIGNED_NUM, segutils.SS_DT_UNSIGNED_NUM:
-				extVal.Dtype = segutils.SS_DT_SIGNED_NUM
+			case sutils.SS_DT_SIGNED_NUM, sutils.SS_DT_UNSIGNED_NUM:
+				extVal.Dtype = sutils.SS_DT_SIGNED_NUM
 				extVal.CVal = ntAgvals[i].IntgrVal
-			case segutils.SS_DT_FLOAT:
-				extVal.Dtype = segutils.SS_DT_FLOAT
+			case sutils.SS_DT_FLOAT:
+				extVal.Dtype = sutils.SS_DT_FLOAT
 				extVal.CVal = ntAgvals[i].FloatVal
-			case segutils.SS_DT_BACKFILL:
-				extVal.Dtype = segutils.SS_DT_SIGNED_NUM
+			case sutils.SS_DT_BACKFILL:
+				extVal.Dtype = sutils.SS_DT_SIGNED_NUM
 				extVal.CVal = ntAgvals[i].IntgrVal
-			case segutils.SS_INVALID:
-				retErr = fmt.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: invalid dtype: %v", qid, segutils.SS_DTYPE(ntAgvals[i].Ntype))
+			case sutils.SS_INVALID:
+				retErr = fmt.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: invalid dtype: %v", qid, sutils.SS_DTYPE(ntAgvals[i].Ntype))
 				continue
 			default:
-				retErr = fmt.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: unknown dtype: %v", qid, segutils.SS_DTYPE(ntAgvals[i].Ntype))
+				retErr = fmt.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: unknown dtype: %v", qid, sutils.SS_DTYPE(ntAgvals[i].Ntype))
 				continue
 			}
 			// todo count is stored multiple times in the nodeAggvalue (per measCol), store only once
@@ -580,7 +580,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 	return retErr
 }
 
-func (str *AgileTreeReader) computeAggsJit(combiner map[string][]segutils.NumTypeEnclosure,
+func (str *AgileTreeReader) computeAggsJit(combiner map[string][]sutils.NumTypeEnclosure,
 	desiredLevel uint16, measResIndices []int, agileTreeBuf []byte, grpTreeLevels []uint16,
 	grpColNames []string,
 ) error {

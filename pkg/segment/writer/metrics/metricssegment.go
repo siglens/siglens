@@ -43,7 +43,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
@@ -309,11 +309,11 @@ func GetUnrotatedMetricStats(orgid int64) (uint64, uint64, uint64) {
 }
 
 func getNumberOfSegmentsFromMemory(mem uint64) uint64 {
-	mb := segutils.ConvertUintBytesToMB(mem)
-	retVal := mem / segutils.MAX_BYTES_METRICS_BLOCK
+	mb := sutils.ConvertUintBytesToMB(mem)
+	retVal := mem / sutils.MAX_BYTES_METRICS_BLOCK
 	concurreny := uint64(config.GetParallelism())
 	if retVal == 0 {
-		log.Infof("getNumberOfSegmentsFromMemory: Less than %dMB was allocated. Defaulting to 1 metrics segment", segutils.ConvertUintBytesToMB(mem))
+		log.Infof("getNumberOfSegmentsFromMemory: Less than %dMB was allocated. Defaulting to 1 metrics segment", sutils.ConvertUintBytesToMB(mem))
 		retVal = 1
 	} else if retVal > concurreny {
 		retVal = concurreny
@@ -327,7 +327,7 @@ func timeBasedRotate() {
 		time.Sleep(METRICS_BLK_ROTATE_SLEEP_DURATION * time.Second)
 		for _, ms := range GetAllMetricsSegments() {
 			encSize := atomic.LoadUint64(&ms.mBlock.blkEncodedSize)
-			if encSize > segutils.MAX_BYTES_METRICS_BLOCK {
+			if encSize > sutils.MAX_BYTES_METRICS_BLOCK {
 				ms.rwLock.Lock()
 				err := ms.CheckAndRotate(false)
 				ms.rwLock.Unlock()
@@ -421,7 +421,7 @@ func InitMetricsSegment(orgid int64, mId string) (*MetricsSegment, error) {
 				segID:           suffix,
 				mId:             mId,
 				dpIdx:           0,
-				dpsInWalMem:     make([]wal.WalDatapoint, segutils.WAL_BLOCK_FLUSH_SIZE),
+				dpsInWalMem:     make([]wal.WalDatapoint, sutils.WAL_BLOCK_FLUSH_SIZE),
 			},
 			mBlockSummary: &structs.MBlockSummary{
 				Blknum: 0,
@@ -1128,8 +1128,8 @@ func (mb *MetricsBlock) GetTimeSeries(tsid uint64) (*TimeSeries, bool, error) {
 	var ts *TimeSeries
 	idx, ok := mb.tsidLookup[tsid]
 	if !ok {
-		if len(mb.allSeries) >= segutils.MAX_ACTIVE_SERIES_PER_SEGMENT {
-			err := fmt.Errorf("MetricsBlock.GetTimeSeries: reached limit for max active series (%d) per segment", segutils.MAX_ACTIVE_SERIES_PER_SEGMENT)
+		if len(mb.allSeries) >= sutils.MAX_ACTIVE_SERIES_PER_SEGMENT {
+			err := fmt.Errorf("MetricsBlock.GetTimeSeries: reached limit for max active series (%d) per segment", sutils.MAX_ACTIVE_SERIES_PER_SEGMENT)
 			log.Errorf(err.Error())
 			return nil, false, err
 		}
@@ -1179,8 +1179,8 @@ Returns bool if the tsid already existed, the idx it exists at, or any errors
 func (mb *MetricsBlock) InsertTimeSeries(tsid uint64, ts *TimeSeries) (bool, int, error) {
 	idx, ok := mb.tsidLookup[tsid]
 	if !ok {
-		if len(mb.allSeries) >= segutils.MAX_ACTIVE_SERIES_PER_SEGMENT {
-			err := fmt.Errorf("MetricsBlock.InsertTimeSeries: reached limit for max active series (%d) per segment", segutils.MAX_ACTIVE_SERIES_PER_SEGMENT)
+		if len(mb.allSeries) >= sutils.MAX_ACTIVE_SERIES_PER_SEGMENT {
+			err := fmt.Errorf("MetricsBlock.InsertTimeSeries: reached limit for max active series (%d) per segment", sutils.MAX_ACTIVE_SERIES_PER_SEGMENT)
 			log.Errorf(err.Error())
 			return false, 0, err
 		}
@@ -1243,8 +1243,8 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 
 	totalEncSize := atomic.LoadUint64(&ms.mSegEncodedSize)
 	blkEncSize := atomic.LoadUint64(&ms.mBlock.blkEncodedSize)
-	if blkEncSize > segutils.MAX_BYTES_METRICS_BLOCK || (blkEncSize > 0 && forceRotate) ||
-		(blkEncSize > 0 && totalEncSize > segutils.MAX_BYTES_METRICS_SEGMENT) {
+	if blkEncSize > sutils.MAX_BYTES_METRICS_BLOCK || (blkEncSize > 0 && forceRotate) ||
+		(blkEncSize > 0 && totalEncSize > sutils.MAX_BYTES_METRICS_SEGMENT) {
 		err := ms.mBlock.rotateBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
 		if err != nil {
 			log.Errorf("MetricsSegment.CheckAndRotate: failed to rotate block for key=%v, suffix=%v, blocknum=%v, err=%v",
@@ -1256,7 +1256,7 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 		}
 	}
 
-	if totalEncSize > segutils.MAX_BYTES_METRICS_SEGMENT || (totalEncSize > 0 && forceRotate) {
+	if totalEncSize > sutils.MAX_BYTES_METRICS_SEGMENT || (totalEncSize > 0 && forceRotate) {
 		err := ms.rotateSegment(forceRotate)
 		if err != nil {
 			log.Errorf("MetricsSegment.CheckAndRotate: failed to rotate mid %v: %v", ms.metricsKeyBase, err)
@@ -1296,13 +1296,13 @@ func (mb *MetricsBlock) FlushTSOAndTSGFiles(file string) error {
 		return mb.sortedTsids[i] < mb.sortedTsids[j]
 	})
 
-	_, err := tsoBuffer.Write(segutils.VERSION_TSOFILE_V2)
+	_, err := tsoBuffer.Write(sutils.VERSION_TSOFILE_V2)
 	if err != nil {
 		log.Infof("FlushTSOAndTSGFiles: Could not write version byte to file %v. Err %v", tsoFileName, err)
 		return err
 	}
 
-	_, err = tsgBuffer.Write(segutils.VERSION_TSGFILE)
+	_, err = tsgBuffer.Write(sutils.VERSION_TSGFILE)
 	if err != nil {
 		log.Infof("FlushTSOAndTSGFiles: Could not write version byte to file %v. Err %v", tsoFileName, err)
 		return err
@@ -2001,14 +2001,14 @@ func (mb *MetricsBlock) appendToWALBuffer(timestamp uint32, dp float64, tsid uin
 	mb.dpWalState.lock.Lock()
 	defer mb.dpWalState.lock.Unlock()
 
-	if int(mb.dpWalState.dpIdx) >= segutils.WAL_BLOCK_FLUSH_SIZE {
+	if int(mb.dpWalState.dpIdx) >= sutils.WAL_BLOCK_FLUSH_SIZE {
 		err := mb.dpWalState.currentWal.Append(mb.dpWalState.dpsInWalMem[0:mb.dpWalState.dpIdx])
 		if err != nil {
 			log.Errorf("AppendWalDataPoint : Failed to append datapoints to WAL: %v", err)
 			return err
 		}
 		totalEncodedSize := mb.dpWalState.currentWal.GetWALStats()
-		if totalEncodedSize > segutils.MAX_WAL_FILE_SIZE_BYTES {
+		if totalEncodedSize > sutils.MAX_WAL_FILE_SIZE_BYTES {
 			if err := mb.rotateWAL(); err != nil {
 				log.Errorf("appendToWALBuffer : Failed to rotate WAL file: %v", err)
 				return err
@@ -2036,7 +2036,7 @@ func timeBasedWalDPSFlush() {
 					log.Warnf("timeBasedWalDPSFlush : Failed to append datapoints to WAL: %v", err)
 				}
 				totalEncodedSize := ms.mBlock.dpWalState.currentWal.GetWALStats()
-				if totalEncodedSize > segutils.MAX_WAL_FILE_SIZE_BYTES {
+				if totalEncodedSize > sutils.MAX_WAL_FILE_SIZE_BYTES {
 					if err := ms.mBlock.rotateWAL(); err != nil {
 						log.Warnf("timeBasedWalDPSFlush : Failed to rotate WAL file: %v", err)
 					}

@@ -29,7 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/series"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -45,7 +45,7 @@ func writeMockMetricsBlockSummaryFile(file string, blockSums []*structs.MBlockSu
 
 	defer fd.Close()
 
-	if _, err := fd.Write(segutils.VERSION_MBLOCKSUMMARY); err != nil {
+	if _, err := fd.Write(sutils.VERSION_MBLOCKSUMMARY); err != nil {
 		log.Errorf("writeMockMetricsBlockSummaryFile: Cannot write version byte for filename=%v: err= %v", file, err)
 		return err
 	}
@@ -212,7 +212,7 @@ func Test_ReadOldTso(t *testing.T) {
 
 	// A version 1 TSO file
 	tsoData := make([]byte, 1+2+12)
-	tsoData[0] = segutils.VERSION_TSOFILE_V1[0]
+	tsoData[0] = sutils.VERSION_TSOFILE_V1[0]
 	copy(tsoData[1:], utils.Uint16ToBytesLittleEndian(uint16(1)))
 	tsid := uint64(42)
 	copy(tsoData[3:], utils.Uint64ToBytesLittleEndian(tsid))
@@ -229,7 +229,7 @@ func Test_ReadOldTso(t *testing.T) {
 	// only requirement is that it's at least 32 bytes (for the gorilla
 	// encoding header).
 	tsgData := make([]byte, 1+12+100)
-	copy(tsgData[0:], segutils.VERSION_TSGFILE)
+	copy(tsgData[0:], sutils.VERSION_TSGFILE)
 	copy(tsgData[1:], utils.Uint64ToBytesLittleEndian(tsid))
 	copy(tsgData[9:], utils.Uint32ToBytesLittleEndian(uint32(100)))
 	err = os.WriteFile("data/mock_0.tsg", tsgData, 0644)

@@ -28,7 +28,7 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
@@ -52,7 +52,7 @@ type FilterInput struct {
 }
 
 type NodeAggregation struct {
-	AggregationFunctions segutils.AggregateFunctions // function to apply on results of children (e.g. min, max)
+	AggregationFunctions sutils.AggregateFunctions // function to apply on results of children (e.g. min, max)
 	AggregationColumns   []string                    // column names to aggregate on (i.e avg over which column name?)
 }
 
@@ -70,7 +70,7 @@ type MatchFilter struct {
 	MatchColumn         string                   // column to search for
 	MatchWords          [][]byte                 // all words to search for. The values will be normalized to Lower case if the query is case insensitive
 	MatchWordsOriginal  [][]byte                 // all original words to search for. Will be set only if dualcasecheck is enabled and query is case insensitive.
-	MatchOperator       segutils.LogicalOperator // how to combine matchWords
+	MatchOperator       sutils.LogicalOperator // how to combine matchWords
 	MatchPhrase         []byte                   //whole string to search for in case of MatchPhrase query. The value will be normalized to Lower case if the query is case insensitive
 	MatchPhraseOriginal []byte                   //original string to search for in case of MatchPhrase query. Will be set only if dualcasecheck is enabled and query is case insensitive.
 	MatchDictArray      *MatchDictArrayRequest   //array to search for in case of jaeger query
@@ -82,13 +82,13 @@ type MatchFilter struct {
 
 type MatchDictArrayRequest struct {
 	MatchKey   []byte
-	MatchValue *segutils.DtypeEnclosure
+	MatchValue *sutils.DtypeEnclosure
 }
 
 // ExpressionFilter denotes a single expression to search for in a log record
 type ExpressionFilter struct {
 	LeftInput      *FilterInput            // left input to filterOperator
-	FilterOperator segutils.FilterOperator // how to logField in logline (i.e logField=filterString, logField >= filterValue)
+	FilterOperator sutils.FilterOperator // how to logField in logline (i.e logField=filterString, logField >= filterValue)
 	RightInput     *FilterInput            // right input to filterOperator
 }
 
@@ -378,7 +378,7 @@ func (mf *MatchFilter) IsMatchAll() bool {
 	if len(mf.MatchWords) != 1 {
 		return false
 	}
-	if bytes.Equal(mf.MatchWords[0], segutils.STAR_BYTE) {
+	if bytes.Equal(mf.MatchWords[0], sutils.STAR_BYTE) {
 		return true
 	}
 	return false

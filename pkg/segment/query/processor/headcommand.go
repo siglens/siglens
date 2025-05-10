@@ -23,7 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -46,7 +46,7 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	row := 0
 	for row < iqr.NumberOfRecords() && !p.options.Done && p.numRecordsSent < p.options.MaxRows {
-		fieldToValue := make(map[string]segutils.CValueEnclosure, len(requiredFields))
+		fieldToValue := make(map[string]sutils.CValueEnclosure, len(requiredFields))
 		for _, field := range requiredFields {
 			fieldToValue[field] = records[field][row]
 		}
@@ -67,7 +67,7 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 		}
 
-		if conditionCValEnc.Dtype == segutils.SS_DT_BACKFILL {
+		if conditionCValEnc.Dtype == sutils.SS_DT_BACKFILL {
 			if p.options.Null {
 				// include the records since null is allowed
 			} else if p.options.Keeplast {
@@ -78,7 +78,7 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 				p.options.Done = true
 				break
 			}
-		} else if conditionCValEnc.Dtype == segutils.SS_DT_BOOL {
+		} else if conditionCValEnc.Dtype == sutils.SS_DT_BOOL {
 			conditionPassed := conditionCValEnc.CVal.(bool)
 			if !conditionPassed {
 				// false condition so adding last record if keeplast

@@ -30,7 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/memorypool"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -213,7 +213,7 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	fileReader, err := InitNewSegFileReader(fd, cname, allBlocksToSearch, 0, blockSummaries,
-		segutils.INCONSISTENT_CVAL_SIZE, allBmi)
+		sutils.INCONSISTENT_CVAL_SIZE, allBmi)
 	if err != nil {
 		return nil, err
 	}
@@ -382,10 +382,10 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	sfr.encType = sfr.currFileBuffer[oPtr]
 	oPtr++
 
-	if sfr.encType == segutils.ZSTD_COMLUNAR_BLOCK[0] {
+	if sfr.encType == sutils.ZSTD_COMLUNAR_BLOCK[0] {
 		err := sfr.unpackRawCsg(sfr.currFileBuffer[oPtr:cOffAndLen.Length], blockNum)
 		return true, err
-	} else if sfr.encType == segutils.ZSTD_DICTIONARY_BLOCK[0] {
+	} else if sfr.encType == sutils.ZSTD_DICTIONARY_BLOCK[0] {
 		err := sfr.ReadDictEnc(sfr.currFileBuffer[oPtr:cOffAndLen.Length], blockNum)
 		return true, err
 	} else {
@@ -397,7 +397,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 // Returns the raw bytes of the record in the currently loaded block
 func (sfr *SegmentFileReader) ReadRecord(recordNum uint16) ([]byte, error) {
 	// if dict encoding, we use the dictmapping
-	if sfr.encType == segutils.ZSTD_DICTIONARY_BLOCK[0] {
+	if sfr.encType == sutils.ZSTD_DICTIONARY_BLOCK[0] {
 		ret, err := sfr.deGetRec(recordNum)
 		return ret, err
 	}
@@ -468,39 +468,39 @@ func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
 	// This value comes from the segment metadata, where we store the column value size
 	// at segment level. If the value is >0 and is != INCONSISTENT_CVAL_SIZE it means all records in the segment for this column
 	// have the same length and if it is equal to INCONSISTENT_CVAL_SIZE, it means the records have different lengths
-	if sfr.consistentColValueLen > 0 && sfr.consistentColValueLen != segutils.INCONSISTENT_CVAL_SIZE {
+	if sfr.consistentColValueLen > 0 && sfr.consistentColValueLen != sutils.INCONSISTENT_CVAL_SIZE {
 		return sfr.consistentColValueLen, nil
 	}
 	var reclen uint32
 	switch sfr.currRawBlockBuffer[sfr.currOffset] {
-	case segutils.VALTYPE_ENC_SMALL_STRING[0]:
+	case sutils.VALTYPE_ENC_SMALL_STRING[0]:
 		// 1 byte for type, 2 for str-len, then str-len for actual string
 		reclen = 3 + uint32(utils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
-	case segutils.VALTYPE_ENC_BOOL[0]:
+	case sutils.VALTYPE_ENC_BOOL[0]:
 		reclen = 2
-	case segutils.VALTYPE_ENC_INT8[0]:
+	case sutils.VALTYPE_ENC_INT8[0]:
 		reclen = 2
-	case segutils.VALTYPE_ENC_INT16[0]:
+	case sutils.VALTYPE_ENC_INT16[0]:
 		reclen = 3
-	case segutils.VALTYPE_ENC_INT32[0]:
+	case sutils.VALTYPE_ENC_INT32[0]:
 		reclen = 5
-	case segutils.VALTYPE_ENC_INT64[0]:
+	case sutils.VALTYPE_ENC_INT64[0]:
 		reclen = 9
-	case segutils.VALTYPE_ENC_UINT8[0]:
+	case sutils.VALTYPE_ENC_UINT8[0]:
 		reclen = 2
-	case segutils.VALTYPE_ENC_UINT16[0]:
+	case sutils.VALTYPE_ENC_UINT16[0]:
 		reclen = 3
-	case segutils.VALTYPE_ENC_UINT32[0]:
+	case sutils.VALTYPE_ENC_UINT32[0]:
 		reclen = 5
-	case segutils.VALTYPE_ENC_UINT64[0]:
+	case sutils.VALTYPE_ENC_UINT64[0]:
 		reclen = 9
-	case segutils.VALTYPE_ENC_FLOAT64[0]:
+	case sutils.VALTYPE_ENC_FLOAT64[0]:
 		reclen = 9
-	case segutils.VALTYPE_ENC_BACKFILL[0]:
+	case sutils.VALTYPE_ENC_BACKFILL[0]:
 		reclen = 1
-	case segutils.VALTYPE_DICT_ARRAY[0]:
+	case sutils.VALTYPE_DICT_ARRAY[0]:
 		reclen = 3 + uint32(utils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
-	case segutils.VALTYPE_RAW_JSON[0]:
+	case sutils.VALTYPE_RAW_JSON[0]:
 		reclen = 3 + uint32(utils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
 
 	default:
@@ -520,7 +520,7 @@ func (sfr *SegmentFileReader) IsBlkDictEncoded(blockNum uint16) (bool, error) {
 		}
 	}
 
-	if sfr.encType != segutils.ZSTD_DICTIONARY_BLOCK[0] {
+	if sfr.encType != sutils.ZSTD_DICTIONARY_BLOCK[0] {
 		return false, nil
 	}
 
@@ -546,14 +546,14 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 		soffW = idx
 		// read dictWord 'T'
 		switch buf[idx] {
-		case segutils.VALTYPE_ENC_SMALL_STRING[0]:
+		case sutils.VALTYPE_ENC_SMALL_STRING[0]:
 			//  3 => 1 for 'T' and 2 for 'L' of string
 			idx += uint32(3 + utils.BytesToUint16LittleEndian(buf[idx+1:idx+3]))
-		case segutils.VALTYPE_ENC_BOOL[0]:
+		case sutils.VALTYPE_ENC_BOOL[0]:
 			idx += 2 // 1 for T and 1 for Boolean value
-		case segutils.VALTYPE_ENC_INT64[0], segutils.VALTYPE_ENC_FLOAT64[0]:
+		case sutils.VALTYPE_ENC_INT64[0], sutils.VALTYPE_ENC_FLOAT64[0]:
 			idx += 9 // 1 for T and 8 bytes for 'L' int64
-		case segutils.VALTYPE_ENC_BACKFILL[0]:
+		case sutils.VALTYPE_ENC_BACKFILL[0]:
 			idx += 1 // 1 for T
 		default:
 			return fmt.Errorf("SegmentFileReader.ReadDictEnc: unknown dictEnc: %v only supported flt/int64/str/bool", buf[idx])
@@ -632,14 +632,14 @@ func (sfr *SegmentFileReader) GetDictEncCvalsFromColFileOldPipeline(results map[
 		}
 	}
 
-	if sfr.encType != segutils.ZSTD_DICTIONARY_BLOCK[0] {
+	if sfr.encType != sutils.ZSTD_DICTIONARY_BLOCK[0] {
 		return false
 	}
 
 	return sfr.DeToResultOldPipeline(results, orderedRecNums)
 }
 
-func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]segutils.CValueEnclosure,
+func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]sutils.CValueEnclosure,
 	blockNum uint16, orderedRecNums []uint16,
 ) bool {
 	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
@@ -652,7 +652,7 @@ func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]se
 		}
 	}
 
-	if sfr.encType != segutils.ZSTD_DICTIONARY_BLOCK[0] {
+	if sfr.encType != sutils.ZSTD_DICTIONARY_BLOCK[0] {
 		return false
 	}
 
@@ -669,15 +669,15 @@ func (sfr *SegmentFileReader) DeToResultOldPipeline(results map[uint16]map[strin
 		if !ok {
 			results[rn] = make(map[string]interface{})
 		}
-		if dWord[0] == segutils.VALTYPE_ENC_SMALL_STRING[0] {
+		if dWord[0] == sutils.VALTYPE_ENC_SMALL_STRING[0] {
 			results[rn][sfr.ColName] = string(dWord[3:])
-		} else if dWord[0] == segutils.VALTYPE_ENC_BOOL[0] {
+		} else if dWord[0] == sutils.VALTYPE_ENC_BOOL[0] {
 			results[rn][sfr.ColName] = utils.BytesToBoolLittleEndian(dWord[1:])
-		} else if dWord[0] == segutils.VALTYPE_ENC_INT64[0] {
+		} else if dWord[0] == sutils.VALTYPE_ENC_INT64[0] {
 			results[rn][sfr.ColName] = utils.BytesToInt64LittleEndian(dWord[1:])
-		} else if dWord[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
+		} else if dWord[0] == sutils.VALTYPE_ENC_FLOAT64[0] {
 			results[rn][sfr.ColName] = utils.BytesToFloat64LittleEndian(dWord[1:])
-		} else if dWord[0] == segutils.VALTYPE_ENC_BACKFILL[0] {
+		} else if dWord[0] == sutils.VALTYPE_ENC_BACKFILL[0] {
 			results[rn][sfr.ColName] = nil
 		} else {
 			log.Errorf("SegmentFileReader.DeToResultsOldPipeline: de only supported for str/int64/float64/bool")
@@ -687,7 +687,7 @@ func (sfr *SegmentFileReader) DeToResultOldPipeline(results map[uint16]map[strin
 	return true
 }
 
-func (sfr *SegmentFileReader) deToResults(results map[string][]segutils.CValueEnclosure,
+func (sfr *SegmentFileReader) deToResults(results map[string][]sutils.CValueEnclosure,
 	orderedRecNums []uint16,
 ) bool {
 	for recIdx, rn := range orderedRecNums {
@@ -700,20 +700,20 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]segutils.CValueEn
 		dWord := sfr.deTlv[dwIdx]
 
 		switch dWord[0] {
-		case segutils.VALTYPE_ENC_SMALL_STRING[0]:
+		case sutils.VALTYPE_ENC_SMALL_STRING[0]:
 			results[sfr.ColName][recIdx].CVal = string(dWord[3:])
-			results[sfr.ColName][recIdx].Dtype = segutils.SS_DT_STRING
-		case segutils.VALTYPE_ENC_BOOL[0]:
+			results[sfr.ColName][recIdx].Dtype = sutils.SS_DT_STRING
+		case sutils.VALTYPE_ENC_BOOL[0]:
 			results[sfr.ColName][recIdx].CVal = utils.BytesToBoolLittleEndian(dWord[1:])
-			results[sfr.ColName][recIdx].Dtype = segutils.SS_DT_BOOL
-		case segutils.VALTYPE_ENC_INT64[0]:
+			results[sfr.ColName][recIdx].Dtype = sutils.SS_DT_BOOL
+		case sutils.VALTYPE_ENC_INT64[0]:
 			results[sfr.ColName][recIdx].CVal = utils.BytesToInt64LittleEndian(dWord[1:])
-			results[sfr.ColName][recIdx].Dtype = segutils.SS_DT_SIGNED_NUM
-		case segutils.VALTYPE_ENC_FLOAT64[0]:
+			results[sfr.ColName][recIdx].Dtype = sutils.SS_DT_SIGNED_NUM
+		case sutils.VALTYPE_ENC_FLOAT64[0]:
 			results[sfr.ColName][recIdx].CVal = utils.BytesToFloat64LittleEndian(dWord[1:])
-			results[sfr.ColName][recIdx].Dtype = segutils.SS_DT_FLOAT
-		case segutils.VALTYPE_ENC_BACKFILL[0]:
-			results[sfr.ColName][recIdx].Dtype = segutils.SS_DT_BACKFILL
+			results[sfr.ColName][recIdx].Dtype = sutils.SS_DT_FLOAT
+		case sutils.VALTYPE_ENC_BACKFILL[0]:
+			results[sfr.ColName][recIdx].Dtype = sutils.SS_DT_BACKFILL
 		default:
 			log.Debugf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool but received %v", dWord[0])
 			return false

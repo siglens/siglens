@@ -22,7 +22,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -53,7 +53,7 @@ func (p *dedupProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		p.combinationHashes = make(map[uint64]int)
 	}
 
-	fieldToValues := make(map[string][]segutils.CValueEnclosure)
+	fieldToValues := make(map[string][]sutils.CValueEnclosure)
 	for _, field := range p.options.FieldList {
 		values, err := iqr.ReadColumn(field)
 		if err != nil {
@@ -77,8 +77,8 @@ RecordLoop:
 		for _, field := range p.options.FieldList {
 			hash ^= fieldToValues[field][i].Hash()
 
-			if fieldToValues[field][i].Dtype == segutils.SS_DT_BACKFILL ||
-				fieldToValues[field][i].Dtype == segutils.SS_INVALID {
+			if fieldToValues[field][i].Dtype == sutils.SS_DT_BACKFILL ||
+				fieldToValues[field][i].Dtype == sutils.SS_INVALID {
 				if !p.options.DedupOptions.KeepEmpty {
 					rowsToDiscard = append(rowsToDiscard, i)
 				}
@@ -111,7 +111,7 @@ RecordLoop:
 		// Clear the fields instead of discarding the rows.
 		for _, values := range fieldToValues {
 			for _, rowIndex := range rowsToDiscard {
-				values[rowIndex].Dtype = segutils.SS_DT_BACKFILL
+				values[rowIndex].Dtype = sutils.SS_DT_BACKFILL
 				values[rowIndex].CVal = nil
 			}
 		}

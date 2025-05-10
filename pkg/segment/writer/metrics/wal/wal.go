@@ -14,7 +14,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 
 	"github.com/klauspost/compress/zstd"
@@ -63,7 +63,7 @@ func NewWAL(filePath string, encoder walAppender) (*Wal, error) {
 		return nil, err
 	}
 
-	_, err = fd.Write(segutils.VERSION_WALFILE)
+	_, err = fd.Write(sutils.VERSION_WALFILE)
 	if err != nil {
 		log.Infof("NewDataPointWal: Could not write version byte to file %v. Err %v", filePath, err)
 		return nil, err
@@ -147,7 +147,7 @@ func (w *Wal) truncate() error {
 		return err
 	}
 
-	_, err = w.fd.Write(segutils.VERSION_WALFILE)
+	_, err = w.fd.Write(sutils.VERSION_WALFILE)
 	if err != nil {
 		log.Errorf("Wal.truncate: failed to write WAL version: %v", err)
 		return err
@@ -270,7 +270,7 @@ func openAndValidateWALFile(filePath string) (*os.File, error) {
 		return nil, err
 	}
 
-	if versionBuf[0] != segutils.VERSION_WALFILE[0] {
+	if versionBuf[0] != sutils.VERSION_WALFILE[0] {
 		log.Errorf("openAndValidateWALFile: Unexpected WAL file version: %+v", versionBuf[0])
 		return nil, fmt.Errorf("unexpected WAL file version: %+v", versionBuf[0])
 	}

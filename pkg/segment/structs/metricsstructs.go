@@ -29,7 +29,7 @@ import (
 	parser "github.com/prometheus/prometheus/promql/parser"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -43,7 +43,7 @@ Struct to represent a single metrics query request.
 type MetricsQuery struct {
 	isQueryCancelled       uint32               // flag to indicate if the query is cancelled/deleted. 1 if cancelled/deleted, 0 otherwise
 	MetricName             string               // metric name to query for.
-	MetricOperator         segutils.TagOperator // operator to apply on metric name
+	MetricOperator         sutils.TagOperator // operator to apply on metric name
 	MetricNameRegexPattern string               // regex pattern to apply on metric name
 	QueryHash              uint64               // hash of the query
 	HashedMName            uint64
@@ -87,7 +87,7 @@ type MetricsQuery struct {
 // 1. Aggregate multiple series into fewer series (e.g., sum with an optional group by).
 // 2. Aggregate points in a series into fewer points (e.g., when used by a downsampler).
 type Aggregation struct {
-	AggregatorFunction segutils.AggregateFunctions //aggregator function
+	AggregatorFunction sutils.AggregateFunctions //aggregator function
 	FuncConstant       float64
 	GroupByFields      []string // group by fields will be sorted
 	Without            bool     // if set exclude the above group by fields
@@ -117,7 +117,7 @@ type LabelReplacementKey struct {
 }
 
 type LabelFunctionExpr struct {
-	FunctionType     segutils.LabelFunctions
+	FunctionType     sutils.LabelFunctions
 	DestinationLabel string
 	Replacement      *LabelReplacementKey
 	SourceLabel      string
@@ -130,18 +130,18 @@ type LabelFunctionExpr struct {
 type Function struct {
 	FunctionType MetricsFunctionType
 	// TODO: remove the below MathFunction, RangeFunction, TimeFunction fields and use FunctionType instead
-	MathFunction      segutils.MathFunctions
-	RangeFunction     segutils.RangeFunctions //range function to apply, only one of these will be non nil
+	MathFunction      sutils.MathFunctions
+	RangeFunction     sutils.RangeFunctions //range function to apply, only one of these will be non nil
 	ValueList         []string
 	TimeWindow        float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
 	Step              float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
-	TimeFunction      segutils.TimeFunctions
+	TimeFunction      sutils.TimeFunctions
 	LabelFunction     *LabelFunctionExpr
 	HistogramFunction *HistogramAgg
 }
 
 type HistogramAgg struct {
-	Function segutils.HistogramFunctions
+	Function sutils.HistogramFunctions
 	Quantile float64
 }
 
@@ -173,8 +173,8 @@ type TagsFilter struct {
 	TagKey          string
 	RawTagValue     interface{} //change it to utils.DtypeEnclosure later
 	HashTagValue    uint64
-	TagOperator     segutils.TagOperator
-	LogicalOperator segutils.LogicalOperator
+	TagOperator     sutils.TagOperator
+	LogicalOperator sutils.LogicalOperator
 	NotInitialGroup bool
 	IgnoreTag       bool
 	IsGroupByKey    bool
@@ -242,7 +242,7 @@ type QueryArithmetic struct {
 	LHSExpr     *QueryArithmetic
 	RHSExpr     *QueryArithmetic
 	ConstantOp  bool
-	Operation   segutils.LogicalAndArithmeticOperator
+	Operation   sutils.LogicalAndArithmeticOperator
 	ReturnBool  bool // If a comparison operator, return 0/1 rather than filtering.
 	Constant    float64
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
@@ -446,7 +446,7 @@ func isStarValue(tf *TagsFilter) bool {
 }
 
 func (tf *TagsFilter) IsRegex() bool {
-	return (tf.TagOperator == segutils.Regex || tf.TagOperator == segutils.NegRegex)
+	return (tf.TagOperator == sutils.Regex || tf.TagOperator == sutils.NegRegex)
 }
 
 // Handles star tags logic
@@ -543,7 +543,7 @@ func (mbs *MBlockSummary) FlushSummary(fName string) error {
 	// read both types of version files
 	if isFirstBlock {
 		mBlkSum = make([]byte, 19)
-		copy(mBlkSum[idx:], segutils.VERSION_MBLOCKSUMMARY)
+		copy(mBlkSum[idx:], sutils.VERSION_MBLOCKSUMMARY)
 		idx += 1
 		// hard coded byte size for [blk num][high Ts][low Ts]
 	} else {
@@ -582,9 +582,9 @@ func (agg Aggregation) ShallowClone() *Aggregation {
 }
 
 func (agg Aggregation) IsAggregateFromAllTimeseries() bool {
-	return agg.AggregatorFunction == segutils.Count || agg.AggregatorFunction == segutils.Stdvar || agg.AggregatorFunction == segutils.Stddev || agg.AggregatorFunction == segutils.TopK || agg.AggregatorFunction == segutils.BottomK
+	return agg.AggregatorFunction == sutils.Count || agg.AggregatorFunction == sutils.Stdvar || agg.AggregatorFunction == sutils.Stddev || agg.AggregatorFunction == sutils.TopK || agg.AggregatorFunction == sutils.BottomK
 }
 
 func (mQuery *MetricsQuery) IsRegexOnMetricName() bool {
-	return mQuery.MetricOperator == segutils.Regex || mQuery.MetricOperator == segutils.NegRegex
+	return mQuery.MetricOperator == sutils.Regex || mQuery.MetricOperator == sutils.NegRegex
 }

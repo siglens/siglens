@@ -26,7 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/stats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -152,11 +152,11 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	qid := inputIQR.GetQID()
 
 	if len(p.bucketKeyWorkingBuf) == 0 {
-		p.bucketKeyWorkingBuf = make([]byte, len(p.options.GroupByRequest.GroupByColumns)*segutils.MAX_RECORD_SIZE)
+		p.bucketKeyWorkingBuf = make([]byte, len(p.options.GroupByRequest.GroupByColumns)*sutils.MAX_RECORD_SIZE)
 	}
 
 	if p.searchResults == nil {
-		p.options.GroupByRequest.BucketCount = int(segutils.QUERY_MAX_BUCKETS)
+		p.options.GroupByRequest.BucketCount = int(sutils.QUERY_MAX_BUCKETS)
 		p.options.GroupByRequest.IsBucketKeySeparatedByDelim = true
 		aggs := &structs.QueryAggregators{GroupByRequest: p.options.GroupByRequest}
 		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), aggs, structs.GroupByCmd, qid)
@@ -169,8 +169,8 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	blkResults := p.searchResults.BlockResults
 
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
-	measureResults := make([]segutils.CValueEnclosure, len(internalMops))
-	unsetRecord := make(map[string]segutils.CValueEnclosure)
+	measureResults := make([]sutils.CValueEnclosure, len(internalMops))
+	unsetRecord := make(map[string]sutils.CValueEnclosure)
 
 	for i := 0; i < numOfRecords; i++ {
 		record := inputIQR.GetRecord(i)
@@ -182,7 +182,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
 				p.errorData.readColumns[cname] = err
-				cValue = &segutils.CValueEnclosure{CVal: nil, Dtype: segutils.SS_DT_BACKFILL}
+				cValue = &sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_DT_BACKFILL}
 			}
 			p.bucketKeyWorkingBuf, bucketKeyBufIdx = cValue.WriteToBytesWithType(p.bucketKeyWorkingBuf, bucketKeyBufIdx)
 		}
@@ -191,7 +191,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
 				p.errorData.readColumns[cname] = err
-				cValue = &segutils.CValueEnclosure{CVal: segutils.VALTYPE_ENC_BACKFILL, Dtype: segutils.SS_DT_BACKFILL}
+				cValue = &sutils.CValueEnclosure{CVal: sutils.VALTYPE_ENC_BACKFILL, Dtype: sutils.SS_DT_BACKFILL}
 			}
 
 			for _, idx := range indices {
@@ -278,7 +278,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 				}
 
 				if values[i].IsFloat() {
-					stats.AddSegStatsNums(segStatsMap, colName, segutils.SS_FLOAT64, 0, 0, values[i].CVal.(float64),
+					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_FLOAT64, 0, 0, values[i].CVal.(float64),
 						stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
 				} else {
 					intVal, err := values[i].GetIntValue()
@@ -288,7 +288,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 						intVal = 0
 					}
 
-					stats.AddSegStatsNums(segStatsMap, colName, segutils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
 				}
 			} else {
 				p.errorData.notSupportedStatsType[colName] = struct{}{}
@@ -348,8 +348,8 @@ func (p *statsProcessor) logErrorsAndWarnings(qid uint64) {
 		allErrorsLen := len(p.searchResults.AllErrors)
 		if allErrorsLen > 0 {
 			size := allErrorsLen
-			if allErrorsLen > segutils.MAX_SIMILAR_ERRORS_TO_LOG {
-				size = segutils.MAX_SIMILAR_ERRORS_TO_LOG
+			if allErrorsLen > sutils.MAX_SIMILAR_ERRORS_TO_LOG {
+				size = sutils.MAX_SIMILAR_ERRORS_TO_LOG
 			}
 			log.Errorf("qid=%v, statsProcessor.logErrorsAndWarnings: search results errors: %v", qid, p.searchResults.AllErrors[:size])
 		}

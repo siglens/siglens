@@ -25,7 +25,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
 )
@@ -68,8 +68,8 @@ func createSearchRequestForUnrotated(fileName string, tableName string,
 // filters unrotated blocks based on search conditions
 // returns the final search request, total blocks, sum of filtered blocks, and any errors
 func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRange *dtu.TimeRange, indexNames []string,
-	allBlocksToSearch map[string]map[string]*structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp segutils.LogicalOperator, rangeFilter map[string]string,
-	rangeOp segutils.FilterOperator, isRange bool, wildcardValue bool, qid uint64) (map[string]*structs.SegmentSearchRequest, uint64, uint64, error) {
+	allBlocksToSearch map[string]map[string]*structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp sutils.LogicalOperator, rangeFilter map[string]string,
+	rangeOp sutils.FilterOperator, isRange bool, wildcardValue bool, qid uint64) (map[string]*structs.SegmentSearchRequest, uint64, uint64, error) {
 
 	writer.UnrotatedInfoLock.RLock()
 	defer writer.UnrotatedInfoLock.RUnlock()
@@ -129,32 +129,32 @@ func ExtractUnrotatedSSRFromSearchNode(node *structs.SearchNode, timeRange *dtu.
 	finalList := make(map[string]*structs.SegmentSearchRequest)
 
 	if node.AndSearchConditions != nil {
-		andSegmentFiles := extractUnrotatedSSRFromCondition(node.AndSearchConditions, segutils.And, timeRange, indexNames,
+		andSegmentFiles := extractUnrotatedSSRFromCondition(node.AndSearchConditions, sutils.And, timeRange, indexNames,
 			allBlocksToSearch, querySummary, qid)
 		for fileName, searchReq := range andSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				finalList[fileName] = searchReq
 				continue
 			}
-			finalList[fileName].JoinRequest(searchReq, segutils.And)
+			finalList[fileName].JoinRequest(searchReq, sutils.And)
 		}
 	}
 
 	if node.OrSearchConditions != nil {
-		orSegmentFiles := extractUnrotatedSSRFromCondition(node.OrSearchConditions, segutils.Or, timeRange, indexNames,
+		orSegmentFiles := extractUnrotatedSSRFromCondition(node.OrSearchConditions, sutils.Or, timeRange, indexNames,
 			allBlocksToSearch, querySummary, qid)
 		for fileName, searchReq := range orSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				finalList[fileName] = searchReq
 				continue
 			}
-			finalList[fileName].JoinRequest(searchReq, segutils.Or)
+			finalList[fileName].JoinRequest(searchReq, sutils.Or)
 		}
 	}
 	// for exclusion, only join the column info for files that exist and not the actual search request info
 	// exclusion conditions should not influence raw blocks to search
 	if node.ExclusionSearchConditions != nil {
-		exclustionSegmentFiles := extractUnrotatedSSRFromCondition(node.ExclusionSearchConditions, segutils.And, timeRange, indexNames,
+		exclustionSegmentFiles := extractUnrotatedSSRFromCondition(node.ExclusionSearchConditions, sutils.And, timeRange, indexNames,
 			allBlocksToSearch, querySummary, qid)
 		for fileName, searchReq := range exclustionSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
@@ -167,7 +167,7 @@ func ExtractUnrotatedSSRFromSearchNode(node *structs.SearchNode, timeRange *dtu.
 	return finalList
 }
 
-func extractUnrotatedSSRFromCondition(condition *structs.SearchCondition, op segutils.LogicalOperator, timeRange *dtu.TimeRange,
+func extractUnrotatedSSRFromCondition(condition *structs.SearchCondition, op sutils.LogicalOperator, timeRange *dtu.TimeRange,
 	indexNames []string, allBlocksToSearch map[string]map[string]*structs.BlockTracker, querySummary *summary.QuerySummary,
 	qid uint64) map[string]*structs.SegmentSearchRequest {
 	finalSegFiles := make(map[string]*structs.SegmentSearchRequest)

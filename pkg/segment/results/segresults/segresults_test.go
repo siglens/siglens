@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,7 +46,7 @@ func Test_Remote_Stats(t *testing.T) {
 	}
 
 	myNums := structs.NumericStats{
-		Sum: segutils.NumTypeEnclosure{Ntype: segutils.SS_DT_SIGNED_NUM,
+		Sum: sutils.NumTypeEnclosure{Ntype: sutils.SS_DT_SIGNED_NUM,
 			IntgrVal: 789},
 	}
 
@@ -54,9 +54,9 @@ func Test_Remote_Stats(t *testing.T) {
 		IsNumeric: true,
 		Count:     2345,
 		NumStats:  &myNums,
-		Min: segutils.CValueEnclosure{Dtype: segutils.SS_DT_FLOAT,
+		Min: sutils.CValueEnclosure{Dtype: sutils.SS_DT_FLOAT,
 			CVal: float64(456)},
-		Max: segutils.CValueEnclosure{Dtype: segutils.SS_DT_FLOAT,
+		Max: sutils.CValueEnclosure{Dtype: sutils.SS_DT_FLOAT,
 			CVal: 23.4567},
 		StringStats: &structs.StringStats{
 			StrSet: map[string]struct{}{

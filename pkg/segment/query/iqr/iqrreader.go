@@ -22,7 +22,7 @@ import (
 	"reflect"
 
 	"github.com/siglens/siglens/pkg/segment/reader/record"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 )
 
 type ReaderMode uint8
@@ -34,16 +34,16 @@ const (
 
 type IQRReader struct {
 	readerMode         ReaderMode
-	readerIdToReader   map[segutils.T_SegReaderId]record.RRCsReaderI
-	encodingToReaderId map[segutils.T_SegEncoding]segutils.T_SegReaderId
+	readerIdToReader   map[sutils.T_SegReaderId]record.RRCsReaderI
+	encodingToReaderId map[sutils.T_SegEncoding]sutils.T_SegReaderId
 	reader             record.RRCsReaderI
 }
 
 func NewIQRReader(reader record.RRCsReaderI) *IQRReader {
 	iqrRdr := &IQRReader{
 		readerMode:         ReaderModeSingleReader,
-		readerIdToReader:   make(map[segutils.T_SegReaderId]record.RRCsReaderI),
-		encodingToReaderId: make(map[segutils.T_SegEncoding]segutils.T_SegReaderId),
+		readerIdToReader:   make(map[sutils.T_SegReaderId]record.RRCsReaderI),
+		encodingToReaderId: make(map[sutils.T_SegEncoding]sutils.T_SegReaderId),
 		reader:             reader,
 	}
 
@@ -53,8 +53,8 @@ func NewIQRReader(reader record.RRCsReaderI) *IQRReader {
 func NewMultiIQRReader() *IQRReader {
 	iqrRdr := &IQRReader{
 		readerMode:         ReaderModeMultiReader,
-		readerIdToReader:   make(map[segutils.T_SegReaderId]record.RRCsReaderI),
-		encodingToReaderId: make(map[segutils.T_SegEncoding]segutils.T_SegReaderId),
+		readerIdToReader:   make(map[sutils.T_SegReaderId]record.RRCsReaderI),
+		encodingToReaderId: make(map[sutils.T_SegEncoding]sutils.T_SegReaderId),
 	}
 
 	return iqrRdr
@@ -79,7 +79,7 @@ func (rdrMode ReaderMode) String() string {
 	}
 }
 
-func (iqrRdr *IQRReader) AddReader(readerId segutils.T_SegReaderId, reader record.RRCsReaderI) error {
+func (iqrRdr *IQRReader) AddReader(readerId sutils.T_SegReaderId, reader record.RRCsReaderI) error {
 	if !iqrRdr.IsMultiReader() {
 		return fmt.Errorf("iqrReader.AddReader: reader mode is not multi reader: %v", iqrRdr.readerMode)
 	}
@@ -97,7 +97,7 @@ func (iqrRdr *IQRReader) AddReader(readerId segutils.T_SegReaderId, reader recor
 	return nil
 }
 
-func (iqrRdr *IQRReader) AddSegEncodingToReader(segEnc segutils.T_SegEncoding, readerId segutils.T_SegReaderId) error {
+func (iqrRdr *IQRReader) AddSegEncodingToReader(segEnc sutils.T_SegEncoding, readerId sutils.T_SegReaderId) error {
 	if !iqrRdr.IsMultiReader() {
 		return fmt.Errorf("iqrReader.AddSegEncodingToReader: reader mode is not multi reader: %v", iqrRdr.readerMode)
 	}
@@ -222,8 +222,8 @@ func (iqrRdr *IQRReader) validate() error {
 	return nil
 }
 
-func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs []*segutils.RecordResultContainer,
-	qid uint64, ignoredCols map[string]struct{}, columnName *string) (map[string][]segutils.CValueEnclosure, error) {
+func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs []*sutils.RecordResultContainer,
+	qid uint64, ignoredCols map[string]struct{}, columnName *string) (map[string][]sutils.CValueEnclosure, error) {
 	if len(rrcs) == 0 {
 		return nil, nil
 	}
@@ -243,14 +243,14 @@ func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs [
 		return nil, fmt.Errorf("iqrReader.ReadAllColsForRRCs: reader not found for readerID=%v, segkey=%v, segEnc=%v", readerId, segKey, segEnc)
 	}
 
-	var knownValues map[string][]segutils.CValueEnclosure
+	var knownValues map[string][]sutils.CValueEnclosure
 	var err error
 
 	if columnName != nil {
-		var values []segutils.CValueEnclosure
+		var values []sutils.CValueEnclosure
 		values, err = reader.ReadColForRRCs(segKey, rrcs, *columnName, qid, true)
 		if err == nil {
-			knownValues = map[string][]segutils.CValueEnclosure{
+			knownValues = map[string][]sutils.CValueEnclosure{
 				*columnName: values,
 			}
 		}
@@ -265,8 +265,8 @@ func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs [
 	return knownValues, nil
 }
 
-func (iqrRdr *IQRReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*segutils.RecordResultContainer,
-	qid uint64, ignoredCols map[string]struct{}) (map[string][]segutils.CValueEnclosure, error) {
+func (iqrRdr *IQRReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*sutils.RecordResultContainer,
+	qid uint64, ignoredCols map[string]struct{}) (map[string][]sutils.CValueEnclosure, error) {
 	if iqrRdr.IsSingleReader() {
 		return iqrRdr.reader.ReadAllColsForRRCs(segKey, vTable, rrcs, qid, ignoredCols)
 	}
@@ -279,7 +279,7 @@ func (iqrRdr *IQRReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs [
 	return knownValues, nil
 }
 
-func (iqrRdr *IQRReader) getColumnsForSegKey(segKey string, vTable string, segEnc segutils.T_SegEncoding) (map[string]struct{}, error) {
+func (iqrRdr *IQRReader) getColumnsForSegKey(segKey string, vTable string, segEnc sutils.T_SegEncoding) (map[string]struct{}, error) {
 	if iqrRdr.IsSingleReader() {
 		return iqrRdr.reader.GetColsForSegKey(segKey, vTable)
 	}
@@ -305,7 +305,7 @@ func (iqrRdr *IQRReader) GetColsForSegKey(segKey string, vTable string) (map[str
 	}
 }
 
-func (iqrRdr *IQRReader) ReadColForRRCs(segKey string, rrcs []*segutils.RecordResultContainer, cname string, qid uint64) ([]segutils.CValueEnclosure, error) {
+func (iqrRdr *IQRReader) ReadColForRRCs(segKey string, rrcs []*sutils.RecordResultContainer, cname string, qid uint64) ([]sutils.CValueEnclosure, error) {
 	if iqrRdr.IsSingleReader() {
 		return iqrRdr.reader.ReadColForRRCs(segKey, rrcs, cname, qid, true)
 	}

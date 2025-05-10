@@ -22,7 +22,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,10 +38,10 @@ func Test_MakeMV_simple(t *testing.T) {
 		},
 	}
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "a,b,c"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "d,e,f"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a,b,c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "d,e,f"},
 		},
 	})
 	assert.NoError(t, err)
@@ -49,9 +49,9 @@ func Test_MakeMV_simple(t *testing.T) {
 	iqr, err = makemv.Process(iqr)
 	assert.NoError(t, err)
 
-	expected := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
-		{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"d", "e", "f"}},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
+		{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"d", "e", "f"}},
 	}
 
 	actual, err := iqr.ReadColumn("col1")
@@ -72,10 +72,10 @@ func Test_MakeMV_multicharDelimeter(t *testing.T) {
 	}
 
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "a|foo|b|foo|c"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "d|foo|e|foo|f"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a|foo|b|foo|c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "d|foo|e|foo|f"},
 		},
 	})
 	assert.NoError(t, err)
@@ -83,9 +83,9 @@ func Test_MakeMV_multicharDelimeter(t *testing.T) {
 	iqr, err = makemv.Process(iqr)
 	assert.NoError(t, err)
 
-	expected := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
-		{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"d", "e", "f"}},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
+		{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"d", "e", "f"}},
 	}
 
 	actual, err := iqr.ReadColumn("col1")
@@ -106,9 +106,9 @@ func Test_MakeMV_overlappingDelimeter(t *testing.T) {
 	}
 
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "a|||b||||c"}, // Three and four consecutive pipes
+			{Dtype: sutils.SS_DT_STRING, CVal: "a|||b||||c"}, // Three and four consecutive pipes
 		},
 	})
 	assert.NoError(t, err)
@@ -116,8 +116,8 @@ func Test_MakeMV_overlappingDelimeter(t *testing.T) {
 	iqr, err = makemv.Process(iqr)
 	assert.NoError(t, err)
 
-	expected := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"a", "|b", "c"}},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"a", "|b", "c"}},
 	}
 
 	actual, err := iqr.ReadColumn("col1")
@@ -138,10 +138,10 @@ func Test_MakeMV_allowEmpty(t *testing.T) {
 	}
 
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "a,,b,"},
-			{Dtype: segutils.SS_DT_STRING, CVal: ",c,d,e"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a,,b,"},
+			{Dtype: sutils.SS_DT_STRING, CVal: ",c,d,e"},
 		},
 	})
 	assert.NoError(t, err)
@@ -149,9 +149,9 @@ func Test_MakeMV_allowEmpty(t *testing.T) {
 	iqr, err = makemv.Process(iqr)
 	assert.NoError(t, err)
 
-	expected := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"a", "", "b", ""}},
-		{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"", "c", "d", "e"}},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"a", "", "b", ""}},
+		{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"", "c", "d", "e"}},
 	}
 
 	actual, err := iqr.ReadColumn("col1")
@@ -172,10 +172,10 @@ func Test_MakeMV_regex(t *testing.T) {
 	}
 
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "123abc456def"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "99XYZ88ABC"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "123abc456def"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "99XYZ88ABC"},
 		},
 	})
 	assert.NoError(t, err)
@@ -183,9 +183,9 @@ func Test_MakeMV_regex(t *testing.T) {
 	iqr, err = makemv.Process(iqr)
 	assert.NoError(t, err)
 
-	expected := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"abc", "def"}},
-		{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"XYZ", "ABC"}},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"abc", "def"}},
+		{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"XYZ", "ABC"}},
 	}
 
 	actual, err := iqr.ReadColumn("col1")
@@ -206,10 +206,10 @@ func Test_MakeMV_setSV(t *testing.T) {
 	}
 
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "apple,banana,cherry"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "dog,cat,fish"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "apple,banana,cherry"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "dog,cat,fish"},
 		},
 	})
 	assert.NoError(t, err)
@@ -217,9 +217,9 @@ func Test_MakeMV_setSV(t *testing.T) {
 	iqr, err = makemv.Process(iqr)
 	assert.NoError(t, err)
 
-	expected := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "apple banana cherry"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "dog cat fish"},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "apple banana cherry"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "dog cat fish"},
 	}
 
 	actual, err := iqr.ReadColumn("col1")

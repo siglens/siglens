@@ -22,7 +22,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,14 +36,14 @@ func Test_MVExpand_noLimit(t *testing.T) {
 		},
 	}
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
-			{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"d", "e"}},
+			{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
+			{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"d", "e"}},
 		},
 		"col2": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "red"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "red"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "blue"},
 		},
 	})
 	assert.NoError(t, err)
@@ -51,19 +51,19 @@ func Test_MVExpand_noLimit(t *testing.T) {
 	iqr, err = mvexpand.Process(iqr)
 	assert.NoError(t, err)
 
-	expectedCol1 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "c"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "d"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "e"},
 	}
-	expectedCol2 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "red"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "red"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "red"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "red"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "red"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "red"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "blue"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "blue"},
 	}
 
 	actualCol1, err := iqr.ReadColumn("col1")
@@ -84,14 +84,14 @@ func Test_MVExpand_withLimit(t *testing.T) {
 		},
 	}
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
-			{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"d", "e"}},
+			{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
+			{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{"d", "e"}},
 		},
 		"col2": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "red"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "red"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "blue"},
 		},
 	})
 	assert.NoError(t, err)
@@ -99,17 +99,17 @@ func Test_MVExpand_withLimit(t *testing.T) {
 	iqr, err = mvexpand.Process(iqr)
 	assert.NoError(t, err)
 
-	expectedCol1 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "d"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "e"},
 	}
-	expectedCol2 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "red"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "red"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "red"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "red"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "blue"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "blue"},
 	}
 
 	actualCol1, err := iqr.ReadColumn("col1")

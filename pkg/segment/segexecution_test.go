@@ -40,7 +40,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
@@ -346,7 +346,7 @@ func Benchmark_agileTreeQueryReader(t *testing.B) {
 
 	grpByCols := []string{"passenger_count", "pickup_date", "trip_distance"}
 	measureOps := []*structs.MeasureAggregator{
-		{MeasureCol: "total_amount", MeasureFunc: segutils.Count},
+		{MeasureCol: "total_amount", MeasureFunc: sutils.Count},
 	}
 	grpByRequest := &GroupByRequest{MeasureOperations: measureOps, GroupByColumns: grpByCols}
 

@@ -25,7 +25,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -62,11 +62,11 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 
 	query.InitProgressForRRCCmd(3, qid)
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
-				segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 		},
 		qid: qid,
@@ -109,16 +109,16 @@ func Test_GetFullResult_truncated(t *testing.T) {
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)
 
-	totalRecords := segutils.QUERY_EARLY_EXIT_LIMIT + 10
+	totalRecords := sutils.QUERY_EARLY_EXIT_LIMIT + 10
 	query.InitProgressForRRCCmd(totalRecords, qid)
 	stream := &mockStreamer{
-		allRecords: map[string][]segutils.CValueEnclosure{"col1": {}},
+		allRecords: map[string][]sutils.CValueEnclosure{"col1": {}},
 		qid:        qid,
 	}
 
 	for i := 0; i < int(totalRecords); i++ {
-		stream.allRecords["col1"] = append(stream.allRecords["col1"], segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_SIGNED_NUM,
+		stream.allRecords["col1"] = append(stream.allRecords["col1"], sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_SIGNED_NUM,
 			CVal:  i,
 		})
 	}
@@ -141,7 +141,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 	assert.NoError(t, err)
 	hitsCount, ok := response.Hits.TotalMatched.(utils.HitsCount)
 	assert.True(t, ok)
-	assert.Equal(t, int(segutils.QUERY_EARLY_EXIT_LIMIT), int(hitsCount.Value))
+	assert.Equal(t, int(sutils.QUERY_EARLY_EXIT_LIMIT), int(hitsCount.Value))
 	assert.Equal(t, "gte", hitsCount.Relation)
 
 	query.DeleteQuery(qid)

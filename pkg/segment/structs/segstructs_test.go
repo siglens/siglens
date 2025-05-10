@@ -20,7 +20,7 @@ package structs
 import (
 	"testing"
 
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -537,8 +537,8 @@ func Test_GetAllMeasureAggsInChain(t *testing.T) {
 
 func Test_GetBucketValueForGivenField_StatRes(t *testing.T) {
 	br := &BucketResult{
-		StatRes: map[string]segutils.CValueEnclosure{
-			"field1": {Dtype: segutils.SS_DT_STRING, CVal: "value1"},
+		StatRes: map[string]sutils.CValueEnclosure{
+			"field1": {Dtype: sutils.SS_DT_STRING, CVal: "value1"},
 		},
 		BucketKey:   []string{"key1", "key2"},
 		GroupByKeys: []string{"groupKey1", "groupKey2"},
@@ -552,8 +552,8 @@ func Test_GetBucketValueForGivenField_StatRes(t *testing.T) {
 
 func Test_GetBucketValueForGivenField_GroupByKey(t *testing.T) {
 	br := &BucketResult{
-		StatRes: map[string]segutils.CValueEnclosure{
-			"field1": {Dtype: segutils.SS_DT_STRING, CVal: "value1"},
+		StatRes: map[string]sutils.CValueEnclosure{
+			"field1": {Dtype: sutils.SS_DT_STRING, CVal: "value1"},
 		},
 		BucketKey:   []string{"key1", "key2"},
 		GroupByKeys: []string{"groupKey1", "groupKey2"},
@@ -567,8 +567,8 @@ func Test_GetBucketValueForGivenField_GroupByKey(t *testing.T) {
 
 func Test_GetBucketValueForGivenField_GroupByKey_Int(t *testing.T) {
 	br := &BucketResult{
-		StatRes: map[string]segutils.CValueEnclosure{
-			"field1": {Dtype: segutils.SS_DT_STRING, CVal: "value1"},
+		StatRes: map[string]sutils.CValueEnclosure{
+			"field1": {Dtype: sutils.SS_DT_STRING, CVal: "value1"},
 		},
 		BucketKey:   []int{1, 2},
 		GroupByKeys: []string{"groupKey1", "groupKey2"},
@@ -582,8 +582,8 @@ func Test_GetBucketValueForGivenField_GroupByKey_Int(t *testing.T) {
 
 func Test_GetBucketValueForGivenField_NotFound(t *testing.T) {
 	br := &BucketResult{
-		StatRes: map[string]segutils.CValueEnclosure{
-			"field1": {Dtype: segutils.SS_DT_STRING, CVal: "value1"},
+		StatRes: map[string]sutils.CValueEnclosure{
+			"field1": {Dtype: sutils.SS_DT_STRING, CVal: "value1"},
 		},
 		BucketKey:   []string{"key1", "key2"},
 		GroupByKeys: []string{"groupKey1", "groupKey2"},
@@ -597,8 +597,8 @@ func Test_GetBucketValueForGivenField_NotFound(t *testing.T) {
 
 func Test_GetBucketValueForGivenField_SingleBucketKey(t *testing.T) {
 	br := &BucketResult{
-		StatRes: map[string]segutils.CValueEnclosure{
-			"field1": {Dtype: segutils.SS_DT_STRING, CVal: "value1"},
+		StatRes: map[string]sutils.CValueEnclosure{
+			"field1": {Dtype: sutils.SS_DT_STRING, CVal: "value1"},
 		},
 		BucketKey:   "singleKey",
 		GroupByKeys: []string{"groupKey1"},
@@ -612,8 +612,8 @@ func Test_GetBucketValueForGivenField_SingleBucketKey(t *testing.T) {
 
 func Test_GetBucketValueForGivenField_IndexOutOfRange(t *testing.T) {
 	br := &BucketResult{
-		StatRes: map[string]segutils.CValueEnclosure{
-			"field1": {Dtype: segutils.SS_DT_STRING, CVal: "value1"},
+		StatRes: map[string]sutils.CValueEnclosure{
+			"field1": {Dtype: sutils.SS_DT_STRING, CVal: "value1"},
 		},
 		BucketKey:   []string{"key1"},
 		GroupByKeys: []string{"groupKey1", "groupKey2"},
@@ -627,8 +627,8 @@ func Test_GetBucketValueForGivenField_IndexOutOfRange(t *testing.T) {
 
 func Test_GetBucketValueForGivenField_GroupByKeyNotList(t *testing.T) {
 	br := &BucketResult{
-		StatRes: map[string]segutils.CValueEnclosure{
-			"field1": {Dtype: segutils.SS_DT_STRING, CVal: "value1"},
+		StatRes: map[string]sutils.CValueEnclosure{
+			"field1": {Dtype: sutils.SS_DT_STRING, CVal: "value1"},
 		},
 		BucketKey:   "notAList",
 		GroupByKeys: []string{"groupKey1"},
@@ -695,8 +695,8 @@ func Test_SetBucketValueForGivenField_NotListType(t *testing.T) {
 
 func Test_SetBucketValueForGivenField_StatisticResult(t *testing.T) {
 	br := &BucketResult{
-		StatRes: map[string]segutils.CValueEnclosure{
-			"field1": {Dtype: segutils.SS_DT_STRING, CVal: "value1"},
+		StatRes: map[string]sutils.CValueEnclosure{
+			"field1": {Dtype: sutils.SS_DT_STRING, CVal: "value1"},
 		},
 		BucketKey:   []string{"key1", "key2"},
 		GroupByKeys: []string{"groupKey1", "groupKey2"},
@@ -801,18 +801,18 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 		{
 			IsNumeric: true,
 			Count:     123,
-			Min: segutils.CValueEnclosure{
-				Dtype: segutils.SS_DT_SIGNED_NUM,
+			Min: sutils.CValueEnclosure{
+				Dtype: sutils.SS_DT_SIGNED_NUM,
 				CVal:  int64(1),
 			},
-			Max: segutils.CValueEnclosure{
-				Dtype: segutils.SS_DT_SIGNED_NUM,
+			Max: sutils.CValueEnclosure{
+				Dtype: sutils.SS_DT_SIGNED_NUM,
 				CVal:  int64(42),
 			},
 			NumStats: &NumericStats{
 				NumericCount: 10,
-				Sum: segutils.NumTypeEnclosure{
-					Ntype:    segutils.SS_DT_SIGNED_NUM,
+				Sum: sutils.NumTypeEnclosure{
+					Ntype:    sutils.SS_DT_SIGNED_NUM,
 					IntgrVal: 200,
 				},
 			},
@@ -822,8 +822,8 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 		{
 			IsNumeric: false,
 			Count:     42,
-			Min:       segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "str1"},
-			Max:       segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "str2"},
+			Min:       sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "str1"},
+			Max:       sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "str2"},
 			NumStats:  nil,
 			StringStats: &StringStats{
 				StrSet: map[string]struct{}{

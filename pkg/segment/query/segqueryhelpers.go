@@ -26,7 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -327,32 +327,32 @@ func ExtractSSRFromSearchNode(node *structs.SearchNode, filesToSearch map[string
 	// todo: better joining of intermediate results of block summaries
 	finalList := make(map[string]*structs.SegmentSearchRequest)
 	if node.AndSearchConditions != nil {
-		andSegmentFiles := extractSSRFromCondition(node.AndSearchConditions, segutils.And,
+		andSegmentFiles := extractSSRFromCondition(node.AndSearchConditions, sutils.And,
 			filesToSearch, timeRange, indexNames, querySummary, qid, isQueryPersistent, pqid)
 		for fileName, searchReq := range andSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				finalList[fileName] = searchReq
 				continue
 			}
-			finalList[fileName].JoinRequest(searchReq, segutils.And)
+			finalList[fileName].JoinRequest(searchReq, sutils.And)
 		}
 	}
 
 	if node.OrSearchConditions != nil {
-		orSegmentFiles := extractSSRFromCondition(node.OrSearchConditions, segutils.Or,
+		orSegmentFiles := extractSSRFromCondition(node.OrSearchConditions, sutils.Or,
 			filesToSearch, timeRange, indexNames, querySummary, qid, isQueryPersistent, pqid)
 		for fileName, searchReq := range orSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				finalList[fileName] = searchReq
 				continue
 			}
-			finalList[fileName].JoinRequest(searchReq, segutils.Or)
+			finalList[fileName].JoinRequest(searchReq, sutils.Or)
 		}
 	}
 	// for exclusion, only join the column info for files that exist and not the actual search request info
 	// exclusion conditions should not influence raw blocks to search
 	if node.ExclusionSearchConditions != nil {
-		exclustionSegmentFiles := extractSSRFromCondition(node.ExclusionSearchConditions, segutils.And,
+		exclustionSegmentFiles := extractSSRFromCondition(node.ExclusionSearchConditions, sutils.And,
 			filesToSearch, timeRange, indexNames, querySummary, qid, isQueryPersistent, pqid)
 		for fileName, searchReq := range exclustionSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
@@ -365,7 +365,7 @@ func ExtractSSRFromSearchNode(node *structs.SearchNode, filesToSearch map[string
 	return finalList
 }
 
-func extractSSRFromCondition(condition *structs.SearchCondition, op segutils.LogicalOperator, filesToSearch map[string]map[string]*structs.BlockTracker,
+func extractSSRFromCondition(condition *structs.SearchCondition, op sutils.LogicalOperator, filesToSearch map[string]map[string]*structs.BlockTracker,
 	timeRange *dtu.TimeRange, indexNames []string, querySummary *summary.QuerySummary, qid uint64, isQueryPersistent bool, pqid string) map[string]*structs.SegmentSearchRequest {
 	finalSegFiles := make(map[string]*structs.SegmentSearchRequest)
 	if condition.SearchQueries != nil {

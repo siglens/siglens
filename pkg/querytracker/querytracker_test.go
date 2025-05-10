@@ -25,7 +25,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	. "github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/valyala/fasthttp"
 )
 
@@ -40,7 +40,7 @@ func resetInternalQTInfo() {
 func Test_GetQTUsageInfo(t *testing.T) {
 	resetInternalQTInfo()
 	config.SetPQSEnabled(true)
-	qVal, err := segutils.CreateDtypeEnclosure("iOS", 0)
+	qVal, err := sutils.CreateDtypeEnclosure("iOS", 0)
 	assert.Nil(t, err)
 
 	sNode := &SearchNode{
@@ -49,7 +49,7 @@ func Test_GetQTUsageInfo(t *testing.T) {
 				{
 					ExpressionFilter: &SearchExpression{
 						LeftSearchInput:  &SearchExpressionInput{ColumnName: "os"},
-						FilterOp:         segutils.Equals,
+						FilterOp:         sutils.Equals,
 						RightSearchInput: &SearchExpressionInput{ColumnValue: qVal},
 					},
 					SearchType: SimpleExpression,
@@ -83,7 +83,7 @@ func Test_GetQTUsageInfo(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(res), "There should be 1 persistent query but got=%v", len(res))
 
-	wildCard, err := segutils.CreateDtypeEnclosure("*", 0)
+	wildCard, err := sutils.CreateDtypeEnclosure("*", 0)
 	assert.Nil(t, err)
 
 	matchAllOne := &SearchNode{
@@ -92,7 +92,7 @@ func Test_GetQTUsageInfo(t *testing.T) {
 				{
 					ExpressionFilter: &SearchExpression{
 						LeftSearchInput:  &SearchExpressionInput{ColumnName: "*"},
-						FilterOp:         segutils.Equals,
+						FilterOp:         sutils.Equals,
 						RightSearchInput: &SearchExpressionInput{ColumnValue: wildCard},
 					},
 					SearchType: SimpleExpression,
@@ -130,7 +130,7 @@ func Test_ReadWriteQTUsage(t *testing.T) {
 	_ = os.RemoveAll("./ingestnodes")
 	_ = os.RemoveAll("./querynodes")
 
-	qVal, err := segutils.CreateDtypeEnclosure("batch-101", 0)
+	qVal, err := sutils.CreateDtypeEnclosure("batch-101", 0)
 	assert.Nil(t, err)
 	sNode := &SearchNode{
 		AndSearchConditions: &SearchCondition{
@@ -138,7 +138,7 @@ func Test_ReadWriteQTUsage(t *testing.T) {
 				{
 					ExpressionFilter: &SearchExpression{
 						LeftSearchInput:  &SearchExpressionInput{ColumnName: "batch"},
-						FilterOp:         segutils.Equals,
+						FilterOp:         sutils.Equals,
 						RightSearchInput: &SearchExpressionInput{ColumnValue: qVal},
 					},
 					SearchType: SimpleExpression,
@@ -154,8 +154,8 @@ func Test_ReadWriteQTUsage(t *testing.T) {
 	aggs := &QueryAggregators{
 		GroupByRequest: &GroupByRequest{
 			MeasureOperations: []*MeasureAggregator{
-				{MeasureCol: "col3", MeasureFunc: segutils.Avg},
-				{MeasureCol: "col4", MeasureFunc: segutils.Count},
+				{MeasureCol: "col3", MeasureFunc: sutils.Avg},
+				{MeasureCol: "col4", MeasureFunc: sutils.Count},
 			},
 			GroupByColumns: []string{"col1", "col2"},
 		},
@@ -181,8 +181,8 @@ func Test_GetTopPersistentAggs(t *testing.T) {
 	aggs := &QueryAggregators{
 		GroupByRequest: &GroupByRequest{
 			MeasureOperations: []*MeasureAggregator{
-				{MeasureCol: "col3", MeasureFunc: segutils.Avg},
-				{MeasureCol: "col4", MeasureFunc: segutils.Count},
+				{MeasureCol: "col3", MeasureFunc: sutils.Avg},
+				{MeasureCol: "col4", MeasureFunc: sutils.Count},
 			},
 			GroupByColumns: []string{"col1", "col2"},
 		},
@@ -214,7 +214,7 @@ func Test_GetTopPersistentAggs(t *testing.T) {
 	aggs2 := &QueryAggregators{
 		GroupByRequest: &GroupByRequest{
 			MeasureOperations: []*MeasureAggregator{
-				{MeasureCol: "col3", MeasureFunc: segutils.Cardinality},
+				{MeasureCol: "col3", MeasureFunc: sutils.Cardinality},
 			},
 			GroupByColumns: []string{"col3", "col2"},
 		},
@@ -245,8 +245,8 @@ func Test_GetTopPersistentAggs_Jaeger(t *testing.T) {
 	aggs := &QueryAggregators{
 		GroupByRequest: &GroupByRequest{
 			MeasureOperations: []*MeasureAggregator{
-				{MeasureCol: "col3", MeasureFunc: segutils.Avg},
-				{MeasureCol: "col4", MeasureFunc: segutils.Count},
+				{MeasureCol: "col3", MeasureFunc: sutils.Avg},
+				{MeasureCol: "col4", MeasureFunc: sutils.Count},
 			},
 			GroupByColumns: []string{"col1", "col2"},
 		},
@@ -278,7 +278,7 @@ func Test_GetTopPersistentAggs_Jaeger(t *testing.T) {
 	aggs2 := &QueryAggregators{
 		GroupByRequest: &GroupByRequest{
 			MeasureOperations: []*MeasureAggregator{
-				{MeasureCol: "startTime", MeasureFunc: segutils.Max},
+				{MeasureCol: "startTime", MeasureFunc: sutils.Max},
 			},
 			GroupByColumns: []string{"col3", "col2"},
 		},
@@ -310,8 +310,8 @@ func Test_AggsHasher(t *testing.T) {
 	aggs1 := &QueryAggregators{
 		GroupByRequest: &GroupByRequest{
 			MeasureOperations: []*MeasureAggregator{
-				{MeasureCol: "col3", MeasureFunc: segutils.Avg},
-				{MeasureCol: "col4", MeasureFunc: segutils.Count},
+				{MeasureCol: "col3", MeasureFunc: sutils.Avg},
+				{MeasureCol: "col4", MeasureFunc: sutils.Count},
 			},
 			GroupByColumns: []string{"col1", "col2"},
 		},
@@ -320,8 +320,8 @@ func Test_AggsHasher(t *testing.T) {
 	aggs2 := &QueryAggregators{
 		GroupByRequest: &GroupByRequest{
 			MeasureOperations: []*MeasureAggregator{
-				{MeasureCol: "col4", MeasureFunc: segutils.Count},
-				{MeasureCol: "col3", MeasureFunc: segutils.Avg},
+				{MeasureCol: "col4", MeasureFunc: sutils.Count},
+				{MeasureCol: "col3", MeasureFunc: sutils.Avg},
 			},
 			GroupByColumns: []string{"col2", "col1"},
 		},
@@ -332,8 +332,8 @@ func Test_AggsHasher(t *testing.T) {
 	aggs3 := &QueryAggregators{
 		GroupByRequest: &GroupByRequest{
 			MeasureOperations: []*MeasureAggregator{
-				{MeasureCol: "col4", MeasureFunc: segutils.Count},
-				{MeasureCol: "col3", MeasureFunc: segutils.Count},
+				{MeasureCol: "col4", MeasureFunc: sutils.Count},
+				{MeasureCol: "col3", MeasureFunc: sutils.Count},
 			},
 			GroupByColumns: []string{"col2", "col1"},
 		},
@@ -345,7 +345,7 @@ func Test_AggsHasher(t *testing.T) {
 func Test_PostPqsClear(t *testing.T) {
 	resetInternalQTInfo()
 	config.SetPQSEnabled(true)
-	qVal, err := segutils.CreateDtypeEnclosure("iOS", 0)
+	qVal, err := sutils.CreateDtypeEnclosure("iOS", 0)
 	assert.Nil(t, err)
 
 	sNode := &SearchNode{
@@ -354,7 +354,7 @@ func Test_PostPqsClear(t *testing.T) {
 				{
 					ExpressionFilter: &SearchExpression{
 						LeftSearchInput:  &SearchExpressionInput{ColumnName: "os"},
-						FilterOp:         segutils.Equals,
+						FilterOp:         sutils.Equals,
 						RightSearchInput: &SearchExpressionInput{ColumnValue: qVal},
 					},
 					SearchType: SimpleExpression,

@@ -22,59 +22,59 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-func getStreamStatsTestData() map[string][]segutils.CValueEnclosure {
-	return map[string][]segutils.CValueEnclosure{
+func getStreamStatsTestData() map[string][]sutils.CValueEnclosure {
+	return map[string][]sutils.CValueEnclosure{
 		"http_status": {
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(404)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(500)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(403)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(404)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(500)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(403)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
 		},
 		"first_name": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "Abel"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Abel"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Afton"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Afton"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Alanis"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Alanis"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Abel"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Abel"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Afton"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Afton"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Alanis"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Alanis"},
 		},
 		"last_name": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "White"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Vandervort"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Swaniawski"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Batz"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Legros"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Graham"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "White"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Vandervort"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Swaniawski"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Batz"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Legros"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Graham"},
 		},
 		"hobby": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "reading"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "reading"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "gaming"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "gaming"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "reading"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "gaming"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "reading"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "reading"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "gaming"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "gaming"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "reading"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "gaming"},
 		},
 		"http_method": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "GET"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "POST"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "GET"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "GET"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "POST"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "DELETE"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "GET"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "POST"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "GET"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "GET"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "POST"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "DELETE"},
 		},
 		"latency": {
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(100)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(150)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(300)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(250)},
-			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(180)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(100)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(150)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(300)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(250)},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(180)},
 		},
 	}
 }
@@ -85,7 +85,7 @@ func Test_StreamStats_Count(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "http_status",
-			MeasureFunc: segutils.Count,
+			MeasureFunc: sutils.Count,
 		},
 	}
 
@@ -108,13 +108,13 @@ func Test_StreamStats_Count(t *testing.T) {
 	actualValues, err := resultIQR.ReadColumn("count(http_status)")
 	assert.NoError(t, err)
 
-	expectedCount := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(2)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)},
+	expectedCount := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(1)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(2)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
 	}
 
 	assert.Equal(t, expectedCount, actualValues)
@@ -130,7 +130,7 @@ func Test_StreamStats_Avg(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "http_status",
-			MeasureFunc: segutils.Avg,
+			MeasureFunc: sutils.Avg,
 		},
 	}
 
@@ -153,13 +153,13 @@ func Test_StreamStats_Avg(t *testing.T) {
 	actualValues, err := resultIQR.ReadColumn("avg(http_status)")
 	assert.NoError(t, err)
 
-	expectedAvg := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: ""},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(302)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(368)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(368)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(367.6666666666667)},
+	expectedAvg := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: ""},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(302)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(368)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(368)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(367.6666666666667)},
 	}
 
 	assert.Equal(t, expectedAvg, actualValues)
@@ -175,7 +175,7 @@ func Test_StreamStats_Avg_CurrentTrue(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "http_status",
-			MeasureFunc: segutils.Avg,
+			MeasureFunc: sutils.Avg,
 		},
 	}
 
@@ -200,13 +200,13 @@ func Test_StreamStats_Avg_CurrentTrue(t *testing.T) {
 	assert.NoError(t, err)
 
 	// For window=4 and current=true
-	expectedAvg := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(302)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(368)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(326)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(376.75)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(325.75)},
+	expectedAvg := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(302)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(368)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(326)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(376.75)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(325.75)},
 	}
 
 	assert.Equal(t, expectedAvg, actualValues)
@@ -222,7 +222,7 @@ func Test_StreamStats_Sum(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "http_status",
-			MeasureFunc: segutils.Sum,
+			MeasureFunc: sutils.Sum,
 		},
 	}
 
@@ -245,13 +245,13 @@ func Test_StreamStats_Sum(t *testing.T) {
 	actualValues, err := resultIQR.ReadColumn("sum(http_status)")
 	assert.NoError(t, err)
 
-	expectedSum := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: ""},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(604)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1104)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1104)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1103)},
+	expectedSum := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: ""},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(604)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(1104)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(1104)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(1103)},
 	}
 
 	assert.Equal(t, expectedSum, actualValues)
@@ -267,7 +267,7 @@ func Test_StreamStats_Min(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "http_status",
-			MeasureFunc: segutils.Min,
+			MeasureFunc: sutils.Min,
 		},
 	}
 
@@ -290,13 +290,13 @@ func Test_StreamStats_Min(t *testing.T) {
 	actualValues, err := resultIQR.ReadColumn("min(http_status)")
 	assert.NoError(t, err)
 
-	expectedMin := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: ""},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)},
+	expectedMin := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: ""},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)},
 	}
 
 	assert.Equal(t, expectedMin, actualValues)
@@ -312,7 +312,7 @@ func Test_StreamStats_GlobalFalse(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "http_status",
-			MeasureFunc: segutils.Count,
+			MeasureFunc: sutils.Count,
 		},
 	}
 
@@ -337,13 +337,13 @@ func Test_StreamStats_GlobalFalse(t *testing.T) {
 	actualValues, err := resultIQR.ReadColumn("count(http_status)")
 	assert.NoError(t, err)
 
-	expectedCount := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(2)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(4)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(4)},
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(4)},
+	expectedCount := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(1)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(2)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(4)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(4)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(4)},
 	}
 
 	assert.Equal(t, expectedCount, actualValues)
@@ -359,7 +359,7 @@ func Test_StreamStats_GroupBy_Count(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "http_status",
-			MeasureFunc: segutils.Count,
+			MeasureFunc: sutils.Count,
 		},
 	}
 
@@ -388,13 +388,13 @@ func Test_StreamStats_GroupBy_Count(t *testing.T) {
 	actualValues, err := resultIQR.ReadColumn("count(http_status)")
 	assert.NoError(t, err)
 
-	expectedCount := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // reading: start
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)}, // reading: one prev
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // gaming: start
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)}, // gaming: one prev
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(2)}, // reading: two prev
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(2)}, // gaming: 2 prev records
+	expectedCount := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // reading: start
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(1)}, // reading: one prev
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // gaming: start
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(1)}, // gaming: one prev
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(2)}, // reading: two prev
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(2)}, // gaming: 2 prev records
 	}
 
 	assert.Equal(t, expectedCount, actualValues)
@@ -407,7 +407,7 @@ func Test_StreamStats_GroupBy_Avg(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "latency",
-			MeasureFunc: segutils.Avg,
+			MeasureFunc: sutils.Avg,
 		},
 	}
 
@@ -436,13 +436,13 @@ func Test_StreamStats_GroupBy_Avg(t *testing.T) {
 	actualValues, err := resultIQR.ReadColumn("avg(latency)")
 	assert.NoError(t, err)
 
-	expectedAvg := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: ""},          // GET: no prev records
-		{Dtype: segutils.SS_DT_STRING, CVal: ""},          // POST: no prev records
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(100)}, // GET: prev record avg
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(125)}, // GET: prev records avg
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(200)}, // POST: prev record avg
-		{Dtype: segutils.SS_DT_STRING, CVal: ""},          // DELETE: no prev records
+	expectedAvg := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: ""},          // GET: no prev records
+		{Dtype: sutils.SS_DT_STRING, CVal: ""},          // POST: no prev records
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(100)}, // GET: prev record avg
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(125)}, // GET: prev records avg
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(200)}, // POST: prev record avg
+		{Dtype: sutils.SS_DT_STRING, CVal: ""},          // DELETE: no prev records
 	}
 
 	assert.Equal(t, expectedAvg, actualValues)
@@ -454,7 +454,7 @@ func Test_StreamStats_ResetOnChange(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "http_status",
-			MeasureFunc: segutils.Count,
+			MeasureFunc: sutils.Count,
 		},
 	}
 
@@ -482,13 +482,13 @@ func Test_StreamStats_ResetOnChange(t *testing.T) {
 	actualValues, err := resultIQR.ReadColumn("count(http_status)")
 	assert.NoError(t, err)
 
-	expectedCount := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // GET start
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // POST - reset
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // GET - reset
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)}, // GET continues
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // POST - reset
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // DELETE - reset
+	expectedCount := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // GET start
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // POST - reset
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // GET - reset
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(1)}, // GET continues
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // POST - reset
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // DELETE - reset
 	}
 
 	assert.Equal(t, expectedCount, actualValues)
@@ -500,7 +500,7 @@ func Test_StreamStats_ResetBefore(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "http_status",
-			MeasureFunc: segutils.Count,
+			MeasureFunc: sutils.Count,
 		},
 	}
 
@@ -541,13 +541,13 @@ func Test_StreamStats_ResetBefore(t *testing.T) {
 	actualValues, err := resultIQR.ReadColumn("count(http_status)")
 	assert.NoError(t, err)
 
-	expectedCount := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // Start (White)
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // Reset before Vandervort
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)}, // Count (Swaniawski)
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(2)}, // Count (Batz)
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)}, // Count (Legros)
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)}, // Count (Graham) - window of 3 limits max count
+	expectedCount := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // Start (White)
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // Reset before Vandervort
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(1)}, // Count (Swaniawski)
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(2)}, // Count (Batz)
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)}, // Count (Legros)
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)}, // Count (Graham) - window of 3 limits max count
 	}
 
 	assert.Equal(t, expectedCount, actualValues)
@@ -559,7 +559,7 @@ func Test_StreamStats_ResetAfter(t *testing.T) {
 	measureAggs := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "http_status",
-			MeasureFunc: segutils.Count,
+			MeasureFunc: sutils.Count,
 		},
 	}
 
@@ -601,13 +601,13 @@ func Test_StreamStats_ResetAfter(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Count should reset after last_name="White"
-	expectedCount := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // Count (Vandervort)
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(0)}, // Reset after White
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)}, // Count (Swaniawski)
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(2)}, // Count (Batz)
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)}, // Count (Legros)
-		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)}, // Count (Graham) - window of 3 limits max count
+	expectedCount := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // Count (Vandervort)
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(0)}, // Reset after White
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(1)}, // Count (Swaniawski)
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(2)}, // Count (Batz)
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)}, // Count (Legros)
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)}, // Count (Graham) - window of 3 limits max count
 	}
 
 	assert.Equal(t, expectedCount, actualValues)

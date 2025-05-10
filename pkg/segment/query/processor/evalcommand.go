@@ -23,7 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 )
 
@@ -56,7 +56,7 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	numRecords := iqr.NumberOfRecords()
 
-	records := make(map[string][]segutils.CValueEnclosure)
+	records := make(map[string][]sutils.CValueEnclosure)
 	for _, field := range fieldsInExpr {
 		record, err := iqr.ReadColumn(field)
 		if err != nil {
@@ -68,10 +68,10 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		records[field] = record
 	}
 
-	knownValues := make(map[string][]segutils.CValueEnclosure)
-	knownValuesCvals := make([]segutils.CValueEnclosure, numRecords)
+	knownValues := make(map[string][]sutils.CValueEnclosure)
+	knownValuesCvals := make([]sutils.CValueEnclosure, numRecords)
 
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
 	for i := 0; i < numRecords; i++ {
 		for field, record := range records {
 			fieldToValue[field] = record[i]

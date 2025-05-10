@@ -33,7 +33,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/siglens/siglens/pkg/config"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -91,7 +91,7 @@ func removeScrollResultFile(scroll_id string) {
 }
 
 func isScrollExpired(TimeOut uint64) bool {
-	return TimeOut < segutils.GetCurrentTimeMillis()
+	return TimeOut < sutils.GetCurrentTimeMillis()
 }
 
 func getBaseScrollDir() string {

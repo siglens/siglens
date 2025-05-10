@@ -43,7 +43,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/sortindex"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
 	"github.com/siglens/siglens/pkg/utils"
 
@@ -139,7 +139,7 @@ func NewSegStore(orgId int64) *SegStore {
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
 		stbDictEncWorkBuf:  make([][]string, 0),
-		segStatsWorkBuf:    make([]byte, segutils.WIP_SIZE),
+		segStatsWorkBuf:    make([]byte, sutils.WIP_SIZE),
 	}
 
 	return segstore
@@ -303,7 +303,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	numPrevRec := segstore.wipBlock.blockSummary.RecCount
 	for pqid, pNode := range persistentQueries {
 		if _, ok := segstore.pqMatches[pqid]; !ok {
-			mrSize := segutils.PQMR_SIZE
+			mrSize := sutils.PQMR_SIZE
 			if segstore.numBlocks > 0 || numPrevRec == 0 {
 				mrSize = uint(numPrevRec)
 			}
@@ -383,7 +383,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 		i++
 
 		switch valType {
-		case segutils.VALTYPE_ENC_SMALL_STRING[0]:
+		case sutils.VALTYPE_ENC_SMALL_STRING[0]:
 			// Parse the string.
 			numBytes := int(utils.BytesToUint16LittleEndian(oldColWip.cbuf.Slice(i, i+2)))
 			i += 2
@@ -394,7 +394,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			intVal, err := strconv.ParseInt(numberAsString, 10, 64)
 			if err == nil {
 				// Conversion succeeded.
-				newColWip.cbuf.Append(segutils.VALTYPE_ENC_INT64[:])
+				newColWip.cbuf.Append(sutils.VALTYPE_ENC_INT64[:])
 				newColWip.cbuf.AppendInt64LittleEndian(intVal)
 				newColWip.cbufidx += 1 + 8
 				addIntToRangeIndex(colName, intVal, rangeIndex)
@@ -405,7 +405,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			floatVal, err := strconv.ParseFloat(numberAsString, 64)
 			if err == nil {
 				// Conversion succeeded.
-				newColWip.cbuf.Append(segutils.VALTYPE_ENC_FLOAT64[:])
+				newColWip.cbuf.Append(sutils.VALTYPE_ENC_FLOAT64[:])
 				newColWip.cbuf.AppendFloat64LittleEndian(floatVal)
 				newColWip.cbufidx += 1 + 8
 				addFloatToRangeIndex(colName, floatVal, rangeIndex)
@@ -415,19 +415,19 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			// Conversion failed.
 			return false, nil
 
-		case segutils.VALTYPE_ENC_INT64[0], segutils.VALTYPE_ENC_FLOAT64[0]:
+		case sutils.VALTYPE_ENC_INT64[0], sutils.VALTYPE_ENC_FLOAT64[0]:
 			// Already a number, so just copy it.
 			// It's alrady in the range index, so we don't need to add it again.
 			newColWip.cbuf.Append(oldColWip.cbuf.Slice(i-1, i+8))
 			newColWip.cbufidx += 9
 			i += 8
 
-		case segutils.VALTYPE_ENC_BACKFILL[0]:
+		case sutils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
-			newColWip.cbuf.Append(segutils.VALTYPE_ENC_BACKFILL[:])
+			newColWip.cbuf.Append(sutils.VALTYPE_ENC_BACKFILL[:])
 			newColWip.cbufidx += 1
 
-		case segutils.VALTYPE_ENC_BOOL[0]:
+		case sutils.VALTYPE_ENC_BOOL[0]:
 			// Cannot convert bool to number.
 			return false, nil
 
@@ -460,7 +460,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 		i++
 
 		switch valType {
-		case segutils.VALTYPE_ENC_SMALL_STRING[0]:
+		case sutils.VALTYPE_ENC_SMALL_STRING[0]:
 			// Already a string, so just copy it.
 			// This is already in the bloom, so we don't need to add it again.
 			numBytes := int(utils.BytesToUint16LittleEndian(oldColWip.cbuf.Slice(i, i+2)))
@@ -469,7 +469,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 			newColWip.cbufidx += uint32(3 + numBytes)
 			i += numBytes
 
-		case segutils.VALTYPE_ENC_INT64[0]:
+		case sutils.VALTYPE_ENC_INT64[0]:
 			// Parse the integer.
 			intVal := utils.BytesToInt64LittleEndian(oldColWip.cbuf.Slice(i, i+8))
 			i += 8
@@ -478,7 +478,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 			newColWip.WriteSingleString(stringVal)
 			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
-		case segutils.VALTYPE_ENC_FLOAT64[0]:
+		case sutils.VALTYPE_ENC_FLOAT64[0]:
 			// Parse the float.
 			floatVal := utils.BytesToFloat64LittleEndian(oldColWip.cbuf.Slice(i, i+8))
 			i += 8
@@ -487,12 +487,12 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 			newColWip.WriteSingleString(stringVal)
 			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
-		case segutils.VALTYPE_ENC_BACKFILL[0]:
+		case sutils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
-			newColWip.cbuf.Append(segutils.VALTYPE_ENC_BACKFILL[:])
+			newColWip.cbuf.Append(sutils.VALTYPE_ENC_BACKFILL[:])
 			newColWip.cbufidx += 1
 
-		case segutils.VALTYPE_ENC_BOOL[0]:
+		case sutils.VALTYPE_ENC_BOOL[0]:
 			// Parse the bool.
 			boolVal, err := oldColWip.cbuf.At(i)
 			if err != nil {
@@ -562,7 +562,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		// now make each of these bufs of atleast WIP_SIZE
 		for i := 0; i < len(segstore.workBufForCompression); i++ {
 			segstore.workBufForCompression[i] = utils.ResizeSlice(segstore.workBufForCompression[i],
-				segutils.WIP_SIZE)
+				sutils.WIP_SIZE)
 		}
 
 		if config.IsAggregationsEnabled() {
@@ -587,9 +587,9 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						}
 						_ = segstore.writeWipTsRollups(cname)
 					} else if colWip.deData.deCount > 0 && colWip.deData.deCount < wipCardLimit {
-						encType = segutils.ZSTD_DICTIONARY_BLOCK
+						encType = sutils.ZSTD_DICTIONARY_BLOCK
 					} else {
-						encType = segutils.ZSTD_COMLUNAR_BLOCK
+						encType = sutils.ZSTD_COMLUNAR_BLOCK
 					}
 
 					if !isKibana {
@@ -1102,13 +1102,13 @@ func (wipBlock *WipBlock) adjustEarliestLatestTimes(ts_millis uint64) {
 }
 
 func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
-	signalType segutils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
+	signalType sutils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte) error {
 
 	var err error
 	var matchedPCols bool
 	tsKey := config.GetTimeStampKey()
-	if signalType == segutils.SIGNAL_EVENTS || signalType == segutils.SIGNAL_JAEGER_TRACES {
+	if signalType == sutils.SIGNAL_EVENTS || signalType == sutils.SIGNAL_JAEGER_TRACES {
 		matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
 			cnameCacheByteHashToStr, jsParsingStackbuf)
 		if err != nil {
@@ -1173,10 +1173,10 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		log.Errorf("flushBloomIndex: block num write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
-	bytesWritten += segutils.LEN_BLKNUM_CMI_SIZE
+	bytesWritten += sutils.LEN_BLKNUM_CMI_SIZE
 
 	// write CMI type
-	if _, err = bffd.Write(segutils.CMI_BLOOM_INDEX); err != nil {
+	if _, err = bffd.Write(sutils.CMI_BLOOM_INDEX); err != nil {
 		log.Errorf("flushBloomIndex: CMI Type write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
@@ -1202,8 +1202,8 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 	}
 	//adding to block history list
 	bi.HistoricalCount = append(bi.HistoricalCount, bi.uniqueWordCount)
-	if streamIdHistory := len(bi.HistoricalCount); streamIdHistory > segutils.BLOOM_SIZE_HISTORY {
-		bi.HistoricalCount = bi.HistoricalCount[streamIdHistory-segutils.BLOOM_SIZE_HISTORY:]
+	if streamIdHistory := len(bi.HistoricalCount); streamIdHistory > sutils.BLOOM_SIZE_HISTORY {
+		bi.HistoricalCount = bi.HistoricalCount[streamIdHistory-sutils.BLOOM_SIZE_HISTORY:]
 
 	}
 	return uint64(bytesWritten)
@@ -1222,7 +1222,7 @@ func (segstore *SegStore) flushBlockSummary(blkNum uint16) uint64 {
 
 	defer fd.Close()
 
-	blkSumBuf := make([]byte, segutils.BLOCK_SUMMARY_SIZE)
+	blkSumBuf := make([]byte, sutils.BLOCK_SUMMARY_SIZE)
 	packedLen, blkSumBuf, err := EncodeBlocksum(&segstore.wipBlock.blockSummary,
 		blkSumBuf[0:], blkNum, segstore.wipBlock.bmiCnameIdxDict,
 		segstore.wipBlock.bmiColOffLen)
@@ -1308,7 +1308,7 @@ func (segStore *SegStore) clearPQMatchInfo() {
 
 func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 
-	encType := segutils.TIMESTAMP_TOPDIFF_VARENC
+	encType := sutils.TIMESTAMP_TOPDIFF_VARENC
 
 	tsWip := wipBlock.colWips[config.GetTimeStampKey()]
 	tsWip.cbufidx = 0 // reset to zero since packer we set it to 1, so that the writeWip gets invoked
@@ -1453,7 +1453,7 @@ func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) er
 		}
 
 		// write encoding type
-		if _, err = fd.Write([]byte{segutils.RR_ENC_BITSET}); err != nil {
+		if _, err = fd.Write([]byte{sutils.RR_ENC_BITSET}); err != nil {
 			log.Errorf("writeSingleRup: blkNum=%v bkey=%v enc type failed fname=%v, err=%v",
 				blkNum, bkey, fname, err)
 			return err
@@ -1521,7 +1521,7 @@ func (ss *SegStore) FlushSegStats() error {
 	defer fd.Close()
 
 	// version
-	_, err = fd.Write(segutils.VERSION_SEGSTATS)
+	_, err = fd.Write(sutils.VERSION_SEGSTATS)
 	if err != nil {
 		log.Errorf("FlushSegStats: failed to write version err=%v", err)
 		return err
@@ -1585,7 +1585,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx := uint32(0)
 
 	// version
-	copy(buf[idx:], segutils.VERSION_SEGSTATS_BUF_V4)
+	copy(buf[idx:], sutils.VERSION_SEGSTATS_BUF_V4)
 	idx++
 
 	// isNumeric
@@ -1625,14 +1625,14 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
 	if !sst.IsNumeric {
 
-		if sst.Min.Dtype != segutils.SS_DT_STRING || sst.Max.Dtype != segutils.SS_DT_STRING {
-			copy(buf[idx:], []byte{byte(segutils.SS_DT_BACKFILL)})
+		if sst.Min.Dtype != sutils.SS_DT_STRING || sst.Max.Dtype != sutils.SS_DT_STRING {
+			copy(buf[idx:], []byte{byte(sutils.SS_DT_BACKFILL)})
 			idx++
 			return idx, nil
 		}
 
 		// Min Dtype
-		copy(buf[idx:], []byte{byte(segutils.SS_DT_STRING)})
+		copy(buf[idx:], []byte{byte(sutils.SS_DT_STRING)})
 		idx++
 		// Min Length
 		minLen := uint16(len(sst.Min.CVal.(string)))
@@ -1660,7 +1660,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx++
 
 	// Min
-	if sst.Min.Dtype == segutils.SS_DT_FLOAT {
+	if sst.Min.Dtype == sutils.SS_DT_FLOAT {
 		utils.Float64ToBytesLittleEndianInplace(sst.Min.CVal.(float64), buf[idx:])
 	} else {
 		utils.Int64ToBytesLittleEndianInplace(sst.Min.CVal.(int64), buf[idx:])
@@ -1672,7 +1672,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx++
 
 	// Max
-	if sst.Max.Dtype == segutils.SS_DT_FLOAT {
+	if sst.Max.Dtype == sutils.SS_DT_FLOAT {
 		utils.Float64ToBytesLittleEndianInplace(sst.Max.CVal.(float64), buf[idx:])
 	} else {
 		utils.Int64ToBytesLittleEndianInplace(sst.Max.CVal.(int64), buf[idx:])
@@ -1684,7 +1684,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx++
 
 	// Sum
-	if sst.NumStats.Sum.Ntype == segutils.SS_DT_FLOAT {
+	if sst.NumStats.Sum.Ntype == sutils.SS_DT_FLOAT {
 		utils.Float64ToBytesLittleEndianInplace(sst.NumStats.Sum.FloatVal, buf[idx:])
 	} else {
 		utils.Int64ToBytesLittleEndianInplace(sst.NumStats.Sum.IntgrVal, buf[idx:])
@@ -1733,7 +1733,7 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 		}
 		if colValueLen == 0 {
 			log.Errorf("getAllColsSizes: colValueLen is 0 for cname: %v. This should not happen.", cname)
-			colValueLen = segutils.INCONSISTENT_CVAL_SIZE
+			colValueLen = sutils.INCONSISTENT_CVAL_SIZE
 		}
 
 		csinfo := structs.ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize, ConsistentCvalSize: colValueLen}

@@ -29,7 +29,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/go-hll"
 	"github.com/siglens/siglens/pkg/config"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -41,7 +41,7 @@ type Numbers struct {
 	Max_int64   int64                 `json:"Max_int64"`
 	Min_float64 float64               `json:"Min_float64"`
 	Max_float64 float64               `json:"Max_float64"`
-	NumType     segutils.RangeNumType `json:"NumType"`
+	NumType     sutils.RangeNumType `json:"NumType"`
 }
 
 type OrderByAggregator struct {
@@ -255,7 +255,7 @@ type StreamStatsOptions struct {
 
 type RunningStreamStatsResults struct {
 	Window              *utils.GobbableList
-	CurrResult          segutils.CValueEnclosure
+	CurrResult          sutils.CValueEnclosure
 	NumProcessedRecords uint64              // kept for global stats where window = 0
 	SecondaryWindow     *utils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
@@ -266,7 +266,7 @@ type RunningStreamStatsResults struct {
 
 type RunningStreamStatsWindowElement struct {
 	Index       int
-	Value       segutils.CValueEnclosure
+	Value       sutils.CValueEnclosure
 	TimeInMilli uint64
 }
 
@@ -318,7 +318,7 @@ type GroupByRequest struct {
 
 type MeasureAggregator struct {
 	MeasureCol         string                      `json:"measureCol,omitempty"`
-	MeasureFunc        segutils.AggregateFunctions `json:"measureFunc,omitempty"`
+	MeasureFunc        sutils.AggregateFunctions `json:"measureFunc,omitempty"`
 	StrEnc             string                      `json:"strEnc,omitempty"`
 	ValueColRequest    *ValueExpr                  `json:"valueColRequest,omitempty"`
 	OverrodeMeasureAgg *MeasureAggregator          `json:"overrideFunc,omitempty"`
@@ -327,7 +327,7 @@ type MeasureAggregator struct {
 
 type MathEvaluator struct {
 	MathCol         string                 `json:"mathCol,omitempty"`
-	MathFunc        segutils.MathFunctions `json:"mathFunc,omitempty"`
+	MathFunc        sutils.MathFunctions `json:"mathFunc,omitempty"`
 	StrEnc          string                 `json:"strEnc,omitempty"`
 	ValueColRequest *ValueExpr             `json:"valueCol,omitempty"`
 }
@@ -428,14 +428,14 @@ type RowColOptions struct {
 
 type MultiColLetRequest struct {
 	LeftCName  string
-	Oper       segutils.LogicalAndArithmeticOperator
+	Oper       sutils.LogicalAndArithmeticOperator
 	RightCName string
 }
 
 type SingleColLetRequest struct {
 	CName string
-	Oper  segutils.LogicalAndArithmeticOperator
-	Value *segutils.DtypeEnclosure
+	Oper  sutils.LogicalAndArithmeticOperator
+	Value *sutils.DtypeEnclosure
 }
 
 type MultiValueColLetRequest struct {
@@ -450,7 +450,7 @@ type MultiValueColLetRequest struct {
 
 type BucketResult struct {
 	ElemCount   uint64                              // total number of elements in bucket
-	StatRes     map[string]segutils.CValueEnclosure // results of statistic functions
+	StatRes     map[string]sutils.CValueEnclosure // results of statistic functions
 	BucketKey   interface{}                         // bucket key
 	GroupByKeys []string
 }
@@ -466,14 +466,14 @@ type AggregationResult struct {
 // Ideally, we should update GroupByValues to have a type of []interface{}
 // and eliminate IGroupByValues.
 type BucketHolder struct {
-	IGroupByValues []segutils.CValueEnclosure // each group-by value is stored as interface{}
+	IGroupByValues []sutils.CValueEnclosure // each group-by value is stored as interface{}
 	GroupByValues  []string
 	MeasureVal     map[string]interface{}
 }
 
 type QueryCount struct {
 	TotalCount uint64 // total number of
-	Op         segutils.FilterOperator
+	Op         sutils.FilterOperator
 	EarlyExit  bool // if early exit was requested or not
 }
 
@@ -502,7 +502,7 @@ type RecsAggResults struct {
 // A helper struct to keep track of errors and results together
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
-	AllRecords                  []*segutils.RecordResultContainer
+	AllRecords                  []*sutils.RecordResultContainer
 	ErrList                     []error                     // Need to eventually replace ErrList with GlobalSearchErrors to prevent duplicate errors
 	SearchErrorsLock            sync.RWMutex                // lock for search errors
 	GlobalSearchErrors          map[string]*SearchErrorInfo // maps global error from error message -> error info  (Deprecated: use toputils.BatchError)
@@ -538,17 +538,17 @@ type NodeResult struct {
 type SegStats struct {
 	IsNumeric   bool
 	Count       uint64
-	Min         segutils.CValueEnclosure
-	Max         segutils.CValueEnclosure
+	Min         sutils.CValueEnclosure
+	Max         sutils.CValueEnclosure
 	Hll         *utils.GobbableHll
 	NumStats    *NumericStats
 	StringStats *StringStats
-	Records     []*segutils.CValueEnclosure
+	Records     []*sutils.CValueEnclosure
 }
 
 type NumericStats struct {
 	NumericCount uint64                    `json:"numericCount,omitempty"`
-	Sum          segutils.NumTypeEnclosure `json:"sum,omitempty"`
+	Sum          sutils.NumTypeEnclosure `json:"sum,omitempty"`
 }
 
 type StringStats struct {
@@ -707,12 +707,12 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 			return nil, err
 		}
 	}
-	minVal := segutils.CValueEnclosure{}
+	minVal := sutils.CValueEnclosure{}
 	err := minVal.ConvertValue(ssj.Min)
 	if err != nil {
 		log.Errorf("SegStatsJSON.ToStats: Failed to convert min value. error: %v data: %v", err, ssj.Min)
 	}
-	maxVal := segutils.CValueEnclosure{}
+	maxVal := sutils.CValueEnclosure{}
 	err = maxVal.ConvertValue(ssj.Max)
 	if err != nil {
 		log.Errorf("SegStatsJSON.ToStats: Failed to convert max value. error: %v data: %v", err, ssj.Max)
@@ -754,14 +754,14 @@ func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []strin
 	return columns
 }
 
-func UpdateMinMax(stats *SegStats, value segutils.CValueEnclosure) {
-	minVal, err := segutils.ReduceMinMax(stats.Min, value, true)
+func UpdateMinMax(stats *SegStats, value sutils.CValueEnclosure) {
+	minVal, err := sutils.ReduceMinMax(stats.Min, value, true)
 	if err != nil {
 		log.Errorf("UpdateMinMax: Error while reducing min: %v", err)
 	} else {
 		stats.Min = minVal
 	}
-	maxVal, err := segutils.ReduceMinMax(stats.Max, value, false)
+	maxVal, err := sutils.ReduceMinMax(stats.Max, value, false)
 	if err != nil {
 		log.Errorf("UpdateMinMax: Error while reducing max: %v", err)
 	} else {
@@ -812,9 +812,9 @@ func (ss *StringStats) Merge(other *StringStats) {
 	if ss.StrList != nil {
 		ss.StrList = append(ss.StrList, other.StrList...)
 	} else if other.StrList != nil {
-		if len(other.StrList) > segutils.MAX_SPL_LIST_SIZE {
-			ss.StrList = make([]string, segutils.MAX_SPL_LIST_SIZE)
-			copy(ss.StrList, other.StrList[:segutils.MAX_SPL_LIST_SIZE])
+		if len(other.StrList) > sutils.MAX_SPL_LIST_SIZE {
+			ss.StrList = make([]string, sutils.MAX_SPL_LIST_SIZE)
+			copy(ss.StrList, other.StrList[:sutils.MAX_SPL_LIST_SIZE])
 		} else {
 			ss.StrList = make([]string, len(other.StrList))
 			copy(ss.StrList, other.StrList)
@@ -829,16 +829,16 @@ func (ss *NumericStats) Merge(other *NumericStats) {
 
 	ss.NumericCount += other.NumericCount
 	switch ss.Sum.Ntype {
-	case segutils.SS_DT_FLOAT:
-		if other.Sum.Ntype == segutils.SS_DT_FLOAT {
+	case sutils.SS_DT_FLOAT:
+		if other.Sum.Ntype == sutils.SS_DT_FLOAT {
 			ss.Sum.FloatVal = ss.Sum.FloatVal + other.Sum.FloatVal
 		} else {
 			ss.Sum.FloatVal = ss.Sum.FloatVal + float64(other.Sum.IntgrVal)
 		}
 	default:
-		if other.Sum.Ntype == segutils.SS_DT_FLOAT {
+		if other.Sum.Ntype == sutils.SS_DT_FLOAT {
 			ss.Sum.FloatVal = float64(ss.Sum.IntgrVal) + other.Sum.FloatVal
-			ss.Sum.Ntype = segutils.SS_DT_FLOAT
+			ss.Sum.Ntype = sutils.SS_DT_FLOAT
 		} else {
 			ss.Sum.IntgrVal = ss.Sum.IntgrVal + other.Sum.IntgrVal
 		}
@@ -852,7 +852,7 @@ func (nr *NodeResult) ApplyScroll(scroll int) {
 	}
 
 	if len(nr.AllRecords) <= scroll {
-		nr.AllRecords = make([]*segutils.RecordResultContainer, 0)
+		nr.AllRecords = make([]*sutils.RecordResultContainer, 0)
 		return
 	}
 
@@ -865,13 +865,13 @@ func (n *Numbers) Copy() *Numbers {
 		NumType: n.NumType,
 	}
 	switch n.NumType {
-	case segutils.RNT_UNSIGNED_INT:
+	case sutils.RNT_UNSIGNED_INT:
 		retNum.Min_uint64 = n.Min_uint64
 		retNum.Max_uint64 = n.Max_uint64
-	case segutils.RNT_SIGNED_INT:
+	case sutils.RNT_SIGNED_INT:
 		retNum.Min_int64 = n.Min_int64
 		retNum.Max_int64 = n.Max_int64
-	case segutils.RNT_FLOAT64:
+	case sutils.RNT_FLOAT64:
 		retNum.Min_float64 = n.Min_float64
 		retNum.Max_float64 = n.Max_float64
 	}
@@ -1171,7 +1171,7 @@ func HasValueColRequestInMeasureAggs(measureAggs []*MeasureAggregator) bool {
 // To determine whether it contains Aggregate Func: Values()
 func (qa *QueryAggregators) HasValuesFunc() bool {
 	for _, agg := range qa.MeasureOperations {
-		if agg.MeasureFunc == segutils.Values {
+		if agg.MeasureFunc == sutils.Values {
 			return true
 		}
 	}
@@ -1180,7 +1180,7 @@ func (qa *QueryAggregators) HasValuesFunc() bool {
 
 func (qa *QueryAggregators) HasListFunc() bool {
 	for _, agg := range qa.MeasureOperations {
-		if agg.MeasureFunc == segutils.List {
+		if agg.MeasureFunc == sutils.List {
 			return true
 		}
 	}
@@ -1443,26 +1443,26 @@ func AddAllColumnsInStreamStatsOptions(cols map[string]struct{}, streamStatsOpti
 	AddAllColumnsInExpr(cols, streamStatsOptions.ResetAfter)
 }
 
-var unsupportedStatsFuncs = map[segutils.AggregateFunctions]struct{}{
-	segutils.Estdc:        {},
-	segutils.EstdcError:   {},
-	segutils.ExactPerc:    {},
-	segutils.Perc:         {},
-	segutils.UpperPerc:    {},
-	segutils.Median:       {},
-	segutils.Mode:         {},
-	segutils.Stdev:        {},
-	segutils.Stdevp:       {},
-	segutils.Sumsq:        {},
-	segutils.Var:          {},
-	segutils.Varp:         {},
-	segutils.First:        {},
-	segutils.Last:         {},
-	segutils.Earliest:     {},
-	segutils.EarliestTime: {},
-	segutils.Latest:       {},
-	segutils.LatestTime:   {},
-	segutils.StatsRate:    {},
+var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
+	sutils.Estdc:        {},
+	sutils.EstdcError:   {},
+	sutils.ExactPerc:    {},
+	sutils.Perc:         {},
+	sutils.UpperPerc:    {},
+	sutils.Median:       {},
+	sutils.Mode:         {},
+	sutils.Stdev:        {},
+	sutils.Stdevp:       {},
+	sutils.Sumsq:        {},
+	sutils.Var:          {},
+	sutils.Varp:         {},
+	sutils.First:        {},
+	sutils.Last:         {},
+	sutils.Earliest:     {},
+	sutils.EarliestTime: {},
+	sutils.Latest:       {},
+	sutils.LatestTime:   {},
+	sutils.StatsRate:    {},
 }
 
 var unsupportedEvalFuncs = map[string]struct{}{
@@ -1488,7 +1488,7 @@ var unsupportedEvalFuncs = map[string]struct{}{
 
 type StatsFuncChecker struct{}
 
-func (c StatsFuncChecker) IsUnsupported(funcName segutils.AggregateFunctions) bool {
+func (c StatsFuncChecker) IsUnsupported(funcName sutils.AggregateFunctions) bool {
 	_, found := unsupportedStatsFuncs[funcName]
 	return found
 }
@@ -1631,11 +1631,11 @@ func (br *BucketResult) GetBucketValueForGivenField(fieldName string) (interface
 func (br *BucketResult) SetBucketValueForGivenField(fieldName string, value interface{}, index int, isStatRes bool) error {
 
 	if isStatRes {
-		dVal, err := segutils.CreateDtypeEnclosure(value, 0)
+		dVal, err := sutils.CreateDtypeEnclosure(value, 0)
 		if err != nil {
 			return fmt.Errorf("SetBucketValueForGivenField: Failed to create dtype enclosure for value: %v", value)
 		}
-		br.StatRes[fieldName] = segutils.CValueEnclosure{Dtype: dVal.Dtype, CVal: value}
+		br.StatRes[fieldName] = sutils.CValueEnclosure{Dtype: dVal.Dtype, CVal: value}
 		return nil
 	}
 

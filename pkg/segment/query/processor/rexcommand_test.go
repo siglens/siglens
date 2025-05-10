@@ -23,7 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,10 +35,10 @@ func convertPerlToRE2(pattern string) string {
 
 func Test_RexCommand_ValidColumn(t *testing.T) {
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple-123"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana-456"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "apple-123"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "banana-456"},
 		},
 	})
 	assert.NoError(t, err)
@@ -56,32 +56,32 @@ func Test_RexCommand_ValidColumn(t *testing.T) {
 
 	values, err := iqr.ReadColumn("item")
 	assert.NoError(t, err)
-	assert.Equal(t, []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "banana"},
+	assert.Equal(t, []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "banana"},
 	}, values)
 
 	values, err = iqr.ReadColumn("number")
 	assert.NoError(t, err)
-	assert.Equal(t, []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "123"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "456"},
+	assert.Equal(t, []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "123"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "456"},
 	}, values)
 
 	values, err = iqr.ReadColumn("col1")
 	assert.NoError(t, err)
-	assert.Equal(t, []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "apple-123"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "banana-456"},
+	assert.Equal(t, []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "apple-123"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "banana-456"},
 	}, values)
 }
 
 func Test_RexCommand_InvalidColumn(t *testing.T) {
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple-123"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana-456"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "apple-123"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "banana-456"},
 		},
 	})
 	assert.NoError(t, err)
@@ -105,18 +105,18 @@ func Test_RexCommand_InvalidColumn(t *testing.T) {
 
 	values, err = iqr.ReadColumn("col1")
 	assert.NoError(t, err)
-	assert.Equal(t, []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "apple-123"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "banana-456"},
+	assert.Equal(t, []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "apple-123"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "banana-456"},
 	}, values)
 }
 
 func Test_RexCommand_InvalidPattern(t *testing.T) {
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple-123"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana-456"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "apple-123"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "banana-456"},
 		},
 	})
 	assert.NoError(t, err)
@@ -135,14 +135,14 @@ func Test_RexCommand_InvalidPattern(t *testing.T) {
 
 func Test_RexCommand_WriteOverExistingColumn(t *testing.T) {
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple-123"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana-456"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "apple-123"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "banana-456"},
 		},
 		"item": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "pear"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "mandarin"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "pear"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "mandarin"},
 		},
 	})
 	assert.NoError(t, err)
@@ -160,22 +160,22 @@ func Test_RexCommand_WriteOverExistingColumn(t *testing.T) {
 
 	values, err := iqr.ReadColumn("item")
 	assert.NoError(t, err)
-	assert.Equal(t, []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "banana"},
+	assert.Equal(t, []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "banana"},
 	}, values)
 
 	values, err = iqr.ReadColumn("number")
 	assert.NoError(t, err)
-	assert.Equal(t, []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "123"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "456"},
+	assert.Equal(t, []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "123"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "456"},
 	}, values)
 
 	values, err = iqr.ReadColumn("col1")
 	assert.NoError(t, err)
-	assert.Equal(t, []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "apple-123"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "banana-456"},
+	assert.Equal(t, []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "apple-123"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "banana-456"},
 	}, values)
 }

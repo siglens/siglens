@@ -23,7 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -89,7 +89,7 @@ func Test_segReader(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, arr)
 
-		var cVal segutils.CValueEnclosure
+		var cVal sutils.CValueEnclosure
 		_, err = writer.GetCvalFromRec(arr, 23, &cVal)
 		assert.Nil(t, err)
 		assert.NotNil(t, cVal)
@@ -150,7 +150,7 @@ func Test_multiSegReader(t *testing.T) {
 
 		cKeyidx, _ = multiReader.GetColKeyIndex(colName)
 
-		var cValEnc segutils.CValueEnclosure
+		var cValEnc sutils.CValueEnclosure
 
 		// correct block, incorrect recordNum
 		err = multiReader.ExtractValueFromColumnFile(cKeyidx, 0, uint16(numEntriesInBlock), 0,

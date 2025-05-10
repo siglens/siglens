@@ -24,7 +24,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 )
 
@@ -81,8 +81,8 @@ returns:
 	bool: if there is a match
 	err
 */
-func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qValDte *segutils.DtypeEnclosure,
-	fop segutils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper, isCaseInsensitive bool) (bool, error) {
+func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qValDte *sutils.DtypeEnclosure,
+	fop sutils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper, isCaseInsensitive bool) (bool, error) {
 
 	if qValDte == nil {
 		return false, nil
@@ -92,7 +92,7 @@ func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qVal
 		return false, errors.New("ApplySearchToExpressionFilterDictCsg: qValDte had nil regexp compilation")
 	}
 
-	dte := &segutils.DtypeEnclosure{}
+	dte := &sutils.DtypeEnclosure{}
 	for dwordIdx, dWord := range sfr.GetDeTlv() {
 		matched, err := writer.ApplySearchToExpressionFilterSimpleCsg(qValDte, fop, dWord, isRegexSearch, dte, isCaseInsensitive)
 		if err != nil {

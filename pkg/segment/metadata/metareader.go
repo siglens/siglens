@@ -23,7 +23,7 @@ import (
 
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -43,7 +43,7 @@ func readRangeIndexFromByteArray(blkRILen uint32, bbRI []byte) map[string]*struc
 
 		//read RangeNumType
 
-		blkRangeNumType := segutils.RangeNumType(bbRI[byteCounter : byteCounter+1][0])
+		blkRangeNumType := sutils.RangeNumType(bbRI[byteCounter : byteCounter+1][0])
 		byteCounter += 1
 		var blkRIToAdd *structs.Numbers
 		blkRIToAdd, byteCounter = rangeIndexToBytes(blkActualRangeKey, blkRangeNumType, bbRI, byteCounter)
@@ -53,27 +53,27 @@ func readRangeIndexFromByteArray(blkRILen uint32, bbRI []byte) map[string]*struc
 	return blkRI
 }
 
-func rangeIndexToBytes(blkActualRangeKey string, blkRangeNumType segutils.RangeNumType, bbBlockRI []byte, byteCounter uint32) (*structs.Numbers, uint32) {
+func rangeIndexToBytes(blkActualRangeKey string, blkRangeNumType sutils.RangeNumType, bbBlockRI []byte, byteCounter uint32) (*structs.Numbers, uint32) {
 	var finalRangeIndex *structs.Numbers
 	switch blkRangeNumType {
-	case segutils.RNT_UNSIGNED_INT:
+	case sutils.RNT_UNSIGNED_INT:
 		minVal := utils.BytesToUint64LittleEndian(bbBlockRI[byteCounter : byteCounter+8])
 		byteCounter += 8
 		maxVal := utils.BytesToUint64LittleEndian(bbBlockRI[byteCounter : byteCounter+8])
 		byteCounter += 8
-		finalRangeIndex = &structs.Numbers{Min_uint64: minVal, Max_uint64: maxVal, NumType: segutils.RNT_UNSIGNED_INT}
-	case segutils.RNT_SIGNED_INT:
+		finalRangeIndex = &structs.Numbers{Min_uint64: minVal, Max_uint64: maxVal, NumType: sutils.RNT_UNSIGNED_INT}
+	case sutils.RNT_SIGNED_INT:
 		minVal := utils.BytesToInt64LittleEndian(bbBlockRI[byteCounter : byteCounter+8])
 		byteCounter += 8
 		maxVal := utils.BytesToInt64LittleEndian(bbBlockRI[byteCounter : byteCounter+8])
 		byteCounter += 8
-		finalRangeIndex = &structs.Numbers{Min_int64: minVal, Max_int64: maxVal, NumType: segutils.RNT_SIGNED_INT}
-	case segutils.RNT_FLOAT64:
+		finalRangeIndex = &structs.Numbers{Min_int64: minVal, Max_int64: maxVal, NumType: sutils.RNT_SIGNED_INT}
+	case sutils.RNT_FLOAT64:
 		minVal := utils.BytesToFloat64LittleEndian(bbBlockRI[byteCounter : byteCounter+8])
 		byteCounter += 8
 		maxVal := utils.BytesToFloat64LittleEndian(bbBlockRI[byteCounter : byteCounter+8])
 		byteCounter += 8
-		finalRangeIndex = &structs.Numbers{Min_float64: minVal, Max_float64: maxVal, NumType: segutils.RNT_FLOAT64}
+		finalRangeIndex = &structs.Numbers{Min_float64: minVal, Max_float64: maxVal, NumType: sutils.RNT_FLOAT64}
 	}
 	return finalRangeIndex, byteCounter
 }
@@ -83,7 +83,7 @@ func getCmi(cmbuf []byte) (*structs.CmiContainer, error) {
 	cmic := &structs.CmiContainer{}
 
 	switch cmbuf[0] {
-	case segutils.CMI_BLOOM_INDEX[0]:
+	case sutils.CMI_BLOOM_INDEX[0]:
 		bufRdr := bytes.NewReader(cmbuf[1:])
 		blkBloom := &bloom.BloomFilter{}
 		_, bferr := blkBloom.ReadFrom(bufRdr)
@@ -91,12 +91,12 @@ func getCmi(cmbuf []byte) (*structs.CmiContainer, error) {
 			log.Errorf("getCmi: failed to convert bloom cmi %+v", bferr)
 			return nil, bferr
 		}
-		cmic.CmiType = segutils.CMI_BLOOM_INDEX[0]
+		cmic.CmiType = sutils.CMI_BLOOM_INDEX[0]
 		cmic.Loaded = true
 		cmic.Bf = blkBloom
-	case segutils.CMI_RANGE_INDEX[0]:
+	case sutils.CMI_RANGE_INDEX[0]:
 		blkRI := readRangeIndexFromByteArray(uint32(len(cmbuf)-1), cmbuf[1:])
-		cmic.CmiType = segutils.CMI_RANGE_INDEX[0]
+		cmic.CmiType = sutils.CMI_RANGE_INDEX[0]
 		cmic.Loaded = true
 		cmic.Ranges = blkRI
 	default:

@@ -22,7 +22,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -115,32 +115,32 @@ func Test_EvalCommand(t *testing.T) {
 	}
 
 	inputIqr := iqr.NewIQR(0)
-	knownValues := map[string][]segutils.CValueEnclosure{
+	knownValues := map[string][]sutils.CValueEnclosure{
 		"state": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "Massachusetts"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "California"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "New York"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "RAW_STRING"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "Massachusetts"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "California"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "New York"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "RAW_STRING"},
 		},
 		"numField": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
 		},
 		"country": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "USA"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "India"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "China"},
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "Japan"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "USA"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "India"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "China"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "Japan"},
 		},
 	}
 
-	expected := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-		{Dtype: segutils.SS_DT_STRING, CVal: "India"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "China"},
-		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "India"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "China"},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
 	}
 
 	err := inputIqr.AppendKnownValues(knownValues)

@@ -31,7 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -218,7 +218,7 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 	}
 
 	// for cmilen (4) and blkNum (2)
-	bb := make([]byte, segutils.LEN_BLOCK_CMI_SIZE+segutils.LEN_BLKNUM_CMI_SIZE)
+	bb := make([]byte, sutils.LEN_BLOCK_CMI_SIZE+sutils.LEN_BLKNUM_CMI_SIZE)
 	cmbuf := make([]byte, 0)
 
 	bulkDownloadFiles := make(map[string]string)
@@ -264,12 +264,12 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 				}
 				break
 			}
-			offset += segutils.LEN_BLOCK_CMI_SIZE + segutils.LEN_BLKNUM_CMI_SIZE // for cmilenHolder (4) and blkNum (2)
-			cmilen := utils.BytesToUint32LittleEndian(bb[0:segutils.LEN_BLOCK_CMI_SIZE])
-			cmilen -= segutils.LEN_BLKNUM_CMI_SIZE // for the blkNum(2)
+			offset += sutils.LEN_BLOCK_CMI_SIZE + sutils.LEN_BLKNUM_CMI_SIZE // for cmilenHolder (4) and blkNum (2)
+			cmilen := utils.BytesToUint32LittleEndian(bb[0:sutils.LEN_BLOCK_CMI_SIZE])
+			cmilen -= sutils.LEN_BLKNUM_CMI_SIZE // for the blkNum(2)
 			cmbuf = utils.ResizeSlice(cmbuf, int(cmilen))
 
-			blkNum := utils.BytesToUint16LittleEndian(bb[segutils.LEN_BLOCK_CMI_SIZE:])
+			blkNum := utils.BytesToUint16LittleEndian(bb[sutils.LEN_BLOCK_CMI_SIZE:])
 
 			_, err = fd.ReadAt(cmbuf[:cmilen], offset)
 			if err != nil {

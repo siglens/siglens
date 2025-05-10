@@ -22,30 +22,30 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-func getTestValues() map[string][]segutils.CValueEnclosure {
-	values := map[string][]segutils.CValueEnclosure{
+func getTestValues() map[string][]sutils.CValueEnclosure {
+	values := map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "Boston"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "New York"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Bos___some_on"},
-			{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "New York"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Bos___some_on"},
+			{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 		},
 		"col2": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "anything"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "New Jersey"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Nothing"},
-			{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
+			{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 		},
 		"col3": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "anything"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "New Jersey"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Nothing"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "Boston"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
 		},
 	}
 
@@ -76,21 +76,21 @@ func Test_processRegexOnAllColumns_KeepMatch(t *testing.T) {
 	_, err = regexProcessor.Process(iqr1)
 	assert.NoError(t, err)
 
-	expectedCol1 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "Boston"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "Bos___some_on"},
-		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Bos___some_on"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
-	expectedCol2 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "anything"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "Nothing"},
-		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
 
-	expectedCol3 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "anything"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "Nothing"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "Boston"},
+	expectedCol3 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
 	}
 
 	actualCol1, err := iqr1.ReadColumn("col1")
@@ -130,16 +130,16 @@ func Test_processRegexOnAllColumns_DiscardMatch(t *testing.T) {
 	_, err = regexProcessor.Process(iqr1)
 	assert.NoError(t, err)
 
-	expectedCol1 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "New York"},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New York"},
 	}
 
-	expectedCol2 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "New Jersey"},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
 	}
 
-	expectedCol3 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "New Jersey"},
+	expectedCol3 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
 	}
 
 	actualCol1, err := iqr1.ReadColumn("col1")
@@ -179,17 +179,17 @@ func Test_processRegexOnSingleColumns_KeepMatch(t *testing.T) {
 	_, err = regexProcessor.Process(iqr1)
 	assert.NoError(t, err)
 
-	expectedCol1 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "Boston"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "Bos___some_on"},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Bos___some_on"},
 	}
-	expectedCol2 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "anything"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "Nothing"},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
 	}
-	expectedCol3 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "anything"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "Nothing"},
+	expectedCol3 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
 	}
 
 	actualCol1, err := iqr1.ReadColumn("col1")
@@ -229,17 +229,17 @@ func Test_processRegexOnSingleColumns_DiscardMatch(t *testing.T) {
 	_, err = regexProcessor.Process(iqr1)
 	assert.NoError(t, err)
 
-	expectedCol1 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "New York"},
-		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New York"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
-	expectedCol2 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "New Jersey"},
-		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
-	expectedCol3 := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "New Jersey"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "Boston"},
+	expectedCol3 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
 	}
 
 	actualCol1, err := iqr1.ReadColumn("col1")

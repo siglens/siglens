@@ -33,7 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -67,11 +67,11 @@ func Test_simpleRawSearch(t *testing.T) {
 	}
 
 	querySummary := summary.InitQuerySummary(summary.LOGS, 1)
-	value1, _ := segutils.CreateDtypeEnclosure("value1", 0)
+	value1, _ := sutils.CreateDtypeEnclosure("value1", 0)
 	query := &structs.SearchQuery{
 		ExpressionFilter: &structs.SearchExpression{
 			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "key1"},
-			FilterOp:         segutils.Equals,
+			FilterOp:         sutils.Equals,
 			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: value1},
 		},
 		SearchType: structs.SimpleExpression,
@@ -139,11 +139,11 @@ func Test_simpleRawSearch(t *testing.T) {
 
 	config.SetPQSEnabled(false)
 
-	zero, _ := segutils.CreateDtypeEnclosure(false, 0)
+	zero, _ := sutils.CreateDtypeEnclosure(false, 0)
 	query = &structs.SearchQuery{
 		ExpressionFilter: &structs.SearchExpression{
 			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "key3"},
-			FilterOp:         segutils.Equals,
+			FilterOp:         sutils.Equals,
 			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: zero},
 		},
 		SearchType: structs.SimpleExpression,
@@ -168,7 +168,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	query = &structs.SearchQuery{
 		ExpressionFilter: &structs.SearchExpression{
 			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "invalid_column"},
-			FilterOp:         segutils.Equals,
+			FilterOp:         sutils.Equals,
 			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: zero},
 		},
 		SearchType: structs.SimpleExpression,
@@ -187,12 +187,12 @@ func Test_simpleRawSearch(t *testing.T) {
 	assert.NotEqual(t, 0, allSegFileResults.GetAllErrors(), "errors MUST happen")
 	assert.Equal(t, 0, len(allSegFileResults.GetResults()))
 
-	batchZero, _ := segutils.CreateDtypeEnclosure("batch-0-*", 0)
-	batchOne, _ := segutils.CreateDtypeEnclosure("batch-1-*", 0)
+	batchZero, _ := sutils.CreateDtypeEnclosure("batch-0-*", 0)
+	batchOne, _ := sutils.CreateDtypeEnclosure("batch-1-*", 0)
 	query = &structs.SearchQuery{
 		ExpressionFilter: &structs.SearchExpression{
 			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "key5"},
-			FilterOp:         segutils.Equals,
+			FilterOp:         sutils.Equals,
 			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: batchZero},
 		},
 		SearchType: structs.RegexExpression,
@@ -214,7 +214,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	query = &structs.SearchQuery{
 		ExpressionFilter: &structs.SearchExpression{
 			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "*"},
-			FilterOp:         segutils.Equals,
+			FilterOp:         sutils.Equals,
 			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: batchZero},
 		},
 		SearchType: structs.RegexExpressionAllColumns,
@@ -245,7 +245,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	batch0Query := &structs.SearchQuery{
 		ExpressionFilter: &structs.SearchExpression{
 			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "*"},
-			FilterOp:         segutils.Equals,
+			FilterOp:         sutils.Equals,
 			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: batchZero},
 		},
 		SearchType: structs.RegexExpressionAllColumns,
@@ -254,7 +254,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	batch1Query := &structs.SearchQuery{
 		ExpressionFilter: &structs.SearchExpression{
 			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "*"},
-			FilterOp:         segutils.Equals,
+			FilterOp:         sutils.Equals,
 			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: batchOne},
 		},
 		SearchType: structs.RegexExpressionAllColumns,
@@ -263,7 +263,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	valueQuery := &structs.SearchQuery{
 		ExpressionFilter: &structs.SearchExpression{
 			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "key1"},
-			FilterOp:         segutils.Equals,
+			FilterOp:         sutils.Equals,
 			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: value1},
 		},
 		SearchType: structs.SimpleExpression,
@@ -322,7 +322,7 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 		VirtualTableName:   "jaeger-evts",
 		AllPossibleColumns: allCols,
 	}
-	value1, _ := segutils.CreateDtypeEnclosure("const", 0)
+	value1, _ := sutils.CreateDtypeEnclosure("const", 0)
 	querySummary := summary.InitQuerySummary(summary.LOGS, 1)
 	query := &structs.SearchQuery{
 		MatchFilter: &structs.MatchFilter{
@@ -354,7 +354,7 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 	assert.Equal(t, numBuffers, len(allSegFileResults.GetResults()))
 	assert.Equal(t, allSegFileResults.GetTotalCount(), uint64(len(allSegFileResults.GetResults())))
 
-	value2, _ := segutils.CreateDtypeEnclosure("200", 1)
+	value2, _ := sutils.CreateDtypeEnclosure("200", 1)
 	query2 := &structs.SearchQuery{
 		MatchFilter: &structs.MatchFilter{
 			MatchColumn: "tags",
@@ -388,11 +388,11 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 func testAggsQuery(t *testing.T, numEntriesForBuffer int, searchReq *structs.SegmentSearchRequest) {
 	querySummary := summary.InitQuerySummary(summary.LOGS, 101010)
 
-	batchZero, _ := segutils.CreateDtypeEnclosure("batch-0-*", 0)
+	batchZero, _ := sutils.CreateDtypeEnclosure("batch-0-*", 0)
 	query := &structs.SearchQuery{
 		ExpressionFilter: &structs.SearchExpression{
 			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "key5"},
-			FilterOp:         segutils.Equals,
+			FilterOp:         sutils.Equals,
 			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: batchZero},
 		},
 		SearchType: structs.RegexExpression,
@@ -409,8 +409,8 @@ func testAggsQuery(t *testing.T, numEntriesForBuffer int, searchReq *structs.Seg
 		NodeType: structs.ColumnValueQuery,
 	}
 	measureOps := make([]*structs.MeasureAggregator, 2)
-	measureOps[0] = &structs.MeasureAggregator{MeasureCol: "key0", MeasureFunc: segutils.Cardinality}
-	measureOps[1] = &structs.MeasureAggregator{MeasureCol: "key6", MeasureFunc: segutils.Min}
+	measureOps[0] = &structs.MeasureAggregator{MeasureCol: "key0", MeasureFunc: sutils.Cardinality}
+	measureOps[1] = &structs.MeasureAggregator{MeasureCol: "key6", MeasureFunc: sutils.Min}
 
 	allSegFileResults, err := segresults.InitSearchResults(10000, nil, structs.SegmentStatsCmd, 1000)
 	assert.Nil(t, err)
@@ -429,9 +429,9 @@ func testAggsQuery(t *testing.T, numEntriesForBuffer int, searchReq *structs.Seg
 	key6Block0Stats := block0["key6"]
 	assert.True(t, key6Block0Stats.IsNumeric)
 	assert.Equal(t, key6Block0Stats.Count, uint64(numEntriesForBuffer))
-	assert.Equal(t, key6Block0Stats.Min.Dtype, segutils.SS_DT_SIGNED_NUM)
+	assert.Equal(t, key6Block0Stats.Min.Dtype, sutils.SS_DT_SIGNED_NUM)
 	assert.Equal(t, key6Block0Stats.Min.CVal, int64(0))
-	assert.Equal(t, key6Block0Stats.Max.Dtype, segutils.SS_DT_SIGNED_NUM)
+	assert.Equal(t, key6Block0Stats.Max.Dtype, sutils.SS_DT_SIGNED_NUM)
 	assert.Equal(t, key6Block0Stats.Max.CVal, int64(numEntriesForBuffer-1)*2)
 }
 
@@ -508,8 +508,8 @@ func Benchmark_simpleAggregations(b *testing.B) {
 		GroupByRequest: &structs.GroupByRequest{
 			GroupByColumns: []string{"a", "d"},
 			MeasureOperations: []*structs.MeasureAggregator{
-				{MeasureCol: "a", MeasureFunc: segutils.Count},
-				{MeasureCol: "a", MeasureFunc: segutils.Avg},
+				{MeasureCol: "a", MeasureFunc: sutils.Count},
+				{MeasureCol: "a", MeasureFunc: sutils.Avg},
 			},
 			AggName: "test",
 		},
@@ -562,7 +562,7 @@ func createBenchQuery(b *testing.B, segKey string,
 	allsqs := make([]*structs.SearchQuery, 0)
 
 	for _, cond := range allconds {
-		dtype, err := segutils.CreateDtypeEnclosure(cond.colValStrToSearch, 0)
+		dtype, err := sutils.CreateDtypeEnclosure(cond.colValStrToSearch, 0)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -578,7 +578,7 @@ func createBenchQuery(b *testing.B, segKey string,
 		sq := &structs.SearchQuery{
 			ExpressionFilter: &structs.SearchExpression{
 				LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: cond.colNameToSearch},
-				FilterOp:         segutils.Equals,
+				FilterOp:         sutils.Equals,
 				RightSearchInput: &structs.SearchExpressionInput{ColumnValue: dtype},
 			},
 			SearchType: cond.queryType,

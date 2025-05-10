@@ -20,11 +20,11 @@ package record
 import (
 	"testing"
 
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-var mockRRCs = []*segutils.RecordResultContainer{
+var mockRRCs = []*sutils.RecordResultContainer{
 	{BlockNum: 1, RecordNum: 1},
 	{BlockNum: 1, RecordNum: 2},
 	{BlockNum: 1, RecordNum: 3},
@@ -35,7 +35,7 @@ var mockRRCs = []*segutils.RecordResultContainer{
 
 func Test_GetColumnNames(t *testing.T) {
 	mocker := &MockRRCsReader{
-		FieldToValues: map[string][]segutils.CValueEnclosure{
+		FieldToValues: map[string][]sutils.CValueEnclosure{
 			"col1": {},
 			"col2": {},
 		},
@@ -55,21 +55,21 @@ func Test_ReadOneColumn(t *testing.T) {
 	rrcs := mockRRCs[:4]
 	mocker := &MockRRCsReader{
 		RRCs: rrcs,
-		FieldToValues: map[string][]segutils.CValueEnclosure{
+		FieldToValues: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				{Dtype: segutils.SS_DT_STRING, CVal: "val1"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "val2"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "val3"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "val4"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "val1"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "val2"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "val3"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "val4"},
 			},
 		},
 	}
 
-	expected := []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "val1"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "val2"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "val3"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "val4"},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "val1"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "val2"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "val3"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "val4"},
 	}
 
 	values, err := mocker.ReadColForRRCs("segKey", rrcs, "col1", 0, false)
@@ -82,18 +82,18 @@ func Test_ReadOneColumn(t *testing.T) {
 	assert.Nil(t, values)
 
 	// Test reading RRCs in a different order.
-	rrcs = []*segutils.RecordResultContainer{
+	rrcs = []*sutils.RecordResultContainer{
 		mockRRCs[3],
 		mockRRCs[1],
 		mockRRCs[0],
 		mockRRCs[2],
 	}
 
-	expected = []segutils.CValueEnclosure{
-		{Dtype: segutils.SS_DT_STRING, CVal: "val4"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "val2"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "val1"},
-		{Dtype: segutils.SS_DT_STRING, CVal: "val3"},
+	expected = []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "val4"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "val2"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "val1"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "val3"},
 	}
 
 	values, err = mocker.ReadColForRRCs("segKey", rrcs, "col1", 0, false)
@@ -105,26 +105,26 @@ func Test_ReadAllColumns(t *testing.T) {
 	rrcs := mockRRCs[:2]
 	mocker := &MockRRCsReader{
 		RRCs: rrcs,
-		FieldToValues: map[string][]segutils.CValueEnclosure{
+		FieldToValues: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				{Dtype: segutils.SS_DT_STRING, CVal: "val1"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "val2"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "val1"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "val2"},
 			},
 			"col2": {
-				{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
-				{Dtype: segutils.SS_DT_STRING, CVal: "banana"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "apple"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "banana"},
 			},
 		},
 	}
 
-	expected := map[string][]segutils.CValueEnclosure{
+	expected := map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "val1"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "val2"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "val1"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "val2"},
 		},
 		"col2": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "banana"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "apple"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "banana"},
 		},
 	}
 
@@ -137,10 +137,10 @@ func Test_ReadAllColumns(t *testing.T) {
 	ignoredCols = map[string]struct{}{
 		"col1": {},
 	}
-	expected = map[string][]segutils.CValueEnclosure{
+	expected = map[string][]sutils.CValueEnclosure{
 		"col2": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "banana"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "apple"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "banana"},
 		},
 	}
 	results, err = mocker.ReadAllColsForRRCs("segKey", "vTable", mockRRCs[:2], 0, ignoredCols)
@@ -148,19 +148,19 @@ func Test_ReadAllColumns(t *testing.T) {
 	assert.Equal(t, expected, results)
 
 	// Test reading RRCs in a different order.
-	rrcs = []*segutils.RecordResultContainer{
+	rrcs = []*sutils.RecordResultContainer{
 		mockRRCs[1],
 		mockRRCs[0],
 	}
 	ignoredCols = map[string]struct{}{}
-	expected = map[string][]segutils.CValueEnclosure{
+	expected = map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "val2"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "val1"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "val2"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "val1"},
 		},
 		"col2": {
-			{Dtype: segutils.SS_DT_STRING, CVal: "banana"},
-			{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "banana"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "apple"},
 		},
 	}
 	results, err = mocker.ReadAllColsForRRCs("segKey", "vTable", rrcs, 0, ignoredCols)

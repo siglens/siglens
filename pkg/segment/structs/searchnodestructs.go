@@ -22,7 +22,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -153,7 +153,7 @@ func (q *SearchQuery) GetQueryType() SearchNodeType {
 	} else {
 		if q.MatchFilter.MatchColumn == "*" || q.MatchFilter.MatchColumn == config.GetTimeStampKey() {
 			for _, matchWord := range q.MatchFilter.MatchWords {
-				if bytes.Equal(matchWord, segutils.STAR_BYTE) {
+				if bytes.Equal(matchWord, sutils.STAR_BYTE) {
 					if q.MatchFilter.MatchOperator == Or {
 						return MatchAllQuery
 					} else if q.MatchFilter.MatchOperator == And && len(q.MatchFilter.MatchWords) > 1 {

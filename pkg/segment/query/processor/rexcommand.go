@@ -23,7 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -65,10 +65,10 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return iqr, nil
 	}
 
-	newColValues := make(map[string][]segutils.CValueEnclosure, len(p.options.RexColNames))
+	newColValues := make(map[string][]sutils.CValueEnclosure, len(p.options.RexColNames))
 	for _, rexColName := range p.options.RexColNames {
-		newColValues[rexColName] = utils.ResizeSliceWithDefault(newColValues[rexColName], len(values), segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_BACKFILL,
+		newColValues[rexColName] = utils.ResizeSliceWithDefault(newColValues[rexColName], len(values), sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_BACKFILL,
 			CVal:  nil,
 		})
 	}
@@ -88,7 +88,7 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 
 		for rexColName, rexValue := range rexResultMap {
-			newColValues[rexColName][i].Dtype = segutils.SS_DT_STRING
+			newColValues[rexColName][i].Dtype = sutils.SS_DT_STRING
 			newColValues[rexColName][i].CVal = rexValue
 		}
 	}

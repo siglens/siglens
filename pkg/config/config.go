@@ -35,7 +35,7 @@ import (
 	"github.com/pbnjay/memory"
 	"github.com/siglens/siglens/pkg/config/common"
 	"github.com/siglens/siglens/pkg/hooks"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -332,15 +332,15 @@ func GetTotalMemoryAvailableToUse() uint64 {
 	if totalMemoryOnHost == 0 {
 		totalMemoryOnHost = GetMemoryMax()
 	} else {
-		log.Infof("GetTotalMemoryAvailableToUse: Using the total memory value set in the config. Memory: %v MB", segutils.ConvertUintBytesToMB(totalMemoryOnHost))
+		log.Infof("GetTotalMemoryAvailableToUse: Using the total memory value set in the config. Memory: %v MB", sutils.ConvertUintBytesToMB(totalMemoryOnHost))
 	}
 
 	configuredMemory := totalMemoryOnHost * runningConfig.MemoryConfig.MaxUsagePercent / 100
 	allowedMemory := configuredMemory / (1 + gogc/100)
 	log.Infof("GetTotalMemoryAvailableToUse: GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
 		runningConfig.MemoryConfig.MaxUsagePercent,
-		segutils.ConvertUintBytesToMB(totalMemoryOnHost),
-		segutils.ConvertUintBytesToMB(allowedMemory))
+		sutils.ConvertUintBytesToMB(totalMemoryOnHost),
+		sutils.ConvertUintBytesToMB(allowedMemory))
 	return allowedMemory
 }
 
@@ -353,9 +353,9 @@ func GetMemoryMax() uint64 {
 		log.Warnf("GetMemoryMax: Error while getting memory from cgroup: %v", err)
 		// if we can't get the memory from the cgroup, get it from the OS
 		memoryMax = memory.TotalMemory()
-		log.Infof("GetMemoryMax: Memory from the Host in MB: %v", segutils.ConvertUintBytesToMB(memoryMax))
+		log.Infof("GetMemoryMax: Memory from the Host in MB: %v", sutils.ConvertUintBytesToMB(memoryMax))
 	} else {
-		log.Infof("GetMemoryMax: Memory from cgroup in MB: %v", segutils.ConvertUintBytesToMB(memoryMax))
+		log.Infof("GetMemoryMax: Memory from cgroup in MB: %v", sutils.ConvertUintBytesToMB(memoryMax))
 	}
 
 	return memoryMax
@@ -1173,7 +1173,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		memoryLimits.MaxMemoryAllowedToUseInBytes = totalMemory
 	}
 
-	if segutils.ConvertUintBytesToMB(totalMemory) < SIZE_8GB_IN_MB {
+	if sutils.ConvertUintBytesToMB(totalMemory) < SIZE_8GB_IN_MB {
 		if memoryLimits.MaxUsagePercent > 50 {
 			log.Infof("ExtractConfigData: MaxUsagePercent is set to %v%% but bringing it down to 50%%", memoryLimits.MaxUsagePercent)
 			memoryLimits.MaxUsagePercent = 50

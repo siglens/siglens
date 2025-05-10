@@ -31,7 +31,7 @@ import (
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -41,7 +41,7 @@ var rawTimestampsBufferPool = sync.Pool{
 		// The Pool's New function should generally only return pointer
 		// types, since a pointer can be put into the return interface
 		// value without an allocation:
-		slice := make([]uint64, segutils.DEFAULT_TIME_SLICE_SIZE)
+		slice := make([]uint64, sutils.DEFAULT_TIME_SLICE_SIZE)
 		return &slice
 	},
 }
@@ -259,9 +259,9 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 	}
 
 	oPtr := uint32(0)
-	if rawRec[oPtr] != segutils.TIMESTAMP_TOPDIFF_VARENC[0] {
+	if rawRec[oPtr] != sutils.TIMESTAMP_TOPDIFF_VARENC[0] {
 		return nil, fmt.Errorf("convertRawRecordsToTimestamps: received an unknown encoding type for timestamp column! expected %+v got %+v",
-			segutils.TIMESTAMP_TOPDIFF_VARENC[0], rawRec[oPtr])
+			sutils.TIMESTAMP_TOPDIFF_VARENC[0], rawRec[oPtr])
 	}
 	oPtr++
 

@@ -22,11 +22,11 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-func test_Rename(t *testing.T, iqr *iqr.IQR, oldNames []string, newName string, expectedValue []segutils.CValueEnclosure) {
+func test_Rename(t *testing.T, iqr *iqr.IQR, oldNames []string, newName string, expectedValue []sutils.CValueEnclosure) {
 	for _, oldName := range oldNames {
 		values, err := iqr.ReadColumn(oldName)
 		assert.NoError(t, err)
@@ -39,9 +39,9 @@ func test_Rename(t *testing.T, iqr *iqr.IQR, oldNames []string, newName string, 
 
 func Test_Rename_Override(t *testing.T) {
 	iqr1 := iqr.NewIQR(0)
-	err := iqr1.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr1.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
 		},
 	})
 	assert.NoError(t, err)
@@ -57,7 +57,7 @@ func Test_Rename_Override(t *testing.T) {
 
 	iqr1, err = processor.Process(iqr1)
 	assert.NoError(t, err)
-	test_Rename(t, iqr1, []string{"col1"}, "newCol1", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "a"}})
+	test_Rename(t, iqr1, []string{"col1"}, "newCol1", []sutils.CValueEnclosure{{Dtype: sutils.SS_DT_STRING, CVal: "a"}})
 
 	processor2 := &renameProcessor{
 		options: &structs.RenameExp{
@@ -70,20 +70,20 @@ func Test_Rename_Override(t *testing.T) {
 
 	iqr1, err = processor2.Process(iqr1)
 	assert.NoError(t, err)
-	test_Rename(t, iqr1, []string{"col1", "newCol1"}, "superNewCol1", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "a"}})
+	test_Rename(t, iqr1, []string{"col1", "newCol1"}, "superNewCol1", []sutils.CValueEnclosure{{Dtype: sutils.SS_DT_STRING, CVal: "a"}})
 }
 
 func Test_Rename_Regex(t *testing.T) {
 	iqr1 := iqr.NewIQR(0)
-	err := iqr1.AppendKnownValues(map[string][]segutils.CValueEnclosure{
+	err := iqr1.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
 		},
 		"col2": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col3": {
-			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 		},
 	})
 	assert.NoError(t, err)
@@ -99,9 +99,9 @@ func Test_Rename_Regex(t *testing.T) {
 
 	iqr1, err = processor.Process(iqr1)
 	assert.NoError(t, err)
-	test_Rename(t, iqr1, []string{"col1"}, "newCol1", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "a"}})
-	test_Rename(t, iqr1, []string{"col2"}, "newCol2", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "b"}})
-	test_Rename(t, iqr1, []string{"col3"}, "newCol3", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "c"}})
+	test_Rename(t, iqr1, []string{"col1"}, "newCol1", []sutils.CValueEnclosure{{Dtype: sutils.SS_DT_STRING, CVal: "a"}})
+	test_Rename(t, iqr1, []string{"col2"}, "newCol2", []sutils.CValueEnclosure{{Dtype: sutils.SS_DT_STRING, CVal: "b"}})
+	test_Rename(t, iqr1, []string{"col3"}, "newCol3", []sutils.CValueEnclosure{{Dtype: sutils.SS_DT_STRING, CVal: "c"}})
 
 	processor2 := &renameProcessor{
 		options: &structs.RenameExp{
@@ -114,7 +114,7 @@ func Test_Rename_Regex(t *testing.T) {
 
 	iqr1, err = processor2.Process(iqr1)
 	assert.NoError(t, err)
-	test_Rename(t, iqr1, []string{}, "newCol1", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "a"}})
-	test_Rename(t, iqr1, []string{"newCol2"}, "superNewCol", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "b"}})
-	test_Rename(t, iqr1, []string{}, "newCol3", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "c"}})
+	test_Rename(t, iqr1, []string{}, "newCol1", []sutils.CValueEnclosure{{Dtype: sutils.SS_DT_STRING, CVal: "a"}})
+	test_Rename(t, iqr1, []string{"newCol2"}, "superNewCol", []sutils.CValueEnclosure{{Dtype: sutils.SS_DT_STRING, CVal: "b"}})
+	test_Rename(t, iqr1, []string{}, "newCol3", []sutils.CValueEnclosure{{Dtype: sutils.SS_DT_STRING, CVal: "c"}})
 }
