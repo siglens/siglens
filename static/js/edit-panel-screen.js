@@ -514,19 +514,22 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
 function initFormatAccordion(panel) {
     $('.accordion-header, .accordion-content, .accordion-arrow').removeClass('expanded');
 
-    $('.accordion-header').on('click', function () {
-        const header = $(this);
-        const content = $(this).next('.accordion-content');
-        const arrow = $(this).find('.accordion-arrow');
+    $('.accordion-header')
+        .off('click')
+        .on('click', function () {
+            const header = $(this);
+            const content = $(this).next('.accordion-content');
+            const arrow = $(this).find('.accordion-arrow');
 
-        header.toggleClass('expanded');
-        content.toggleClass('expanded');
-        arrow.toggleClass('expanded');
-    });
+            header.toggleClass('expanded');
+            content.toggleClass('expanded');
+            arrow.toggleClass('expanded');
+        });
 
-    const settings = panel.formatSettings;
-    updateFormatPanelFields(settings);
-    // setupFormatPanel();
+    chartSettings = JSON.parse(JSON.stringify(panel.formatSettings));
+    updateFormatPanelFields(chartSettings);
+
+    setupFormatPanel();
 }
 
 function loadVisualizationOptions(panelType) {

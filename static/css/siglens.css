@@ -2560,11 +2560,6 @@ div[aria-describedby="download-info"] {
     content: '\2713';
     /* Unicode for checkmark */
     color: white;
-    font-size: 13px;
-    position: absolute;
-    left: 1px;
-    top: -4px;
-    transform: scale(1);
 }
 
 .checkbox[type="checkbox"]:hover {
