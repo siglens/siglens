@@ -533,8 +533,9 @@ function initFormatAccordion(panel) {
         });
 
     chartSettings = JSON.parse(JSON.stringify(panel.formatSettings));
+    //eslint-disable-next-line no-undef
     updateFormatPanelFields(chartSettings);
-
+    //eslint-disable-next-line no-undef
     setupFormatPanel();
 }
 
@@ -623,17 +624,17 @@ $('.dropDown-logLinesView').on('click', handleLogLinesViewDropDownClick);
 
 // Nested dropdowns for number unit options
 const nestedDropdowns = [
-    { id: 'nestedMiscDropDown', optionsId: 'miscOptionsDropDown', optionsClass: 'misc-options' },
-    { id: 'nestedDataDropDown', optionsId: 'dataOptionsDropDown', optionsClass: 'data-options' },
-    { id: 'nestedThroughputDropDown', optionsId: 'throughputOptionsDropDown', optionsClass: 'throughput-options' },
-    { id: 'nestedPercentDropDown', optionsId: 'percentOptionsDropDown', optionsClass: 'percent-options' },
-    { id: 'nestedTimeDropDown', optionsId: 'timeOptionsDropDown', optionsClass: 'time-options' },
-    { id: 'nestedDataRateDropDown', optionsId: 'dataRateOptionsDropDown', optionsClass: 'data-rate-options' },
+    { id: 'nestedMiscDropDown', optionsId: 'miscOptionsDropDown' },
+    { id: 'nestedDataDropDown', optionsId: 'dataOptionsDropDown' },
+    { id: 'nestedThroughputDropDown', optionsId: 'throughputOptionsDropDown' },
+    { id: 'nestedPercentDropDown', optionsId: 'percentOptionsDropDown' },
+    { id: 'nestedTimeDropDown', optionsId: 'timeOptionsDropDown' },
+    { id: 'nestedDataRateDropDown', optionsId: 'dataRateOptionsDropDown' },
 ];
 
 nestedDropdowns.forEach((dropdown) => {
     $(`#${dropdown.id}`).on('click', function (e) {
-        handleNestedDropDownClick(e, this, dropdown.id, dropdown.optionsId, dropdown.optionsClass);
+        handleNestedDropDownClick(e, this, dropdown.id, dropdown.optionsId);
     });
 });
 
@@ -652,7 +653,7 @@ function handleLogLinesViewDropDownClick(_e) {
     $('.dropDown-logLinesView.active .caret').css('rotate', '360deg');
 }
 
-function handleNestedDropDownClick(e, element, dropdownId, optionsId, optionsClass) {
+function handleNestedDropDownClick(e, element, dropdownId, optionsId) {
     // Unselect previous unit menu item
     let selectedUnitMenuItem = $('.editPanelMenu-unit .editPanelMenu-unit-options.selected');
     selectedUnitMenuItem.removeClass('selected');
