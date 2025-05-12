@@ -25,14 +25,13 @@ let localPanels = [],
     dbFolder,
     allResultsDisplayed = 0;
 let panelIndex;
+let isFavorite = false;
 //eslint-disable-next-line no-unused-vars
 let initialSearchDashboardData = {};
 //eslint-disable-next-line no-unused-vars
 let flagDBSaved = true;
 let timeRange = 'Last 1 Hr';
 let dbRefresh = '';
-// let panelContainer;
-// let panelContainerWidthGlobal;
 let originalIndexValues = [];
 //eslint-disable-next-line no-unused-vars
 let indexValues = [];
@@ -268,6 +267,7 @@ async function updateDashboard() {
                 })),
                 refresh: dbRefresh,
                 panelFlag: `{{ .PanelFlag }}`,
+                isFavorite: isFavorite
             },
         }),
     })
@@ -516,6 +516,7 @@ async function getDashboardData() {
     dbDescr = dbData.description;
     dbFolder = dbData.folder.name;
     dbRefresh = dbData.refresh;
+    isFavorite = dbData.isFavorite;
     if (dbData.panels != undefined) {
         localPanels = JSON.parse(JSON.stringify(dbData.panels));
         originalQueries = {};
@@ -1196,6 +1197,7 @@ function saveDbSetting() {
         timeRange = dbSettings?.timeRange || timeRange;
         localPanels = dbSettings?.panels || localPanels;
         dbRefresh = dbSettings?.refresh || dbRefresh;
+        isFavorite = dbSettings?.isFavorite !== undefined ? dbSettings.isFavorite : isFavorite;
     }
 
     updateDashboard().then((updateSuccessful) => {
@@ -1230,7 +1232,6 @@ function discardDbSetting() {
 }
 
 // Refresh handler
-
 function setRefreshItemHandler() {
     $('.refresh-range-item').removeClass('active');
     if (dbRefresh) {
@@ -1311,12 +1312,13 @@ function toggleFavorite() {
         },
         crossDomain: true,
     }).then((response) => {
+        isFavorite = response.isFavorite;
         setFavoriteValue(response.isFavorite);
     });
 }
 
-function setFavoriteValue(isFavorite) {
-    if (isFavorite) {
+function setFavoriteValue(favValue) {
+    if (favValue) {
         $('#favbutton').addClass('active');
     } else {
         $('#favbutton').removeClass('active');
@@ -1351,6 +1353,7 @@ function resizeCharts() {
         }
     });
 }
+
 //eslint-disable-next-line no-unused-vars
 function setDashboardQueryModeHandler(panelQueryMode) {
     let queryModeCookieValue = Cookies.get('queryMode');
@@ -1369,6 +1372,7 @@ function setDashboardQueryModeHandler(panelQueryMode) {
     }
 }
 
+// Search across the panels based on the search input
 $('#run-dashboard-fliter').on('click', function () {
     const filterValue = $('.search-db-input').val();
     if (!validateFilterInput(filterValue)) {

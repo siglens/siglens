@@ -423,7 +423,7 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
                         labelRotation: 0,
                     },
                     yAxis: {
-                        title: 'Primary Axis',
+                        title: '',
                         interval: null,
                         minValue: null,
                         maxValue: null,
@@ -431,7 +431,7 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
                     },
                     chartOverlay: {
                         enabled: false,
-                        title: 'Secondary Axis',
+                        title: '',
                         interval: null,
                         minValue: null,
                         maxValue: null,
@@ -440,7 +440,7 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
                     },
                     legend: {
                         show: true,
-                        position: 'right',
+                        position: 'top',
                     },
                 };
             }
