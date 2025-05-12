@@ -806,7 +806,7 @@ func addLogsWithoutError(t *testing.T, validator queryValidator, logs []map[stri
 	t.Helper()
 
 	for _, log := range logs {
-		err := validator.HandleLog(log, log["timestamp"].(uint64))
+		err := validator.HandleLog(log, log["timestamp"].(uint64), false)
 		assert.NoError(t, err)
 	}
 }

@@ -81,6 +81,21 @@ const contactFormHTML = `
 <div class="webhook-container">
     <label for="webhook">Webhook URL</label>
     <input type="text" class="form-control" id="webhook-id">
+    <div class="headers-section mt-3">
+        <label for="additional-headers">Custom Headers</label>
+        <p>Optionally provide extra custom headers to be used in the request.</p>
+        
+        <div class="headers-main-container">
+        <div class="headers-labels">
+            <div class="header-label">Header Name</div>
+            <div class="header-label">Header Value</div>
+        </div>
+            <!-- Added headers will appear here -->
+        </div>
+        <button class="add-headers-container btn btn-grey" type="button">
+            <span class="plus-icon">+</span>Add Header
+        </button>
+    </div>
 </div>
     </div>
     <button class="add-new-contact-type btn btn-primary" type="button">
@@ -151,6 +166,7 @@ function initializeContactForm(contactId) {
         formContainer.html(contactFormHTML); // Use .html() to replace the content to avoid appending multiple times.
         $('.slack-container').css('display', 'block');
         $('.webhook-container').css('display', 'none');
+        $('.headers-labels').css('display', 'none'); 
         if (contactEditFlag) {
             showContactFormForEdit(contactId);
         } else {
@@ -187,11 +203,189 @@ function initializeContactForm(contactId) {
         const container = $(this).closest('.contact-container');
         getContactPointTestData(container);
     });
+
+    $('#main-container').on('click', '.add-headers-container', function () {
+        const headersMainContainer = $(this).closest('.headers-section').find('.headers-main-container');
+        const hasIncompleteHeaders = headersMainContainer.find('.headers-container').filter(function () {
+            const key = $(this).find('#header-key').val();
+            const value = $(this).find('#header-value').val();
+            return (!key || !value) && $(this).find('.tick-icon').length > 0;
+        }).length > 0;
+    
+        if (hasIncompleteHeaders) {
+            alert('Please complete or cancel the current header before adding a new one.');
+            return;
+        }
+    
+        const newHeadersContainer = `
+            <div class="headers-container">
+                <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="">
+                <span class="headers-gap"></span>
+                <input type="text" id="header-value" class="form-control" placeholder="Header Value" tabindex="8" value="">
+                <button class="tick-icon" type="button" id="confirm-header"></button>
+                <button class="cross-icon" type="button" id="cancel-header"></button>
+            </div>
+        `;
+        headersMainContainer.append(newHeadersContainer);
+        updateAddHeaderButtonState($(this));
+    });
+
+    $('#main-container').on('click', '.headers-main-container .tick-icon', function () {
+        const headerContainer = $(this).closest('.headers-container');
+        const key = headerContainer.find('#header-key').val();
+        const value = headerContainer.find('#header-value').val();
+        const headersMainContainer = headerContainer.closest('.headers-main-container');
+        const headersSection = headersMainContainer.closest('.headers-section');
+    
+        if (key && value) {
+            const displayHeader = `
+                <div class="headers-container">
+                    <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="${key}" readonly>
+                    <span class="headers-gap"></span>
+                    <input type="text" id="header-value" class="form-control" placeholder="Header Value" tabindex="8" value="${value}" readonly>
+                    <button class="edit-icon" type="button" id="edit-header"></button>
+                    <button class="delete-icon" type="button" id="delete-header"></button>
+                </div>
+            `;
+            headersMainContainer.append(displayHeader);
+            headerContainer.remove();
+            headersSection.find('.headers-labels').css('display', 'flex'); 
+            updateAddHeaderButtonState(headersSection.find('.add-headers-container'));
+        } else {
+            alert('Please fill in both header name and value.');
+        }
+    });
+    
+    $('#main-container').on('click', '.headers-main-container .cross-icon', function () {
+        const headerContainer = $(this).closest('.headers-container');
+        const headersMainContainer = headerContainer.closest('.headers-main-container');
+        const headersSection = headersMainContainer.closest('.headers-section');
+        headerContainer.remove();
+        if (headersMainContainer.children().length === 0) {
+            headersSection.find('.headers-labels').css('display', 'none');
+        }
+        updateAddHeaderButtonState(headersSection.find('.add-headers-container'));
+    });
+    
+    $('#main-container').on('click', '.headers-main-container .edit-icon', function () {
+        const headerContainer = $(this).closest('.headers-container');
+        const key = headerContainer.find('#header-key').val();
+        const value = headerContainer.find('#header-value').val();
+        const headersMainContainer = headerContainer.closest('.headers-main-container');
+        const headersSection = headersMainContainer.closest('.headers-section');
+    
+        const editHeaderContainer = `
+            <div class="headers-container">
+                <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="${key}">
+                <span class="headers-gap"></span>
+                <input type="text" id="header-value" class="form-control" placeholder="Header Value" value="${value}" tabindex="8">
+                <button class="tick-icon" type="button" id="confirm-header"></button>
+                <button class="cross-icon" type="button" id="cancel-header"></button>
+            </div>
+        `;
+        headerContainer.replaceWith(editHeaderContainer);
+        headersSection.find('.headers-labels').css('display', 'flex');
+        updateAddHeaderButtonState(headersSection.find('.add-headers-container'));
+    });
+    
+    $('#main-container').on('click', '.headers-main-container .delete-icon', function () {
+        const headerContainer = $(this).closest('.headers-container');
+        const headersMainContainer = headerContainer.closest('.headers-main-container');
+        const headersSection = headersMainContainer.closest('.headers-section');
+        headerContainer.remove();
+        if (headersMainContainer.children().length === 0) {
+            headersSection.find('.headers-labels').css('display', 'none');
+        }
+        updateAddHeaderButtonState(headersSection.find('.add-headers-container'));
+    });
+
+    function updateAddHeaderButtonState($addButton) {
+        const headersMainContainer = $addButton.closest('.headers-section').find('.headers-main-container');
+        const hasIncompleteHeaders = headersMainContainer.find('.headers-container').filter(function () {
+            const key = $(this).find('#header-key').val();
+            const value = $(this).find('#header-value').val();
+            return (!key || !value) && $(this).find('.tick-icon').length > 0;
+        }).length > 0;
+
+        if (hasIncompleteHeaders) {
+            $addButton.addClass('disabled').prop('disabled', true);
+        } else {
+            $addButton.removeClass('disabled').prop('disabled', false);
+        }
+    }
+    
     updateTestButtonState();
     $('#contact-form').on('input', function () {
         updateTestButtonState();
     });
 }
+
+function hasUnconfirmedHeaders() {
+    let hasUnconfirmed = false;
+    $('.headers-main-container').each(function () {
+        const unconfirmedHeaders = $(this).find('.headers-container').filter(function () {
+            const key = $(this).find('#header-key').val();
+            const value = $(this).find('#header-value').val();
+            return $(this).find('.tick-icon').length > 0 && (key || value);
+        });
+        if (unconfirmedHeaders.length > 0) {
+            hasUnconfirmed = true;
+            return false; 
+        }
+    });
+    return hasUnconfirmed;
+}
+
+function setContactForm() {
+    contactData.contact_name = $('#contact-name').val();
+    contactData.slack = [];
+    contactData.webhook = [];
+
+    $('.contact-container').each(function () {
+        let contactType = $(this).find('#contact-types span').text();
+
+        if (contactType === 'Slack') {
+            let slackValue = $(this).find('#slack-channel-id').val();
+            let slackToken = $(this).find('#slack-token').val();
+            if (slackValue && slackToken) {
+                let slackContact = {
+                    channel_id: slackValue,
+                    slack_token: slackToken,
+                };
+                contactData.slack.push(slackContact);
+            }
+        } else if (contactType === 'Webhook') {
+            let webhookValue = $(this).find('#webhook-id').val();
+            if (webhookValue) {
+                let headers = {};
+                $(this).find('.headers-container').each(function () {
+                    const keyInput = $(this).find('#header-key');
+                    const valueInput = $(this).find('#header-value');
+                    // Only include headers that are confirmed (i.e., readonly inputs with edit/delete icons)
+                    if (
+                        keyInput.length &&
+                        valueInput.length &&
+                        keyInput.val() &&
+                        valueInput.val() &&
+                        keyInput.prop('readonly') &&
+                        $(this).find('.edit-icon').length > 0
+                    ) {
+                        headers[keyInput.val()] = valueInput.val();
+                    }
+                });
+
+                let webhookContact = {
+                    webhook: webhookValue,
+                    headers: headers,
+                };
+                contactData.webhook.push(webhookContact);
+            }
+        }
+    });
+    contactData.pager_duty = '';
+    updateTestButtonState();
+}
+
 function updateTestButtonState() {
     $('.contact-container').each(function () {
         const isSlack = $(this).find('#contact-types span').text() === 'Slack';
@@ -224,8 +418,15 @@ function updateTestButtonState() {
 }
 
 function addNewContactTypeContainer() {
+    if (hasUnconfirmedHeaders()) {
+        alert('Please confirm or cancel all headers before adding a new contact type.');
+        return;
+    }
+
     let newContactContainer = $('.contact-container').first().clone();
     newContactContainer.find('.form-control').val('');
+    newContactContainer.find('.headers-main-container').empty();
+    newContactContainer.find('.headers-labels').css('display', 'none');
     newContactContainer.find('.del-contact-type').remove(); // Remove any existing delete buttons
     newContactContainer.find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
     newContactContainer.appendTo('#main-container');
@@ -251,6 +452,19 @@ function addNewContactTypeContainer() {
 function setContactTypes() {
     const selectedOption = $(this).html();
     const container = $(this).closest('.contact-container');
+
+    const headersMainContainer = container.find('.headers-main-container');
+    const hasUnconfirmedHeaders = headersMainContainer.find('.headers-container').filter(function () {
+        const key = $(this).find('#header-key').val();
+        const value = $(this).find('#header-value').val();
+        return $(this).find('.tick-icon').length > 0 && (key || value);
+    }).length > 0;
+
+    if (hasUnconfirmedHeaders) {
+        alert('Please confirm or cancel all headers before changing the contact type.');
+        return;
+    }
+
     container.find('.contact-option').removeClass('active');
     container.find('#contact-types span').html(selectedOption);
     $(this).addClass('active');
@@ -260,6 +474,9 @@ function setContactTypes() {
 
     // Hide all contact type containers
     container.find('.slack-container, .webhook-container').css('display', 'none');
+
+    container.find('.headers-main-container').empty();
+    container.find('.headers-labels').css('display', 'none');
 
     // Show and set invalid class based on selected option
     if (selectedOption === 'Slack') {
@@ -274,46 +491,21 @@ function resetContactForm() {
     $('#contact-types span').text('Slack');
     $('.slack-container').css('display', 'block');
     $('.webhook-container').css('display', 'none');
+    $('.headers-main-container').empty(); 
+    $('.headers-labels').css('display', 'none');
     $('.contact-option').removeClass('active');
     $('.contact-options #option-0').addClass('active');
     contactData = {};
     updateTestButtonState();
 }
 
-function setContactForm() {
-    contactData.contact_name = $('#contact-name').val();
-    contactData.slack = [];
-    contactData.webhook = [];
-
-    $('.contact-container').each(function () {
-        let contactType = $(this).find('#contact-types span').text();
-
-        if (contactType === 'Slack') {
-            let slackValue = $(this).find('#slack-channel-id').val();
-            let slackToken = $(this).find('#slack-token').val();
-            if (slackValue && slackToken) {
-                let slackContact = {
-                    channel_id: slackValue,
-                    slack_token: slackToken,
-                };
-                contactData.slack.push(slackContact);
-            }
-        } else if (contactType === 'Webhook') {
-            let webhookValue = $(this).find('#webhook-id').val();
-            if (webhookValue) {
-                let webhookContact = {
-                    webhook: webhookValue,
-                };
-                contactData.webhook.push(webhookContact);
-            }
-        }
-    });
-    contactData.pager_duty = '';
-    updateTestButtonState();
-}
-
 function submitAddContactPointForm(e) {
     e.preventDefault();
+
+    if (hasUnconfirmedHeaders()) {
+        alert('Please confirm or cancel all headers before saving.');
+        return;
+    }
 
     if (!validateContactForm()) {
         alert('Please fill out all required fields.');
@@ -437,9 +629,9 @@ class btnRenderer {
     init(params) {
         this.eGui = document.createElement('span');
         this.eGui.innerHTML = `<div id="alert-grid-btn">
-				<button class='btn' id="editbutton"></button>
+                <button class='btn' id="editbutton"></button>
                 <button class="btn-simple mx-4" id="delbutton"></button>
-				</div>`;
+                </div>`;
         this.eButton = this.eGui.querySelector('.btn');
         this.dButton = this.eGui.querySelector('.btn-simple');
 
@@ -651,6 +843,8 @@ function showContactFormForEdit(contactId) {
                 } else {
                     contactContainer = $('.contact-container').first().clone().removeClass('d-none'); // Clone the first container for subsequent ones
                     contactContainer.find('.button-container .del-contact-type').remove(); // Remove existing delete buttons from the cloned container
+                    contactContainer.find('.headers-main-container').empty(); 
+                    contactContainer.find('.headers-labels').css('display', 'none');
                     contactContainer.appendTo('#main-container');
                 }
 
@@ -665,6 +859,21 @@ function showContactFormForEdit(contactId) {
                     contactContainer.find('.webhook-container').css('display', 'block');
                     contactContainer.find('.slack-container').css('display', 'none');
                     contactContainer.find('.webhook-container #webhook-id').val(value.webhook);
+                    if (value.headers && Object.keys(value.headers).length > 0) {
+                        Object.entries(value.headers).forEach(([headerKey, headerValue]) => {
+                            const displayHeader = `
+                                <div class="headers-container">
+                                    <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="${headerKey}" readonly>
+                                    <span class="headers-gap"></span>
+                                        <input type="text" id="header-value" class="form-control" placeholder="Header Value" tabindex="8" value="${headerValue}" readonly>
+                                    <button class="edit-icon" type="button" id="edit-header"></button>
+                                    <button class="delete-icon" type="button" id="delete-header"></button>
+                                </div>
+                            `;
+                            contactContainer.find('.headers-main-container').append(displayHeader);
+                        });
+                        contactContainer.find('.headers-labels').css('display', 'flex'); 
+                    }
                 }
                 if (key != 'slack' && key != 'webhook') {
                     contactContainer.find(`.${key}-container .form-control`).val(value);
@@ -715,11 +924,23 @@ function getContactPointTestData(container) {
             }
         } else if (contactType === 'Webhook') {
             let webhookValue = container.find('#webhook-id').val();
+            let headers = {};
+            // Update to use the new header format
+            container.find('.headers-container').each(function () {
+                const keyInput = $(this).find('#header-key');
+                const valueInput = $(this).find('#header-value');
+                // Only include headers if both key and value inputs exist and are not empty
+                if (keyInput.length && valueInput.length && keyInput.val() && valueInput.val()) {
+                    headers[keyInput.val()] = valueInput.val();
+                }
+            });
+            
             if (webhookValue) {
                 contactData = {
                     type: 'webhook',
                     settings: {
                         webhook: webhookValue,
+                        headers: headers
                     },
                 };
             }

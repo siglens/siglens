@@ -171,7 +171,7 @@ function createPanelToNewDashboard() {
                 $('#db-description').val('');
                 $('.error-tip').removeClass('active');
                 $('.popupOverlay, .popupContent').removeClass('active');
-                let panelCreatedFromLogs = createPanel(0);
+                let panelCreatedFromMetrics = createPanel(0);
                 var dashboard = {
                     id: Object.keys(res)[0],
                     name: Object.values(res)[0],
@@ -182,13 +182,7 @@ function createPanelToNewDashboard() {
                         refresh: refresh,
                         panels: [
                             {
-                                ...panelCreatedFromLogs,
-                                style: {
-                                    display: panelCreatedFromLogs.style?.display || 'Line chart',
-                                    color: panelCreatedFromLogs.style?.color || 'Classic',
-                                    lineStyle: panelCreatedFromLogs.style?.lineStyle || 'Solid',
-                                    lineStroke: panelCreatedFromLogs.style?.lineStroke || 'Normal',
-                                },
+                                ...panelCreatedFromMetrics,
                             },
                         ],
                     },
@@ -342,13 +336,9 @@ function createPanel(panelIndex, startEpoch) {
             panelIndex: panelIndex,
             queryData: panelMetricsQueryParams,
             style: {
-                //eslint-disable-next-line no-undef
                 display: chartType,
-                //eslint-disable-next-line no-undef
                 color: selectedTheme,
-                //eslint-disable-next-line no-undef
                 lineStyle: selectedLineStyle,
-                //eslint-disable-next-line no-undef
                 lineStroke: selectedStroke,
             },
         };

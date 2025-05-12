@@ -25,7 +25,7 @@ const VIEW_TYPES = {
 
 //eslint-disable-next-line no-unused-vars
 function setupEventHandlers() {
-    $('#filter-input').on('keydown', filterInputHandler);
+    $('#filter-input').off('keydown').on('keydown', filterInputHandler);
 
     $('#run-filter-btn').off('click').on('click', runFilterBtnHandler);
     $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
@@ -274,7 +274,7 @@ function updateDashboardDateRange(startTimestamp, endTimestamp) {
     // if user is on edit panel screen
     if (currentPanel) {
         if (currentPanel.queryData) {
-            if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
+            if (currentPanel.queryType === 'metrics') {
                 if (currentPanel.queryData) {
                     currentPanel.queryData.start = startDateStr;
                     currentPanel.queryData.end = endDateStr;
@@ -304,7 +304,7 @@ function updateDashboardDateRange(startTimestamp, endTimestamp) {
         localPanels.forEach((panel) => {
             delete panel.queryRes;
             if (panel.queryData) {
-                if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
+                if (panel.queryType === 'metrics') {
                     if (panel.queryData) {
                         panel.queryData.start = startDateStr;
                         panel.queryData.end = endDateStr;
@@ -477,12 +477,13 @@ function runFilterBtnHandler(evt) {
 }
 
 function filterInputHandler(evt) {
-    if (!evt.shiftKey && evt.keyCode === 13) {
+    if ( !evt.shiftKey && evt.keyCode === 13) {
         const currentUrl = window.location.href;
         const url = new URL(currentUrl);
         const pathOnly = url.pathname;
 
         const isIndexPage = pathOnly === '/' || pathOnly === '' || pathOnly.endsWith('index.html');
+        const isDashboardPage = pathOnly.includes('dashboard.html');
 
         if (isIndexPage) {
             evt.preventDefault();
@@ -494,6 +495,9 @@ function filterInputHandler(evt) {
             data = getSearchFilter(false, false);
             initialSearchData = data;
             doSearch(data);
+        }else if (isDashboardPage) {
+            evt.preventDefault();
+            runQueryBtnHandler();
         }
     }
 }

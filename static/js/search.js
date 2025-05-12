@@ -555,6 +555,7 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         }
     } else {
         const inputValue = $('#filter-input').val().trim();
+        isQueryBuilderSearch = false;
 
         // If it's initial load and the field is empty (Default search)
         if (isInitialLoad && !inputValue) {
@@ -784,7 +785,6 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         }
 
         if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
-            measureInfo = res.measure;
 
             if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
                 lastColumnsOrder = res.columnsOrder;
@@ -818,9 +818,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
             initializeAvailableFieldsSidebar(lastColumnsOrder);
         }
 
-        isTimechart = res.isTimechart;
-        lastQType = res.qtype;
-        timeChart(res.qtype);
+        timeChart(res.qtype, res.measure, res.isTimechart);
     }
 
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();

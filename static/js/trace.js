@@ -59,7 +59,7 @@ function getTraceInformation(traceId, timestampNano) {
 
     $.ajax({
         method: 'POST',
-        url: 'api/traces/ganttchart',
+        url: 'api/traces/ganttChart',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
