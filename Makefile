@@ -43,7 +43,7 @@ gofmt :
 	~/go/bin/goimports -w .
 
 %.go: %.peg
-	$(GO) install github.com/mna/pigeon@latest
+	$(GO) install github.com/mna/pigeon@v1.1.0
 	pigeon -o $@ $<
 
 all: lint test_all build
