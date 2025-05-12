@@ -476,7 +476,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             // Check if no measure data exists
             if (!res.measure || !Array.isArray(res.measure) || res.measure.length === 0) {
                 panelProcessEmptyQueryResults('', panelId);
-            } else if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && res.qtype === 'segstats-query') {
+            } else if ((chartType === 'Pie Chart' || chartType === 'Bar Chart' || chartType === 'Line Chart') && res.qtype === 'segstats-query') {
                 // Bar or Pie chart with segstats query is not compatible
                 panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
             } else if (chartType === 'number' && (resultVal === undefined || resultVal === null)) {

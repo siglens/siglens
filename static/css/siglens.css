@@ -18,7 +18,7 @@
  */
 
 
-:root {
+ :root {
     --black: #000;
     --white: #fff;
     --error: #f00;
@@ -2067,7 +2067,8 @@ table.dataTable thead td {
     background-size: contain;
 }
 
-#editbutton {
+#editbutton,
+.edit-icon {
     background-image: url(../assets/edit-alert-icon.svg);
     height: 13px;
     background-repeat: no-repeat;
@@ -2080,6 +2081,7 @@ table.dataTable thead td {
     background-size: contain;
     background-position: center;
 }
+
 
 #delOrgUserBtn,
 .index-del-btn {
@@ -2560,11 +2562,6 @@ div[aria-describedby="download-info"] {
     content: '\2713';
     /* Unicode for checkmark */
     color: white;
-    font-size: 13px;
-    position: absolute;
-    left: 1px;
-    top: -4px;
-    transform: scale(1);
 }
 
 .checkbox[type="checkbox"]:hover {
@@ -4863,7 +4860,8 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 #alerting input,
 #alerting .dropdown-toggle,
 #alerting textarea,
-.add-label-container {
+.add-label-container,
+.add-header-container {
     border: 1px solid var(--search-input-border);
     background: var(--alert-background);
     color: var(--text-color);
@@ -5411,7 +5409,7 @@ p#versionInfo {
     color: var(--index-drop-down-item-active-text-color);
 }
 
-*/ .sendMsg {
+.sendMsg {
     top: 35px;
 }
 
@@ -5422,6 +5420,7 @@ p#versionInfo {
 .minion-searches-pane {
     height: 50%;
 }
+
 
 #add-new-contact-popup {
     position: absolute;
@@ -5504,17 +5503,20 @@ p#versionInfo {
     padding: 0px 10px;
 }
 
-#delete-alert-label {
+#delete-alert-label,
+#delete-header {
     margin: 10px;
 }
 
-.add-label-container {
+.add-label-container,
+.add-headers-container {
     margin-bottom: 24px;
     display: flex;
     align-items: center;
 }
 
-.add-label-container .plus-icon {
+.add-label-container .plus-icon,
+.add-headers-container .plus-icon {
     font-size: 24px;
     margin-bottom: 4px;
     margin-right: 6px;
@@ -5563,6 +5565,111 @@ p#versionInfo {
     background: var(--alerting-table-hover);
     cursor: pointer;
 }
+
+.headers-section p{
+    font-size: 11px;
+}
+
+.headers-main-container {
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.headers-container {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.headers-labels{
+    height: 15px;
+    align-items: center;
+    width: 80%;
+    margin-bottom: 0 !important;
+}
+
+.header-label{
+    flex: 1;
+    min-width: 60px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.headers-container input {
+    height: 24px;
+}
+
+.headers-container input[readonly] {
+    background-color: var(--alert-background);
+    color: var(--text-color);
+    border-color: var(--border-color-regular);
+    border-radius: 5px !important;
+}
+
+.headers-gap {
+    padding: 0px 10px;
+}
+
+.headers-container #header-key {
+    flex: 1;
+    min-width: 150px;
+}
+
+.headers-container #header-value {
+    flex: 1.5;
+    min-width: 180px;
+}
+
+.edit-icon{
+    margin: 10px;
+}
+
+.tick-icon{
+    background-repeat: no-repeat;
+    width: 15px;
+    height: 20px;
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    margin-left: 8px;
+    background-size: contain;
+    background-position: center;
+}
+
+.tick-icon {
+    background-image: url(../assets/tick-icon.svg);
+}
+
+.cross-icon {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    margin-left: 8px;
+}
+
+.cross-icon::before,
+.cross-icon::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 2px;
+    background-color: var(--danger-color, #dc3545);
+    top: 50%;
+    left: 50%;
+}
+
+.cross-icon::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.cross-icon::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
 
 /* Log Screen */
 

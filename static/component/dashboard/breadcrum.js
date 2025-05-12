@@ -50,8 +50,8 @@ class Breadcrumb {
         if (currentName) {
             this.addNonClickableItem(currentName);
         }
-
-        if (showFavorite) {
+        // Check if a favorite button already exists before adding a new one
+        if (showFavorite && $('.sl-breadcrumb-container').find('#favbutton').length === 0) {
             const favButton = $('<button>')
                 .addClass('star-icon' + (isFavorite ? ' favorited' : ''))
                 .attr('id', 'favbutton')
@@ -87,6 +87,6 @@ class Breadcrumb {
     }
 
     onFavoriteClick(callback) {
-        $('.sl-breadcrumb-container').on('click', '#favbutton', callback);
+        $('.sl-breadcrumb-container').off('click', '#favbutton').on('click', '#favbutton', callback);
     }
 }
