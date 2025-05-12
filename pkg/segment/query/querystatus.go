@@ -900,16 +900,6 @@ func GetAllRemoteLogs(inrrcs []*utils.RecordResultContainer, qid uint64) ([]map[
 	return rQuery.searchRes.GetRemoteInfo("", inrrcs, true)
 }
 
-func round(num float64) int {
-	return int(num + math.Copysign(0.5, num))
-}
-
-// Function to truncate float64 to a given precision
-func toFixed(num float64, precision int) float64 {
-	output := math.Pow(10, float64(precision))
-	return float64(round(num*output)) / output
-}
-
 func checkForCancelledQuery(qid uint64) (bool, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
