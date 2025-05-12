@@ -320,6 +320,22 @@ function initializeContactForm(contactId) {
     });
 }
 
+function hasUnconfirmedHeaders() {
+    let hasUnconfirmed = false;
+    $('.headers-main-container').each(function () {
+        const unconfirmedHeaders = $(this).find('.headers-container').filter(function () {
+            const key = $(this).find('#header-key').val();
+            const value = $(this).find('#header-value').val();
+            return $(this).find('.tick-icon').length > 0 && (key || value);
+        });
+        if (unconfirmedHeaders.length > 0) {
+            hasUnconfirmed = true;
+            return false; 
+        }
+    });
+    return hasUnconfirmed;
+}
+
 function setContactForm() {
     contactData.contact_name = $('#contact-name').val();
     contactData.slack = [];
@@ -345,14 +361,22 @@ function setContactForm() {
                 $(this).find('.headers-container').each(function () {
                     const keyInput = $(this).find('#header-key');
                     const valueInput = $(this).find('#header-value');
-                    if (keyInput.length && valueInput.length && keyInput.val() && valueInput.val()) {
+                    // Only include headers that are confirmed (i.e., readonly inputs with edit/delete icons)
+                    if (
+                        keyInput.length &&
+                        valueInput.length &&
+                        keyInput.val() &&
+                        valueInput.val() &&
+                        keyInput.prop('readonly') &&
+                        $(this).find('.edit-icon').length > 0
+                    ) {
                         headers[keyInput.val()] = valueInput.val();
                     }
                 });
 
                 let webhookContact = {
                     webhook: webhookValue,
-                    headers: headers
+                    headers: headers,
                 };
                 contactData.webhook.push(webhookContact);
             }
@@ -394,6 +418,11 @@ function updateTestButtonState() {
 }
 
 function addNewContactTypeContainer() {
+    if (hasUnconfirmedHeaders()) {
+        alert('Please confirm or cancel all headers before adding a new contact type.');
+        return;
+    }
+
     let newContactContainer = $('.contact-container').first().clone();
     newContactContainer.find('.form-control').val('');
     newContactContainer.find('.headers-main-container').empty();
@@ -423,6 +452,19 @@ function addNewContactTypeContainer() {
 function setContactTypes() {
     const selectedOption = $(this).html();
     const container = $(this).closest('.contact-container');
+
+    const headersMainContainer = container.find('.headers-main-container');
+    const hasUnconfirmedHeaders = headersMainContainer.find('.headers-container').filter(function () {
+        const key = $(this).find('#header-key').val();
+        const value = $(this).find('#header-value').val();
+        return $(this).find('.tick-icon').length > 0 && (key || value);
+    }).length > 0;
+
+    if (hasUnconfirmedHeaders) {
+        alert('Please confirm or cancel all headers before changing the contact type.');
+        return;
+    }
+
     container.find('.contact-option').removeClass('active');
     container.find('#contact-types span').html(selectedOption);
     $(this).addClass('active');
@@ -432,6 +474,9 @@ function setContactTypes() {
 
     // Hide all contact type containers
     container.find('.slack-container, .webhook-container').css('display', 'none');
+
+    container.find('.headers-main-container').empty();
+    container.find('.headers-labels').css('display', 'none');
 
     // Show and set invalid class based on selected option
     if (selectedOption === 'Slack') {
@@ -446,6 +491,8 @@ function resetContactForm() {
     $('#contact-types span').text('Slack');
     $('.slack-container').css('display', 'block');
     $('.webhook-container').css('display', 'none');
+    $('.headers-main-container').empty(); 
+    $('.headers-labels').css('display', 'none');
     $('.contact-option').removeClass('active');
     $('.contact-options #option-0').addClass('active');
     contactData = {};
@@ -454,6 +501,11 @@ function resetContactForm() {
 
 function submitAddContactPointForm(e) {
     e.preventDefault();
+
+    if (hasUnconfirmedHeaders()) {
+        alert('Please confirm or cancel all headers before saving.');
+        return;
+    }
 
     if (!validateContactForm()) {
         alert('Please fill out all required fields.');
