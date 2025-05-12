@@ -3471,7 +3471,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     width: 16px;
     height: 16px;
     position: absolute;
-    right: calc(20% + 10px);
+    left: calc(100% - 24px);
     top: 12px;
     cursor: pointer;
 }

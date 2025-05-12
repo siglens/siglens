@@ -119,6 +119,7 @@ $(document).ready(async function () {
 
     $('#theme-btn').click(() => displayPanels());
     getDashboardData();
+
     $(`.dbSet-textareaContainer .copy`).tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'hover',
@@ -182,7 +183,6 @@ function saveJsonChanges() {
                     throw new Error('Dashboard name already exists');
                 }
                 if (res.status == 200) {
-                    $('.name-dashboard').text(dbName);
                     showToast('Dashboard Updated Successfully', 'success');
                     // Hide edit/save buttons
                     $('.dbSet-jsonModelData').prop('disabled', true);
@@ -239,7 +239,6 @@ $('.refresh-btn').on('click', refreshDashboardHandler);
 $('#db-settings-btn').on('click', handleDbSettings);
 $('#dbSet-save').on('click', saveDbSetting);
 $('#dbSet-discard').on('click', discardDbSetting);
-$('.dbSet-goToDB').on('click', discardDbSetting);
 $('.refresh-range-item').on('click', refreshRangeItemHandler);
 
 async function updateDashboard() {
@@ -267,7 +266,7 @@ async function updateDashboard() {
                 })),
                 refresh: dbRefresh,
                 panelFlag: `{{ .PanelFlag }}`,
-                isFavorite: isFavorite
+                isFavorite: isFavorite,
             },
         }),
     })
@@ -488,11 +487,16 @@ async function getDashboardData() {
         });
 
     const breadcrumb = new Breadcrumb();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+
     breadcrumb.render(
         dbData.folder?.breadcrumbs,
         dbData.name,
         true, // Show favorite button for dashboard
-        dbData.isFavorite
+        dbData.isFavorite,
+        mode === 'settings'
     );
     breadcrumb.onFavoriteClick(() => toggleFavorite(dbId));
 
@@ -511,7 +515,12 @@ async function getDashboardData() {
         });
     } else localPanels = [];
     if (localPanels != undefined) {
-        displayPanels();
+        if (mode === 'settings') {
+            // When page loads and mode=settings is in URL, open settings
+            handleDbSettings();
+        } else {
+            displayPanels();
+        }
         setFavoriteValue(dbData.isFavorite);
         setTimePickerValue();
         setRefreshItemHandler();
@@ -807,10 +816,10 @@ async function displayPanels() {
 }
 
 function getDashboardId() {
-    let queryString = decodeURIComponent(window.location.search); //parsing
-    queryString = queryString.substring(1).split('=');
-    let uniq = queryString[1];
-    return uniq;
+    const urlParams = new URLSearchParams(window.location.search);
+    const dashboardId = urlParams.get('id');
+
+    return dashboardId;
 }
 
 var panelLayout =
@@ -1034,20 +1043,32 @@ let editPanelFlag = false;
 function handleDbSettings() {
     if ($('.panelEditor-container').css('display') !== 'none') {
         $('.panelEditor-container').hide();
-        $('#app-container').hide();
+        $('#new-dashboard').hide();
         editPanelFlag = true;
         $('.popupOverlay').addClass('active');
     } else {
-        $('#app-container').hide();
+        $('#new-dashboard').hide();
     }
     $('.dbSet-container').show();
+
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('mode', 'settings');
+    window.history.pushState({}, '', currentUrl);
+
+    const breadcrumb = new Breadcrumb();
+    breadcrumb.render(
+        dbData.folder?.breadcrumbs,
+        dbData.name,
+        false,
+        dbData.isFavorite,
+        true
+    );
 
     // Reset the state of the Edit/Save JSON buttons
     $('.dbSet-jsonModelData').prop('disabled', true);
     $('#dbSet-edit-json').show();
     $('#dbSet-save-json').hide();
 
-    $('.dbSet-name').html(dbName);
     $('.dbSet-dbName').val(dbName);
     $('.dbSet-dbDescr').val(dbDescr);
     $('.dbSet-dbFolder').val(dbFolder);
@@ -1115,18 +1136,18 @@ function handleDbSettings() {
 }
 
 function showGeneralDbSettings() {
-    $('.dbSet-general').addClass('selected');
+    $('.dbSet-general').addClass('active');
     $('.dbSet-generalHTML').removeClass('hide');
 
-    $('.dbSet-jsonModel').removeClass('selected');
+    $('.dbSet-jsonModel').removeClass('active');
     $('.dbSet-jsonModelHTML').addClass('hide');
 }
 
 function showJsonModelDbSettings() {
-    $('.dbSet-general').removeClass('selected');
+    $('.dbSet-general').removeClass('active');
     $('.dbSet-generalHTML').addClass('hide');
 
-    $('.dbSet-jsonModel').addClass('selected');
+    $('.dbSet-jsonModel').addClass('active');
     $('.dbSet-jsonModelHTML').removeClass('hide');
 }
 
@@ -1172,7 +1193,11 @@ function saveDbSetting() {
 
     updateDashboard().then((updateSuccessful) => {
         if (updateSuccessful) {
-            $('#app-container').show();
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete('mode');
+            window.history.pushState({}, '', currentUrl);
+
+            $('#new-dashboard').show();
             $('.dbSet-container').hide();
             // Refresh the dashboard data to reflect changes immediately
             getDashboardData();
@@ -1186,12 +1211,26 @@ $('#error-ok-btn').click(function () {
 });
 
 function discardDbSetting() {
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.delete('mode');
+    window.history.pushState({}, '', currentUrl);
+
+    const breadcrumb = new Breadcrumb();
+    breadcrumb.render(
+        dbData.folder?.breadcrumbs,
+        dbData.name,
+        false,
+        dbData.isFavorite,
+        false
+    );
+
     if (editPanelFlag) {
         $('.panelEditor-container').css('display', 'flex');
         $('.popupOverlay').addClass('active');
         editPanelFlag = false;
     } else {
-        $('#app-container').show();
+        $('#new-dashboard').show();
+        displayPanels();
     }
     $('.dbSet-dbName').val('');
     $('.dbSet-dbDescr').val('');

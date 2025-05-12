@@ -594,99 +594,35 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  margin: 12px 20px;
+  justify-content: end;
+  padding: 12px;
 }
 
 .dbSet-body {
   min-width: 100vw;
-  min-height: 92vh;
+  height: 100%;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   position: relative;
+  padding: 32px;
 }
 
 /* DASHBOARD SETTINGS - LEFT */
 .dbSet-left {
-  width: 25%;
-  height: 92vh;
-  background-color: var(--db-options-bg-color);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  border-radius: 0 5px 0 0;
-}
-
-.dbSet-nav {
-  height: 50px;
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  width: 90%;
-  margin-top: 1rem;
-}
-
-.dbSet-goToDB {
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  color: var(--purple-1);
-  font-weight: 600;
-}
-
-.dbSet-heading {
-  padding-left: 1rem;
-}
-
-.dbSet-options {
-  display: flex;
-  flex-direction: column;
-  width: 80%;
-  margin-top: 1rem;
-  color: var(--db-setting-option-text-selected);
-}
-
-.dbSet-options>span {
-  padding: 0.75rem 1.25rem;
-}
-
-.dbSet-options span {
-  border-radius: 5px;
-}
-
-.dbSet-jsonModel {
-  margin-top: 1rem;
-  cursor: pointer;
-}
-
-.dbSet-general {
-  cursor: pointer;
-}
-
-.dbSet-dbName::placeholder,
-.dbSet-dbDescr::placeholder,
-.dbSet-jsonModelData::placeholder {
-  color: var(--db-setting-placeholder);
-}
-
-.dbSet-dbName,
-.dbSet-dbDescr,
-.dbSet-jsonModelData {
-  color: var(--db-setting-text);
 }
 
 /* DASHBOARD SETTINGS - RIGHT */
 .dbSet-right {
-  width: 72%;
-  height: 92vh;
+  height: 100%;
 }
 
 .dbSet-generalHTML {
-  width: 100%;
+  width: 600px;
   height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
   position: relative;
 }
 
@@ -697,10 +633,6 @@
   align-items: flex-start;
 }
 
-#dbSet-nameContainer {
-  margin-top: calc(50px + 2rem);
-}
-
 #dbSet-descrContainer {
   margin-top: 24px;
   height: 120px;
@@ -708,33 +640,18 @@
 
 .dbSet-dbName,
 .dbSet-dbFolder {
-  border: 1px solid var(--white-4);
-  outline: none;
-  padding: 0.8rem 1.25rem;
-  width: 80%;
-  background: transparent;
-  border-radius: 5px;
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
 .dbSet-dbDescr {
-  border: 1px solid var(--white-4);
-  outline: none;
-  padding: 10px 20px;
-  width: 80%;
-  background: transparent;
-  border-radius: 5px;
+  width: 100%;
+  margin-top: 4px;
   height: 100%;
   resize: none;
-  margin-top: 10px;
 }
 
 .dbSet-dbDescr:focus {
-  color: var(--search-bar-text-color-active);
-  border-radius: 5px;
-  background: var(--search-bar-bg);
   outline: 1pt solid var(--drop-down-btn-border-active);
-  outline-offset: -1pt;
 }
 
 .dbSet-saveBtnContainer {
@@ -755,6 +672,7 @@
 
 .dbSet-container {
   display: none;
+  height: 100vh;
 }
 
 .dbSet-right .hide {
@@ -777,8 +695,7 @@
 }
 
 .dbSet-textareaContainer {
-  width: 80%;
-  height: 70%;
+  height: 100%;
   position: relative;
 }
 
@@ -796,14 +713,10 @@
 }
 
 .dbSet-jsonModelData {
-  border: 1px solid var(--white-4);
-  outline: none;
-  padding: 1rem 1.25rem;
-  width: 80%;
-  background: transparent;
-  border-radius: 5px;
-  height: 100%;
+  width: 100%;
+  height: calc(100% - 30px);
   resize: none;
+  color: var(--text-color);
 }
 
 .dbSet-jsonModelData:focus {
@@ -819,27 +732,14 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
   position: relative;
 }
 
-#dbSet-edit-json.panEdit-btn {
-  position: absolute;
-  right: calc(20% + 50px);
-  top: 70px;
-  width: 80px;
-  height: 30px;
-  font-size: small;
-}
-
+#dbSet-edit-json.panEdit-btn,
 #dbSet-save-json.panEdit-btn {
-  display: none;
-  position: absolute;
-  right: calc(20% + 50px);
-  top: 70px;
   width: 80px;
-  height: 30px;
-  font-size: small;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 /* UNIT TYPE NESTED DROPDOWN */
@@ -918,13 +818,6 @@
 
 .legend-element-line.selected {
   color: var(--legend-element-hover);
-}
-
-.dbSet-name,
-.dbSet-heading {
-  white-space: nowrap;
-  font-weight: 600;
-  font-size: 16px;
 }
 
 .navbar-options {
@@ -1073,13 +966,6 @@
   white-space: nowrap;
   overflow: hidden;
   vertical-align: bottom;
-}
-
-#dbSet-discard,
-#dbSet-save {
-  background: var(--myOrg-input);
-  color: var(--text-color);
-  width: 100px;
 }
 
 .circle {
