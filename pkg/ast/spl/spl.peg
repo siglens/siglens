@@ -1880,13 +1880,10 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
         GroupByColumns: groupByColumns,
     }
 
-	if config.IsNewQueryPipelineEnabled() {
-		root.GroupByRequest = aggNode.GroupByRequest
-        root.StatisticExpr = statisticExpr.(*structs.StatisticExpr)
-		return root, nil
-	}
+	root.GroupByRequest = aggNode.GroupByRequest
+    root.StatisticExpr = statisticExpr.(*structs.StatisticExpr)
+	return root, nil
 
-    return aggNode, nil
 }
 
 StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(SPACE FieldNameList) byClause:(ByClause)? options:(StatisticOptions)? {

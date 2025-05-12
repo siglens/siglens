@@ -868,15 +868,7 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 	finalQsrs = append(finalQsrs, rotatedQSR...)
 	numRawSearch += rotatedRawCount
 
-	if config.IsNewQueryPipelineEnabled() {
-		numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
-	} else {
-		numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
-		if err != nil {
-			log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
-			return nil, 0, 0, err
-		}
-	}
+	numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
 
 	return finalQsrs, numRawSearch, numDistributed, nil
 }
@@ -1092,15 +1084,7 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*Que
 	numRawSearch += rotatedRawCount
 	numPQS += rotatedPQS
 
-	if config.IsNewQueryPipelineEnabled() {
-		numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
-	} else if queryInfo.dqs != nil {
-		numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
-		if err != nil {
-			log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
-			return nil, 0, 0, 0, err
-		}
-	}
+	numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
 
 	// Sort query segment results depending on aggs
 	sortedQSRSlice := getSortedQSRResult(queryInfo.aggs, unsortedQsrs)
