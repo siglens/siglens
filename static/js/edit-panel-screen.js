@@ -1040,6 +1040,7 @@ function resetEditPanel() {
     const panEditEl = `<div id="panEdit-panel" class="panEdit-panel"></div>`;
     $('.panelDisplay').append(panEditEl);
 }
+
 function resetOptions() {
     selectedChartTypeIndex = -1;
     selectedLogLinesViewTypeIndex = -1;
@@ -1091,7 +1092,7 @@ async function runQueryBtnHandler() {
     $('.panelDisplay .big-number-display-container').hide();
     $('#metrics-queries, #metrics-formula').empty();
 
-    // runs the query according to the query type selected and irrespective of chart type
+    // Run the query according to the query type selected
     if (currentPanel.queryType == 'metrics') {
         data = currentPanel.queryData;
         runMetricsQuery(data, -1, currentPanel);
@@ -1108,6 +1109,7 @@ async function runQueryBtnHandler() {
         await runPanelLogsQuery(data, -1, currentPanel);
     }
 }
+
 $(document).on('click', function (event) {
     if (!$(event.target).closest('.dropDown-logLinesView').length) {
         $('.editPanelMenu-logLinesView').slideUp();
