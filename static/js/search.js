@@ -718,6 +718,11 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
             if (res.hits.totalMatched) {
                 totalHits = res.hits.totalMatched;
             }
+
+            if (runTimeChart && $('.histo-container').hasClass('visible')) {
+                console.log('Rendering histogram in processCompleteUpdate');
+                renderHistogram();
+            }
         }
     }
 
@@ -823,6 +828,11 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 
             //eslint-disable-next-line no-undef
             initializeAvailableFieldsSidebar(lastColumnsOrder);
+
+            if (runTimeChart && $('.histo-container').hasClass('visible')) {
+                console.log('Rendering histogram in processCompleteUpdate');
+                renderHistogram();
+            }
         }
 
         timeChart(res.qtype, res.measure, res.isTimechart);   

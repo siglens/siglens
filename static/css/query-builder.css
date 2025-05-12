@@ -791,6 +791,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
 #histogram-toggle-btn.active {
     background-color: var(--drop-down-btn-bg-hover) !important;
     border: 1px solid var(--border-btn-color) !important;
+
 }
 
 .tab-content-size {

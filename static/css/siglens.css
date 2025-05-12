@@ -3122,6 +3122,17 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     margin-left: 5px !important;
 }
 
+/* logs histogram css */
+.histogram-icon::before {
+    content: "\f080"; /* FontAwesome histogram icon */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+}
+
+#histogram-container.visible {
+    display: block !important;
+}
+
 /*launch dashboard*/
 .launch-dashboard {
     padding: 16px;
