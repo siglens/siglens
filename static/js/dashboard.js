@@ -332,22 +332,6 @@ function handlePanelEdit() {
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
-        document.getElementById('display-input').value = currentPanel.style?.display || 'Line chart';
-        document.getElementById('color-input').value = currentPanel.style?.color || 'Classic';
-        document.getElementById('line-style-input').value = currentPanel.style?.lineStyle || 'Solid';
-        document.getElementById('stroke-input').value = currentPanel.style?.lineStroke || 'Normal';
-        if (currentPanel.style) {
-            //eslint-disable-next-line no-undef
-            toggleLineOptions(currentPanel.style.display);
-            //eslint-disable-next-line no-undef
-            chartType = currentPanel.style.display;
-            //eslint-disable-next-line no-undef
-            toggleChartType(currentPanel.style.display);
-            //eslint-disable-next-line no-undef
-            updateChartTheme(currentPanel.style.color);
-            //eslint-disable-next-line no-undef
-            updateLineCharts(currentPanel.style.lineStyle, currentPanel.style.lineStroke);
-        }
     });
 }
 function handlePanelRemove(panelId) {
@@ -531,20 +515,6 @@ async function getDashboardData() {
         setFavoriteValue(dbData.isFavorite);
         setTimePickerValue();
         setRefreshItemHandler();
-        localPanels.forEach((localPanel) => {
-            if (localPanel.style) {
-                //eslint-disable-next-line no-undef
-                toggleLineOptions(localPanel.style.display);
-                //eslint-disable-next-line no-undef
-                chartType = localPanel.style.display;
-                //eslint-disable-next-line no-undef
-                toggleChartType(localPanel.style.display);
-                //eslint-disable-next-line no-undef
-                updateChartTheme(localPanel.style.color);
-                //eslint-disable-next-line no-undef
-                updateLineCharts(localPanel.style.lineStyle, localPanel.style.lineStroke);
-            }
-        });
     }
 }
 

@@ -247,15 +247,7 @@ $(document).ready(function () {
         ele.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
     }
 });
-function checkChartType(currentPanel) {
-    if (currentPanel.chartType === 'Line Chart' || currentPanel.chartType === 'Line chart') {
-        $('#visualization-options').addClass('d-flex');
-        $('#visualization-options').show();
-    } else {
-        $('#visualization-options').removeClass('d-flex');
-        $('#visualization-options').hide();
-    }
-}
+
 //eslint-disable-next-line no-unused-vars
 async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
     queries = {};
@@ -477,7 +469,21 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
         $('#metrics-query-language').css('display', 'inline-block');
         $('.index-container, .queryInput-container, #query-language-btn').css('display', 'none');
         $('#logs-vis-format-options').hide();
-        checkChartType(currentPanel); // Show chart editing options for metrics graphs
+
+        if (!currentPanel.style) {
+            currentPanel.style = {
+                color: 'Palette',
+                display: 'Line chart',
+                lineStroke: 'Normal',
+                lineStyle: 'Solid',
+            };
+        }
+
+        // Show chart editing options for metrics graphs
+        $('#visualization-options').addClass('d-flex');
+        $('#visualization-options').show();
+
+        applyLineChartStyle(currentPanel.style);
     }
 
     // Refreshing all the dropdown and menus
@@ -497,8 +503,8 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
     // Pause the Refresh when on Edit Panel Screen
     pauseRefreshInterval();
 
+    // For logs: Don't do initial search when a new panel is created
     if (currentPanel.queryType === 'logs' && isNewPanel && (!currentPanel.queryData.searchText || currentPanel.queryData.searchText.trim() === '')) {
-        // Ensure parent containers are visible
         $('.panelEditor-container').css('display', 'flex');
         $('.panelDisplay .panEdit-panel').css('display', 'none');
         $('.panelDisplay #empty-response').html('<div>Create a query using the builder to access and view the logs.</div>').css({
@@ -532,6 +538,19 @@ function initFormatAccordion(panel) {
     setupFormatPanel();
 }
 
+function applyLineChartStyle() {
+    $('#display-input').val(currentPanel.style.display);
+    $('#color-input').val(currentPanel.style.color);
+    $('#line-style-input').val(currentPanel.style.lineStyle);
+    $('#stroke-input').val(currentPanel.style.lineStroke);
+
+    toggleLineOptions(currentPanel.style.display);
+    chartType = currentPanel.style.display;
+    toggleChartType(currentPanel.style.display);
+    updateChartTheme(currentPanel.style.color);
+    updateLineCharts(currentPanel.style.lineStyle, currentPanel.style.lineStroke);
+}
+
 function loadVisualizationOptions(panelType) {
     $('.chart-options').hide();
     $('.chart-options').removeClass('selected');
@@ -551,15 +570,12 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
     if (currentPanel.queryType === 'metrics') {
         const data = getMetricsQData();
         currentPanel.queryData = data;
-        currentPanel.style = {};
-        //eslint-disable-next-line no-undef
-        currentPanel.style.display = chartType;
-        //eslint-disable-next-line no-undef
-        currentPanel.style.color = selectedTheme;
-        //eslint-disable-next-line no-undef
-        currentPanel.style.lineStroke = selectedStroke;
-        //eslint-disable-next-line no-undef
-        currentPanel.style.lineStyle = selectedLineStyle;
+        currentPanel.style = {
+            display: chartType,
+            color: selectedTheme,
+            lineStroke: selectedStroke,
+            lineStyle: selectedLineStyle,
+        };
     } else if (currentPanel.queryType === 'logs') {
         const data = getQueryParamsData();
         currentPanel.queryData = data;
@@ -1049,22 +1065,6 @@ function resetOptions() {
             return;
         }
     });
-    if (selectedChartTypeIndex === 0 || selectedChartTypeIndex === -1) {
-        //eslint-disable-next-line no-undef
-        toggleLineOptions('Line chart');
-        //eslint-disable-next-line no-undef
-        chartType = 'Line chart';
-        //eslint-disable-next-line no-undef
-        toggleChartType('Line chart');
-        //eslint-disable-next-line no-undef
-        updateChartTheme('Classic');
-        //eslint-disable-next-line no-undef
-        updateLineCharts('Solid', 'Normal');
-        document.getElementById('display-input').value = 'Line chart';
-        document.getElementById('color-input').value = 'Classic';
-        document.getElementById('line-style-input').value = 'Solid';
-        document.getElementById('stroke-input').value = 'Normal';
-    }
 }
 
 function displayQueryToolTip() {
