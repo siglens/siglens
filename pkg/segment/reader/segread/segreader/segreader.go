@@ -309,12 +309,12 @@ func (sfr *SegmentFileReader) ReturnBuffers() error {
 // returns a bool indicating if blockNum is valid, and any error encountered
 func (sfr *SegmentFileReader) readBlock(blockNum uint16) (bool, error) {
 	validBlock, err := sfr.loadBlockUsingBuffer(blockNum)
+	if !validBlock {
+		return false, fmt.Errorf("SegmentFileReader.readBlock: column does not exist in block: %v", blockNum)
+	}
 	if err != nil {
 		return true, fmt.Errorf("SegmentFileReader.readBlock: error trying to read block %v in file %s. Error: %+v",
 			blockNum, sfr.fileName, err)
-	}
-	if !validBlock {
-		return false, fmt.Errorf("SegmentFileReader.readBlock: column does not exist in block: %v", blockNum)
 	}
 
 	sfr.currBlockNum = blockNum
