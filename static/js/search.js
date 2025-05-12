@@ -555,6 +555,7 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         }
     } else {
         const inputValue = $('#filter-input').val().trim();
+        isQueryBuilderSearch = false;
 
         // If it's initial load and the field is empty (Default search)
         if (isInitialLoad && !inputValue) {

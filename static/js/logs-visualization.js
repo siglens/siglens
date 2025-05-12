@@ -278,7 +278,7 @@ function setupFormatPanel() {
                 $('.content-section').hide();
                 $(`#${chartSettings.lastActiveSection}-section`).show();
 
-                updateFormValues();
+                updateFormatPanelFields(chartSettings);
             }
         });
 
@@ -310,6 +310,7 @@ function setupFormatPanel() {
 
         handleButtonGroupChange(section, settingType, value);
         updateChart();
+        syncFormatSettings();
     });
 
     // Rotation button
@@ -323,6 +324,7 @@ function setupFormatPanel() {
 
             chartSettings.xAxis.labelRotation = rotation;
             updateChart();
+            syncFormatSettings();
         });
 
     // Input field changes
@@ -333,6 +335,7 @@ function setupFormatPanel() {
 
         handleInputChange(section, settingType, value);
         updateChart();
+        syncFormatSettings();
     });
 
     // Select field changes
@@ -355,6 +358,7 @@ function setupFormatPanel() {
 
         handleSelectChange(section, settingType, value);
         updateChart();
+        syncFormatSettings();
     });
 
     // Legend position dropdown handling
@@ -367,6 +371,7 @@ function setupFormatPanel() {
 
         chartSettings.legend.position = position;
         updateChart();
+        syncFormatSettings();
     });
 
     // Metrics selection for chart overlay
@@ -381,10 +386,10 @@ function setupFormatPanel() {
     });
 
     // Initialize the form with current settings values
-    updateFormValues();
+    updateFormatPanelFields(chartSettings);
 }
 
-function updateFormValues() {
+function updateFormatPanelFields(chartSettings) {
     // X-Axis settings
     $('input[name="x-axis-title"]').val(chartSettings.xAxis.title);
     $(`.rotation-btn[data-rotation="${chartSettings.xAxis.labelRotation}"]`).addClass('active').siblings().removeClass('active');
@@ -802,4 +807,10 @@ function updateTimeChartTheme() {
     window.myBarChart.options.plugins.legend.labels.color = tickColor;
 
     window.myBarChart.update();
+}
+
+function syncFormatSettings() {
+    if (currentPanel) {
+        currentPanel.formatSettings = JSON.parse(JSON.stringify(chartSettings));
+    }
 }

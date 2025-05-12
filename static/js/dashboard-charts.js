@@ -196,12 +196,23 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
 
             var barConfig = loadBarOptions(xData, seriesData, chartType);
 
+            barChart = new Chart(ctx, barConfig);
+
+            let panel = panelId === -1 ? currentPanel : localPanels[panelIndex];
+            if (panel && panel.formatSettings) {
+                window.myBarChart = barChart;
+
+                chartSettings = JSON.parse(JSON.stringify(panel.formatSettings));
+
+                currentChartType = chartType === 'Line Chart' ? 'line' : 'bar';
+
+                updateChart();
+            }
+
             if (panelId !== -1 && seriesData.length > 5) {
                 // Disable legend display
                 barConfig.options.plugins.legend.display = false;
             }
-
-            barChart = new Chart(ctx, barConfig);
             break;
         case 'Pie Chart':
             $(`.panelDisplay .big-number-display-container`).hide();
