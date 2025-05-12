@@ -361,7 +361,6 @@ function setContactForm() {
                 $(this).find('.headers-container').each(function () {
                     const keyInput = $(this).find('#header-key');
                     const valueInput = $(this).find('#header-value');
-<<<<<<< HEAD
                     // Only include headers that are confirmed (i.e., readonly inputs with edit/delete icons)
                     if (
                         keyInput.length &&
@@ -371,9 +370,6 @@ function setContactForm() {
                         keyInput.prop('readonly') &&
                         $(this).find('.edit-icon').length > 0
                     ) {
-=======
-                    if (keyInput.length && valueInput.length && keyInput.val() && valueInput.val()) {
->>>>>>> 9a7e9e4e (addressed comments and some additional changes)
                         headers[keyInput.val()] = valueInput.val();
                     }
                 });
