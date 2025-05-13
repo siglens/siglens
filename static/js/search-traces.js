@@ -625,7 +625,7 @@ function redrawScatterPlot() {
 }
 
 function redrawResults() {
-    $('.warn-box').remove();
+    $('#warn-bottom').empty();
 
     traces.forEach((trace, index) => {
         const traceHtml = createTraceHtml(trace, index);
@@ -668,7 +668,6 @@ function createTraceHtml(trace, index) {
                         <div class="total-span" id="total-span-${index}"></div>
                         <div class="error-span" id="error-span-${index}"></div>
                     </div>
-                    <div></div>
                     <div class="warn-content-right">
                         <span class="start-time" id="start-time-${index}"></span>
                         <span class="how-long-time" id="how-long-time-${index}"></span>
@@ -702,4 +701,14 @@ function setLoading(loading) {
     isLoading = loading;
     $('body').css('cursor', loading ? 'progress' : 'default');
     $('#search-trace-btn').prop('disabled', loading).toggleClass('disabled', loading);
+    
+    if (loading) {
+        if ($('#scroll-loader').length === 0) {
+            $('#warn-bottom').after('<div id="scroll-loader" class="text-center py-3"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div> Loading traces...</div>');
+        } else {
+            $('#scroll-loader').removeClass('d-none');
+        }
+    } else {
+        $('#scroll-loader').addClass('d-none');
+    }
 }
