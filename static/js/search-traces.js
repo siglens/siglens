@@ -115,10 +115,9 @@ function initDropdown(chooseColumn, spanName, defaultValue = 'All') {
 function fetchData(chooseColumn) {
     return new Promise((resolve, reject) => {
         let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
-        if (chooseColumn == 'name' && $('#service-span-name').text() && $('#service-span-name').text() != 'All') {
+
+        if (chooseColumn === 'name' && $('#service-span-name').text() && $('#service-span-name').text() !== 'All') {
             searchText += " WHERE service='" + $('#service-span-name').text() + "'";
-        } else if (chooseColumn == 'service' && $('#operation-span-name').text() && $('#operation-span-name').text() != 'All') {
-            searchText += " WHERE name='" + $('#operation-span-name').text() + "'";
         }
 
         const urlParams = new URLSearchParams(window.location.search);
