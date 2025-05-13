@@ -30,6 +30,8 @@ let allResultsFetched = false;
 let totalTraces = 0;
 let initialSearchPerformed = false;
 let dropdownsInitialized = false;
+let lastScrollTop = 0;
+
 $(document).ready(() => {
     allResultsFetched = false;
     $('.theme-btn').on('click', themePickerHandler);
@@ -40,8 +42,8 @@ $(document).ready(() => {
     // Add popstate event listener for browser navigation
     window.removeEventListener('popstate', handlePopState);
     window.addEventListener('popstate', handlePopState);
-
 });
+
 window.onload = function () {
     hasLoaded = true;
 
@@ -96,7 +98,6 @@ function initializeDropdowns() {
         getValuesOfColumn('name', 'Operation', operationValue);
     }, 100);
 }
-
 
 function getValuesOfColumn(chooseColumn, spanName, defaultValue = 'All') {
     let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
@@ -229,7 +230,7 @@ function handleTimePicker() {
 
     $('#lookback').timeTicker({
         spanName: displayText,
-        clicked: function(selectedTime) {
+        clicked: function (selectedTime) {
             // Map the display text to actual time values
             let startTime;
             let endTime = 'now';
@@ -255,8 +256,7 @@ function handleTimePicker() {
 
             // Trigger search with updated time range
             searchTraceHandler(new Event('timeChange'));
-        }
-
+        },
     });
 }
 
@@ -376,7 +376,7 @@ function durationToNanoseconds(durationStr) {
         case 'u':
             return value * 1e3; // microseconds to nanoseconds
         default:
-            console.warn("No unit provided for duration. Assuming seconds.");
+            console.warn('No unit provided for duration. Assuming seconds.');
             return value * 1e9; // Assuming seconds if no unit is specified.
     }
 }
@@ -391,7 +391,7 @@ function getInitialSearchState() {
         minDuration: '',
         maxDuration: '',
         limit: '',
-        tags: ''
+        tags: '',
     };
 
     // Get values from URL or use defaults
@@ -403,7 +403,7 @@ function getInitialSearchState() {
         minDuration: urlParams.get('minDuration') || defaultParams.minDuration,
         maxDuration: urlParams.get('maxDuration') || defaultParams.maxDuration,
         limit: urlParams.get('limit') || defaultParams.limit,
-        tags: urlParams.get('tags') || defaultParams.tags
+        tags: urlParams.get('tags') || defaultParams.tags,
     };
 
     // Update UI with URL parameters
@@ -458,7 +458,7 @@ function updateUrlWithSearchState(state) {
     }
 
     // Update URL without page reload
-    window.history.pushState({searchState: state}, '', url);
+    window.history.pushState({ searchState: state }, '', url);
 }
 
 function handlePopState(event) {
@@ -488,7 +488,8 @@ function handlePopState(event) {
 }
 
 function searchTraceHandler(e) {
-    if (e.type !== 'popstate' && e.type !== 'init' && e.type !== 'timeChange') {  // Don't prevent default for popstate events
+    if (e.type !== 'popstate' && e.type !== 'init' && e.type !== 'timeChange') {
+        // Don't prevent default for popstate events
         e.stopPropagation();
         e.preventDefault();
     }
@@ -513,12 +514,12 @@ function searchTraceHandler(e) {
     let minDurationValue = durationToNanoseconds(minDurationValueStr);
 
     if (maxDurationValue === null && maxDurationValueStr) {
-        showToast("Invalid format for Max Duration. Examples: 1.2s, 100ms, 500µs", 'error');
+        showToast('Invalid format for Max Duration. Examples: 1.2s, 100ms, 500µs', 'error');
         return;
     }
 
     if (minDurationValue === null && minDurationValueStr) {
-        showToast("Invalid format for Min Duration. Examples: 1.2s, 100ms, 500µs", 'error');
+        showToast('Invalid format for Min Duration. Examples: 1.2s, 100ms, 500µs', 'error');
         return;
     }
 
@@ -563,7 +564,7 @@ function searchTraceHandler(e) {
         minDuration: minDurationValueStr,
         maxDuration: maxDurationValueStr,
         limit: limitResValue,
-        tags: tagValue
+        tags: tagValue,
     };
 
     updateUrlWithSearchState(currentState);
@@ -617,6 +618,7 @@ function initChart(skipSearch = false) {
         initialSearchPerformed = true;
     }
 }
+
 async function getTotalTraces(params) {
     return $.ajax({
         method: 'post',
@@ -634,6 +636,7 @@ async function getTotalTraces(params) {
         $('#traces-number').text(res.toLocaleString('en-US') + ' Traces');
     });
 }
+
 function searchTrace(params) {
     $.ajax({
         method: 'post',
@@ -677,10 +680,6 @@ function searchTrace(params) {
                 showScatterPlot();
                 reSort();
 
-                // If the number of traces returned is 50, call getData again
-                if (res.traces.length == 50 && params.page < 2) {
-                    getData(params);
-                }
                 if (returnResTotal.length >= totalTraces && res.traces.length < 50) {
                     allResultsFetched = true;
                 }
@@ -709,6 +708,7 @@ function searchTrace(params) {
             isLoading = false;
         });
 }
+
 const resizeObserver = new ResizeObserver((_entries) => {
     if (chart != null && chart != '' && chart != undefined) chart.resize();
 });
@@ -917,36 +917,35 @@ function calculateTimeToNow(startTime) {
         days: days,
     };
 }
-let lastScrollPosition = 0;
-let isLoading = false; // Flag to indicate whether an API call is in progress
 
 $('#dashboard .scrollable-container').on('scroll', function () {
     const container = $(this);
+    const scrollTop = container.scrollTop();
     const scrollHeight = this.scrollHeight;
-    const scrollPosition = container.height() + container.scrollTop();
+    const scrollPosition = container.height() + scrollTop;
+    const scrollThreshold = 0.8; // Only trigger when 80% scrolled down
 
-    if (!isLoading && hasLoaded && !allResultsFetched && scrollPosition / scrollHeight >= 0.6) {
+    const isScrollingDown = scrollTop > lastScrollTop;
+    lastScrollTop = scrollTop;
+
+    if (!isLoading && hasLoaded && !allResultsFetched && isScrollingDown && scrollPosition / scrollHeight >= scrollThreshold) {
+        $('body').css('cursor', 'progress');
         isLoading = true;
-        lastScrollPosition = container.scrollTop();
-
-        getData();
-
-        container.scrollTop(lastScrollPosition);
+        getNextPageData();
     }
 });
-function getData() {
-    //users did not set limitation
-    if (limitation == -1) {
-        params.page = params.page + 1;
-        searchTrace(params);
-    } else if (limitation > 0) {
+
+function getNextPageData() {
+    // If users did not set limitation
+    if (limitation == -1 || limitation > 0) {
         if (limitation >= 50) {
             limitation = limitation - 50;
-            params.page = params.page + 1;
-            searchTrace(params);
-        } else {
-            params.page = params.page + 1;
-            searchTrace(params);
         }
+
+        params.page = params.page + 1;
+        searchTrace(params);
+    } else {
+        $('body').css('cursor', 'default');
+        isLoading = false;
     }
 }
