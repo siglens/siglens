@@ -92,71 +92,23 @@ function initializeDropdowns() {
 
     dropdownsInitialized = true;
 
-    getValuesOfColumn('service', 'Service', serviceValue);
-
-    setTimeout(() => {
-        getValuesOfColumn('name', 'Operation', operationValue);
-    }, 100);
+    initDropdown('service', 'Service', serviceValue);
+    initDropdown('name', 'Operation', operationValue);
 }
 
-function getValuesOfColumn(chooseColumn, spanName, defaultValue = 'All') {
-    let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
+function initDropdown(chooseColumn, spanName, defaultValue = 'All') {
+    let initialList = ['All'];
 
-    // Add conditional logic for operations dropdown
-    if (chooseColumn === 'name' && $('#service-span-name').text() && $('#service-span-name').text() !== 'All') {
-        searchText += " WHERE service='" + $('#service-span-name').text() + "'";
-    }
-
-    const urlParams = new URLSearchParams(window.location.search);
-    let startEpoch = urlParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-1h';
-    let endEpoch = urlParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
-
-    let param = {
-        state: 'query',
-        searchText: searchText,
-        startEpoch: startEpoch || 'now-1h',
-        endEpoch: endEpoch || filterEndDate,
-        indexName: 'traces',
-        queryLanguage: 'SQL',
-        from: 0,
-    };
-
-    return $.ajax({
-        method: 'post',
-        url: 'api/search',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
+    $(`#${chooseColumn}-dropdown`).singleBox({
+        spanName: spanName,
+        dataList: initialList,
+        defaultValue: defaultValue,
+        dataUpdate: true,
+        clickedHead: async function () {
+            // Only fetch the data when the dropdown is clicked
+            await fetchData(chooseColumn);
+            return currList;
         },
-        crossDomain: true,
-        dataType: 'json',
-        data: JSON.stringify(param),
-    }).then((res) => {
-        let valuesOfColumn = new Set();
-        valuesOfColumn.add('All');
-        if (res && res.hits && res.hits.records) {
-            for (let i = 0; i < res.hits.records.length; i++) {
-                let cur = res.hits.records[i][chooseColumn];
-                if (typeof cur == 'string') valuesOfColumn.add(cur);
-                else valuesOfColumn.add(cur.toString());
-            }
-        }
-        currList = Array.from(valuesOfColumn);
-
-        if ($(`#${chooseColumn}-dropdown`).length) {
-            $(`#${chooseColumn}-dropdown`).singleBox({
-                spanName: spanName,
-                dataList: currList,
-                defaultValue: defaultValue,
-                dataUpdate: true,
-                clickedHead: async function () {
-                    await fetchData(chooseColumn);
-                    return currList;
-                },
-            });
-        }
-
-        return currList;
     });
 }
 
@@ -168,15 +120,21 @@ function fetchData(chooseColumn) {
         } else if (chooseColumn == 'service' && $('#operation-span-name').text() && $('#operation-span-name').text() != 'All') {
             searchText += " WHERE name='" + $('#operation-span-name').text() + "'";
         }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let startEpoch = urlParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-1h';
+        let endEpoch = urlParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
+
         let param = {
             state: 'query',
             searchText: searchText,
-            startEpoch: 'now-1h',
-            endEpoch: filterEndDate,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
             indexName: 'traces',
             queryLanguage: 'SQL',
             from: 0,
         };
+
         $.ajax({
             method: 'post',
             url: 'api/search',
@@ -202,6 +160,9 @@ function fetchData(chooseColumn) {
                 resolve(currList);
             })
             .catch((error) => {
+                console.error('Failed to fetch dropdown data:', error);
+
+                currList = ['All'];
                 reject(error);
             });
     });
