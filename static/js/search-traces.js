@@ -29,11 +29,9 @@ let hasLoaded = false;
 let allResultsFetched = false;
 let totalTraces = 0;
 let initialSearchPerformed = false;
-let dropdownsInitialized = false;
 let lastScrollTop = 0;
 
 $(document).ready(() => {
-    allResultsFetched = false;
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', showScatterPlot);
 
@@ -78,19 +76,21 @@ function initPage() {
     initializeDropdowns();
     handleSort();
     handleDownload();
-    handleTimePicker();
+
     $('#search-trace-btn').on('click', searchTraceHandler);
+
+    filterStartDate = 'now-1h';
+    filterEndDate = 'now';
+    $('.inner-range #' + filterStartDate).addClass('active');
+    datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
+
+    setupEventHandlers();
 }
 
 function initializeDropdowns() {
-    if (dropdownsInitialized) {
-        return;
-    }
     const state = getInitialSearchState();
     const serviceValue = state.service || 'All';
     const operationValue = state.operation || 'All';
-
-    dropdownsInitialized = true;
 
     initDropdown('service', 'Service', serviceValue);
     initDropdown('name', 'Operation', operationValue);
@@ -167,97 +167,7 @@ function fetchData(chooseColumn) {
     });
 }
 
-function handleTimePicker() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const startEpoch = urlParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-1h';
-    const endEpoch = urlParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
 
-    Cookies.set('startEpoch', startEpoch);
-    Cookies.set('endEpoch', endEpoch);
-
-    // Convert startEpoch to display format
-    let displayText = 'Last 1 Hr';
-    if (startEpoch === 'now-1h') displayText = 'Last 1 Hr';
-    else if (startEpoch === 'now-15m') displayText = 'Last 15 Min';
-    else if (startEpoch === 'now-30m') displayText = 'Last 30 Min';
-    else if (startEpoch === 'now-3h') displayText = 'Last 3 Hr';
-    else if (startEpoch === 'now-6h') displayText = 'Last 6 Hr';
-    else if (startEpoch === 'now-12h') displayText = 'Last 12 Hr';
-    else if (startEpoch === 'now-24h') displayText = 'Last 24 Hr';
-    else if (startEpoch === 'now-7d') displayText = 'Last 7 Days';
-    else if (startEpoch === 'now-30d') displayText = 'Last 30 Days';
-    else if (!isNaN(startEpoch)) displayText = 'Custom Range';
-
-    $('#lookback').timeTicker({
-        spanName: displayText,
-        clicked: function (selectedTime) {
-            // Map the display text to actual time values
-            let startTime;
-            let endTime = 'now';
-
-            if (selectedTime === 'Last 15 Min') startTime = 'now-15m';
-            else if (selectedTime === 'Last 30 Min') startTime = 'now-30m';
-            else if (selectedTime === 'Last 1 Hr') startTime = 'now-1h';
-            else if (selectedTime === 'Last 3 Hr') startTime = 'now-3h';
-            else if (selectedTime === 'Last 6 Hr') startTime = 'now-6h';
-            else if (selectedTime === 'Last 12 Hr') startTime = 'now-12h';
-            else if (selectedTime === 'Last 24 Hr') startTime = 'now-24h';
-            else if (selectedTime === 'Last 7 Days') startTime = 'now-7d';
-            else if (selectedTime === 'Last 30 Days') startTime = 'now-30d';
-            else startTime = 'now-1h'; // Default fallback
-
-            // Update cookies with the new values
-            Cookies.set('startEpoch', startTime);
-            Cookies.set('endEpoch', endTime);
-
-            // Update filter dates for searches
-            filterStartDate = startTime;
-            filterEndDate = endTime;
-
-            // Trigger search with updated time range
-            searchTraceHandler(new Event('timeChange'));
-        },
-    });
-}
-
-function handleSort() {
-    let currList = ['Most Recent', 'Longest First', 'Shortest First', 'Most Spans', 'Least Spans'];
-    $('#sort-dropdown').singleBox({
-        spanName: 'Most Recent',
-        defaultValue: 'Most Recent',
-        dataList: currList,
-        clicked: function (e) {
-            if (e == 'Most Recent') {
-                returnResTotal = returnResTotal.sort(compare('start_time', 'most'));
-            } else if (e == 'Longest First') {
-                returnResTotal = returnResTotal.sort(compareDuration('most'));
-            } else if (e == 'Shortest First') {
-                returnResTotal = returnResTotal.sort(compareDuration('least'));
-            } else if (e == 'Most Spans') {
-                returnResTotal = returnResTotal.sort(compare('span_count', 'most'));
-            } else if (e == 'Least Spans') {
-                returnResTotal = returnResTotal.sort(compare('span_count', 'least'));
-            }
-            reSort();
-        },
-    });
-}
-function compareDuration(method) {
-    return function (object1, object2) {
-        let value1 = object1['end_time'] - object1['start_time'];
-        let value2 = object2['end_time'] - object2['start_time'];
-        if (method == 'most') return value2 - value1;
-        else return value1 - value2;
-    };
-}
-function compare(property, method) {
-    return function (object1, object2) {
-        let value1 = object1[property];
-        let value2 = object2[property];
-        if (method == 'most') return value2 - value1;
-        else return value1 - value2;
-    };
-}
 
 function resetToDefaults() {
     // Reset UI elements to default values
@@ -267,79 +177,12 @@ function resetToDefaults() {
     $('#max-duration-input').val('');
     $('#limit-result-input').val('');
     $('#tags-input').val('');
-
-    Cookies.set('startEpoch', 'now-1h');
-    Cookies.set('endEpoch', 'now');
-
-    if ($('#lookback').data('timeTicker')) {
-        $('#lookback').data('timeTicker').updateText('Last 1 Hr');
-    }
-    initialSearchPerformed = false;
-    // Run default search
-    initChart(false);
+    datePickerHandler('now-1h', 'now', 'now-1h');
 }
 
-function handleDownload() {
-    let currList = ['Download as CSV', 'Download as JSON', 'Download as XML', 'Download as SQL'];
-    $('#download-dropdown').singleBox({
-        fillIn: false,
-        spanName: 'Download Result',
-        dataList: currList,
-        clicked: function (e) {
-            if (e == 'Download as CSV') {
-                $('#download-trace').download({
-                    data: returnResTotal,
-                    downloadMethod: '.csv',
-                });
-            } else if (e == 'Download as JSON') {
-                $('#download-trace').download({
-                    data: returnResTotal,
-                    downloadMethod: '.json',
-                });
-            } else if (e == 'Download as XML') {
-                $('#download-trace').download({
-                    data: returnResTotal,
-                    downloadMethod: '.xml',
-                });
-            } else if (e == 'Download as SQL') {
-                $('#download-trace').download({
-                    data: returnResTotal,
-                    downloadMethod: '.sql',
-                });
-            }
-        },
-    });
-}
+
 
 let requestFlag = 0;
-
-// Function to convert duration string to nanoseconds
-function durationToNanoseconds(durationStr) {
-    if (!durationStr) return null;
-
-    const durationRegex = /([\d.]+)\s*(s|ms|µs|us|µ|u)?/i;
-    const match = durationStr.match(durationRegex);
-
-    if (!match) return null;
-
-    const value = parseFloat(match[1]);
-    let unit = match[2] ? match[2].toLowerCase() : 's'; // Default to seconds if no unit is specified
-
-    switch (unit) {
-        case 's':
-            return value * 1e9; // seconds to nanoseconds
-        case 'ms':
-            return value * 1e6; // milliseconds to nanoseconds
-        case 'µs':
-        case 'us':
-        case 'µ':
-        case 'u':
-            return value * 1e3; // microseconds to nanoseconds
-        default:
-            console.warn('No unit provided for duration. Assuming seconds.');
-            return value * 1e9; // Assuming seconds if no unit is specified.
-    }
-}
 
 function getInitialSearchState() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -448,12 +291,7 @@ function handlePopState(event) {
 }
 
 function searchTraceHandler(e) {
-    if (e.type !== 'popstate' && e.type !== 'init' && e.type !== 'timeChange') {
-        // Don't prevent default for popstate events
-        e.stopPropagation();
-        e.preventDefault();
-    }
-
+    //Reset all ways for new search
     returnResTotal = [];
     scatterData = [];
     pageNumber = 1;
@@ -512,8 +350,16 @@ function searchTraceHandler(e) {
     let searchText = searchParts.length > 0 ? searchParts.join(' ') : '*';
 
     // Always use the current time range from cookies
-    let stDate = Cookies.get('startEpoch') || 'now-1h';
-    let endDate = Cookies.get('endEpoch') || 'now';
+    let stDate = filterStartDate;
+    let endDate = filterEndDate;
+
+    if (typeof stDate !== 'string') {
+        stDate = stDate.toString();
+    }
+
+    if (typeof endDate !== 'string') {
+        endDate = endDate.toString();
+    }
 
     // Update URL with current search state
     const currentState = {
@@ -907,5 +753,103 @@ function getNextPageData() {
     } else {
         $('body').css('cursor', 'default');
         isLoading = false;
+    }
+}
+
+function handleSort() {
+    let currList = ['Most Recent', 'Longest First', 'Shortest First', 'Most Spans', 'Least Spans'];
+    $('#sort-dropdown').singleBox({
+        spanName: 'Most Recent',
+        defaultValue: 'Most Recent',
+        dataList: currList,
+        clicked: function (e) {
+            if (e == 'Most Recent') {
+                returnResTotal = returnResTotal.sort(compare('start_time', 'most'));
+            } else if (e == 'Longest First') {
+                returnResTotal = returnResTotal.sort(compareDuration('most'));
+            } else if (e == 'Shortest First') {
+                returnResTotal = returnResTotal.sort(compareDuration('least'));
+            } else if (e == 'Most Spans') {
+                returnResTotal = returnResTotal.sort(compare('span_count', 'most'));
+            } else if (e == 'Least Spans') {
+                returnResTotal = returnResTotal.sort(compare('span_count', 'least'));
+            }
+            reSort();
+        },
+    });
+}
+function compareDuration(method) {
+    return function (object1, object2) {
+        let value1 = object1['end_time'] - object1['start_time'];
+        let value2 = object2['end_time'] - object2['start_time'];
+        if (method == 'most') return value2 - value1;
+        else return value1 - value2;
+    };
+}
+function compare(property, method) {
+    return function (object1, object2) {
+        let value1 = object1[property];
+        let value2 = object2[property];
+        if (method == 'most') return value2 - value1;
+        else return value1 - value2;
+    };
+}
+
+function handleDownload() {
+    let currList = ['Download as CSV', 'Download as JSON', 'Download as XML', 'Download as SQL'];
+    $('#download-dropdown').singleBox({
+        fillIn: false,
+        spanName: 'Download Result',
+        dataList: currList,
+        clicked: function (e) {
+            if (e == 'Download as CSV') {
+                $('#download-trace').download({
+                    data: returnResTotal,
+                    downloadMethod: '.csv',
+                });
+            } else if (e == 'Download as JSON') {
+                $('#download-trace').download({
+                    data: returnResTotal,
+                    downloadMethod: '.json',
+                });
+            } else if (e == 'Download as XML') {
+                $('#download-trace').download({
+                    data: returnResTotal,
+                    downloadMethod: '.xml',
+                });
+            } else if (e == 'Download as SQL') {
+                $('#download-trace').download({
+                    data: returnResTotal,
+                    downloadMethod: '.sql',
+                });
+            }
+        },
+    });
+}
+
+function durationToNanoseconds(durationStr) {
+    if (!durationStr) return null;
+
+    const durationRegex = /([\d.]+)\s*(s|ms|µs|us|µ|u)?/i;
+    const match = durationStr.match(durationRegex);
+
+    if (!match) return null;
+
+    const value = parseFloat(match[1]);
+    let unit = match[2] ? match[2].toLowerCase() : 's'; // Default to seconds if no unit is specified
+
+    switch (unit) {
+        case 's':
+            return value * 1e9; // seconds to nanoseconds
+        case 'ms':
+            return value * 1e6; // milliseconds to nanoseconds
+        case 'µs':
+        case 'us':
+        case 'µ':
+        case 'u':
+            return value * 1e3; // microseconds to nanoseconds
+        default:
+            console.warn('No unit provided for duration. Assuming seconds.');
+            return value * 1e9; // Assuming seconds if no unit is specified.
     }
 }
