@@ -10258,7 +10258,7 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc sutils.Aggre
 
 	query := []byte(`city=Boston | stats max(latitude), ` + measureWithEvalStr)
 	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
+	assert.Nil(t, err, "failed to parse query: %s; err=%v", string(query), err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
 
