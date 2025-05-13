@@ -44,7 +44,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
@@ -358,7 +358,7 @@ func ingestTestMetricsData(allTimeSeries []timeSeries) error {
 			log.Errorf("IngestTestMetricsData: Error marshalling time series: %v", err)
 			return err
 		}
-		err = writer.AddTimeSeriesEntryToInMemBuf(rawJson, utils.SIGNAL_METRICS_OTSDB, 0)
+		err = writer.AddTimeSeriesEntryToInMemBuf(rawJson, sutils.SIGNAL_METRICS_OTSDB, 0)
 		if err != nil {
 			log.Errorf("IngestTestMetricsData: Error adding time series entry to in memory buffer: %v", err)
 			return err

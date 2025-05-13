@@ -24,7 +24,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,14 +39,14 @@ func Test_SortCommand_simple(t *testing.T) {
 	}
 
 	iqr1 := iqr.NewIQR(0)
-	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr1.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "f"},
 		},
 	})
 	assert.NoError(t, err)
@@ -54,11 +54,11 @@ func Test_SortCommand_simple(t *testing.T) {
 	_, err = sorter.Process(iqr1)
 	assert.NoError(t, err)
 
-	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
-		{Dtype: utils.SS_DT_STRING, CVal: "c"},
-		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "d"},
 	}
 
 	actualCol1, err := sorter.resultsSoFar.ReadColumn("col1")
@@ -67,12 +67,12 @@ func Test_SortCommand_simple(t *testing.T) {
 
 	// Add more records that should replace some existing ones.
 	iqr2 := iqr.NewIQR(0)
-	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err = iqr2.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "g"},
-			{Dtype: utils.SS_DT_STRING, CVal: "apple"},
-			{Dtype: utils.SS_DT_STRING, CVal: "banana"},
-			{Dtype: utils.SS_DT_STRING, CVal: "h"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "g"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "apple"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "banana"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "h"},
 		},
 	})
 	assert.NoError(t, err)
@@ -80,11 +80,11 @@ func Test_SortCommand_simple(t *testing.T) {
 	_, err = sorter.Process(iqr2)
 	assert.NoError(t, err)
 
-	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "apple"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
-		{Dtype: utils.SS_DT_STRING, CVal: "banana"},
+	expected = []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "banana"},
 	}
 
 	actualCol1, err = sorter.resultsSoFar.ReadColumn("col1")
@@ -112,14 +112,14 @@ func Test_SortCommand_withTieBreakers(t *testing.T) {
 	}
 
 	iqr1 := iqr.NewIQR(0)
-	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr1.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+			{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+			{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
 		},
 	})
 	assert.NoError(t, err)
@@ -127,13 +127,13 @@ func Test_SortCommand_withTieBreakers(t *testing.T) {
 	_, err = sorter.Process(iqr1)
 	assert.NoError(t, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "b"},
 	}
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
 	}
 
 	actualCol1, err := sorter.resultsSoFar.ReadColumn("col1")
@@ -146,14 +146,14 @@ func Test_SortCommand_withTieBreakers(t *testing.T) {
 
 	// Add more records.
 	iqr2 := iqr.NewIQR(0)
-	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err = iqr2.AppendKnownValues(map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(0)},
+			{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+			{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(0)},
 		},
 	})
 	assert.NoError(t, err)
@@ -161,17 +161,17 @@ func Test_SortCommand_withTieBreakers(t *testing.T) {
 	_, err = sorter.Process(iqr2)
 	assert.NoError(t, err)
 
-	expectedCol1 = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+	expectedCol1 = []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "b"},
 	}
-	expectedCol2 = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(0)},
+	expectedCol2 = []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(0)},
 	}
 
 	actualCol1, err = sorter.resultsSoFar.ReadColumn("col1")
@@ -206,33 +206,33 @@ func Test_SortCommand_withRRCs(t *testing.T) {
 		},
 	}
 
-	rrcs := []*utils.RecordResultContainer{
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 5},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 6},
+	rrcs := []*sutils.RecordResultContainer{
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 5},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 6},
 	}
 	mockReader := &record.MockRRCsReader{
 		RRCs: rrcs,
-		FieldToValues: map[string][]utils.CValueEnclosure{
+		FieldToValues: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				{Dtype: utils.SS_DT_STRING, CVal: "a"},
-				{Dtype: utils.SS_DT_STRING, CVal: "e"},
-				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 
-				{Dtype: utils.SS_DT_STRING, CVal: "z"},
-				{Dtype: utils.SS_DT_STRING, CVal: "b"},
-				{Dtype: utils.SS_DT_STRING, CVal: "c"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "z"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 			"col2": {
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
 			},
 		},
 	}
@@ -253,21 +253,21 @@ func Test_SortCommand_withRRCs(t *testing.T) {
 	result, err := sorter.Process(nil)
 	assert.Equal(t, io.EOF, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
-		{Dtype: utils.SS_DT_STRING, CVal: "c"},
-		{Dtype: utils.SS_DT_STRING, CVal: "c"},
-		{Dtype: utils.SS_DT_STRING, CVal: "e"},
-		{Dtype: utils.SS_DT_STRING, CVal: "z"},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "z"},
 	}
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
 	}
 
 	actualCol1, err := result.ReadColumn("col1")
@@ -279,27 +279,27 @@ func Test_SortCommand_withRRCs(t *testing.T) {
 	assert.Equal(t, expectedCol2, actualCol2)
 }
 
-func getKnownValuesForSortTest() map[string][]utils.CValueEnclosure {
-	return map[string][]utils.CValueEnclosure{
+func getKnownValuesForSortTest() map[string][]sutils.CValueEnclosure {
+	return map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "z"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-			{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
-			{Dtype: utils.SS_DT_STRING, CVal: "2"},
-			{Dtype: utils.SS_DT_STRING, CVal: "1"},
-			{Dtype: utils.SS_DT_STRING, CVal: "15"},
-			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(16)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
-			{Dtype: utils.SS_DT_BOOL, CVal: true},
-			{Dtype: utils.SS_DT_BOOL, CVal: false},
-			{Dtype: utils.SS_DT_BOOL, CVal: false},
-			{Dtype: utils.SS_DT_BOOL, CVal: true},
-			{Dtype: utils.SS_DT_STRING, CVal: "A"},
-			{Dtype: utils.SS_DT_STRING, CVal: "Z"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "z"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
+			{Dtype: sutils.SS_DT_STRING, CVal: "2"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "1"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "15"},
+			{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+			{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+			{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(16)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
+			{Dtype: sutils.SS_DT_BOOL, CVal: true},
+			{Dtype: sutils.SS_DT_BOOL, CVal: false},
+			{Dtype: sutils.SS_DT_BOOL, CVal: false},
+			{Dtype: sutils.SS_DT_BOOL, CVal: true},
+			{Dtype: sutils.SS_DT_STRING, CVal: "A"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Z"},
 		},
 	}
 }
@@ -320,25 +320,25 @@ func TestSortMultipleDataTypes(t *testing.T) {
 		},
 	}
 
-	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "1"},
-		{Dtype: utils.SS_DT_STRING, CVal: "2"},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-		{Dtype: utils.SS_DT_STRING, CVal: "15"},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(16)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
-		{Dtype: utils.SS_DT_STRING, CVal: "A"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Z"},
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_STRING, CVal: "z"},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "1"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "2"},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "15"},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(16)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "A"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Z"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_STRING, CVal: "z"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
 
 	_, err = sorter.Process(iqr1)
@@ -370,25 +370,25 @@ func TestSortMultipleDataTypes(t *testing.T) {
 	result, err = sorter.Process(nil)
 	assert.Equal(t, io.EOF, err)
 
-	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "z"},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Z"},
-		{Dtype: utils.SS_DT_STRING, CVal: "A"},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(16)},
-		{Dtype: utils.SS_DT_STRING, CVal: "15"},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: utils.SS_DT_STRING, CVal: "2"},
-		{Dtype: utils.SS_DT_STRING, CVal: "1"},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	expected = []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "z"},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Z"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "A"},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(16)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "15"},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "2"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "1"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
 
 	actualCol1, err = result.ReadColumn("col1")
@@ -411,25 +411,25 @@ func TestSortMultipleDataTypesWithStrOperator(t *testing.T) {
 		},
 	}
 
-	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "1"},
-		{Dtype: utils.SS_DT_STRING, CVal: "15"},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(16)},
-		{Dtype: utils.SS_DT_STRING, CVal: "2"},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-		{Dtype: utils.SS_DT_STRING, CVal: "A"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Z"},
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_STRING, CVal: "z"},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "1"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "15"},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(16)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "2"},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "A"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Z"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_STRING, CVal: "z"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
 
 	_, err = sorter.Process(iqr1)
@@ -461,25 +461,25 @@ func TestSortMultipleDataTypesWithStrOperator(t *testing.T) {
 	result, err = sorter.Process(nil)
 	assert.Equal(t, io.EOF, err)
 
-	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "z"},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Z"},
-		{Dtype: utils.SS_DT_STRING, CVal: "A"},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
-		{Dtype: utils.SS_DT_STRING, CVal: "2"},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(16)},
-		{Dtype: utils.SS_DT_STRING, CVal: "15"},
-		{Dtype: utils.SS_DT_STRING, CVal: "1"},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	expected = []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "z"},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Z"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "A"},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "2"},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(16)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "15"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "1"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
 
 	actualCol1, err = result.ReadColumn("col1")
@@ -503,25 +503,25 @@ func TestSortMultipleDataTypesWithNumOperator(t *testing.T) {
 		},
 	}
 
-	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "1"},
-		{Dtype: utils.SS_DT_STRING, CVal: "2"},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-		{Dtype: utils.SS_DT_STRING, CVal: "15"},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(16)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
-		{Dtype: utils.SS_DT_STRING, CVal: "A"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Z"},
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_STRING, CVal: "z"},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	expected := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "1"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "2"},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "15"},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(16)},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "A"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Z"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_STRING, CVal: "z"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
 
 	_, err = sorter.Process(iqr1)
@@ -553,25 +553,25 @@ func TestSortMultipleDataTypesWithNumOperator(t *testing.T) {
 	result, err = sorter.Process(nil)
 	assert.Equal(t, io.EOF, err)
 
-	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "z"},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: true},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_BOOL, CVal: false},
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Z"},
-		{Dtype: utils.SS_DT_STRING, CVal: "A"},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(16)},
-		{Dtype: utils.SS_DT_STRING, CVal: "15"},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: utils.SS_DT_STRING, CVal: "2"},
-		{Dtype: utils.SS_DT_STRING, CVal: "1"},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	expected = []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "z"},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_BOOL, CVal: true},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_BOOL, CVal: false},
+		{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Z"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "A"},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(21)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(16)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "15"},
+		{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+		{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: sutils.SS_DT_STRING, CVal: "2"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "1"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
 
 	actualCol1, err = result.ReadColumn("col1")

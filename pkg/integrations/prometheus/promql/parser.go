@@ -16,8 +16,8 @@ import (
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -108,12 +108,12 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 					TagKey:          entry.Name,
 					RawTagValue:     entry.Value,
 					HashTagValue:    xxhash.Sum64String(entry.Value),
-					TagOperator:     segutils.TagOperator(entry.Type),
-					LogicalOperator: segutils.And,
+					TagOperator:     sutils.TagOperator(entry.Type),
+					LogicalOperator: sutils.And,
 				}
 				mQuery.TagsFilters = append(mQuery.TagsFilters, tagFilter)
 			} else {
-				mQuery.MetricOperator = segutils.TagOperator(entry.Type)
+				mQuery.MetricOperator = sutils.TagOperator(entry.Type)
 				mQuery.MetricName = entry.Value
 
 				if mQuery.IsRegexOnMetricName() {
@@ -193,7 +193,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 	if mQuery.SubsequentAggs == nil {
 		mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 			AggBlockType:    structs.AggregatorBlock,
-			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true},
+			AggregatorBlock: &structs.Aggregation{AggregatorFunction: sutils.Avg, Without: true},
 		}
 		if len(mQuery.TagsFilters) == 0 {
 			mQuery.GetAllLabels = true
@@ -205,7 +205,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 		if mQuery.SubsequentAggs.AggBlockType != structs.AggregatorBlock {
 			mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 				AggBlockType:    structs.AggregatorBlock,
-				AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true},
+				AggregatorBlock: &structs.Aggregation{AggregatorFunction: sutils.Avg, Without: true},
 				Next:            mQuery.SubsequentAggs,
 			}
 			mQueryReqs[0].MetricsQuery = mQuery
@@ -296,24 +296,24 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 
 	switch aggFunc {
 	case "avg":
-		mQuery.FirstAggregator.AggregatorFunction = segutils.Avg
+		mQuery.FirstAggregator.AggregatorFunction = sutils.Avg
 	case "count":
-		mQuery.FirstAggregator.AggregatorFunction = segutils.Count
+		mQuery.FirstAggregator.AggregatorFunction = sutils.Count
 		mQuery.GetAllLabels = true
 	case "sum":
-		mQuery.FirstAggregator.AggregatorFunction = segutils.Sum
+		mQuery.FirstAggregator.AggregatorFunction = sutils.Sum
 	case "max":
-		mQuery.FirstAggregator.AggregatorFunction = segutils.Max
+		mQuery.FirstAggregator.AggregatorFunction = sutils.Max
 	case "min":
-		mQuery.FirstAggregator.AggregatorFunction = segutils.Min
+		mQuery.FirstAggregator.AggregatorFunction = sutils.Min
 	case "quantile":
-		mQuery.FirstAggregator.AggregatorFunction = segutils.Quantile
+		mQuery.FirstAggregator.AggregatorFunction = sutils.Quantile
 	case "topk":
 		numberLiteral, ok := expr.Param.(*parser.NumberLiteral)
 		if !ok {
 			return nil, fmt.Errorf("handleAggregateExpr: topk contains invalid param: %v", expr.Param)
 		}
-		mQuery.FirstAggregator.AggregatorFunction = segutils.TopK
+		mQuery.FirstAggregator.AggregatorFunction = sutils.TopK
 		mQuery.FirstAggregator.FuncConstant = numberLiteral.Val
 		mQuery.GetAllLabels = true
 	case "bottomk":
@@ -321,20 +321,20 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		if !ok {
 			return nil, fmt.Errorf("handleAggregateExpr: bottomk contains invalid param: %v", expr.Param)
 		}
-		mQuery.FirstAggregator.AggregatorFunction = segutils.BottomK
+		mQuery.FirstAggregator.AggregatorFunction = sutils.BottomK
 		mQuery.FirstAggregator.FuncConstant = numberLiteral.Val
 		mQuery.GetAllLabels = true
 	case "stddev":
-		mQuery.FirstAggregator.AggregatorFunction = segutils.Stddev
+		mQuery.FirstAggregator.AggregatorFunction = sutils.Stddev
 		mQuery.GetAllLabels = true
 	case "stdvar":
-		mQuery.FirstAggregator.AggregatorFunction = segutils.Stdvar
+		mQuery.FirstAggregator.AggregatorFunction = sutils.Stdvar
 		mQuery.GetAllLabels = true
 	case "group":
-		mQuery.FirstAggregator.AggregatorFunction = segutils.Group
+		mQuery.FirstAggregator.AggregatorFunction = sutils.Group
 	case "":
 		log.Infof("handleAggregateExpr: using avg aggregator by default for AggregateExpr (got empty string)")
-		mQuery.FirstAggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
+		mQuery.FirstAggregator = structs.Aggregation{AggregatorFunction: sutils.Avg}
 	default:
 		return nil, fmt.Errorf("handleAggregateExpr: unsupported aggregation function %v", aggFunc)
 	}
@@ -368,8 +368,8 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 			TagKey:          group,
 			RawTagValue:     "*",
 			HashTagValue:    xxhash.Sum64String("*"),
-			TagOperator:     segutils.TagOperator(segutils.Equal),
-			LogicalOperator: segutils.And,
+			TagOperator:     sutils.TagOperator(sutils.Equal),
+			LogicalOperator: sutils.And,
 			NotInitialGroup: hasAggExpr,
 			IgnoreTag:       expr.Without,
 			IsGroupByKey:    true,
@@ -488,51 +488,51 @@ func handleCallExprMatrixSelectorNode(expr *parser.Call, mQueryReq *structs.Metr
 func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64, expr *parser.Call, mQuery *structs.MetricsQuery) error {
 	switch functionName {
 	case "deriv":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Derivative, TimeWindow: timeWindow, Step: step}
 	case "predict_linear":
 		if len(expr.Args) != 2 {
 			return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the predict_linear function", expr.Args.String())
 		}
-		mQuery.Function = structs.Function{RangeFunction: segutils.Predict_Linear, TimeWindow: timeWindow, ValueList: []string{expr.Args[1].String()}}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Predict_Linear, TimeWindow: timeWindow, ValueList: []string{expr.Args[1].String()}}
 	case "delta":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Delta, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Delta, TimeWindow: timeWindow, Step: step}
 	case "idelta":
-		mQuery.Function = structs.Function{RangeFunction: segutils.IDelta, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.IDelta, TimeWindow: timeWindow, Step: step}
 	case "rate":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Rate, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Rate, TimeWindow: timeWindow, Step: step}
 	case "irate":
-		mQuery.Function = structs.Function{RangeFunction: segutils.IRate, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.IRate, TimeWindow: timeWindow, Step: step}
 	case "increase":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Increase, TimeWindow: timeWindow, Step: step}
 	case "avg_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Avg_Over_Time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Avg_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "min_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Min_Over_Time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Min_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "max_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Max_Over_Time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Max_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "sum_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Sum_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "count_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Count_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "stdvar_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Stdvar_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "stddev_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Stddev_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "last_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Last_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "present_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Present_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "mad_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Mad_Over_Time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Mad_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "quantile_over_time":
 		if len(expr.Args) != 2 {
 			return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
 		}
-		mQuery.Function = structs.Function{RangeFunction: segutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}, Step: step}
 	case "changes":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Changes, TimeWindow: timeWindow, Step: step}
 	case "resets":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Resets, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: sutils.Resets, TimeWindow: timeWindow, Step: step}
 	default:
 		return fmt.Errorf("handlePromQLRangeFunctionNode: unsupported function type %v", functionName)
 	}
@@ -549,89 +549,89 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 
 	switch function {
 	case "abs":
-		mQuery.Function = structs.Function{MathFunction: segutils.Abs}
+		mQuery.Function = structs.Function{MathFunction: sutils.Abs}
 	case "sqrt":
-		mQuery.Function = structs.Function{MathFunction: segutils.Sqrt}
+		mQuery.Function = structs.Function{MathFunction: sutils.Sqrt}
 	case "ceil":
-		mQuery.Function = structs.Function{MathFunction: segutils.Ceil}
+		mQuery.Function = structs.Function{MathFunction: sutils.Ceil}
 	case "round":
-		mQuery.Function = structs.Function{MathFunction: segutils.Round}
+		mQuery.Function = structs.Function{MathFunction: sutils.Round}
 		if len(expr.Args) > 1 {
 			mQuery.Function.ValueList = []string{expr.Args[1].String()}
 		}
 	case "floor":
-		mQuery.Function = structs.Function{MathFunction: segutils.Floor}
+		mQuery.Function = structs.Function{MathFunction: sutils.Floor}
 	case "exp":
-		mQuery.Function = structs.Function{MathFunction: segutils.Exp}
+		mQuery.Function = structs.Function{MathFunction: sutils.Exp}
 	case "ln":
-		mQuery.Function = structs.Function{MathFunction: segutils.Ln}
+		mQuery.Function = structs.Function{MathFunction: sutils.Ln}
 	case "log2":
-		mQuery.Function = structs.Function{MathFunction: segutils.Log2}
+		mQuery.Function = structs.Function{MathFunction: sutils.Log2}
 	case "log10":
-		mQuery.Function = structs.Function{MathFunction: segutils.Log10}
+		mQuery.Function = structs.Function{MathFunction: sutils.Log10}
 	case "sgn":
-		mQuery.Function = structs.Function{MathFunction: segutils.Sgn}
+		mQuery.Function = structs.Function{MathFunction: sutils.Sgn}
 	case "deg":
-		mQuery.Function = structs.Function{MathFunction: segutils.Deg}
+		mQuery.Function = structs.Function{MathFunction: sutils.Deg}
 	case "rad":
-		mQuery.Function = structs.Function{MathFunction: segutils.Rad}
+		mQuery.Function = structs.Function{MathFunction: sutils.Rad}
 	case "acos":
-		mQuery.Function = structs.Function{MathFunction: segutils.Acos}
+		mQuery.Function = structs.Function{MathFunction: sutils.Acos}
 	case "acosh":
-		mQuery.Function = structs.Function{MathFunction: segutils.Acosh}
+		mQuery.Function = structs.Function{MathFunction: sutils.Acosh}
 	case "asin":
-		mQuery.Function = structs.Function{MathFunction: segutils.Asin}
+		mQuery.Function = structs.Function{MathFunction: sutils.Asin}
 	case "asinh":
-		mQuery.Function = structs.Function{MathFunction: segutils.Asinh}
+		mQuery.Function = structs.Function{MathFunction: sutils.Asinh}
 	case "atan":
-		mQuery.Function = structs.Function{MathFunction: segutils.Atan}
+		mQuery.Function = structs.Function{MathFunction: sutils.Atan}
 	case "atanh":
-		mQuery.Function = structs.Function{MathFunction: segutils.Atanh}
+		mQuery.Function = structs.Function{MathFunction: sutils.Atanh}
 	case "cos":
-		mQuery.Function = structs.Function{MathFunction: segutils.Cos}
+		mQuery.Function = structs.Function{MathFunction: sutils.Cos}
 	case "cosh":
-		mQuery.Function = structs.Function{MathFunction: segutils.Cosh}
+		mQuery.Function = structs.Function{MathFunction: sutils.Cosh}
 	case "sin":
-		mQuery.Function = structs.Function{MathFunction: segutils.Sin}
+		mQuery.Function = structs.Function{MathFunction: sutils.Sin}
 	case "sinh":
-		mQuery.Function = structs.Function{MathFunction: segutils.Sinh}
+		mQuery.Function = structs.Function{MathFunction: sutils.Sinh}
 	case "tan":
-		mQuery.Function = structs.Function{MathFunction: segutils.Tan}
+		mQuery.Function = structs.Function{MathFunction: sutils.Tan}
 	case "tanh":
-		mQuery.Function = structs.Function{MathFunction: segutils.Tanh}
+		mQuery.Function = structs.Function{MathFunction: sutils.Tanh}
 	case "clamp":
 		if len(expr.Args) != 3 {
 			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters: %v for the clamp function", expr.Args.String())
 		}
-		mQuery.Function = structs.Function{MathFunction: segutils.Clamp, ValueList: []string{expr.Args[1].String(), expr.Args[2].String()}}
+		mQuery.Function = structs.Function{MathFunction: sutils.Clamp, ValueList: []string{expr.Args[1].String(), expr.Args[2].String()}}
 	case "clamp_max":
 		if len(expr.Args) != 2 {
 			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters: %v for the clamp_max function", expr.Args.String())
 		}
-		mQuery.Function = structs.Function{MathFunction: segutils.Clamp_Max, ValueList: []string{expr.Args[1].String()}}
+		mQuery.Function = structs.Function{MathFunction: sutils.Clamp_Max, ValueList: []string{expr.Args[1].String()}}
 	case "clamp_min":
 		if len(expr.Args) != 2 {
 			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters: %v for the clamp_min function", expr.Args.String())
 		}
-		mQuery.Function = structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
+		mQuery.Function = structs.Function{MathFunction: sutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
 	case "timestamp":
-		mQuery.Function = structs.Function{MathFunction: segutils.Timestamp}
+		mQuery.Function = structs.Function{MathFunction: sutils.Timestamp}
 	case "hour":
-		mQuery.Function = structs.Function{TimeFunction: segutils.Hour}
+		mQuery.Function = structs.Function{TimeFunction: sutils.Hour}
 	case "minute":
-		mQuery.Function = structs.Function{TimeFunction: segutils.Minute}
+		mQuery.Function = structs.Function{TimeFunction: sutils.Minute}
 	case "month":
-		mQuery.Function = structs.Function{TimeFunction: segutils.Month}
+		mQuery.Function = structs.Function{TimeFunction: sutils.Month}
 	case "year":
-		mQuery.Function = structs.Function{TimeFunction: segutils.Year}
+		mQuery.Function = structs.Function{TimeFunction: sutils.Year}
 	case "day_of_month":
-		mQuery.Function = structs.Function{TimeFunction: segutils.DayOfMonth}
+		mQuery.Function = structs.Function{TimeFunction: sutils.DayOfMonth}
 	case "day_of_week":
-		mQuery.Function = structs.Function{TimeFunction: segutils.DayOfWeek}
+		mQuery.Function = structs.Function{TimeFunction: sutils.DayOfWeek}
 	case "day_of_year":
-		mQuery.Function = structs.Function{TimeFunction: segutils.DayOfYear}
+		mQuery.Function = structs.Function{TimeFunction: sutils.DayOfYear}
 	case "days_in_month":
-		mQuery.Function = structs.Function{TimeFunction: segutils.DaysInMonth}
+		mQuery.Function = structs.Function{TimeFunction: sutils.DaysInMonth}
 	case "label_replace":
 		if len(expr.Args) != 5 {
 			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters: %v for the label_replace function", expr.Args.String())
@@ -644,7 +644,7 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 
 		rawRegex := rawRegexStrLiteral.Val
 
-		gobRegexp := &toputils.GobbableRegex{}
+		gobRegexp := &utils.GobbableRegex{}
 		err := gobRegexp.SetRegex(rawRegex)
 		if err != nil {
 			return fmt.Errorf("handleCallExprVectorSelectorNode: Error compiling regex for the GobRegex Pattern: %v. Error=%v", rawRegex, err)
@@ -690,7 +690,7 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		mQuery.Function = structs.Function{
 			FunctionType: structs.LabelFunction,
 			LabelFunction: &structs.LabelFunctionExpr{
-				FunctionType:     segutils.LabelReplace,
+				FunctionType:     sutils.LabelReplace,
 				DestinationLabel: destinationLabelLiteral.Val,
 				Replacement:      labelReplacementKey,
 				SourceLabel:      sourceLabelLiteral.Val,
@@ -713,7 +713,7 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		mQuery.Function = structs.Function{
 			FunctionType: structs.HistogramFunction,
 			HistogramFunction: &structs.HistogramAgg{
-				Function: segutils.HistogramQuantile,
+				Function: sutils.HistogramQuantile,
 				Quantile: quantileLiteral.Val,
 			},
 		}
@@ -729,7 +729,7 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 	mQuery.HashedMName = xxhash.Sum64String(mQuery.MetricName)
 
 	// Use the innermost aggregator of the query as the aggregator for the downsampler
-	agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
+	agg := structs.Aggregation{AggregatorFunction: sutils.Avg}
 	if mQuery.SubsequentAggs != nil && mQuery.SubsequentAggs.AggregatorBlock != nil {
 		agg.AggregatorFunction = mQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction
 		agg.FuncConstant = mQuery.SubsequentAggs.AggregatorBlock.FuncConstant

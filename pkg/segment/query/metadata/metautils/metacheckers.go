@@ -21,7 +21,7 @@ import (
 	"github.com/bits-and-blooms/bloom/v3"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -34,7 +34,7 @@ func CheckBloomIndex(colNames map[string]string, bloom *bloom.BloomFilter) bool 
 	return true
 }
 
-func CheckRangeIndex(filterCol map[string]string, allRangeEntries map[string]*structs.Numbers, operator utils.FilterOperator, qid uint64) bool {
+func CheckRangeIndex(filterCol map[string]string, allRangeEntries map[string]*structs.Numbers, operator sutils.FilterOperator, qid uint64) bool {
 	var valueInRangeIndex bool
 	for rawColName, colVal := range filterCol {
 		if rawColName == "*" {
@@ -56,25 +56,25 @@ func CheckRangeIndex(filterCol map[string]string, allRangeEntries map[string]*st
 	return false
 }
 
-func checkRangeIndexHelper(ri *structs.Numbers, colVal string, operator utils.FilterOperator, qid uint64) bool {
+func checkRangeIndexHelper(ri *structs.Numbers, colVal string, operator sutils.FilterOperator, qid uint64) bool {
 	var valueInRangeIndex bool
-	if operator == utils.Equals || operator == utils.NotEquals || operator == utils.LessThan || operator == utils.LessThanOrEqualTo || operator == utils.GreaterThan || operator == utils.GreaterThanOrEqualTo {
+	if operator == sutils.Equals || operator == sutils.NotEquals || operator == sutils.LessThan || operator == sutils.LessThanOrEqualTo || operator == sutils.GreaterThan || operator == sutils.GreaterThanOrEqualTo {
 		switch ri.NumType {
-		case utils.RNT_UNSIGNED_INT:
+		case sutils.RNT_UNSIGNED_INT:
 			convertedVal, err := dtu.ConvertToUInt(colVal, 64)
 			if err != nil {
 				log.Errorf("qid=%d checkRangeIndexHelper: Got an invalid literal for range filter: %s", qid, err)
 				return false
 			}
 			valueInRangeIndex = doesUintPassRangeFilter(operator, convertedVal, ri.Min_uint64, ri.Max_uint64)
-		case utils.RNT_SIGNED_INT:
+		case sutils.RNT_SIGNED_INT:
 			convertedVal, err := dtu.ConvertToInt(colVal, 64)
 			if err != nil {
 				log.Errorf("qid=%d checkRangeIndexHelper: Got an invalid literal for range filter: %s", qid, err)
 				return false
 			}
 			valueInRangeIndex = doesIntPassRangeFilter(operator, convertedVal, ri.Min_int64, ri.Max_int64)
-		case utils.RNT_FLOAT64:
+		case sutils.RNT_FLOAT64:
 			convertedVal, err := dtu.ConvertToFloat(colVal, 64)
 			if err != nil {
 				log.Errorf("qid=%d checkRangeIndexHelper: Got an invalid literal for range filter: %s", qid, err)
@@ -103,22 +103,22 @@ func FilterBlocksByTime(bSum []*structs.BlockSummary, blkTracker *structs.BlockT
 
 // This function checks if an actualValue exists in the range for actualValue op lookupValue
 // minval and maxVal are included in the range
-func doesUintPassRangeFilter(op utils.FilterOperator, lookupValue uint64, minVal uint64, maxVal uint64) bool {
+func doesUintPassRangeFilter(op sutils.FilterOperator, lookupValue uint64, minVal uint64, maxVal uint64) bool {
 	switch op {
-	case utils.Equals:
+	case sutils.Equals:
 		return lookupValue >= minVal && lookupValue <= maxVal
-	case utils.NotEquals:
+	case sutils.NotEquals:
 		if minVal == maxVal && lookupValue == minVal {
 			return false
 		}
 		return true
-	case utils.GreaterThan:
+	case sutils.GreaterThan:
 		return lookupValue < minVal || lookupValue < maxVal
-	case utils.GreaterThanOrEqualTo:
+	case sutils.GreaterThanOrEqualTo:
 		return lookupValue <= minVal || lookupValue <= maxVal
-	case utils.LessThan:
+	case sutils.LessThan:
 		return lookupValue > minVal || lookupValue > maxVal
-	case utils.LessThanOrEqualTo:
+	case sutils.LessThanOrEqualTo:
 		return lookupValue >= minVal || lookupValue >= maxVal
 	default:
 		return true
@@ -127,22 +127,22 @@ func doesUintPassRangeFilter(op utils.FilterOperator, lookupValue uint64, minVal
 
 // This function checks if an actualValue exists in the range for actualValue op lookupValue
 // minval and maxVal are included in the range
-func doesIntPassRangeFilter(op utils.FilterOperator, lookupValue int64, minVal int64, maxVal int64) bool {
+func doesIntPassRangeFilter(op sutils.FilterOperator, lookupValue int64, minVal int64, maxVal int64) bool {
 	switch op {
-	case utils.Equals:
+	case sutils.Equals:
 		return lookupValue >= minVal && lookupValue <= maxVal
-	case utils.NotEquals:
+	case sutils.NotEquals:
 		if minVal == maxVal && lookupValue == minVal {
 			return false
 		}
 		return true
-	case utils.GreaterThan:
+	case sutils.GreaterThan:
 		return lookupValue < minVal || lookupValue < maxVal
-	case utils.GreaterThanOrEqualTo:
+	case sutils.GreaterThanOrEqualTo:
 		return lookupValue <= minVal || lookupValue <= maxVal
-	case utils.LessThan:
+	case sutils.LessThan:
 		return lookupValue > minVal || lookupValue > maxVal
-	case utils.LessThanOrEqualTo:
+	case sutils.LessThanOrEqualTo:
 		return lookupValue >= minVal || lookupValue >= maxVal
 	default:
 		return true
@@ -151,22 +151,22 @@ func doesIntPassRangeFilter(op utils.FilterOperator, lookupValue int64, minVal i
 
 // This function checks if an actualValue exists in the range for actualValue op lookupValue
 // minval and maxVal are included in the range
-func doesFloatPassRangeFilter(op utils.FilterOperator, lookupValue float64, minVal float64, maxVal float64) bool {
+func doesFloatPassRangeFilter(op sutils.FilterOperator, lookupValue float64, minVal float64, maxVal float64) bool {
 	switch op {
-	case utils.Equals:
+	case sutils.Equals:
 		return lookupValue >= minVal && lookupValue <= maxVal
-	case utils.NotEquals:
+	case sutils.NotEquals:
 		if minVal == maxVal && lookupValue == minVal {
 			return false
 		}
 		return true
-	case utils.GreaterThan:
+	case sutils.GreaterThan:
 		return lookupValue < minVal || lookupValue < maxVal
-	case utils.GreaterThanOrEqualTo:
+	case sutils.GreaterThanOrEqualTo:
 		return lookupValue <= minVal || lookupValue <= maxVal
-	case utils.LessThan:
+	case sutils.LessThan:
 		return lookupValue > minVal || lookupValue > maxVal
-	case utils.LessThanOrEqualTo:
+	case sutils.LessThanOrEqualTo:
 		return lookupValue >= minVal || lookupValue >= maxVal
 	default:
 		return true

@@ -21,31 +21,31 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/reader/record"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func getTestIQRsWithMockReaders(t *testing.T) (*IQR, *IQR, *IQR, *IQR) {
-	allRRCs1 := []*utils.RecordResultContainer{
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 2}, BlockNum: 1, RecordNum: 3},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 2}, BlockNum: 1, RecordNum: 4},
+	allRRCs1 := []*sutils.RecordResultContainer{
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 2}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 2}, BlockNum: 1, RecordNum: 4},
 	}
 	mockReader1 := &record.MockRRCsReader{
 		RRCs: allRRCs1,
-		FieldToValues: map[string][]utils.CValueEnclosure{
+		FieldToValues: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				{Dtype: utils.SS_DT_STRING, CVal: "a"},
-				{Dtype: utils.SS_DT_STRING, CVal: "b"},
-				{Dtype: utils.SS_DT_STRING, CVal: "c"},
-				{Dtype: utils.SS_DT_STRING, CVal: "d"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "d"},
 			},
 			"timestamp": {
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
 			},
 		},
 		ReaderId: 1,
@@ -59,27 +59,27 @@ func getTestIQRsWithMockReaders(t *testing.T) (*IQR, *IQR, *IQR, *IQR) {
 	err = iqr2.AppendRRCs(allRRCs1[2:], map[uint32]string{2: "r1/seg2"})
 	assert.Nil(t, err)
 
-	allRRCs2 := []*utils.RecordResultContainer{
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1000}, BlockNum: 1, RecordNum: 1},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1000}, BlockNum: 1, RecordNum: 2},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1001}, BlockNum: 1, RecordNum: 3},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1001}, BlockNum: 1, RecordNum: 4},
+	allRRCs2 := []*sutils.RecordResultContainer{
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1000}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1000}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1001}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: sutils.SegKeyInfo{SegKeyEnc: 1001}, BlockNum: 1, RecordNum: 4},
 	}
 
 	mockReader2 := &record.MockRRCsReader{
 		RRCs: allRRCs2,
-		FieldToValues: map[string][]utils.CValueEnclosure{
+		FieldToValues: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				{Dtype: utils.SS_DT_STRING, CVal: "e"},
-				{Dtype: utils.SS_DT_STRING, CVal: "f"},
-				{Dtype: utils.SS_DT_STRING, CVal: "g"},
-				{Dtype: utils.SS_DT_STRING, CVal: "h"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "f"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "g"},
+				{Dtype: sutils.SS_DT_STRING, CVal: "h"},
 			},
 			"timestamp": {
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(7)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(7)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+				{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
 			},
 		},
 		ReaderId: 2,
@@ -131,7 +131,7 @@ func Test_MergeIQRReaders_Append(t *testing.T) {
 	assert.Equal(t, 8, iqr1.NumberOfRecords())
 	assert.Equal(t, ReaderModeMultiReader, iqr1.reader.readerMode)
 
-	expectedEncodingToReaderId := map[utils.T_SegEncoding]utils.T_SegReaderId{
+	expectedEncodingToReaderId := map[sutils.T_SegEncoding]sutils.T_SegReaderId{
 		1:    1,
 		2:    1,
 		1000: 2,
@@ -143,26 +143,26 @@ func Test_MergeIQRReaders_Append(t *testing.T) {
 	knownValues, err := iqr1.ReadAllColumns()
 	assert.Nil(t, err)
 
-	expectedKnownValues := map[string][]utils.CValueEnclosure{
+	expectedKnownValues := map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			{Dtype: utils.SS_DT_STRING, CVal: "f"},
-			{Dtype: utils.SS_DT_STRING, CVal: "g"},
-			{Dtype: utils.SS_DT_STRING, CVal: "h"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "f"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "g"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "h"},
 		},
 		"timestamp": {
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(7)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(7)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
 		},
 	}
 
@@ -189,14 +189,14 @@ func Test_MergeIQRReaders_MergeIQRs(t *testing.T) {
 	assert.Equal(t, 1, iqr3.NumberOfRecords())
 	assert.Equal(t, 1, iqr4.NumberOfRecords())
 
-	readerIdsToExist := []utils.T_SegReaderId{1, 2}
+	readerIdsToExist := []sutils.T_SegReaderId{1, 2}
 	readerIdToReader := mergedIQR1.reader.readerIdToReader
 	for _, readerId := range readerIdsToExist {
 		_, ok := readerIdToReader[readerId]
 		assert.True(t, ok)
 	}
 
-	expectedEncodingToReaderId := map[utils.T_SegEncoding]utils.T_SegReaderId{
+	expectedEncodingToReaderId := map[sutils.T_SegEncoding]sutils.T_SegReaderId{
 		1:    1,
 		2:    1,
 		1000: 2,
@@ -217,14 +217,14 @@ func Test_MergeIQRReaders_MergeIQRs(t *testing.T) {
 	assert.Equal(t, 1, iqr2.NumberOfRecords())
 	assert.Equal(t, 1, iqr3.NumberOfRecords())
 
-	readerIdsToExist = []utils.T_SegReaderId{1, 2}
+	readerIdsToExist = []sutils.T_SegReaderId{1, 2}
 	readerIdToReader = mergedIQR2.reader.readerIdToReader
 	for _, readerId := range readerIdsToExist {
 		_, ok := readerIdToReader[readerId]
 		assert.True(t, ok)
 	}
 
-	expectedEncodingToReaderId = map[utils.T_SegEncoding]utils.T_SegReaderId{
+	expectedEncodingToReaderId = map[sutils.T_SegEncoding]sutils.T_SegReaderId{
 		2:    1,
 		1000: 2,
 		1001: 2,
@@ -243,14 +243,14 @@ func Test_MergeIQRReaders_MergeIQRs(t *testing.T) {
 	assert.Equal(t, 0, iqr3.NumberOfRecords())
 	assert.Equal(t, 1, iqr2.NumberOfRecords())
 
-	readerIdsToExist = []utils.T_SegReaderId{1, 2}
+	readerIdsToExist = []sutils.T_SegReaderId{1, 2}
 	readerIdToReader = mergedIQR3.reader.readerIdToReader
 	for _, readerId := range readerIdsToExist {
 		_, ok := readerIdToReader[readerId]
 		assert.True(t, ok)
 	}
 
-	expectedEncodingToReaderId = map[utils.T_SegEncoding]utils.T_SegReaderId{
+	expectedEncodingToReaderId = map[sutils.T_SegEncoding]sutils.T_SegReaderId{
 		2:    1,
 		1000: 2,
 	}
@@ -283,13 +283,13 @@ func Test_MergeIQRReaders_MergeIQRs(t *testing.T) {
 	err = finalIQR.Append(mergedIQR2)
 	assert.Nil(t, err)
 	assert.Equal(t, 6, finalIQR.NumberOfRecords())
-	readerIdsToExist = []utils.T_SegReaderId{1, 2}
+	readerIdsToExist = []sutils.T_SegReaderId{1, 2}
 	readerIdToReader = finalIQR.reader.readerIdToReader
 	for _, readerId := range readerIdsToExist {
 		_, ok := readerIdToReader[readerId]
 		assert.True(t, ok)
 	}
-	expectedEncodingToReaderId = map[utils.T_SegEncoding]utils.T_SegReaderId{
+	expectedEncodingToReaderId = map[sutils.T_SegEncoding]sutils.T_SegReaderId{
 		1:    1,
 		2:    1,
 		1000: 2,
@@ -320,26 +320,26 @@ func Test_MergeIQRReaders_MergeIQRs(t *testing.T) {
 
 	knownValues, err := finalIQR.ReadAllColumns()
 	assert.Nil(t, err)
-	expectedKnownValues := map[string][]utils.CValueEnclosure{
+	expectedKnownValues := map[string][]sutils.CValueEnclosure{
 		"timestamp": {
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(7)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(7)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
 		},
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "g"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "h"},
-			{Dtype: utils.SS_DT_STRING, CVal: "f"},
-			{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "g"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "h"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "f"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "d"},
 		},
 	}
 

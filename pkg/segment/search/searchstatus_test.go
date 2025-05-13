@@ -25,7 +25,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -87,7 +87,7 @@ func Test_InitSearchStatus(t *testing.T) {
 
 	assert.Len(t, status.AllBlockStatus, int(numBlocks))
 	for _, blkStatus := range status.AllBlockStatus {
-		recITerator, err := blkStatus.GetRecordIteratorForBlock(utils.And)
+		recITerator, err := blkStatus.GetRecordIteratorForBlock(sutils.And)
 		assert.Nil(t, err)
 		assert.Equal(t, recITerator.AllRecLen, numRecs)
 		for j := uint(0); j < uint(recITerator.AllRecLen); j++ {
@@ -106,7 +106,7 @@ func Test_FirstSearchRecords(t *testing.T) {
 	// initial and sets
 	// type of search request should not influence the results for the first time
 	for blkNum := uint16(0); blkNum < numBlocks; blkNum++ {
-		recITerator, err := status.GetRecordIteratorForBlock(utils.And, blkNum)
+		recITerator, err := status.GetRecordIteratorForBlock(sutils.And, blkNum)
 		assert.Nil(t, err)
 		assert.Equal(t, recITerator.AllRecLen, numRecs)
 		for j := uint(0); j < uint(numRecs); j++ {
@@ -114,7 +114,7 @@ func Test_FirstSearchRecords(t *testing.T) {
 			assert.True(t, readNum)
 		}
 
-		recITerator, err = status.GetRecordIteratorForBlock(utils.Or, blkNum)
+		recITerator, err = status.GetRecordIteratorForBlock(sutils.Or, blkNum)
 		assert.Nil(t, err)
 		assert.Equal(t, recITerator.AllRecLen, numRecs)
 		for j := uint(0); j < uint(numRecs); j++ {
@@ -122,7 +122,7 @@ func Test_FirstSearchRecords(t *testing.T) {
 			assert.True(t, readNum)
 		}
 
-		recITerator, err = status.GetRecordIteratorForBlock(utils.Exclusion, blkNum)
+		recITerator, err = status.GetRecordIteratorForBlock(sutils.Exclusion, blkNum)
 		assert.Nil(t, err)
 		assert.Equal(t, recITerator.AllRecLen, numRecs)
 		for j := uint(0); j < uint(numRecs); j++ {
@@ -140,9 +140,9 @@ func Test_UpdateAndSearch(t *testing.T) {
 	// test or/and/exclustion updates
 	matched := pqmr.CreatePQMatchResults(1)
 	matched.AddMatchedRecord(0)
-	err := status.updateMatchedRecords(0, matched, utils.And)
+	err := status.updateMatchedRecords(0, matched, sutils.And)
 	assert.Nil(t, err)
-	recITerator, err := status.GetRecordIteratorForBlock(utils.And, 0)
+	recITerator, err := status.GetRecordIteratorForBlock(sutils.And, 0)
 	assert.Nil(t, err)
 	processZero := recITerator.ShouldProcessRecord(0)
 	assert.True(t, processZero)
@@ -171,10 +171,10 @@ func Test_UpdateOrSearch(t *testing.T) {
 	// test or/and/exclustion updates
 	matched := pqmr.CreatePQMatchResults(1)
 	matched.AddMatchedRecord(0)
-	err := status.updateMatchedRecords(0, matched, utils.Or)
+	err := status.updateMatchedRecords(0, matched, sutils.Or)
 	assert.Nil(t, err)
 
-	recITerator, err := status.GetRecordIteratorForBlock(utils.Or, 0)
+	recITerator, err := status.GetRecordIteratorForBlock(sutils.Or, 0)
 	assert.Nil(t, err)
 	assert.False(t, recITerator.firstSearch)
 	orCount := 0
@@ -198,9 +198,9 @@ func Test_UpdateOrSearch(t *testing.T) {
 	moreOrMatch.AddMatchedRecord(1)
 	moreOrMatch.AddMatchedRecord(2)
 
-	err = status.updateMatchedRecords(0, moreOrMatch, utils.Or)
+	err = status.updateMatchedRecords(0, moreOrMatch, sutils.Or)
 	assert.Nil(t, err)
-	recITerator, err = status.GetRecordIteratorForBlock(utils.Or, 0)
+	recITerator, err = status.GetRecordIteratorForBlock(sutils.Or, 0)
 	assert.Nil(t, err)
 	assert.False(t, recITerator.firstSearch)
 	assert.Equal(t, recITerator.AllRecLen, numRecs)
@@ -235,10 +235,10 @@ func Test_UpdateExclusionSearch(t *testing.T) {
 	// test or/and/exclustion updates
 	matched := pqmr.CreatePQMatchResults(1)
 	matched.AddMatchedRecord(0)
-	err := status.updateMatchedRecords(0, matched, utils.Exclusion)
+	err := status.updateMatchedRecords(0, matched, sutils.Exclusion)
 	assert.Nil(t, err)
 
-	recITerator, err := status.GetRecordIteratorForBlock(utils.Exclusion, 0)
+	recITerator, err := status.GetRecordIteratorForBlock(sutils.Exclusion, 0)
 	assert.Nil(t, err)
 	assert.False(t, recITerator.firstSearch)
 	orCount := 0

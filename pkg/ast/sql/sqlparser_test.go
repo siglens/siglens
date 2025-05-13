@@ -22,7 +22,7 @@ import (
 
 	query "github.com/siglens/siglens/pkg/es/query"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,12 +32,12 @@ func Test_ParseSelect(t *testing.T) {
 	assert.Nil(t, err)
 
 	testMeasureOp := append(make([]*structs.MeasureAggregator, 0), &structs.MeasureAggregator{
-		MeasureCol: "latency", MeasureFunc: utils.Count,
+		MeasureCol: "latency", MeasureFunc: sutils.Count,
 	})
 	testGroupBy := &structs.GroupByRequest{GroupByColumns: make([]string, 0), MeasureOperations: make([]*structs.MeasureAggregator, 0), BucketCount: 100}
 	testGroupBy.GroupByColumns = append(testGroupBy.GroupByColumns, "country")
 	testGroupBy.MeasureOperations = append(testGroupBy.MeasureOperations, &structs.MeasureAggregator{
-		MeasureCol: "latency", MeasureFunc: utils.Count,
+		MeasureCol: "latency", MeasureFunc: sutils.Count,
 	})
 	_, err = query.GetMatchAllASTNode(0, nil)
 
@@ -175,7 +175,7 @@ func Test_ParseMathFunctions(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, aggs.MathOperations)
 	assert.Equal(t, aggs.MathOperations[0].MathCol, "latitude")
-	assert.Equal(t, aggs.MathOperations[0].MathFunc, utils.Round)
+	assert.Equal(t, aggs.MathOperations[0].MathFunc, sutils.Round)
 	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Op, "round")
 	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Left.Value, "latitude")
 	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Right.Value, "2")
@@ -188,7 +188,7 @@ func Test_ParseMathFunctions(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, aggs.MathOperations)
 	assert.Equal(t, aggs.MathOperations[0].MathCol, "latitude")
-	assert.Equal(t, aggs.MathOperations[0].MathFunc, utils.Round)
+	assert.Equal(t, aggs.MathOperations[0].MathFunc, sutils.Round)
 	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Op, "round")
 	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Left.Value, "latitude")
 	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Right.Value, "2")
@@ -202,7 +202,7 @@ func Test_ParseMathFunctions(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, aggs.MathOperations)
 	assert.Equal(t, aggs.MathOperations[0].MathCol, "latitude")
-	assert.Equal(t, aggs.MathOperations[0].MathFunc, utils.Abs)
+	assert.Equal(t, aggs.MathOperations[0].MathFunc, sutils.Abs)
 	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Op, "abs")
 	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Left.Value, "latitude")
 	assert.Equal(t, aggs.OutputTransforms.OutputColumns.RenameColumns["latitude"], "lat_abs")
