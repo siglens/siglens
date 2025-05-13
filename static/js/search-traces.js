@@ -62,7 +62,7 @@ $(document).ready(() => {
             };
 
             currentSearchParams = defaultParams;
-
+            setLoading(true);
             searchTraces(defaultParams, true);
         }
     }, 300);
@@ -303,7 +303,6 @@ function handleSearch() {
         allResultsFetched = false;
     }
     if (chart) echarts?.dispose(chart);
-
     setLoading(true);
 
     searchTraces(searchParams, true);
