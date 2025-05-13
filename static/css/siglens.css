@@ -18,7 +18,7 @@
  */
 
 
- :root {
+:root {
     --black: #000;
     --white: #fff;
     --error: #f00;
@@ -2466,10 +2466,15 @@ div#save-queries {
     overflow-x: hidden;
 }
 
-div#download-info {
+div#download-info,
+.download-result {
     height: 40px !important;
     margin: 20px !important;
     padding: 0 !important;
+}
+
+.ui-dialog-title {
+    font-size: 18px;
 }
 
 .ui-widget input {
@@ -5566,7 +5571,7 @@ p#versionInfo {
     cursor: pointer;
 }
 
-.headers-section p{
+.headers-section p {
     font-size: 11px;
 }
 
@@ -5582,14 +5587,14 @@ p#versionInfo {
     margin-bottom: 10px;
 }
 
-.headers-labels{
+.headers-labels {
     height: 15px;
     align-items: center;
     width: 80%;
     margin-bottom: 0 !important;
 }
 
-.header-label{
+.header-label {
     flex: 1;
     min-width: 60px;
     font-size: 11px;
@@ -5621,11 +5626,11 @@ p#versionInfo {
     min-width: 180px;
 }
 
-.edit-icon{
+.edit-icon {
     margin: 10px;
 }
 
-.tick-icon{
+.tick-icon {
     background-repeat: no-repeat;
     width: 15px;
     height: 20px;
@@ -7704,8 +7709,8 @@ p#versionInfo {
 .field-name:hover {
     white-space: normal;
     word-break: break-word;
-    overflow: visible; 
-    text-overflow: clip; 
+    overflow: visible;
+    text-overflow: clip;
 }
 
 .field-action {
