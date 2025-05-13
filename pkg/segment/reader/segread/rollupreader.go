@@ -27,7 +27,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 
@@ -176,7 +176,7 @@ func readRollupFile(fd *os.File,
 	var mrSize uint16
 	bbMrSize := make([]byte, 2) // for bitset match result size
 
-	bsBlk := make([]byte, segutils.WIP_NUM_RECS/8)
+	bsBlk := make([]byte, sutils.WIP_NUM_RECS/8)
 
 	for {
 		// read blkNum

@@ -22,30 +22,30 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-func getTestValues() map[string][]utils.CValueEnclosure {
-	values := map[string][]utils.CValueEnclosure{
+func getTestValues() map[string][]sutils.CValueEnclosure {
+	values := map[string][]sutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "Boston"},
-			{Dtype: utils.SS_DT_STRING, CVal: "New York"},
-			{Dtype: utils.SS_DT_STRING, CVal: "Bos___some_on"},
-			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "New York"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Bos___some_on"},
+			{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_STRING, CVal: "anything"},
-			{Dtype: utils.SS_DT_STRING, CVal: "New Jersey"},
-			{Dtype: utils.SS_DT_STRING, CVal: "Nothing"},
-			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
+			{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 		},
 		"col3": {
-			{Dtype: utils.SS_DT_STRING, CVal: "anything"},
-			{Dtype: utils.SS_DT_STRING, CVal: "New Jersey"},
-			{Dtype: utils.SS_DT_STRING, CVal: "Nothing"},
-			{Dtype: utils.SS_DT_STRING, CVal: "Boston"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
 		},
 	}
 
@@ -54,7 +54,7 @@ func getTestValues() map[string][]utils.CValueEnclosure {
 
 func Test_processRegexOnAllColumns_KeepMatch(t *testing.T) {
 	pattern := "^Bos.*on$"
-	gobRegex := &toputils.GobbableRegex{}
+	gobRegex := &utils.GobbableRegex{}
 	err := gobRegex.SetRegex(pattern)
 	assert.Nil(t, err)
 
@@ -76,21 +76,21 @@ func Test_processRegexOnAllColumns_KeepMatch(t *testing.T) {
 	_, err = regexProcessor.Process(iqr1)
 	assert.NoError(t, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "Boston"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Bos___some_on"},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Bos___some_on"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "anything"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Nothing"},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
 
-	expectedCol3 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "anything"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Nothing"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Boston"},
+	expectedCol3 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
 	}
 
 	actualCol1, err := iqr1.ReadColumn("col1")
@@ -108,7 +108,7 @@ func Test_processRegexOnAllColumns_KeepMatch(t *testing.T) {
 
 func Test_processRegexOnAllColumns_DiscardMatch(t *testing.T) {
 	pattern := "^Bos.*on$"
-	gobRegex := &toputils.GobbableRegex{}
+	gobRegex := &utils.GobbableRegex{}
 	err := gobRegex.SetRegex(pattern)
 	assert.Nil(t, err)
 
@@ -130,16 +130,16 @@ func Test_processRegexOnAllColumns_DiscardMatch(t *testing.T) {
 	_, err = regexProcessor.Process(iqr1)
 	assert.NoError(t, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "New York"},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New York"},
 	}
 
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "New Jersey"},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
 	}
 
-	expectedCol3 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "New Jersey"},
+	expectedCol3 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
 	}
 
 	actualCol1, err := iqr1.ReadColumn("col1")
@@ -157,7 +157,7 @@ func Test_processRegexOnAllColumns_DiscardMatch(t *testing.T) {
 
 func Test_processRegexOnSingleColumns_KeepMatch(t *testing.T) {
 	pattern := "^Bos.*on$"
-	gobRegex := &toputils.GobbableRegex{}
+	gobRegex := &utils.GobbableRegex{}
 	err := gobRegex.SetRegex(pattern)
 	assert.Nil(t, err)
 
@@ -179,17 +179,17 @@ func Test_processRegexOnSingleColumns_KeepMatch(t *testing.T) {
 	_, err = regexProcessor.Process(iqr1)
 	assert.NoError(t, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "Boston"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Bos___some_on"},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Bos___some_on"},
 	}
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "anything"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Nothing"},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
 	}
-	expectedCol3 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "anything"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Nothing"},
+	expectedCol3 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "anything"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Nothing"},
 	}
 
 	actualCol1, err := iqr1.ReadColumn("col1")
@@ -207,7 +207,7 @@ func Test_processRegexOnSingleColumns_KeepMatch(t *testing.T) {
 
 func Test_processRegexOnSingleColumns_DiscardMatch(t *testing.T) {
 	pattern := "^Bos.*on$"
-	gobRegex := &toputils.GobbableRegex{}
+	gobRegex := &utils.GobbableRegex{}
 	err := gobRegex.SetRegex(pattern)
 	assert.Nil(t, err)
 
@@ -229,17 +229,17 @@ func Test_processRegexOnSingleColumns_DiscardMatch(t *testing.T) {
 	_, err = regexProcessor.Process(iqr1)
 	assert.NoError(t, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "New York"},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	expectedCol1 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New York"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "New Jersey"},
-		{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
+	expectedCol2 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
+		{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
 	}
-	expectedCol3 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "New Jersey"},
-		{Dtype: utils.SS_DT_STRING, CVal: "Boston"},
+	expectedCol3 := []sutils.CValueEnclosure{
+		{Dtype: sutils.SS_DT_STRING, CVal: "New Jersey"},
+		{Dtype: sutils.SS_DT_STRING, CVal: "Boston"},
 	}
 
 	actualCol1, err := iqr1.ReadColumn("col1")

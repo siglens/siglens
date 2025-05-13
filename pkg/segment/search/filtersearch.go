@@ -26,13 +26,13 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
 // Search a single SearchQuery and returns which records passes the filter
 func RawSearchSingleQuery(query *structs.SearchQuery, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
-	allBlockSearchHelpers []*structs.BlockSearchHelper, op utils.LogicalOperator, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
+	allBlockSearchHelpers []*structs.BlockSearchHelper, op sutils.LogicalOperator, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
 	allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult, queryRange *dtu.TimeRange) *SegmentSearchStatus {
 
 	queryType := query.GetQueryType()
@@ -71,9 +71,9 @@ func RawSearchSingleQuery(query *structs.SearchQuery, searchReq *structs.Segment
 	return segmentSearch
 }
 
-func logSingleQuerySummary(segmentSearch *SegmentSearchStatus, op utils.LogicalOperator, qid uint64) {
+func logSingleQuerySummary(segmentSearch *SegmentSearchStatus, op sutils.LogicalOperator, qid uint64) {
 	if config.IsDebugMode() {
-		opStr := utils.ConvertOperatorToString(op)
+		opStr := sutils.ConvertOperatorToString(op)
 		sumMatched, sumUnmatched := segmentSearch.getTotalCounts()
 		log.Infof("qid=%d, After a %+v op, there are %+v total matched records and %+v total unmatched records",
 			qid, opStr, sumMatched, sumUnmatched)
@@ -91,13 +91,13 @@ func getAllColumnsNeededForSearch(query *structs.SearchQuery, allCols map[string
 
 func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, query *structs.SearchQuery,
 	segmentSearch *SegmentSearchStatus, resultsChan chan *BlockSearchStatus, blockHelper *structs.BlockSearchHelper,
-	runningBlockManagers *sync.WaitGroup, op utils.LogicalOperator, queryType structs.SearchNodeType,
+	runningBlockManagers *sync.WaitGroup, op sutils.LogicalOperator, queryType structs.SearchNodeType,
 	qid uint64, allSearchResults *segresults.SearchResults, searchReq *structs.SegmentSearchRequest,
 	nodeRes *structs.NodeResult, queryRange *dtu.TimeRange) {
 
 	defer runningBlockManagers.Done() // defer in case of panics
 
-	holderDte := &utils.DtypeEnclosure{}
+	holderDte := &sutils.DtypeEnclosure{}
 	for blockReq := range resultsChan {
 		blockHelper.ResetBlockHelper()
 		recIT, err := segmentSearch.GetRecordIteratorForBlock(op, blockReq.BlockNum)
@@ -149,7 +149,7 @@ func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, 
 
 func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *SegmentSearchStatus,
 	blockHelper *structs.BlockSearchHelper, multiColReader *segread.MultiColSegmentReader, recIT *BlockRecordIterator,
-	blockNum uint16, holderDte *utils.DtypeEnclosure, qid uint64, allSearchResults *segresults.SearchResults,
+	blockNum uint16, holderDte *sutils.DtypeEnclosure, qid uint64, allSearchResults *segresults.SearchResults,
 	searchReq *structs.SegmentSearchRequest, nodeRes *structs.NodeResult, queryRange *dtu.TimeRange) {
 
 	// first we walk through the search checking if this query can be satisfied by looking at the

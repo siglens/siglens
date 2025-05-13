@@ -29,8 +29,8 @@ import (
 	parser "github.com/prometheus/prometheus/promql/parser"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -41,11 +41,11 @@ const MAX_POINTS_TO_EVALUATE float64 = 250
 Struct to represent a single metrics query request.
 */
 type MetricsQuery struct {
-	isQueryCancelled       uint32            // flag to indicate if the query is cancelled/deleted. 1 if cancelled/deleted, 0 otherwise
-	MetricName             string            // metric name to query for.
-	MetricOperator         utils.TagOperator // operator to apply on metric name
-	MetricNameRegexPattern string            // regex pattern to apply on metric name
-	QueryHash              uint64            // hash of the query
+	isQueryCancelled       uint32             // flag to indicate if the query is cancelled/deleted. 1 if cancelled/deleted, 0 otherwise
+	MetricName             string             // metric name to query for.
+	MetricOperator         sutils.TagOperator // operator to apply on metric name
+	MetricNameRegexPattern string             // regex pattern to apply on metric name
+	QueryHash              uint64             // hash of the query
 	HashedMName            uint64
 	// Some queries include lookback time and for those queries, this field will be set.
 	// Example: sum_over_time(metrics[1m]) - in this case, the LookBackToInclude will be the 1m
@@ -87,7 +87,7 @@ type MetricsQuery struct {
 // 1. Aggregate multiple series into fewer series (e.g., sum with an optional group by).
 // 2. Aggregate points in a series into fewer points (e.g., when used by a downsampler).
 type Aggregation struct {
-	AggregatorFunction utils.AggregateFunctions //aggregator function
+	AggregatorFunction sutils.AggregateFunctions //aggregator function
 	FuncConstant       float64
 	GroupByFields      []string // group by fields will be sorted
 	Without            bool     // if set exclude the above group by fields
@@ -117,11 +117,11 @@ type LabelReplacementKey struct {
 }
 
 type LabelFunctionExpr struct {
-	FunctionType     utils.LabelFunctions
+	FunctionType     sutils.LabelFunctions
 	DestinationLabel string
 	Replacement      *LabelReplacementKey
 	SourceLabel      string
-	GobRegexp        *toputils.GobbableRegex
+	GobRegexp        *utils.GobbableRegex
 }
 
 // This works on a per-series basis. Generally, it changes the values in a
@@ -130,18 +130,18 @@ type LabelFunctionExpr struct {
 type Function struct {
 	FunctionType MetricsFunctionType
 	// TODO: remove the below MathFunction, RangeFunction, TimeFunction fields and use FunctionType instead
-	MathFunction      utils.MathFunctions
-	RangeFunction     utils.RangeFunctions //range function to apply, only one of these will be non nil
+	MathFunction      sutils.MathFunctions
+	RangeFunction     sutils.RangeFunctions //range function to apply, only one of these will be non nil
 	ValueList         []string
 	TimeWindow        float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
 	Step              float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
-	TimeFunction      utils.TimeFunctions
+	TimeFunction      sutils.TimeFunctions
 	LabelFunction     *LabelFunctionExpr
 	HistogramFunction *HistogramAgg
 }
 
 type HistogramAgg struct {
-	Function utils.HistogramFunctions
+	Function sutils.HistogramFunctions
 	Quantile float64
 }
 
@@ -173,8 +173,8 @@ type TagsFilter struct {
 	TagKey          string
 	RawTagValue     interface{} //change it to utils.DtypeEnclosure later
 	HashTagValue    uint64
-	TagOperator     utils.TagOperator
-	LogicalOperator utils.LogicalOperator
+	TagOperator     sutils.TagOperator
+	LogicalOperator sutils.LogicalOperator
 	NotInitialGroup bool
 	IgnoreTag       bool
 	IsGroupByKey    bool
@@ -242,7 +242,7 @@ type QueryArithmetic struct {
 	LHSExpr     *QueryArithmetic
 	RHSExpr     *QueryArithmetic
 	ConstantOp  bool
-	Operation   utils.LogicalAndArithmeticOperator
+	Operation   sutils.LogicalAndArithmeticOperator
 	ReturnBool  bool // If a comparison operator, return 0/1 rather than filtering.
 	Constant    float64
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
@@ -446,7 +446,7 @@ func isStarValue(tf *TagsFilter) bool {
 }
 
 func (tf *TagsFilter) IsRegex() bool {
-	return (tf.TagOperator == utils.Regex || tf.TagOperator == utils.NegRegex)
+	return (tf.TagOperator == sutils.Regex || tf.TagOperator == sutils.NegRegex)
 }
 
 // Handles star tags logic
@@ -543,17 +543,17 @@ func (mbs *MBlockSummary) FlushSummary(fName string) error {
 	// read both types of version files
 	if isFirstBlock {
 		mBlkSum = make([]byte, 19)
-		copy(mBlkSum[idx:], utils.VERSION_MBLOCKSUMMARY)
+		copy(mBlkSum[idx:], sutils.VERSION_MBLOCKSUMMARY)
 		idx += 1
 		// hard coded byte size for [blk num][high Ts][low Ts]
 	} else {
 		mBlkSum = make([]byte, 18)
 	}
-	toputils.Uint16ToBytesLittleEndianInplace(mbs.Blknum, mBlkSum[idx:])
+	utils.Uint16ToBytesLittleEndianInplace(mbs.Blknum, mBlkSum[idx:])
 	idx += 2
-	toputils.Uint32ToBytesLittleEndianInplace(mbs.HighTs, mBlkSum[idx:])
+	utils.Uint32ToBytesLittleEndianInplace(mbs.HighTs, mBlkSum[idx:])
 	idx += 8
-	toputils.Uint32ToBytesLittleEndianInplace(mbs.LowTs, mBlkSum[idx:])
+	utils.Uint32ToBytesLittleEndianInplace(mbs.LowTs, mBlkSum[idx:])
 
 	if _, err := fd.Write(mBlkSum); err != nil {
 		log.Errorf("MBlockSummary.FlushSummary: Failed to write block in file: %v, err: %v", fName, err)
@@ -582,9 +582,9 @@ func (agg Aggregation) ShallowClone() *Aggregation {
 }
 
 func (agg Aggregation) IsAggregateFromAllTimeseries() bool {
-	return agg.AggregatorFunction == utils.Count || agg.AggregatorFunction == utils.Stdvar || agg.AggregatorFunction == utils.Stddev || agg.AggregatorFunction == utils.TopK || agg.AggregatorFunction == utils.BottomK
+	return agg.AggregatorFunction == sutils.Count || agg.AggregatorFunction == sutils.Stdvar || agg.AggregatorFunction == sutils.Stddev || agg.AggregatorFunction == sutils.TopK || agg.AggregatorFunction == sutils.BottomK
 }
 
 func (mQuery *MetricsQuery) IsRegexOnMetricName() bool {
-	return mQuery.MetricOperator == utils.Regex || mQuery.MetricOperator == utils.NegRegex
+	return mQuery.MetricOperator == sutils.Regex || mQuery.MetricOperator == sutils.NegRegex
 }

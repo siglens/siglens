@@ -45,7 +45,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
@@ -1236,8 +1236,8 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					TagKey:          entry.Name,
 					RawTagValue:     entry.Value,
 					HashTagValue:    xxhash.Sum64String(entry.Value),
-					TagOperator:     segutils.TagOperator(entry.Type),
-					LogicalOperator: segutils.And,
+					TagOperator:     sutils.TagOperator(entry.Type),
+					LogicalOperator: sutils.And,
 				}
 				mquery.TagsFilters = append(mquery.TagsFilters, tagFilter)
 			} else {
@@ -1273,33 +1273,33 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				aggFunc := extractFuncFromPath(path)
 				switch aggFunc {
 				case "avg":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Avg
+					mquery.FirstAggregator.AggregatorFunction = sutils.Avg
 				case "count":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Count
+					mquery.FirstAggregator.AggregatorFunction = sutils.Count
 					mquery.GetAllLabels = true
 				case "sum":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Sum
+					mquery.FirstAggregator.AggregatorFunction = sutils.Sum
 				case "max":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Max
+					mquery.FirstAggregator.AggregatorFunction = sutils.Max
 				case "min":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Min
+					mquery.FirstAggregator.AggregatorFunction = sutils.Min
 				case "quantile":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Quantile
+					mquery.FirstAggregator.AggregatorFunction = sutils.Quantile
 				case "topk":
-					mquery.FirstAggregator.AggregatorFunction = segutils.TopK
+					mquery.FirstAggregator.AggregatorFunction = sutils.TopK
 					mquery.GetAllLabels = true
 				case "bottomk":
-					mquery.FirstAggregator.AggregatorFunction = segutils.BottomK
+					mquery.FirstAggregator.AggregatorFunction = sutils.BottomK
 					mquery.GetAllLabels = true
 				case "stddev":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Stddev
+					mquery.FirstAggregator.AggregatorFunction = sutils.Stddev
 				case "stdvar":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Stdvar
+					mquery.FirstAggregator.AggregatorFunction = sutils.Stdvar
 				case "group":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Group
+					mquery.FirstAggregator.AggregatorFunction = sutils.Group
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for AggregateExpr (got %v)", aggFunc)
-					mquery.FirstAggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
+					mquery.FirstAggregator = structs.Aggregation{AggregatorFunction: sutils.Avg}
 				}
 			case *parser.VectorSelector:
 				_, grouping := extractGroupsFromPath(path)
@@ -1311,41 +1311,41 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 						TagKey:          grp,
 						RawTagValue:     "*",
 						HashTagValue:    xxhash.Sum64String(tagstree.STAR),
-						TagOperator:     segutils.TagOperator(segutils.Equal),
-						LogicalOperator: segutils.And,
+						TagOperator:     sutils.TagOperator(sutils.Equal),
+						LogicalOperator: sutils.And,
 					}
 					mquery.TagsFilters = append(mquery.TagsFilters, &tagFilter)
 				}
 				switch aggFunc {
 				case "avg":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Avg
+					mquery.FirstAggregator.AggregatorFunction = sutils.Avg
 				case "count":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Count
+					mquery.FirstAggregator.AggregatorFunction = sutils.Count
 					mquery.GetAllLabels = true
 					mquery.TagsFilters = make([]*structs.TagsFilter, 0)
 				case "sum":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Sum
+					mquery.FirstAggregator.AggregatorFunction = sutils.Sum
 				case "max":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Max
+					mquery.FirstAggregator.AggregatorFunction = sutils.Max
 				case "min":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Min
+					mquery.FirstAggregator.AggregatorFunction = sutils.Min
 				case "quantile":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Quantile
+					mquery.FirstAggregator.AggregatorFunction = sutils.Quantile
 				case "topk":
-					mquery.FirstAggregator.AggregatorFunction = segutils.TopK
+					mquery.FirstAggregator.AggregatorFunction = sutils.TopK
 					mquery.GetAllLabels = true
 				case "bottomk":
-					mquery.FirstAggregator.AggregatorFunction = segutils.BottomK
+					mquery.FirstAggregator.AggregatorFunction = sutils.BottomK
 					mquery.GetAllLabels = true
 				case "stddev":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Stddev
+					mquery.FirstAggregator.AggregatorFunction = sutils.Stddev
 				case "stdvar":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Stdvar
+					mquery.FirstAggregator.AggregatorFunction = sutils.Stdvar
 				case "group":
-					mquery.FirstAggregator.AggregatorFunction = segutils.Group
+					mquery.FirstAggregator.AggregatorFunction = sutils.Group
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for VectorSelector (got %v)", aggFunc)
-					mquery.FirstAggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
+					mquery.FirstAggregator = structs.Aggregation{AggregatorFunction: sutils.Avg}
 				}
 			case *parser.NumberLiteral:
 				mquery.FirstAggregator.FuncConstant = expr.Val
@@ -1380,51 +1380,51 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				}
 				switch function {
 				case "deriv":
-					mquery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Derivative, TimeWindow: timeWindow}
 				case "predict_linear":
 					if len(expr.Args) != 2 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the predict_linear function", expr.Args.String())
 					}
-					mquery.Function = structs.Function{RangeFunction: segutils.Predict_Linear, TimeWindow: timeWindow, ValueList: []string{expr.Args[1].String()}}
+					mquery.Function = structs.Function{RangeFunction: sutils.Predict_Linear, TimeWindow: timeWindow, ValueList: []string{expr.Args[1].String()}}
 				case "delta":
-					mquery.Function = structs.Function{RangeFunction: segutils.Delta, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Delta, TimeWindow: timeWindow}
 				case "idelta":
-					mquery.Function = structs.Function{RangeFunction: segutils.IDelta, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.IDelta, TimeWindow: timeWindow}
 				case "rate":
-					mquery.Function = structs.Function{RangeFunction: segutils.Rate, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Rate, TimeWindow: timeWindow}
 				case "irate":
-					mquery.Function = structs.Function{RangeFunction: segutils.IRate, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.IRate, TimeWindow: timeWindow}
 				case "increase":
-					mquery.Function = structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Increase, TimeWindow: timeWindow}
 				case "avg_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Avg_Over_Time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Avg_Over_Time, TimeWindow: timeWindow}
 				case "min_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Min_Over_Time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Min_Over_Time, TimeWindow: timeWindow}
 				case "max_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Max_Over_Time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Max_Over_Time, TimeWindow: timeWindow}
 				case "sum_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Sum_Over_Time, TimeWindow: timeWindow}
 				case "count_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Count_Over_Time, TimeWindow: timeWindow}
 				case "stdvar_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Stdvar_Over_Time, TimeWindow: timeWindow}
 				case "stddev_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Stddev_Over_Time, TimeWindow: timeWindow}
 				case "last_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Last_Over_Time, TimeWindow: timeWindow}
 				case "present_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Present_Over_Time, TimeWindow: timeWindow}
 				case "mad_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Mad_Over_Time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Mad_Over_Time, TimeWindow: timeWindow}
 				case "quantile_over_time":
 					if len(expr.Args) != 2 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
 					}
-					mquery.Function = structs.Function{RangeFunction: segutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}}
+					mquery.Function = structs.Function{RangeFunction: sutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}}
 				case "changes":
-					mquery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Changes, TimeWindow: timeWindow}
 				case "resets":
-					mquery.Function = structs.Function{RangeFunction: segutils.Resets, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: sutils.Resets, TimeWindow: timeWindow}
 				default:
 					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
@@ -1432,89 +1432,89 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				function := extractFuncFromPath(path)
 				switch function {
 				case "abs":
-					mquery.Function = structs.Function{MathFunction: segutils.Abs}
+					mquery.Function = structs.Function{MathFunction: sutils.Abs}
 				case "sqrt":
-					mquery.Function = structs.Function{MathFunction: segutils.Sqrt}
+					mquery.Function = structs.Function{MathFunction: sutils.Sqrt}
 				case "ceil":
-					mquery.Function = structs.Function{MathFunction: segutils.Ceil}
+					mquery.Function = structs.Function{MathFunction: sutils.Ceil}
 				case "round":
-					mquery.Function = structs.Function{MathFunction: segutils.Round}
+					mquery.Function = structs.Function{MathFunction: sutils.Round}
 					if len(expr.Args) > 1 {
 						mquery.Function.ValueList = []string{expr.Args[1].String()}
 					}
 				case "floor":
-					mquery.Function = structs.Function{MathFunction: segutils.Floor}
+					mquery.Function = structs.Function{MathFunction: sutils.Floor}
 				case "exp":
-					mquery.Function = structs.Function{MathFunction: segutils.Exp}
+					mquery.Function = structs.Function{MathFunction: sutils.Exp}
 				case "ln":
-					mquery.Function = structs.Function{MathFunction: segutils.Ln}
+					mquery.Function = structs.Function{MathFunction: sutils.Ln}
 				case "log2":
-					mquery.Function = structs.Function{MathFunction: segutils.Log2}
+					mquery.Function = structs.Function{MathFunction: sutils.Log2}
 				case "log10":
-					mquery.Function = structs.Function{MathFunction: segutils.Log10}
+					mquery.Function = structs.Function{MathFunction: sutils.Log10}
 				case "sgn":
-					mquery.Function = structs.Function{MathFunction: segutils.Sgn}
+					mquery.Function = structs.Function{MathFunction: sutils.Sgn}
 				case "deg":
-					mquery.Function = structs.Function{MathFunction: segutils.Deg}
+					mquery.Function = structs.Function{MathFunction: sutils.Deg}
 				case "rad":
-					mquery.Function = structs.Function{MathFunction: segutils.Rad}
+					mquery.Function = structs.Function{MathFunction: sutils.Rad}
 				case "acos":
-					mquery.Function = structs.Function{MathFunction: segutils.Acos}
+					mquery.Function = structs.Function{MathFunction: sutils.Acos}
 				case "acosh":
-					mquery.Function = structs.Function{MathFunction: segutils.Acosh}
+					mquery.Function = structs.Function{MathFunction: sutils.Acosh}
 				case "asin":
-					mquery.Function = structs.Function{MathFunction: segutils.Asin}
+					mquery.Function = structs.Function{MathFunction: sutils.Asin}
 				case "asinh":
-					mquery.Function = structs.Function{MathFunction: segutils.Asinh}
+					mquery.Function = structs.Function{MathFunction: sutils.Asinh}
 				case "atan":
-					mquery.Function = structs.Function{MathFunction: segutils.Atan}
+					mquery.Function = structs.Function{MathFunction: sutils.Atan}
 				case "atanh":
-					mquery.Function = structs.Function{MathFunction: segutils.Atanh}
+					mquery.Function = structs.Function{MathFunction: sutils.Atanh}
 				case "cos":
-					mquery.Function = structs.Function{MathFunction: segutils.Cos}
+					mquery.Function = structs.Function{MathFunction: sutils.Cos}
 				case "cosh":
-					mquery.Function = structs.Function{MathFunction: segutils.Cosh}
+					mquery.Function = structs.Function{MathFunction: sutils.Cosh}
 				case "sin":
-					mquery.Function = structs.Function{MathFunction: segutils.Sin}
+					mquery.Function = structs.Function{MathFunction: sutils.Sin}
 				case "sinh":
-					mquery.Function = structs.Function{MathFunction: segutils.Sinh}
+					mquery.Function = structs.Function{MathFunction: sutils.Sinh}
 				case "tan":
-					mquery.Function = structs.Function{MathFunction: segutils.Tan}
+					mquery.Function = structs.Function{MathFunction: sutils.Tan}
 				case "tanh":
-					mquery.Function = structs.Function{MathFunction: segutils.Tanh}
+					mquery.Function = structs.Function{MathFunction: sutils.Tanh}
 				case "clamp":
 					if len(expr.Args) != 3 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp function", expr.Args.String())
 					}
-					mquery.Function = structs.Function{MathFunction: segutils.Clamp, ValueList: []string{expr.Args[1].String(), expr.Args[2].String()}}
+					mquery.Function = structs.Function{MathFunction: sutils.Clamp, ValueList: []string{expr.Args[1].String(), expr.Args[2].String()}}
 				case "clamp_max":
 					if len(expr.Args) != 2 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp_max function", expr.Args.String())
 					}
-					mquery.Function = structs.Function{MathFunction: segutils.Clamp_Max, ValueList: []string{expr.Args[1].String()}}
+					mquery.Function = structs.Function{MathFunction: sutils.Clamp_Max, ValueList: []string{expr.Args[1].String()}}
 				case "clamp_min":
 					if len(expr.Args) != 2 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp_min function", expr.Args.String())
 					}
-					mquery.Function = structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
+					mquery.Function = structs.Function{MathFunction: sutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
 				case "timestamp":
-					mquery.Function = structs.Function{MathFunction: segutils.Timestamp}
+					mquery.Function = structs.Function{MathFunction: sutils.Timestamp}
 				case "hour":
-					mquery.Function = structs.Function{TimeFunction: segutils.Hour}
+					mquery.Function = structs.Function{TimeFunction: sutils.Hour}
 				case "minute":
-					mquery.Function = structs.Function{TimeFunction: segutils.Minute}
+					mquery.Function = structs.Function{TimeFunction: sutils.Minute}
 				case "month":
-					mquery.Function = structs.Function{TimeFunction: segutils.Month}
+					mquery.Function = structs.Function{TimeFunction: sutils.Month}
 				case "year":
-					mquery.Function = structs.Function{TimeFunction: segutils.Year}
+					mquery.Function = structs.Function{TimeFunction: sutils.Year}
 				case "day_of_month":
-					mquery.Function = structs.Function{TimeFunction: segutils.DayOfMonth}
+					mquery.Function = structs.Function{TimeFunction: sutils.DayOfMonth}
 				case "day_of_week":
-					mquery.Function = structs.Function{TimeFunction: segutils.DayOfWeek}
+					mquery.Function = structs.Function{TimeFunction: sutils.DayOfWeek}
 				case "day_of_year":
-					mquery.Function = structs.Function{TimeFunction: segutils.DayOfYear}
+					mquery.Function = structs.Function{TimeFunction: sutils.DayOfYear}
 				case "days_in_month":
-					mquery.Function = structs.Function{TimeFunction: segutils.DaysInMonth}
+					mquery.Function = structs.Function{TimeFunction: sutils.DaysInMonth}
 				default:
 					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
@@ -1525,7 +1525,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.HashedMName = xxhash.Sum64String(mquery.MetricName)
 		mquery.OrgId = myid
 		mquery.SelectAllSeries = true
-		agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
+		agg := structs.Aggregation{AggregatorFunction: sutils.Avg}
 		mquery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
 		if len(mquery.TagsFilters) > 0 {
@@ -1632,7 +1632,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	mquery.HashedMName = xxhash.Sum64String(metricName)
 
 	if mquery.FirstAggregator.AggregatorFunction == 0 && !groupby {
-		mquery.FirstAggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
+		mquery.FirstAggregator = structs.Aggregation{AggregatorFunction: sutils.Avg}
 	}
 	mquery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: mquery.FirstAggregator}
 	if len(mquery.TagsFilters) > 0 {

@@ -31,7 +31,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -126,8 +126,8 @@ func WriteSortIndex(segkey string, cname string, sortModes []SortMode) error {
 		return fmt.Errorf("WriteSortIndex: failed reading all records for segkey=%v, cname=%v; err=%v", segkey, cname, err)
 	}
 
-	valToBlockToRecords := make(map[segutils.CValueEnclosure]map[uint16][]uint16)
-	enclosure := segutils.CValueEnclosure{}
+	valToBlockToRecords := make(map[sutils.CValueEnclosure]map[uint16][]uint16)
+	enclosure := sutils.CValueEnclosure{}
 	for blockNum, records := range blockToRecords {
 		for recNum, recBytes := range records {
 			if len(recBytes) == 0 {
@@ -164,7 +164,7 @@ func WriteSortIndex(segkey string, cname string, sortModes []SortMode) error {
 	return nil
 }
 
-func sortEnclosures(values []segutils.CValueEnclosure, sortMode SortMode) error {
+func sortEnclosures(values []sutils.CValueEnclosure, sortMode SortMode) error {
 	switch sortMode {
 	case SortAsAuto:
 		// TODO: when IP sorting is handled, don't fall through.
@@ -225,7 +225,7 @@ func sortEnclosures(values []segutils.CValueEnclosure, sortMode SortMode) error 
 //	 Data
 //	   [CValueEnclosure encoding] NumBlocks BlockNum1 NumRecords Rec1, Rec2, … BlockNum2 NumRecords Rec1, Rec2
 func writeSortIndex(segkey string, cname string, sortMode SortMode,
-	valToBlockToRecords map[segutils.CValueEnclosure]map[uint16][]uint16) error {
+	valToBlockToRecords map[sutils.CValueEnclosure]map[uint16][]uint16) error {
 
 	switch sortMode {
 	case SortAsAuto, SortAsNumeric, SortAsString: // Do nothing.
@@ -361,21 +361,21 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 }
 
 type Line struct {
-	Value  segutils.CValueEnclosure
+	Value  sutils.CValueEnclosure
 	Blocks []Block
 }
 
-func AsRRCs(lines []Line, segKeyEncoding uint32) ([]*segutils.RecordResultContainer, []segutils.CValueEnclosure) {
-	rrcs := make([]*segutils.RecordResultContainer, 0)
-	values := make([]segutils.CValueEnclosure, 0)
+func AsRRCs(lines []Line, segKeyEncoding uint32) ([]*sutils.RecordResultContainer, []sutils.CValueEnclosure) {
+	rrcs := make([]*sutils.RecordResultContainer, 0)
+	values := make([]sutils.CValueEnclosure, 0)
 
 	for _, line := range lines {
 		for _, block := range line.Blocks {
 			for _, recordNum := range block.RecNums {
-				rrcs = append(rrcs, &segutils.RecordResultContainer{
+				rrcs = append(rrcs, &sutils.RecordResultContainer{
 					BlockNum:  block.BlockNum,
 					RecordNum: recordNum,
-					SegKeyInfo: segutils.SegKeyInfo{
+					SegKeyInfo: sutils.SegKeyInfo{
 						SegKeyEnc: segKeyEncoding,
 					},
 				})
@@ -501,7 +501,7 @@ func readLine(file *os.File, maxRecordsToRead int, readFullLine bool, fromCheckp
 		finalCheckpoint.lineNum = fromCheckpoint.lineNum
 	}
 
-	var enclosure segutils.CValueEnclosure
+	var enclosure sutils.CValueEnclosure
 	_, err := enclosure.FromReader(file)
 	if err != nil {
 		return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading enclosure: %v", err)

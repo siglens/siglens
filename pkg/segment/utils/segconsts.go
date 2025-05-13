@@ -32,7 +32,7 @@ import (
 
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/regex"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -1035,7 +1035,7 @@ func (e *CValueEnclosure) GetString() (string, error) {
 	case SS_DT_FLOAT:
 		return fmt.Sprintf("%f", e.CVal.(float64)), nil
 	case SS_DT_BACKFILL:
-		return "", toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetString: nil value"))
+		return "", utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetString: nil value"))
 	default:
 		return "", fmt.Errorf("CValueEnclosure GetString: unsupported Dtype: %v", e.Dtype)
 	}
@@ -1075,7 +1075,7 @@ func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 	case SS_DT_FLOAT:
 		return e.CVal.(float64), nil
 	case SS_DT_BACKFILL:
-		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetFloatValue: nil value"))
+		return 0, utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetFloatValue: nil value"))
 	default:
 		return 0, errors.New("CValueEnclosure GetFloatValue: unsupported Dtype")
 	}
@@ -1085,7 +1085,7 @@ func (e *CValueEnclosure) GetFloatValueIfPossible() (float64, bool) {
 	switch e.Dtype {
 	case SS_DT_STRING:
 		strVal := e.CVal.(string)
-		if !toputils.MightBeFloat(strVal) {
+		if !utils.MightBeFloat(strVal) {
 			return 0, false
 		}
 
@@ -1217,7 +1217,7 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, 
 
 	// Resize the buffer if required
 	if requiredSize > availableSize {
-		buf = toputils.ResizeSlice(buf, len(buf)+requiredSize+MAX_RECORD_SIZE)
+		buf = utils.ResizeSlice(buf, len(buf)+requiredSize+MAX_RECORD_SIZE)
 	}
 
 	switch e.Dtype {
@@ -1233,24 +1233,24 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, 
 	case SS_DT_UNSIGNED_NUM:
 		copy(buf[bufIdx:], VALTYPE_ENC_UINT64)
 		bufIdx += 1
-		toputils.Uint64ToBytesLittleEndianInplace(e.CVal.(uint64), buf[bufIdx:bufIdx+8])
+		utils.Uint64ToBytesLittleEndianInplace(e.CVal.(uint64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
 	case SS_DT_SIGNED_NUM:
 		copy(buf[bufIdx:], VALTYPE_ENC_INT64)
 		bufIdx += 1
-		toputils.Int64ToBytesLittleEndianInplace(e.CVal.(int64), buf[bufIdx:bufIdx+8])
+		utils.Int64ToBytesLittleEndianInplace(e.CVal.(int64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
 	case SS_DT_FLOAT:
 		copy(buf[bufIdx:], VALTYPE_ENC_FLOAT64)
 		bufIdx += 1
-		toputils.Float64ToBytesLittleEndianInplace(e.CVal.(float64), buf[bufIdx:bufIdx+8])
+		utils.Float64ToBytesLittleEndianInplace(e.CVal.(float64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
 	case SS_DT_STRING:
 		copy(buf[bufIdx:], VALTYPE_ENC_SMALL_STRING)
 		bufIdx += 1
 		strBytes := []byte(e.CVal.(string))
 		strLen := len(strBytes)
-		copy(buf[bufIdx:], toputils.Uint16ToBytesLittleEndian(uint16(strLen)))
+		copy(buf[bufIdx:], utils.Uint16ToBytesLittleEndian(uint16(strLen)))
 		bufIdx += 2
 		copy(buf[bufIdx:], strBytes)
 		bufIdx += strLen
@@ -1264,12 +1264,12 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, 
 		if strLen <= 255 {
 			copy(buf[bufIdx:], VALTYPE_ENC_SMALL_STRING)
 			bufIdx += 1
-			copy(buf[bufIdx:], toputils.Uint16ToBytesLittleEndian(uint16(strLen)))
+			copy(buf[bufIdx:], utils.Uint16ToBytesLittleEndian(uint16(strLen)))
 			bufIdx += 2
 		} else {
 			copy(buf[bufIdx:], VALTYPE_ENC_LARGE_STRING)
 			bufIdx += 1
-			copy(buf[bufIdx:], toputils.Uint32ToBytesLittleEndian(uint32(strLen)))
+			copy(buf[bufIdx:], utils.Uint32ToBytesLittleEndian(uint32(strLen)))
 			bufIdx += 4
 		}
 		copy(buf[bufIdx:], strBytes)
@@ -1302,7 +1302,7 @@ func (e *CValueEnclosure) WriteBytes(writer io.Writer) (int, error) {
 		size += 8
 		_, typeErr = writer.Write(VALTYPE_ENC_UINT64)
 		if value, ok := e.CVal.(uint64); ok {
-			_, valErr = writer.Write(toputils.Uint64ToBytesLittleEndian(value))
+			_, valErr = writer.Write(utils.Uint64ToBytesLittleEndian(value))
 		} else {
 			return 0, fmt.Errorf("WriteBytes: error converting value %v to uint64", e.CVal)
 		}
@@ -1310,7 +1310,7 @@ func (e *CValueEnclosure) WriteBytes(writer io.Writer) (int, error) {
 		size += 8
 		_, typeErr = writer.Write(VALTYPE_ENC_INT64)
 		if value, ok := e.CVal.(int64); ok {
-			_, valErr = writer.Write(toputils.Int64ToBytesLittleEndian(value))
+			_, valErr = writer.Write(utils.Int64ToBytesLittleEndian(value))
 		} else {
 			return 0, fmt.Errorf("WriteBytes: error converting value %v to int64", e.CVal)
 		}
@@ -1318,7 +1318,7 @@ func (e *CValueEnclosure) WriteBytes(writer io.Writer) (int, error) {
 		size += 8
 		_, typeErr = writer.Write(VALTYPE_ENC_FLOAT64)
 		if value, ok := e.CVal.(float64); ok {
-			_, valErr = writer.Write(toputils.Float64ToBytesLittleEndian(value))
+			_, valErr = writer.Write(utils.Float64ToBytesLittleEndian(value))
 		} else {
 			return 0, fmt.Errorf("WriteBytes: error converting value %v to float64", e.CVal)
 		}
@@ -1332,7 +1332,7 @@ func (e *CValueEnclosure) WriteBytes(writer io.Writer) (int, error) {
 		strBytes := []byte(value)
 		size += len(strBytes)
 
-		_, err := writer.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(strBytes))))
+		_, err := writer.Write(utils.Uint16ToBytesLittleEndian(uint16(len(strBytes))))
 		if err != nil {
 			return 0, fmt.Errorf("WriteBytes: error writing string length: %v", err)
 		}
@@ -1376,7 +1376,7 @@ func (e *CValueEnclosure) FromBytes(buf []byte) (int, error) {
 		if len(buf) < idx+8 {
 			return 0, errors.New("CVal.FromBytes: not enough bytes for uint64")
 		}
-		uint64Val := toputils.BytesToUint64LittleEndian(buf[idx : idx+8])
+		uint64Val := utils.BytesToUint64LittleEndian(buf[idx : idx+8])
 		idx += 8
 		e.CVal = uint64Val
 		e.Dtype = SS_DT_UNSIGNED_NUM
@@ -1384,7 +1384,7 @@ func (e *CValueEnclosure) FromBytes(buf []byte) (int, error) {
 		if len(buf) < idx+8 {
 			return 0, errors.New("CVal.FromBytes: not enough bytes for int64")
 		}
-		int64Val := toputils.BytesToInt64LittleEndian(buf[idx : idx+8])
+		int64Val := utils.BytesToInt64LittleEndian(buf[idx : idx+8])
 		idx += 8
 		e.CVal = int64Val
 		e.Dtype = SS_DT_SIGNED_NUM
@@ -1392,7 +1392,7 @@ func (e *CValueEnclosure) FromBytes(buf []byte) (int, error) {
 		if len(buf) < idx+8 {
 			return 0, errors.New("CVal.FromBytes: not enough bytes for float64")
 		}
-		float64Val := toputils.BytesToFloat64LittleEndian(buf[idx : idx+8])
+		float64Val := utils.BytesToFloat64LittleEndian(buf[idx : idx+8])
 		idx += 8
 		e.CVal = float64Val
 		e.Dtype = SS_DT_FLOAT
@@ -1400,7 +1400,7 @@ func (e *CValueEnclosure) FromBytes(buf []byte) (int, error) {
 		if len(buf) < idx+2 {
 			return 0, errors.New("CVal.FromBytes: not enough bytes for string length")
 		}
-		strLen := int(toputils.BytesToUint16LittleEndian(buf[idx : idx+2]))
+		strLen := int(utils.BytesToUint16LittleEndian(buf[idx : idx+2]))
 		idx += 2
 		if len(buf) < idx+strLen {
 			return 0, errors.New("CVal.FromBytes: not enough bytes for string")

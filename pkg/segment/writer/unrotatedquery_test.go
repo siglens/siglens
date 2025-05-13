@@ -29,7 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
@@ -45,11 +45,11 @@ func Test_writePQSFiles(t *testing.T) {
 	numStreams := 10
 	_ = vtable.InitVTable(server_utils.GetMyIds)
 
-	value1, _ := utils.CreateDtypeEnclosure("batch-0", 0)
+	value1, _ := sutils.CreateDtypeEnclosure("batch-0", 0)
 	query := &structs.SearchQuery{
 		ExpressionFilter: &structs.SearchExpression{
 			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "col3"},
-			FilterOp:         utils.Equals,
+			FilterOp:         sutils.Equals,
 			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: value1},
 		},
 		SearchType: structs.SimpleExpression,
@@ -91,7 +91,7 @@ func Test_writePQSFiles(t *testing.T) {
 				err := ParseRawJsonObject("", raw, &tsKey, jsParsingStackbuf[:], ple)
 				assert.Nil(t, err)
 
-				err = AddEntryToInMemBuf(streamid, index, false, utils.SIGNAL_EVENTS, 0, 0,
+				err = AddEntryToInMemBuf(streamid, index, false, sutils.SIGNAL_EVENTS, 0, 0,
 					cnameCacheByteHashToStr, jsParsingStackbuf[:], []*ParsedLogEvent{ple})
 				assert.Nil(t, err)
 			}

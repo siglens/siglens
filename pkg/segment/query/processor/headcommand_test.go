@@ -24,7 +24,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,11 +53,11 @@ func Test_Head_WithLimit(t *testing.T) {
 	const headLimit = 2
 	dp := NewHeadDP(&structs.HeadExpr{MaxRows: headLimit})
 	stream := &mockStreamer{
-		allRecords: map[string][]utils.CValueEnclosure{
+		allRecords: map[string][]sutils.CValueEnclosure{
 			"col1": {
-				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-				utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+				sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
 			},
 		},
 		qid: 0,
@@ -88,20 +88,20 @@ func Test_Head_WithLimit(t *testing.T) {
 }
 
 func Test_Head_Expr_Basic(t *testing.T) {
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]sutils.CValueEnclosure{
 		"gender": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "female"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
 		},
 		"ident": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "e"},
 		},
 	}
 	iqr1 := iqr.NewIQR(0)
@@ -148,20 +148,20 @@ func Test_Head_Expr_Basic(t *testing.T) {
 }
 
 func Test_Head_Expr_Null(t *testing.T) {
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]sutils.CValueEnclosure{
 		"gender": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "female"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
 		},
 		"ident": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "e"},
 		},
 	}
 	iqr1 := iqr.NewIQR(0)
@@ -188,20 +188,20 @@ func Test_Head_Expr_Null(t *testing.T) {
 }
 
 func Test_Head_Expr_Keeplast(t *testing.T) {
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]sutils.CValueEnclosure{
 		"gender": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "female"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "female"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
 		},
 		"ident": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "e"},
 		},
 	}
 	iqr1 := iqr.NewIQR(0)
@@ -228,26 +228,26 @@ func Test_Head_Expr_Keeplast(t *testing.T) {
 }
 
 func Test_Head_Expr_Multiple(t *testing.T) {
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]sutils.CValueEnclosure{
 		"gender": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "female"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "female"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_BACKFILL, CVal: nil},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "female"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "male"},
 		},
 		"ident": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "g"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "h"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "f"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "g"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "h"},
 		},
 	}
 	iqr1 := iqr.NewIQR(0)
@@ -298,16 +298,16 @@ func Test_Head_Expr_Multiple(t *testing.T) {
 }
 
 func Test_Head_Expr_NonExistentCol(t *testing.T) {
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]sutils.CValueEnclosure{
 		"ident": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "g"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "h"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "d"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "e"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "f"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "g"},
+			sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING, CVal: "h"},
 		},
 	}
 	iqr1 := iqr.NewIQR(0)
