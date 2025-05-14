@@ -49,7 +49,6 @@ class Breadcrumb {
         // Add current dashboard name (active)
         if (currentName) {
             if (isSettingsMode) {
-                // Make dashboard name clickable and link back to dashboard view
                 this.addBreadcrumbItem(currentName, `?id=${dbId}`);
                 this.addSeparator();
                 this.addNonClickableItem('Settings');

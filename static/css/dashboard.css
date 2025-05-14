@@ -1331,12 +1331,14 @@
 }
 
 
-.ace_editor.ace-eclipse {
-  background-color: var(--white-0) !important;
+.ace_editor {
+  background-color: var(--black1-to-white0) !important;
+  color: var(--text-color) !important;
 }
 
-.ace_editor.ace-eclipse .ace_gutter {
+.ace_editor .ace_gutter {
   background-color: var(--white-1) !important;
+  color: var(--white-4);
   border: none;
 }
 
@@ -1355,14 +1357,8 @@
   color: #C41A16 !important;
 }
 
-[data-theme="dark"] .ace_edito {
+[data-theme="dark"] .ace_editor .ace_gutter {
   background-color: var(--black-1) !important;
-  color: var(--white-0) !important;
-}
-
-[data-theme="dark"] .ace_edito .ace_gutter {
-  background-color: var(--black-2) !important;
-  border: none;
 }
 
 [data-theme="dark"] .ace_string {
