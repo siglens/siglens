@@ -50,7 +50,6 @@ $(document).ready(async function () {
 
     initializeFilterInputEvents();
 
-    $('#dbSet-edit-json').on('click', enableJsonEditing);
     $('#dbSet-save-json').on('click', saveJsonChanges);
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
@@ -119,23 +118,13 @@ $(document).ready(async function () {
 
     $('#theme-btn').click(() => displayPanels());
     getDashboardData();
-    $(`.dbSet-textareaContainer .copy`).tooltip({
-        delay: { show: 0, hide: 300 },
-        trigger: 'hover',
-    });
+
     $('#favbutton').on('click', toggleFavorite);
 });
-
-function enableJsonEditing() {
-    $('.dbSet-jsonModelData').prop('disabled', false);
-    $('#dbSet-edit-json').hide();
-    $('#dbSet-save-json').show();
-}
-
 function saveJsonChanges() {
-    const jsonText = $('.dbSet-jsonModelData').val();
     try {
-        const updatedData = JSON.parse(jsonText); // Parse the JSON to ensure its validity
+        const jsonText = aceEditor.getValue();
+        const updatedData = JSON.parse(jsonText); // Parse to validate
 
         // Update local variables
         dbName = updatedData.name;
@@ -148,7 +137,6 @@ function saveJsonChanges() {
         // Update the dbData object
         dbData = updatedData;
 
-        // Make an API call to save the updated dashboard data
         return fetch('/api/dashboards/update', {
             method: 'POST',
             headers: {
@@ -182,12 +170,7 @@ function saveJsonChanges() {
                     throw new Error('Dashboard name already exists');
                 }
                 if (res.status == 200) {
-                    $('.name-dashboard').text(dbName);
                     showToast('Dashboard Updated Successfully', 'success');
-                    // Hide edit/save buttons
-                    $('.dbSet-jsonModelData').prop('disabled', true);
-                    $('#dbSet-edit-json').show();
-                    $('#dbSet-save-json').hide();
                     return true;
                 }
                 return res.json().then((err) => {
@@ -218,28 +201,11 @@ var options = {
 };
 var grid = GridStack.init(options, '#panel-container');
 
-$(`.dbSet-textareaContainer .copy`).click(function () {
-    $(this).tooltip('dispose');
-    $(this).attr('title', 'Copied!').tooltip('show');
-    navigator.clipboard.writeText($(`.dbSet-jsonModelData`).val()).then(() => {
-        setTimeout(() => {
-            $(this).tooltip('dispose');
-            $(this)
-                .attr('title', 'Copy')
-                .tooltip({
-                    delay: { show: 0, hide: 300 },
-                    trigger: 'hover',
-                });
-        }, 1000);
-    });
-});
-
 $('#save-db-btn').on('click', updateDashboard);
 $('.refresh-btn').on('click', refreshDashboardHandler);
 $('#db-settings-btn').on('click', handleDbSettings);
 $('#dbSet-save').on('click', saveDbSetting);
 $('#dbSet-discard').on('click', discardDbSetting);
-$('.dbSet-goToDB').on('click', discardDbSetting);
 $('.refresh-range-item').on('click', refreshRangeItemHandler);
 
 async function updateDashboard() {
@@ -267,7 +233,7 @@ async function updateDashboard() {
                 })),
                 refresh: dbRefresh,
                 panelFlag: `{{ .PanelFlag }}`,
-                isFavorite: isFavorite
+                isFavorite: isFavorite,
             },
         }),
     })
@@ -488,11 +454,16 @@ async function getDashboardData() {
         });
 
     const breadcrumb = new Breadcrumb();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+
     breadcrumb.render(
         dbData.folder?.breadcrumbs,
         dbData.name,
         true, // Show favorite button for dashboard
-        dbData.isFavorite
+        dbData.isFavorite,
+        mode === 'settings'
     );
     breadcrumb.onFavoriteClick(() => toggleFavorite(dbId));
 
@@ -511,7 +482,12 @@ async function getDashboardData() {
         });
     } else localPanels = [];
     if (localPanels != undefined) {
-        displayPanels();
+        if (mode === 'settings') {
+            // When page loads and mode=settings is in URL, open settings
+            handleDbSettings();
+        } else {
+            displayPanels();
+        }
         setFavoriteValue(dbData.isFavorite);
         setTimePickerValue();
         setRefreshItemHandler();
@@ -807,10 +783,10 @@ async function displayPanels() {
 }
 
 function getDashboardId() {
-    let queryString = decodeURIComponent(window.location.search); //parsing
-    queryString = queryString.substring(1).split('=');
-    let uniq = queryString[1];
-    return uniq;
+    const urlParams = new URLSearchParams(window.location.search);
+    const dashboardId = urlParams.get('id');
+
+    return dashboardId;
 }
 
 var panelLayout =
@@ -1031,60 +1007,29 @@ function addDefaultPanel() {
 
 // DASHBOARD SETTINGS PAGE
 let editPanelFlag = false;
+let aceEditor;
+
 function handleDbSettings() {
     if ($('.panelEditor-container').css('display') !== 'none') {
         $('.panelEditor-container').hide();
-        $('#app-container').hide();
+        $('#new-dashboard').hide();
         editPanelFlag = true;
         $('.popupOverlay').addClass('active');
     } else {
-        $('#app-container').hide();
+        $('#new-dashboard').hide();
     }
     $('.dbSet-container').show();
 
-    // Reset the state of the Edit/Save JSON buttons
-    $('.dbSet-jsonModelData').prop('disabled', true);
-    $('#dbSet-edit-json').show();
-    $('#dbSet-save-json').hide();
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('mode', 'settings');
+    window.history.pushState({}, '', currentUrl);
 
-    $('.dbSet-name').html(dbName);
+    const breadcrumb = new Breadcrumb();
+    breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, true);
+
     $('.dbSet-dbName').val(dbName);
     $('.dbSet-dbDescr').val(dbDescr);
     $('.dbSet-dbFolder').val(dbFolder);
-    $('.dbSet-jsonModelData').val(
-        JSON.stringify(
-            JSON.unflatten({
-                description: dbDescr,
-                name: dbName,
-                timeRange: timeRange,
-                panels: localPanels,
-                refresh: dbRefresh,
-            }),
-            null,
-            2
-        )
-    );
-    $('.dbSet-dbName').on('change keyup paste', function () {
-        dbName = $('.dbSet-dbName').val();
-        $('.dbSet-name').html(dbName);
-    });
-    $('.dbSet-dbDescr').on('change keyup paste', function () {
-        dbDescr = $('.dbSet-dbDescr').val();
-        $('.dbSet-dbDescr').html(dbDescr);
-        $('.dbSet-jsonModelData').val(
-            JSON.stringify(
-                JSON.unflatten({
-                    description: dbDescr,
-                    name: dbName,
-                    timeRange: timeRange,
-                    panels: localPanels,
-                    refresh: dbRefresh,
-                }),
-                null,
-                2
-            )
-        );
-    });
 
     if (isDefaultDashboard) {
         $('.dbSet-dbName').prop('readonly', true);
@@ -1104,10 +1049,9 @@ function handleDbSettings() {
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        console.log(JSON.stringify(res));
         $('.dbSet-dbName').val(res.name);
         $('.dbSet-dbDescr').val(res.description);
-        $('.dbSet-jsonModelData').val(JSON.stringify(JSON.unflatten(res), null, 2));
+        initAceEditor(JSON.unflatten(res));
     });
 
     showGeneralDbSettings();
@@ -1115,18 +1059,18 @@ function handleDbSettings() {
 }
 
 function showGeneralDbSettings() {
-    $('.dbSet-general').addClass('selected');
+    $('.dbSet-general').addClass('active');
     $('.dbSet-generalHTML').removeClass('hide');
 
-    $('.dbSet-jsonModel').removeClass('selected');
+    $('.dbSet-jsonModel').removeClass('active');
     $('.dbSet-jsonModelHTML').addClass('hide');
 }
 
 function showJsonModelDbSettings() {
-    $('.dbSet-general').removeClass('selected');
+    $('.dbSet-general').removeClass('active');
     $('.dbSet-generalHTML').addClass('hide');
 
-    $('.dbSet-jsonModel').addClass('selected');
+    $('.dbSet-jsonModel').addClass('active');
     $('.dbSet-jsonModelHTML').removeClass('hide');
 }
 
@@ -1152,7 +1096,7 @@ function saveDbSetting() {
     }
 
     if ($('.dbSet-jsonModelHTML').is(':visible')) {
-        const jsonText = $('.dbSet-jsonModelData').val().trim();
+        const jsonText = aceEditor.getValue().trim();
         let dbSettings;
         try {
             dbSettings = JSON.parse(jsonText);
@@ -1172,7 +1116,11 @@ function saveDbSetting() {
 
     updateDashboard().then((updateSuccessful) => {
         if (updateSuccessful) {
-            $('#app-container').show();
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete('mode');
+            window.history.pushState({}, '', currentUrl);
+
+            $('#new-dashboard').show();
             $('.dbSet-container').hide();
             // Refresh the dashboard data to reflect changes immediately
             getDashboardData();
@@ -1186,12 +1134,20 @@ $('#error-ok-btn').click(function () {
 });
 
 function discardDbSetting() {
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.delete('mode');
+    window.history.pushState({}, '', currentUrl);
+
+    const breadcrumb = new Breadcrumb();
+    breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, false);
+
     if (editPanelFlag) {
         $('.panelEditor-container').css('display', 'flex');
         $('.popupOverlay').addClass('active');
         editPanelFlag = false;
     } else {
-        $('#app-container').show();
+        $('#new-dashboard').show();
+        displayPanels();
     }
     $('.dbSet-dbName').val('');
     $('.dbSet-dbDescr').val('');
@@ -1199,6 +1155,35 @@ function discardDbSetting() {
     $('.dbSet-container').hide();
     dbName = dbData.name;
     dbDescr = dbData.description;
+}
+
+function initAceEditor(jsonData) {
+    if (!aceEditor) {
+        //eslint-disable-next-line no-undef
+        aceEditor = ace.edit('json-editor');
+        aceEditor.session.setMode('ace/mode/json');
+        aceEditor.setOptions({
+            fontSize: '12px',
+            showPrintMargin: false,
+            showGutter: true,
+            highlightActiveLine: false,
+            wrap: true,
+        });
+    }
+
+    aceEditor.setValue(JSON.stringify(jsonData, null, 2), -1);
+
+    $('#copy-json-btn')
+        .off('click')
+        .on('click', function () {
+            const jsonText = aceEditor.getValue();
+            navigator.clipboard.writeText(jsonText).then(() => {
+                $(this).text('Copied!');
+                setTimeout(() => {
+                    $(this).text('Copy JSON');
+                }, 1000);
+            });
+        });
 }
 
 // Refresh handler
@@ -1347,7 +1332,6 @@ $('#run-dashboard-fliter').on('click', function () {
     const filterValue = $('.search-db-input').val();
     if (!validateFilterInput(filterValue)) {
         if (!searchTippy) {
-            //eslint-disable-next-line no-undef
             searchTippy = tippy(this, {
                 content: 'Invalid filter input. Please enter a valid filter search.',
                 trigger: 'manual',
