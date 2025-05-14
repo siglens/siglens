@@ -442,7 +442,7 @@ function updateZoomIndicator() {
 $(document).ready(function() {
     $('#histogram-toggle-btn').on('click', function() {
         $(this).toggleClass('active');
-        $('#histogram-container').toggle();
+        $('.histo-container').toggle();
 
        //eslint-disable-next-line no-undef
         if ($('#histogram-container').is(':visible') && !currentHistogram && timechartComplete) {
