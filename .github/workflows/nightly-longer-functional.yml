@@ -2,8 +2,7 @@ name: Nightly-Longer-Functional-Test
 
 on:
   schedule:
-    - cron: '0 20 * * *'  # Every day at 3PM EST (UTC-5)
-    - cron: '0 2 * * *'  # Every day at 9PM EST (UTC-5)
+    - cron: '0 6 * * *'  # Every day at 9PM EST (UTC-5)
   workflow_dispatch:  # Allows manual trigger as well
 
 jobs:
