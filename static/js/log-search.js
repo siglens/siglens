@@ -39,7 +39,6 @@ $(document).ready(async () => {
     createTooltip('.avail-fields-btn', 'Select Field to Display');
     createTooltip('#run-filter-btn', 'Run query');
     createTooltip('#histogram-toggle-btn', 'Histogram View');
-    
 
     function updateTooltip(element) {
         if (element && element._tippy) {
