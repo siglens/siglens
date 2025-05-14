@@ -16,9 +16,10 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-//eslint-disable-next-line no-unused-vars
+//search.js 
 let lastQType = '';
 let lastColumnsOrder = [];
+let timechartComplete = null;
 
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -165,7 +166,7 @@ function doSearch(data) {
                     errorMessages.push(`Unknown state: ${jsonEvent}`);
             }
         };
-
+ 
         socket.onclose = function (event) {
             if (event.code === 1000 || event.code === 1001) {
                 console.log(`[close] Connection closed normally with code ${event.code}`);
@@ -437,6 +438,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         queryLanguage: queryLanguage,
         includeNulls: false, // Exclude null values
         fieldsHidden: fieldsHidden,
+        runTimechart: true,
     };
 }
 
@@ -555,7 +557,6 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         }
     } else {
         const inputValue = $('#filter-input').val().trim();
-        isQueryBuilderSearch = false;
 
         // If it's initial load and the field is empty (Default search)
         if (isInitialLoad && !inputValue) {
@@ -589,6 +590,7 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
+        runTimechart: true,
     };
 }
 //eslint-disable-next-line no-unused-vars
@@ -752,6 +754,11 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
         }
     }
 
+    if (res.timechartComplete) {
+        timechartComplete = res.timechartComplete;
+        renderHistogram(res.timechartComplete);
+    }
+
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     if (res.total_rrc_count > 0) {
@@ -818,7 +825,12 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
             initializeAvailableFieldsSidebar(lastColumnsOrder);
         }
 
-        timeChart(res.qtype, res.measure, res.isTimechart);
+        timeChart(res.qtype, res.measure, res.isTimechart);   
+    }
+
+    if (res.timechartComplete) {
+        timechartComplete = res.timechartComplete;
+        renderHistogram(res.timechartComplete);
     }
 
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();

@@ -748,6 +748,49 @@ div.show-record-popup .ui-dialog-buttonpane button {
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+    margin-top: 30px;
+}
+
+.histo-container {
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+#histogram-container {
+    height: 180px;
+    background: var(--black1-to-white0);
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 10px;
+    display: none;
+    position: relative; 
+    overflow: hidden; 
+}
+
+#histogram-container canvas {
+    cursor: crosshair !important; 
+}
+
+#histogram-container::after {
+    content: "Double-click to reset zoom";
+    position: absolute;
+    bottom: 5px;
+    right: 10px;
+    font-size: 10px;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.histogram-icon::before {
+    content: "\f080"; 
+    font-family: "Font Awesome 5 Free";
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+#histogram-toggle-btn.active {
+    background-color: var(--drop-down-btn-bg-hover) !important;
+    border: 1px solid var(--border-btn-color) !important;
 }
 
 .tab-content-size {

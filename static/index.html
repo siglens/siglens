@@ -285,6 +285,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div id="record-searched"></div>
             <div id="progress-div"></div>
 
+            <div class="histo-container">
+                <div id="histogram-container"></div>
+            </div>
 
             <div class="custom-chart-container">
                 <div class="fields-sidebar">
@@ -337,6 +340,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                                 <button class="btn show-record-intro-btn below-btn-img"
                                     id="show-record-intro-btn"></button>
+                                <button class="btn histogram-toggle-btn below-btn-img" id="histogram-toggle-btn">
+                                    <span class="histogram-icon"></span>
+                                </button>
                             </div>
                         </div>
                         <div id="views-container">
@@ -732,6 +738,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/dashboard-from-logs-metrics.js?cb={{ AppVersion }}"></script>
     <script src="./js/query-builder.js?cb={{ AppVersion }}"></script>
     <script src="./js/logs-visualization.js?cb={{ AppVersion }}"></script>
+    <script src="./js/logs-histogram.js?cb={{ AppVersion }}"></script>
     <script src="./js/pagination.js?cb={{ AppVersion }}"></script>
     <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
