@@ -21,6 +21,7 @@ let lastQType = '';
 let lastColumnsOrder = [];
 //eslint-disable-next-line no-unused-vars
 let timechartComplete = null;
+let isHistogramViewActive = false;
 
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -439,7 +440,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         queryLanguage: queryLanguage,
         includeNulls: false, // Exclude null values
         fieldsHidden: fieldsHidden,
-        runTimechart: true,
+        runTimechart: isHistogramViewActive,
     };
 }
 
@@ -592,7 +593,7 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
-        runTimechart: true,
+        runTimechart: isHistogramViewActive,
     };
 }
 //eslint-disable-next-line no-unused-vars

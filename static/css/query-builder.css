@@ -771,16 +771,6 @@ div.show-record-popup .ui-dialog-buttonpane button {
     cursor: crosshair !important; 
 }
 
-#histogram-container::after {
-    content: "Double-click to reset zoom";
-    position: absolute;
-    bottom: 5px;
-    right: 10px;
-    font-size: 10px;
-    opacity: 0.7;
-    pointer-events: none;
-}
-
 .histogram-icon::before {
     content: "\f080"; 
     font-family: "Font Awesome 5 Free";

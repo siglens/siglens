@@ -17,61 +17,95 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 //eslint-disable-next-line no-unused-vars
-let currentHistogram = null;
-let originalData = null; 
-let currentGranularity = 'day'; 
+const HistogramState = {
+    currentHistogram: null,
+    originalData: null,
+    currentGranularity: 'day',
+    isDragging: false,
+    dragStartX: 0,
+    dragEndX: 0,
+    selectionOverlay: null,
+    canvas: null,
+    eventListeners: {}, 
+};
+
 const GRANULARITY_LEVELS = ['month', 'week', 'day', 'hour', 'minute', 'second'];
 
-let isDragging = false;
-let dragStartX = 0;
-let dragEndX = 0;
-let selectionOverlay = null;
-let canvas = null;
-
 function determineGranularity(timestamps) {
-    if (timestamps.length < 2) return 'day'; 
+    if (!Array.isArray(timestamps) || timestamps.length < 2) return 'day';
 
-    const parsedTimestamps = timestamps.map(ts => new Date(convertIfTimestamp(ts)).getTime());
-    const minDiff = Math.min(...parsedTimestamps.slice(1).map((val, idx) => val - parsedTimestamps[idx]));
+    const parsedTimestamps = timestamps
+        .map(ts => {
+            try {
+                const date = new Date(convertIfTimestamp(ts));
+                return isNaN(date.getTime()) ? null : date.getTime();
+            } catch (e) {
+                console.error('Invalid timestamp:', ts, e);
+                return null;
+            }
+        })
+        .filter(ts => ts !== null);
 
-    if (minDiff >= 30 * 24 * 60 * 60 * 1000) return 'month'; 
+    if (parsedTimestamps.length < 2) return 'day';
+
+    const sortedTimestamps = parsedTimestamps.sort((a, b) => a - b);
+    const minDiff = Math.min(...sortedTimestamps.slice(1).map((val, idx) => val - sortedTimestamps[idx]));
+
+    if (isNaN(minDiff) || minDiff <= 0) return 'day'; // Fallback for invalid differences
+
+    if (minDiff >= 30 * 24 * 60 * 60 * 1000) return 'month';
     if (minDiff >= 7 * 24 * 60 * 60 * 1000) return 'week';
-    if (minDiff >= 24 * 60 * 60 * 1000) return 'day'; 
-    if (minDiff >= 60 * 60 * 1000) return 'hour'; 
-    if (minDiff >= 60 * 1000) return 'minute'; 
-    return 'second'; 
+    if (minDiff >= 24 * 60 * 60 * 1000) return 'day';
+    if (minDiff >= 60 * 60 * 1000) return 'hour';
+    if (minDiff >= 60 * 1000) return 'minute';
+    return 'second';
 }
-// Function to filter data based on selected range and granularity
-function formatTimestampForGranularity(timestamp, granularity) {
-    const date = new Date(timestamp);
-    const year = date.getFullYear();
-    const month = ('0' + (date.getMonth() + 1)).slice(-2);
-    const day = ('0' + date.getDate()).slice(-2);
-    const hours = ('0' + date.getHours()).slice(-2);
-    const minutes = ('0' + date.getMinutes()).slice(-2);
-    const seconds = ('0' + date.getSeconds()).slice(-2);
 
-    switch (granularity) {
-        case 'month':
-            return `${year}-${month}`;
-        case 'week':
-        case 'day':
-            return `${year}-${month}-${day}`;
-        case 'hour':
-            return `${hours}:${minutes}`;
-        case 'minute':
-            return `${hours}:${minutes}`;
-        case 'second':
-            return `${hours}:${minutes}:${seconds}`;
-        default:
-            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+function formatTimestampForGranularity(timestamp, granularity) {
+    try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) throw new Error('Invalid date');
+
+        const year = date.getFullYear();
+        const month = ('0' + (date.getMonth() + 1)).slice(-2);
+        const day = ('0' + date.getDate()).slice(-2);
+        const hours = ('0' + date.getHours()).slice(-2);
+        const minutes = ('0' + date.getMinutes()).slice(-2);
+        const seconds = ('0' + date.getSeconds()).slice(-2);
+
+        switch (granularity) {
+            case 'month':
+                return `${year}-${month}`;
+            case 'week':
+            case 'day':
+                return `${year}-${month}-${day}`;
+            case 'hour':
+                return `${hours}:${minutes}`;
+            case 'minute':
+                return `${hours}:${minutes}`;
+            case 'second':
+                return `${hours}:${minutes}:${seconds}`;
+            default:
+                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+    } catch (e) {
+        console.error('Error formatting timestamp:', timestamp, e);
+        return 'Invalid Timestamp';
     }
 }
-//eslint-disable-next-line no-unused-vars
+
 function filterDataByRange(data, startTime, endTime, newGranularity) {
+    if (!data || !Array.isArray(data.measure)) return null;
+
     const filteredMeasures = data.measure.filter(item => {
-        const timestamp = new Date(convertIfTimestamp(item.GroupByValues[0])).getTime();
-        return timestamp >= startTime && timestamp <= endTime;
+        if (!item.GroupByValues || !item.GroupByValues[0]) return false;
+        try {
+            const timestamp = new Date(convertIfTimestamp(item.GroupByValues[0])).getTime();
+            return timestamp >= startTime && timestamp <= endTime;
+        } catch (e) {
+            console.error('Error parsing timestamp in filter:', item.GroupByValues[0], e);
+            return false;
+        }
     });
 
     if (filteredMeasures.length === 0) {
@@ -84,40 +118,66 @@ function filterDataByRange(data, startTime, endTime, newGranularity) {
     };
 }
 
-// eslint-disable-next-line no-unused-vars
 function renderHistogram(timechartData, zoomRange = null) {
-    if (!timechartData || !timechartData.measure || timechartData.measure.length === 0) {
-        $('#histogram-container').hide();
+    const histoContainer = $('#histogram-container');
+    if (!histoContainer.length) {
+        console.error('Histogram container not found');
         return;
     }
 
-    if (!originalData) {
-        originalData = JSON.parse(JSON.stringify(timechartData));
+    // Validate input data
+    if (!timechartData || !Array.isArray(timechartData.measure) || timechartData.measure.length === 0) {
+        histoContainer.hide();
+        histoContainer.html('<div class="error-message">No histogram data available</div>');
+        return;
+    }
+
+    // Store original data if not already stored
+    if (!HistogramState.originalData) {
+        HistogramState.originalData = JSON.parse(JSON.stringify(timechartData));
     }
 
     let dataToRender = timechartData;
-    let timestamps = dataToRender.measure.map(item => convertIfTimestamp(item.GroupByValues[0]));
-    let counts = dataToRender.measure.map(item => item.MeasureVal['count(*)'] || 0);
+    let timestamps = dataToRender.measure.map(item => {
+        if (!item.GroupByValues || !item.GroupByValues[0]) {
+            console.warn('Missing GroupByValues in measure:', item);
+            return null;
+        }
+        return convertIfTimestamp(item.GroupByValues[0]);
+    }).filter(ts => ts !== null);
 
+    let counts = dataToRender.measure.map((item, idx) => {
+        if (!item.MeasureVal || !('count(*)' in item.MeasureVal)) {
+            console.warn('Missing count(*) in measure:', item);
+            return 0;
+        }
+        return item.MeasureVal['count(*)'] || 0;
+    });
 
     if (zoomRange) {
+        if (zoomRange.start < 0 || zoomRange.end >= timestamps.length || zoomRange.start >= zoomRange.end) {
+            console.warn('Invalid zoom range:', zoomRange);
+            return;
+        }
+
         const startTime = new Date(timestamps[zoomRange.start]).getTime();
         const endTime = new Date(timestamps[zoomRange.end]).getTime();
-        const timeDiff = (endTime - startTime) / 1000; 
+        const timeDiff = (endTime - startTime) / 1000;
 
-        let newGranularityIndex = GRANULARITY_LEVELS.indexOf(currentGranularity);
-        if (timeDiff >= 30 * 24 * 60 * 60) newGranularityIndex = Math.max(0, newGranularityIndex - 1); // Month
-        else if (timeDiff >= 7 * 24 * 60 * 60) newGranularityIndex = Math.max(1, newGranularityIndex - 1); // Week
-        else if (timeDiff >= 24 * 60 * 60) newGranularityIndex = Math.max(2, newGranularityIndex - 1); // Day
-        else if (timeDiff >= 60 * 60) newGranularityIndex = Math.max(3, newGranularityIndex - 1); // Hour
-        else if (timeDiff >= 60) newGranularityIndex = Math.max(4, newGranularityIndex - 1); // Minute
-        else newGranularityIndex = Math.max(5, newGranularityIndex - 1); // Second
+        let newGranularityIndex = GRANULARITY_LEVELS.indexOf(HistogramState.currentGranularity);
+        if (timeDiff >= 30 * 24 * 60 * 60) newGranularityIndex = Math.max(0, newGranularityIndex - 1);
+        else if (timeDiff >= 7 * 24 * 60 * 60) newGranularityIndex = Math.max(1, newGranularityIndex - 1);
+        else if (timeDiff >= 24 * 60 * 60) newGranularityIndex = Math.max(2, newGranularityIndex - 1);
+        else if (timeDiff >= 60 * 60) newGranularityIndex = Math.max(3, newGranularityIndex - 1);
+        else if (timeDiff >= 60) newGranularityIndex = Math.max(4, newGranularityIndex - 1);
+        else newGranularityIndex = Math.max(5, newGranularityIndex - 1);
 
-        currentGranularity = GRANULARITY_LEVELS[newGranularityIndex];
-        const filteredData = filterDataByRange(dataToRender, startTime, endTime, currentGranularity);
+        HistogramState.currentGranularity = GRANULARITY_LEVELS[newGranularityIndex];
+        const filteredData = filterDataByRange(dataToRender, startTime, endTime, HistogramState.currentGranularity);
 
         if (!filteredData) {
             console.log('No data available at this granularity');
+            histoContainer.html('<div class="error-message">No data available for the selected range</div>');
             return;
         }
 
@@ -127,44 +187,42 @@ function renderHistogram(timechartData, zoomRange = null) {
     }
 
     const granularity = determineGranularity(timestamps);
-    currentGranularity = granularity;
+    HistogramState.currentGranularity = granularity;
 
     const formattedTimestamps = timestamps.map(ts => formatTimestampForGranularity(ts, granularity));
 
-    if (currentHistogram) {
-        currentHistogram.destroy();
-    }
-
-    const histoContainer = $('#histogram-container');
-    if (!histoContainer.length) {
-        console.error('Histogram container not found');
-        return;
+    if (HistogramState.currentHistogram) {
+        HistogramState.currentHistogram.destroy();
+        HistogramState.currentHistogram = null;
     }
 
     histoContainer.empty();
     histoContainer.html('<canvas width="100%" height="100%"></canvas>');
 
-    canvas = histoContainer.find('canvas')[0];
-    const ctx = canvas.getContext('2d');
+    HistogramState.canvas = histoContainer.find('canvas')[0];
+    const ctx = HistogramState.canvas.getContext('2d');
     const fontSize = formattedTimestamps.length > 10 ? 10 : 12;
 
-    const { gridLineColor, tickColor } = getGraphGridColors();
+    // Fallback for getGraphGridColors
+    const { gridLineColor, tickColor } = typeof getGraphGridColors === 'function'
+        ? getGraphGridColors()
+        : { gridLineColor: '#e0e0e0', tickColor: '#666' };
 
     const barCount = formattedTimestamps.length;
-    const rotationThreshold = 20; 
-    const labelSkipThreshold = 50; 
+    const rotationThreshold = 20;
+    const labelSkipThreshold = 50;
     const shouldRotate = barCount > rotationThreshold;
-    const skipInterval = barCount > labelSkipThreshold ? Math.ceil(barCount / 10) : 1; 
+    const skipInterval = barCount > labelSkipThreshold ? Math.ceil(barCount / 10) : 1;
 
-    currentHistogram = new Chart(ctx, {
+    HistogramState.currentHistogram = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: formattedTimestamps,
             datasets: [{
                 label: 'Count',
                 data: counts,
-                backgroundColor: globalColorArray[0] + '70',
-                borderColor: globalColorArray[0],
+                backgroundColor: globalColorArray && globalColorArray[0] ? globalColorArray[0] + '70' : 'rgba(0, 123, 255, 0.5)',
+                borderColor: globalColorArray && globalColorArray[0] ? globalColorArray[0] : 'rgba(0, 123, 255, 1)',
                 borderWidth: 1,
                 barPercentage: 1.0,
                 categoryPercentage: 1.0
@@ -240,135 +298,163 @@ function renderHistogram(timechartData, zoomRange = null) {
         $('#histogram-container').show();
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        dragStartX = e.clientX - rect.left;
-        isDragging = true;
-
-        if (!selectionOverlay) {
-            selectionOverlay = document.createElement('canvas');
-            selectionOverlay.style.position = 'absolute';
-            selectionOverlay.style.left = '0';
-            selectionOverlay.style.top = '0';
-            selectionOverlay.width = rect.width;
-            selectionOverlay.height = rect.height;
-            selectionOverlay.style.pointerEvents = 'none';
-            histoContainer[0].appendChild(selectionOverlay);
+    // Remove existing event listeners
+    const eventTypes = ['mousedown', 'mousemove', 'mouseup', 'mouseleave', 'dblclick'];
+    eventTypes.forEach(eventType => {
+        if (HistogramState.eventListeners[eventType]) {
+            HistogramState.canvas.removeEventListener(eventType, HistogramState.eventListeners[eventType]);
         }
     });
 
-    canvas.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
+    // Add new event listeners
+    const handleMouseDown = (e) => {
+        const rect = HistogramState.canvas.getBoundingClientRect();
+        HistogramState.dragStartX = e.clientX - rect.left;
+        HistogramState.isDragging = true;
 
-        const rect = canvas.getBoundingClientRect();
-        dragEndX = e.clientX - rect.left;
+        if (!HistogramState.selectionOverlay) {
+            HistogramState.selectionOverlay = document.createElement('canvas');
+            HistogramState.selectionOverlay.style.position = 'absolute';
+            HistogramState.selectionOverlay.style.left = '0';
+            HistogramState.selectionOverlay.style.top = '0';
+            HistogramState.selectionOverlay.width = rect.width;
+            HistogramState.selectionOverlay.height = rect.height;
+            HistogramState.selectionOverlay.style.pointerEvents = 'none';
+            histoContainer[0].appendChild(HistogramState.selectionOverlay);
+        }
+    };
 
-        const overlayCtx = selectionOverlay.getContext('2d');
-        overlayCtx.clearRect(0, 0, selectionOverlay.width, selectionOverlay.height);
-        
-        const chartArea = currentHistogram.chartArea;
+    const handleMouseMove = (e) => {
+        if (!HistogramState.isDragging) return;
+
+        const rect = HistogramState.canvas.getBoundingClientRect();
+        HistogramState.dragEndX = e.clientX - rect.left;
+
+        const overlayCtx = HistogramState.selectionOverlay.getContext('2d');
+        overlayCtx.clearRect(0, 0, HistogramState.selectionOverlay.width, HistogramState.selectionOverlay.height);
+
+        const chartArea = HistogramState.currentHistogram.chartArea;
         const top = chartArea.top;
         const height = chartArea.bottom - chartArea.top;
 
-        const startX = Math.min(dragStartX, dragEndX);
-        const width = Math.abs(dragEndX - dragStartX);
+        const startX = Math.min(HistogramState.dragStartX, HistogramState.dragEndX);
+        const width = Math.abs(HistogramState.dragEndX - HistogramState.dragStartX);
 
         overlayCtx.fillStyle = 'rgba(0, 0, 255, 0.1)';
         overlayCtx.fillRect(startX, top, width, height);
 
         overlayCtx.beginPath();
-        overlayCtx.setLineDash([3, 3]); 
+        overlayCtx.setLineDash([3, 3]);
         overlayCtx.strokeStyle = 'rgba(0, 0, 255, 0.8)';
         overlayCtx.lineWidth = 1;
-        
+
         overlayCtx.moveTo(startX, top);
         overlayCtx.lineTo(startX, top + height);
-        
+
         overlayCtx.moveTo(startX + width, top);
         overlayCtx.lineTo(startX + width, top + height);
-        
+
         overlayCtx.stroke();
-  });
+    };
 
-    canvas.addEventListener('mouseup', () => {
-        if (!isDragging) return;
-        isDragging = false;
+    const handleMouseUp = () => {
+        if (!HistogramState.isDragging) return;
+        HistogramState.isDragging = false;
 
-        if (selectionOverlay) {
-            selectionOverlay.remove();
-            selectionOverlay = null;
+        if (HistogramState.selectionOverlay) {
+            HistogramState.selectionOverlay.remove();
+            HistogramState.selectionOverlay = null;
         }
 
-        const xScale = currentHistogram.scales.x;
-        const startIdx = Math.round(xScale.getValueForPixel(Math.min(dragStartX, dragEndX)));
-        const endIdx = Math.round(xScale.getValueForPixel(Math.max(dragStartX, dragEndX)));
+        const xScale = HistogramState.currentHistogram.scales.x;
+        const startIdx = Math.round(xScale.getValueForPixel(Math.min(HistogramState.dragStartX, HistogramState.dragEndX)));
+        const endIdx = Math.round(xScale.getValueForPixel(Math.max(HistogramState.dragStartX, HistogramState.dragEndX)));
 
         if (startIdx >= 0 && endIdx >= 0 && startIdx < endIdx) {
             renderHistogram(timechartData, { start: startIdx, end: endIdx });
         }
-    });
+    };
 
-    canvas.addEventListener('mouseleave', () => {
-        if (isDragging && selectionOverlay) {
-            isDragging = false;
-            selectionOverlay.remove();
-            selectionOverlay = null;
+    const handleMouseLeave = () => {
+        if (HistogramState.isDragging && HistogramState.selectionOverlay) {
+            HistogramState.isDragging = false;
+            HistogramState.selectionOverlay.remove();
+            HistogramState.selectionOverlay = null;
         }
-    });
+    };
 
-    canvas.addEventListener('dblclick', () => {
-        if (originalData) {
-            currentGranularity = 'day';
-            renderHistogram(originalData);
-            
-            if (typeof updateZoomIndicator === 'function') {
-                updateZoomIndicator();
-            }
+    const handleDoubleClick = () => {
+        if (HistogramState.originalData) {
+            HistogramState.currentGranularity = 'day';
+            renderHistogram(HistogramState.originalData);
+            updateZoomIndicator();
         }
-    });
+    };
+
+    HistogramState.canvas.addEventListener('mousedown', handleMouseDown);
+    HistogramState.canvas.addEventListener('mousemove', handleMouseMove);
+    HistogramState.canvas.addEventListener('mouseup', handleMouseUp);
+    HistogramState.canvas.addEventListener('mouseleave', handleMouseLeave);
+    HistogramState.canvas.addEventListener('dblclick', handleDoubleClick);
+
+    HistogramState.eventListeners = {
+        mousedown: handleMouseDown,
+        mousemove: handleMouseMove,
+        mouseup: handleMouseUp,
+        mouseleave: handleMouseLeave,
+        dblclick: handleDoubleClick
+    };
+
+    updateZoomIndicator();
+    addZoomHelper();
 }
 
 function convertTimestamp(timestampString) {
-    var timestamp = parseInt(timestampString);
-    var date = new Date(timestamp);
+    try {
+        const timestamp = parseInt(timestampString);
+        if (isNaN(timestamp)) throw new Error('Invalid timestamp value');
+        const date = new Date(timestamp);
 
-    var year = date.getFullYear();
-    var month = ('0' + (date.getMonth() + 1)).slice(-2);
-    var day = ('0' + date.getDate()).slice(-2);
+        const year = date.getFullYear();
+        const month = ('0' + (date.getMonth() + 1)).slice(-2);
+        const day = ('0' + date.getDate()).slice(-2);
+        const hours = ('0' + date.getHours()).slice(-2);
+        const minutes = ('0' + date.getMinutes()).slice(-2);
+        const seconds = ('0' + date.getSeconds()).slice(-2);
 
-    var hours = ('0' + date.getHours()).slice(-2);
-    var minutes = ('0' + date.getMinutes()).slice(-2);
-    var seconds = ('0' + date.getSeconds()).slice(-2);
-
-    var readableDate = year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
-    return readableDate;
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch (e) {
+        console.error('Error converting timestamp:', timestampString, e);
+        return 'Invalid Timestamp';
+    }
 }
 
 function convertIfTimestamp(value) {
-    const isTimestamp = !isNaN(value) && value.length === 13 && new Date(parseInt(value)).getTime() > 0;
+    const isTimestamp = !isNaN(value) && String(value).length === 13 && new Date(parseInt(value)).getTime() > 0;
     if (isTimestamp) {
         return convertTimestamp(value);
     }
     return value;
 }
 
-// eslint-disable-next-line no-unused-vars
 function updateHistogramTheme() {
-    if (!currentHistogram) return;
+    if (!HistogramState.currentHistogram) return;
 
-    const { gridLineColor, tickColor } = getGraphGridColors();
+    const { gridLineColor, tickColor } = typeof getGraphGridColors === 'function'
+        ? getGraphGridColors()
+        : { gridLineColor: '#e0e0e0', tickColor: '#666' };
 
-    currentHistogram.options.scales.x.grid.color = gridLineColor;
-    currentHistogram.options.scales.x.ticks.color = tickColor;
-    currentHistogram.options.scales.x.title.color = tickColor;
+    HistogramState.currentHistogram.options.scales.x.grid.color = gridLineColor;
+    HistogramState.currentHistogram.options.scales.x.ticks.color = tickColor;
+    HistogramState.currentHistogram.options.scales.x.title.color = tickColor;
 
-    currentHistogram.options.scales.y.grid.color = gridLineColor;
-    currentHistogram.options.scales.y.ticks.color = tickColor;
-    currentHistogram.options.scales.y.title.color = tickColor;
+    HistogramState.currentHistogram.options.scales.y.grid.color = gridLineColor;
+    HistogramState.currentHistogram.options.scales.y.ticks.color = tickColor;
+    HistogramState.currentHistogram.options.scales.y.title.color = tickColor;
 
-    currentHistogram.options.plugins.legend.labels.color = tickColor;
+    HistogramState.currentHistogram.options.plugins.legend.labels.color = tickColor;
 
-    currentHistogram.update();
+    HistogramState.currentHistogram.update();
 }
 
 function addZoomHelper() {
@@ -376,41 +462,22 @@ function addZoomHelper() {
     helpText.className = 'zoom-helper';
     helpText.style.cssText = `
         position: absolute;
+        color: var(--text-color);
         bottom: 5px;
         right: 10px;
-        font-size: 11px;
-        color: #666;
-        padding: 4px 8px;
-        background-color: rgba(255,255,255,0.7);
-        border-radius: 3px;
-        pointer-events: none;
-        opacity: 0;
+        font-size: 10px;
+        opacity: 0.7;
         transition: opacity 0.3s ease;
+        pointer-events: none;
     `;
-    helpText.textContent = 'Drag to zoom • Double-click to reset';
-    
+    helpText.textContent = 'Drag to zoom and Double-click to reset zoom';
+
     $('#histogram-container').append(helpText);
-    
-    $('#histogram-container').one('mouseenter', function() {
-        helpText.style.opacity = '1';
-        setTimeout(() => {
-            helpText.style.opacity = '0';
-        }, 3000);
-    });
-    
-    canvas.addEventListener('mouseup', () => {
-        if (isDragging) {
-            helpText.style.opacity = '1';
-            setTimeout(() => {
-                helpText.style.opacity = '0';
-            }, 2000);
-        }
-    });
 }
 
 function updateZoomIndicator() {
     let zoomIndicator = $('#zoom-level-indicator');
-    
+
     if (zoomIndicator.length === 0) {
         zoomIndicator = $('<div id="zoom-level-indicator"></div>');
         zoomIndicator.css({
@@ -418,15 +485,14 @@ function updateZoomIndicator() {
             top: '5px',
             left: '10px',
             fontSize: '11px',
-            color: '#666',
+            color: 'var(--text-color)',
             padding: '2px 6px',
-            backgroundColor: 'rgba(255,255,255,0.7)',
             borderRadius: '3px',
             pointerEvents: 'none'
         });
         $('#histogram-container').append(zoomIndicator);
     }
-    
+
     const granularityDisplay = {
         'month': 'Monthly view',
         'week': 'Weekly view',
@@ -435,21 +501,34 @@ function updateZoomIndicator() {
         'minute': 'Minute view',
         'second': 'Second view'
     };
-    
-    zoomIndicator.text(granularityDisplay[currentGranularity] || 'Timeline view');
+
+    zoomIndicator.text(granularityDisplay[HistogramState.currentGranularity] || 'Timeline view');
 }
 
 $(document).ready(function() {
     $('#histogram-toggle-btn').on('click', function() {
         $(this).toggleClass('active');
         $('.histo-container').toggle();
-
-       //eslint-disable-next-line no-undef
-        if ($('#histogram-container').is(':visible') && !currentHistogram && timechartComplete) {
+    
+        if ($(this).hasClass('active')) {
             //eslint-disable-next-line no-undef
-            renderHistogram(timechartComplete);
-            addZoomHelper();
-            updateZoomIndicator();
+            isHistogramViewActive = true;
+            //eslint-disable-next-line no-undef
+            if ($('#histogram-container').is(':visible') && !HistogramState.currentHistogram && window.timechartComplete) {
+                //eslint-disable-next-line no-undef
+                renderHistogram(window.timechartComplete);
+                addZoomHelper();
+                updateZoomIndicator();
+            } else {
+                const searchFilter = window.getSearchFilter(false, false);
+                window.doSearch(searchFilter).catch(error => {
+                    console.error('Error running search with histogram:', error);
+                    window.showError('Failed to load histogram: ' + error);
+                });
+            }
+        } else {
+            //eslint-disable-next-line no-undef
+            window.isHistogramViewActive = false;
         }
     });
 });
