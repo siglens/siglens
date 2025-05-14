@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+//eslint-disable-next-line no-unused-vars
 let lastQType = '';
 let lastColumnsOrder = [];
 let timechartComplete = null;
@@ -165,7 +166,7 @@ function doSearch(data) {
                     errorMessages.push(`Unknown state: ${jsonEvent}`);
             }
         };
- 
+
         socket.onclose = function (event) {
             if (event.code === 1000 || event.code === 1001) {
                 console.log(`[close] Connection closed normally with code ${event.code}`);
@@ -556,6 +557,7 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         }
     } else {
         const inputValue = $('#filter-input').val().trim();
+        isQueryBuilderSearch = false;
 
         // If it's initial load and the field is empty (Default search)
         if (isInitialLoad && !inputValue) {
@@ -824,7 +826,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
             initializeAvailableFieldsSidebar(lastColumnsOrder);
         }
 
-        timeChart(res.qtype, res.measure, res.isTimechart);   
+        timeChart(res.qtype, res.measure, res.isTimechart);
     }
 
     if (res.timechartComplete) {
