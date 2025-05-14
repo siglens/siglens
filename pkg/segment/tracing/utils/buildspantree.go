@@ -19,6 +19,7 @@ package utils
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	log "github.com/sirupsen/logrus"
@@ -79,5 +80,27 @@ func BuildSpanTree(spanMap map[string]*structs.GanttChartSpan, idToParentId map[
 		}
 	}
 
+	sortGanttChart(res)
+
 	return res, nil
+}
+
+func sortGanttChart(span *structs.GanttChartSpan) {
+	if span == nil {
+		return
+	}
+
+	for _, child := range span.Children {
+		sortGanttChart(child)
+	}
+
+	sort.Slice(span.Children, func(i, j int) bool {
+		start1 := span.Children[i].StartTime
+		start2 := span.Children[j].StartTime
+		if start1 != start2 {
+			return start1 < start2
+		}
+
+		return span.Children[i].SpanID < span.Children[j].SpanID
+	})
 }
