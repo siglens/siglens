@@ -47,7 +47,24 @@ func BuildSpanTree(spanMap map[string]*structs.GanttChartSpan, idToParentId map[
 
 	rootSpanStartTime := res.StartTime
 
-	for spanID, span := range spanMap {
+	spans := make([]*structs.GanttChartSpan, 0, len(spanMap))
+	for _, span := range spanMap {
+		spans = append(spans, span)
+	}
+
+	sort.Slice(spans, func(i, j int) bool {
+		start1 := spans[i].StartTime
+		start2 := spans[j].StartTime
+		if start1 != start2 {
+			return start1 < start2
+		}
+
+		return spans[i].SpanID < spans[j].SpanID
+	})
+
+	for _, span := range spans {
+		spanID := span.SpanID
+
 		// Calculate the relative start time and end time for each span
 		span.ActualStartTime = span.StartTime
 		span.StartTime -= rootSpanStartTime
@@ -80,27 +97,5 @@ func BuildSpanTree(spanMap map[string]*structs.GanttChartSpan, idToParentId map[
 		}
 	}
 
-	sortGanttChart(res)
-
 	return res, nil
-}
-
-func sortGanttChart(span *structs.GanttChartSpan) {
-	if span == nil {
-		return
-	}
-
-	for _, child := range span.Children {
-		sortGanttChart(child)
-	}
-
-	sort.Slice(span.Children, func(i, j int) bool {
-		start1 := span.Children[i].StartTime
-		start2 := span.Children[j].StartTime
-		if start1 != start2 {
-			return start1 < start2
-		}
-
-		return span.Children[i].SpanID < span.Children[j].SpanID
-	})
 }
