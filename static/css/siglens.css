@@ -3147,17 +3147,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     float: right;
 }
 
-#error-ok-btn {
-    width: 150px !important;
-    height: 45px !important;
-    border-radius: 5px;
-    border: none;
-    margin-left: auto;
-    margin-right: 14px !important;
-    color: var(--component-text-color);
-    margin-top: 15px;
-}
-
 .dashboard-header {
     margin-top: 10px;
     display: flex;
@@ -3468,21 +3457,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     padding-right: 4.4rem;
     height: 32px;
     color: var(--text-color) !important;
-}
-
-.dbSet-textareaContainer .copy {
-    background-image: url(../assets/copy-icon.svg);
-    background-size: contain;
-    width: 16px;
-    height: 16px;
-    position: absolute;
-    right: calc(20% + 10px);
-    top: 12px;
-    cursor: pointer;
-}
-
-[data-theme='dark'] .dbSet-textareaContainer .copy {
-    background-image: url(../assets/copy-icon-dark-mode.svg);
 }
 
 /* dashboard Grid*/
