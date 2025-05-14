@@ -26,8 +26,8 @@ import (
     "github.com/siglens/siglens/pkg/segment/aggregations"
     "github.com/siglens/siglens/pkg/segment/query"
     "github.com/siglens/siglens/pkg/segment/structs"
-    "github.com/siglens/siglens/pkg/segment/utils"
-    toputils "github.com/siglens/siglens/pkg/utils"
+    sutils "github.com/siglens/siglens/pkg/segment/utils"
+    "github.com/siglens/siglens/pkg/utils"
 	"github.com/siglens/siglens/pkg/config"
     log "github.com/sirupsen/logrus"
 )
@@ -40,7 +40,7 @@ func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (i
     } else if timeModifier.AbsoluteTime == "1" {
         return 1, nil
     } else if timeModifier.AbsoluteTime != "" {
-        epoch, err = utils.ConvertCustomDateTimeFormatToEpochMs(timeModifier.AbsoluteTime)
+        epoch, err = sutils.ConvertCustomDateTimeFormatToEpochMs(timeModifier.AbsoluteTime)
         if err != nil {
             return 0, err
         }
@@ -50,13 +50,13 @@ func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (i
         snap := timeModifier.RelativeTime.Snap
         finalTime := currTime
         if offsetNum != 0 {
-            finalTime, err = utils.ApplyOffsetToTime(offsetNum, offsetTimeUnit, finalTime)
+            finalTime, err = sutils.ApplyOffsetToTime(offsetNum, offsetTimeUnit, finalTime)
             if err != nil {
                 return 0, err
             }
         }
         if snap != "" {
-            finalTime, err = utils.ApplySnap(snap, finalTime)
+            finalTime, err = sutils.ApplySnap(snap, finalTime)
             if err != nil {
                 return 0, err
             }
@@ -117,66 +117,66 @@ func removeQuotes(s any) string {
     return str[1:len(str)-1]
 }
 
-func GetAggregateFunction(funcName string) utils.AggregateFunctions {
+func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
     switch funcName {
     case "count", "c":
-        return utils.Count 
+        return sutils.Count 
     case "sum":
-        return utils.Sum
+        return sutils.Sum
     case "avg":
-        return utils.Avg
+        return sutils.Avg
     case "min":
-        return utils.Min
+        return sutils.Min
     case "max":
-        return utils.Max
+        return sutils.Max
     case "range":
-        return utils.Range
+        return sutils.Range
     case "distinct_count", "dc":
-        return utils.Cardinality
+        return sutils.Cardinality
     case "values":
-        return utils.Values
+        return sutils.Values
     case "list":
-        return utils.List
+        return sutils.List
     case "estdc":
-        return utils.Estdc
+        return sutils.Estdc
     case "estdc_error":
-        return utils.EstdcError
+        return sutils.EstdcError
     case "median":
-        return utils.Median
+        return sutils.Median
     case "mode":
-        return utils.Mode
+        return sutils.Mode
     case "stdev":
-        return utils.Stdev
+        return sutils.Stdev
     case "stdevp":
-        return utils.Stdevp
+        return sutils.Stdevp
     case "sumsq":
-        return utils.Sumsq
+        return sutils.Sumsq
     case "var":
-        return utils.Var
+        return sutils.Var
     case "varp":
-        return utils.Varp
+        return sutils.Varp
     case "first":
-        return utils.First
+        return sutils.First
     case "last":
-        return utils.Last
+        return sutils.Last
     case "earliest":
-        return utils.Earliest
+        return sutils.Earliest
     case "latest":
-        return utils.Latest
+        return sutils.Latest
     case "earliest_time":
-        return utils.EarliestTime
+        return sutils.EarliestTime
     case "latest_time":
-        return utils.LatestTime
+        return sutils.LatestTime
     case "rate":
-        return utils.StatsRate
+        return sutils.StatsRate
     case "perc":
-        return utils.Perc
+        return sutils.Perc
     case "exactperc":
-        return utils.ExactPerc
+        return sutils.ExactPerc
     case "upperperc":
-        return utils.UpperPerc
+        return sutils.UpperPerc
     default:
-        return utils.Invalid
+        return sutils.Invalid
     }
 }
 
@@ -322,8 +322,8 @@ func initializeStreamStatsOptions() *structs.StreamStatsOptions {
 
 func initializeGenTimesOption() (*structs.GenTimes, error) {
     endTime := time.Now()
-    daySnap := fmt.Sprintf("%v", utils.TMDay)
-    endTime, err := utils.ApplySnap(daySnap, endTime)
+    daySnap := fmt.Sprintf("%v", sutils.TMDay)
+    endTime, err := sutils.ApplySnap(daySnap, endTime)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: Error while applying the snap: %v", err)
     }
@@ -332,7 +332,7 @@ func initializeGenTimesOption() (*structs.GenTimes, error) {
         EndTime: uint64(endTime.UnixMilli()),
         Interval: &structs.SpanLength{
             Num: 1,
-            TimeScalr: utils.TMDay,
+            TimeScalr: sutils.TMDay,
         },
     }, nil
 }
@@ -630,12 +630,12 @@ IntegerAsTimeToUnixEpochMs <- intStr:IntegerAsString {
     if err != nil {
         return "", fmt.Errorf("Spl peg: Error while converting the integer: %v", err)
     }
-    finalTime, err := utils.ApplyOffsetToTime(timeOffset, utils.TMDay, time.Now())
+    finalTime, err := sutils.ApplyOffsetToTime(timeOffset, sutils.TMDay, time.Now())
     if err != nil {
         return "", fmt.Errorf("Spl peg: Error while applying the offset: %v", err)
     }
-    daySnap := fmt.Sprintf("%v", utils.TMDay)
-    finalTime, err = utils.ApplySnap(daySnap, finalTime)
+    daySnap := fmt.Sprintf("%v", sutils.TMDay)
+    finalTime, err = sutils.ApplySnap(daySnap, finalTime)
     if err != nil {
         return "", fmt.Errorf("Spl peg: Error while applying the snap: %v", err)
     }
@@ -644,7 +644,7 @@ IntegerAsTimeToUnixEpochMs <- intStr:IntegerAsString {
 }
 
 DateTimeToUnixEpochMs <- timeStamp:(FullTimeStamp / PartialTimestamp) {
-    unixEpochInMs, err := utils.ConvertCustomDateTimeFormatToEpochMs(timeStamp.(string))
+    unixEpochInMs, err := sutils.ConvertCustomDateTimeFormatToEpochMs(timeStamp.(string))
     if err != nil {
         return "", fmt.Errorf("Spl peg: Error while converting the timestamp: %v", err)
     }
@@ -683,7 +683,7 @@ GenTimesOptionIncrement <- "increment" EQUAL intStr:IntegerAsString unitStr:("s"
         return "", fmt.Errorf("Spl peg: increment cannot be 0")
     }
 
-    timeUnit := utils.TMSecond
+    timeUnit := sutils.TMSecond
 
     if unitStr != nil {
         unit, err := transferUint8ToString(unitStr)
@@ -692,13 +692,13 @@ GenTimesOptionIncrement <- "increment" EQUAL intStr:IntegerAsString unitStr:("s"
         }
 
         if unit == "s" {
-            timeUnit = utils.TMSecond
+            timeUnit = sutils.TMSecond
         } else if unit == "m" {
-            timeUnit = utils.TMMinute
+            timeUnit = sutils.TMMinute
         } else if unit == "h" {
-            timeUnit = utils.TMHour
+            timeUnit = sutils.TMHour
         } else if unit == "d" {
-            timeUnit = utils.TMDay
+            timeUnit = sutils.TMDay
         } else {
             return nil, fmt.Errorf("Spl peg: Invalid time unit: %v", unit)
         }
@@ -1045,7 +1045,7 @@ StreamStatsOptionResetAfter <- "reset_after" EQUAL L_PAREN boolExpr:BoolExpr R_P
 
 StreamStatsOptionTimeWindow <- "time_window" EQUAL spanLength:BinSpanLenOption {
     spanLen := spanLength.(*structs.BinSpanLength)
-    if spanLen.TimeScale == utils.TMInvalid {
+    if spanLen.TimeScale == sutils.TMInvalid {
         return nil, fmt.Errorf("Invalid Syntax, time_window option cannot be used without time scale")
     }
     ssOption := &structs.StreamStatsOptions{
@@ -1185,7 +1185,7 @@ RegexAggBlock <- PIPE node:RegexBlock {
 		return nil, fmt.Errorf("RegexAggBlock: regex given is not string. regex=%v, type=%T", astNode.Comparison.Values, astNode.Comparison.Values)
 	}
 
-    gobRegex := toputils.GobbableRegex{}
+    gobRegex := utils.GobbableRegex{}
 	err := gobRegex.SetRegex(rawRegex)
     if err != nil {
         return nil, fmt.Errorf("RegexAggBlock: regex given is not valid. regexString=%v, Error=%v", rawRegex, err)
@@ -1331,7 +1331,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
                 DefaultSettings: true,
                 SpanLength: &structs.SpanLength{
                     Num: 1,
-                    TimeScalr: utils.TMMinute,
+                    TimeScalr: sutils.TMMinute,
                 },
             },
         }
@@ -1482,26 +1482,26 @@ BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(AllTimeS
             return nil, fmt.Errorf("BinSpanLenOption: Invalid span %v, span value must be greater than 0", num)
         }
 
-        switch timeScale.(utils.TimeUnit) {
-            case utils.TMDecisecond:
+        switch timeScale.(sutils.TimeUnit) {
+            case sutils.TMDecisecond:
                 if 10%num != 0 || num >= 10 {
                     return nil, fmt.Errorf("BinSpanLenOption: Invalid span for decisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
                 }
-            case utils.TMCentisecond:
+            case sutils.TMCentisecond:
                 if 100%num != 0 || num >= 100 {
                     return nil, fmt.Errorf("BinSpanLenOption: Invalid span for centisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
                 }
-            case utils.TMMillisecond:
+            case sutils.TMMillisecond:
                 if 1000%num != 0 || num >= 1000 {
                     return nil, fmt.Errorf("BinSpanLenOption: Invalid span for millisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
                 }
-            case utils.TMMicrosecond:
+            case sutils.TMMicrosecond:
                 return nil, fmt.Errorf("BinSpanLenOption: Invalid span microsecond is not supported!")
-            case utils.TMMonth:
+            case sutils.TMMonth:
                 if num > 12 || 12%num != 0 {
                     return nil, fmt.Errorf("BinSpanLenOption: Invalid span for month %v, span value must be less or equal to 1 year and 1 year must be evenly divisble by span", num)
                 }
-            case utils.TMQuarter:
+            case sutils.TMQuarter:
                 if num > 4 || 4%num != 0 {
                     return nil, fmt.Errorf("BinSpanLenOption: Invalid span for quarter %v, span value must be less or equal to 1 year and 1 year must be evenly divisble by span", num)
                 }
@@ -1509,7 +1509,7 @@ BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(AllTimeS
 
         spanLength := &structs.BinSpanLength {
             Num: float64(num),
-            TimeScale: timeScale.(utils.TimeUnit),
+            TimeScale: timeScale.(sutils.TimeUnit),
         }
 
         return spanLength, nil
@@ -1525,7 +1525,7 @@ BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(AllTimeS
 
     spanLength := &structs.BinSpanLength {
         Num: num,
-        TimeScale: utils.TMInvalid,
+        TimeScale: sutils.TMInvalid,
     }
 
     return spanLength, nil
@@ -1743,7 +1743,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         newName := newFieldName.(string)
         letColReq.NewColName = newName
         binOptions := binCmdOption.(*structs.BinCmdOptions)
-        binOptions.NewFieldName = toputils.NewOptionWithValue(newName)
+        binOptions.NewFieldName = utils.NewOptionWithValue(newName)
     }
 
     letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
@@ -1774,7 +1774,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
     if newFieldName != nil {
         newName := newFieldName.(string)
         letColReq.NewColName = newName
-        binCmdOption.NewFieldName = toputils.NewOptionWithValue(newName)
+        binCmdOption.NewFieldName = utils.NewOptionWithValue(newName)
     }
 
     letColReq.BinRequest = binCmdOption
@@ -1809,7 +1809,7 @@ SpanOptions <- CMD_SPAN EQUAL spanLength:SpanLength {
 }
 
 SpanLength <- intAsStr:IntegerAsString timeScale:AllTimeScale{
-    if timeScale.(utils.TimeUnit) == utils.TMYear {
+    if timeScale.(sutils.TimeUnit) == sutils.TMYear {
         return nil, fmt.Errorf("SpanLength: Invalid time unit, year is not supported")
     }
     num, err := strconv.Atoi(intAsStr.(string))
@@ -1819,7 +1819,7 @@ SpanLength <- intAsStr:IntegerAsString timeScale:AllTimeScale{
 
     spanLength := &structs.SpanLength {
         Num: num,
-        TimeScalr: timeScale.(utils.TimeUnit),
+        TimeScalr: timeScale.(sutils.TimeUnit),
     }
     return spanLength, nil
 }
@@ -1864,7 +1864,7 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
 
     measureAgg := &structs.MeasureAggregator {
         MeasureCol: "*",
-        MeasureFunc: utils.Count,
+        MeasureFunc: sutils.Count,
     }
 
     measureOperations := make([]*structs.MeasureAggregator, 1)
@@ -2770,7 +2770,7 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
         return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
     }
 
-    gobRegex := toputils.GobbableRegex{}
+    gobRegex := utils.GobbableRegex{}
 	err = gobRegex.SetRegex(regex.RawString)
     if err != nil {
         return nil, fmt.Errorf("spl peg: Regex compile: %v", err)
@@ -3586,7 +3586,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
     if err != nil {
         return nil, err
     }
-    relTimeSpecifier, ok := specifier.(utils.RelativeTimeExpr)
+    relTimeSpecifier, ok := specifier.(sutils.RelativeTimeExpr)
     if !ok {
         return nil, fmt.Errorf("specifier is not of type RelativeTimeExpr")
     }
@@ -3891,7 +3891,7 @@ AsField <- AS field: (FieldName / String) {
 AggCount <- ("count" / "c") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
-        MeasureFunc: utils.Count,
+        MeasureFunc: sutils.Count,
         StrEnc: string(c.text),
         ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
@@ -3901,14 +3901,14 @@ AggCount <- ("count" / "c") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
 / ("count" / "c") L_PAREN field:FieldName R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
-        MeasureFunc: utils.Count,
+        MeasureFunc: sutils.Count,
     }
 
     return agg, nil
 } / ("count" / "c") {
     agg := &structs.MeasureAggregator {
         MeasureCol: "*",
-        MeasureFunc: utils.Count,
+        MeasureFunc: sutils.Count,
     }
 
     return agg, nil
@@ -3916,7 +3916,7 @@ AggCount <- ("count" / "c") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
 
 AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
-    if measureFunc == utils.Invalid {
+    if measureFunc == sutils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
     }
 
@@ -3931,7 +3931,7 @@ AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
 }
 / aggName:CommonAggName L_PAREN field:FieldName R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
-    if measureFunc == utils.Invalid {
+    if measureFunc == sutils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
     }
 
@@ -3957,7 +3957,7 @@ PercentileStr <- numStr:(FloatAsString / IntegerAsString) {
 
 AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
-    if measureFunc == utils.Invalid {
+    if measureFunc == sutils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
     }
 
@@ -3973,7 +3973,7 @@ AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "
 }
 / aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN field:FieldName R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
-    if measureFunc == utils.Invalid {
+    if measureFunc == sutils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
     }
 
@@ -4179,10 +4179,10 @@ WeekSnap <- ('w'[0-7]) {
 }
 
 RelTimeUnit <- timeUnit:(AllTimeScale) {
-    if utils.IsSubseconds(timeUnit.(utils.TimeUnit)) {
+    if sutils.IsSubseconds(timeUnit.(sutils.TimeUnit)) {
         return nil, fmt.Errorf("Relative Time Format does not support subseconds")
     }
-    return strconv.Itoa(int(timeUnit.(utils.TimeUnit))), nil
+    return strconv.Itoa(int(timeUnit.(sutils.TimeUnit))), nil
 }
 
 Snap <- '@' snap:(WeekSnap / RelTimeUnit) {
@@ -4211,7 +4211,7 @@ Offset <- off:(RelIntegerAsString) tuOff:(RelTimeUnit) {
 
     relTimeOffset := ast.RelativeTimeOffset{
         Offset: offsetNum,
-        TimeUnit: utils.TimeUnit(timeUnit),
+        TimeUnit: sutils.TimeUnit(timeUnit),
     }
 
     return relTimeOffset, nil
@@ -4295,7 +4295,7 @@ RelativeTimeCommandTimestampFormat <- offset:(Offset)? snapParam:(Snap)? {
         return nil, fmt.Errorf("Invalid Relative Time Format: Need either offset or snap param")
     }
 
-    relTimeOffset := utils.RelativeTimeExpr{}
+    relTimeOffset := sutils.RelativeTimeExpr{}
     snap := ""
     if snapParam != nil {
         snap = snapParam.(string)
@@ -4306,7 +4306,7 @@ RelativeTimeCommandTimestampFormat <- offset:(Offset)? snapParam:(Snap)? {
         relTimeOffset.TimeUnit = offset.(ast.RelativeTimeOffset).TimeUnit
     } 
 
-    timeModifier := utils.RelativeTimeExpr{
+    timeModifier := sutils.RelativeTimeExpr{
 		Offset: relTimeOffset.Offset,
 		Snap:   snap,
 		TimeUnit: relTimeOffset.TimeUnit,
@@ -4452,40 +4452,40 @@ OpMod <- EMPTY_OR_SPACE "%" EMPTY_OR_SPACE {
 
 // Add Empty space here
 Second <- ("seconds" / "second" / "secs" / "sec" / "s") {
-    return utils.TMSecond, nil
+    return sutils.TMSecond, nil
 }
 
 Minute <- ("minutes" / "minute" / "mins" / "min" / "m") {
-    return utils.TMMinute, nil
+    return sutils.TMMinute, nil
 }
 
 Hour <- ("hours" / "hour" / "hrs" / "hr" / "h") {
-    return utils.TMHour, nil
+    return sutils.TMHour, nil
 }
 
 Day <- ("days" / "day" / "d") {
-    return utils.TMDay, nil
+    return sutils.TMDay, nil
 }
 
 Week <- ("weeks" / "week" / "w") {
-    return utils.TMWeek, nil
+    return sutils.TMWeek, nil
 }
 
 Month <- ("months" / "month" / "mon") {
-    return utils.TMMonth, nil
+    return sutils.TMMonth, nil
 }
 
 Quarter <- ("quarters" / "quarter" / "qtrs" / "qtr" / "q") {
-    return utils.TMQuarter, nil
+    return sutils.TMQuarter, nil
 }
 
 Year <- ("years" / "year" / "yrs" / "yr" / "y") {
-    return utils.TMYear, nil
+    return sutils.TMYear, nil
 }
 
 // Might not has effect for 'us', because smallest time unit for timestamp in siglens is ms
 Subseconds <- ("us" / "ms" / "cs" / "ds") {
-    timeUnit, err := utils.ConvertSubseconds(string(c.text))
+    timeUnit, err := sutils.ConvertSubseconds(string(c.text))
     if err != nil {
         return nil, fmt.Errorf("Spl peg: Subseconds: %v", err)
     }
@@ -5063,7 +5063,7 @@ FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
 }
 
 MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limitStr:MvexpandLimit? {
-    limit := toputils.NewUnsetOption[int64]()
+    limit := utils.NewUnsetOption[int64]()
     if limitStr != nil {
         value, err := strconv.ParseInt(limitStr.(string), 10, 64)
         if err != nil {

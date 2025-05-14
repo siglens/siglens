@@ -21,9 +21,8 @@ import (
 	"testing"
 	"time"
 
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,13 +39,13 @@ func Test_ConcatExpr(t *testing.T) {
 	assert.Equal(t, expr.GetFields(), []string{"FieldWithStrings", "FieldWithNumbers"})
 
 	// Test Evaluate()
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
-	fieldToValue["FieldWithStrings"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+	fieldToValue["FieldWithStrings"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "testing",
 	}
-	fieldToValue["FieldWithNumbers"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_SIGNED_NUM,
+	fieldToValue["FieldWithNumbers"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_SIGNED_NUM,
 		CVal:  int64(123),
 	}
 
@@ -104,14 +103,14 @@ func Test_NumericExpr(t *testing.T) {
 	assert.True(t, utils.SliceHas(eFields, "Max"))
 
 	// Test Evaluate()
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
-	fieldToValue["Min"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_FLOAT,
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+	fieldToValue["Min"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  float64(12),
 	}
 
-	fieldToValue["Max"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_SIGNED_NUM,
+	fieldToValue["Max"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_SIGNED_NUM,
 		CVal:  int64(62),
 	}
 
@@ -165,8 +164,8 @@ func Test_NumericExpr(t *testing.T) {
 	}
 	assert.Equal(t, exactExpr.GetFields(), []string{"http_status"})
 
-	fieldToValue["http_status"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_SIGNED_NUM,
+	fieldToValue["http_status"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_SIGNED_NUM,
 		CVal:  int64(200),
 	}
 
@@ -198,7 +197,7 @@ func Test_NumericExpr(t *testing.T) {
 	assert.Equal(t, nowExpr.GetFields(), []string{})
 
 	// Test Evaluate()
-	fieldToValue = make(map[string]segutils.CValueEnclosure)
+	fieldToValue = make(map[string]sutils.CValueEnclosure)
 
 	value, err = nowExpr.Evaluate(fieldToValue)
 	assert.Nil(t, err)
@@ -254,10 +253,10 @@ func Test_NumericExpr_Mod(t *testing.T) {
 	values := []float64{10, 12, 23, 39, 91}
 	expectedValues := []float64{0, 2, 3, 4, 1}
 
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
 	for i, value := range values {
-		fieldToValue["number"] = segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_FLOAT,
+		fieldToValue["number"] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_FLOAT,
 			CVal:  value,
 		}
 
@@ -345,21 +344,21 @@ func Test_ValueExpr(t *testing.T) {
 	assert.Equal(t, valueExprE.GetFields(), []string{"Seconds"})
 
 	// Test Evaluate()
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
-	fieldToValue["Max"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_FLOAT,
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+	fieldToValue["Max"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  float64(62),
 	}
-	fieldToValue["Seconds"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_SIGNED_NUM,
+	fieldToValue["Seconds"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_SIGNED_NUM,
 		CVal:  int64(42),
 	}
-	fieldToValue["FieldWithStrings"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["FieldWithStrings"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "testing",
 	}
-	fieldToValue["FieldWithNumbers"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_SIGNED_NUM,
+	fieldToValue["FieldWithNumbers"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_SIGNED_NUM,
 		CVal:  int64(123),
 	}
 
@@ -400,7 +399,7 @@ func Test_ValueExpr(t *testing.T) {
 	assert.Equal(t, valueStr, "42")
 
 	// When fieldToValue is missing fields, Evaluate() should error.
-	fieldToValue = make(map[string]segutils.CValueEnclosure)
+	fieldToValue = make(map[string]sutils.CValueEnclosure)
 	_, err = valueExprA.EvaluateToFloat(fieldToValue)
 	assert.NotNil(t, err)
 	_, err = valueExprA.EvaluateToString(fieldToValue)
@@ -525,17 +524,17 @@ func Test_BoolExpr(t *testing.T) {
 	assert.Equal(t, boolExprE.GetFields(), []string{"Max"})
 
 	// Test Evaluate()
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
-	fieldToValue["Max"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_FLOAT,
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+	fieldToValue["Max"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  float64(62),
 	}
-	fieldToValue["FieldWithStrings"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["FieldWithStrings"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "testing",
 	}
-	fieldToValue["FieldWithNumbers"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_SIGNED_NUM,
+	fieldToValue["FieldWithNumbers"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_SIGNED_NUM,
 		CVal:  int64(123),
 	}
 
@@ -609,12 +608,12 @@ func Test_BoolExpr(t *testing.T) {
 }
 
 func EvaluateForInputLookup_Helper(t *testing.T, boolExpr *BoolExpr, colValues []string, expectedOutput []bool, valueOps []string, colName string) {
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
 
 	for i, valueOp := range valueOps {
 		boolExpr.ValueOp = valueOp
-		fieldToValue[colName] = segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_STRING,
+		fieldToValue[colName] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING,
 			CVal:  colValues[i],
 		}
 		value, err := boolExpr.EvaluateForInputLookup(fieldToValue)
@@ -679,7 +678,7 @@ func Test_EvaluateForInputLookup(t *testing.T) {
 		RightValue: valueExprC,
 	}
 
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
 	valueOps := []string{"=", "!=", ">", "<", ">=", "<="}
 
 	// Test String Comparisons
@@ -712,13 +711,13 @@ func Test_EvaluateForInputLookup(t *testing.T) {
 	expectedOutput = []bool{true, false, true, false, false, true}
 	for i, valueOp := range valueOps {
 		boolExprStr.ValueOp = valueOp
-		fieldToValue["Test"] = segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_STRING,
+		fieldToValue["Test"] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING,
 			CVal:  colStrValues[i],
 		}
 		boolExprNum2.ValueOp = valueOp
-		fieldToValue["Check"] = segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_STRING,
+		fieldToValue["Check"] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING,
 			CVal:  colNumValues[i],
 		}
 		value, err := boolExprAnd.EvaluateForInputLookup(fieldToValue)
@@ -736,13 +735,13 @@ func Test_EvaluateForInputLookup(t *testing.T) {
 	expectedOutput = []bool{true, false, true, true, false, true}
 	for i, valueOp := range valueOps {
 		boolExprStr.ValueOp = valueOp
-		fieldToValue["Test"] = segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_STRING,
+		fieldToValue["Test"] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING,
 			CVal:  colStrValues[i],
 		}
 		boolExprNum2.ValueOp = valueOp
-		fieldToValue["Check"] = segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_STRING,
+		fieldToValue["Check"] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING,
 			CVal:  colNumValues[i],
 		}
 		value, err := boolExprOr.EvaluateForInputLookup(fieldToValue)
@@ -760,8 +759,8 @@ func Test_EvaluateForInputLookup(t *testing.T) {
 
 	for i, valueOp := range valueOps {
 		boolExprStr.ValueOp = valueOp
-		fieldToValue["Test"] = segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_STRING,
+		fieldToValue["Test"] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING,
 			CVal:  colStrValues[i],
 		}
 		value, err := boolExprNot.EvaluateForInputLookup(fieldToValue)
@@ -852,9 +851,9 @@ func Test_ConditionExpr(t *testing.T) {
 	assert.Equal(t, boolExpr.GetFields(), []string{"state"})
 
 	// Test Evaluate()
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
-	fieldToValue["state"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+	fieldToValue["state"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "Maryland",
 	}
 
@@ -862,8 +861,8 @@ func Test_ConditionExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, true)
 
-	fieldToValue["state"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["state"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "MarylandTest",
 	}
 
@@ -871,8 +870,8 @@ func Test_ConditionExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, false)
 
-	fieldToValue["state"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["state"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "Hawaii",
 	}
 
@@ -881,8 +880,8 @@ func Test_ConditionExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, str, "Hawaii")
 
-	fieldToValue["state"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["state"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "NewYork",
 	}
 
@@ -891,8 +890,8 @@ func Test_ConditionExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, str, "Error")
 
-	fieldToValue["state"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["state"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "Maryland",
 	}
 
@@ -947,8 +946,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, isStr.GetFields(), []string{"country"})
-	fieldToValue["country"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["country"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "Spain",
 	}
 
@@ -991,8 +990,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, isNotStr.GetFields(), []string{"longitude"})
-	fieldToValue["longitude"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_FLOAT,
+	fieldToValue["longitude"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  float64(99.619024),
 	}
 
@@ -1035,8 +1034,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, isInt.GetFields(), []string{"http_status"})
-	fieldToValue["http_status"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_SIGNED_NUM,
+	fieldToValue["http_status"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_SIGNED_NUM,
 		CVal:  int64(500),
 	}
 
@@ -1079,8 +1078,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, isNotInt.GetFields(), []string{"longitude"})
-	fieldToValue["longitude"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_FLOAT,
+	fieldToValue["longitude"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  float64(99.619024),
 	}
 
@@ -1123,8 +1122,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, isNotBool.GetFields(), []string{"city"})
-	fieldToValue["city"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["city"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "Boston",
 	}
 
@@ -1167,8 +1166,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, isBool.GetFields(), []string{})
-	fieldToValue["true"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["true"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "true",
 	}
 
@@ -1211,8 +1210,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, IsNotNull.GetFields(), []string{"state"})
-	fieldToValue["state"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["state"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "Florida",
 	}
 
@@ -1351,8 +1350,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, likeBoolExpr.GetFields(), []string{"http_status"})
-	fieldToValue["http_status"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_SIGNED_NUM,
+	fieldToValue["http_status"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_SIGNED_NUM,
 		CVal:  int64(400),
 	}
 
@@ -1402,8 +1401,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, notLikeBoolExpr.GetFields(), []string{"http_status"})
-	fieldToValue["http_status"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_SIGNED_NUM,
+	fieldToValue["http_status"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_SIGNED_NUM,
 		CVal:  int64(200),
 	}
 
@@ -1453,8 +1452,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, matchBoolExpr.GetFields(), []string{"country"})
-	fieldToValue["country"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["country"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "Saudi Arabia",
 	}
 
@@ -1504,8 +1503,8 @@ func Test_ConditionExpr(t *testing.T) {
 		}
 
 	assert.Equal(t, notMatchBoolExpr.GetFields(), []string{"country"})
-	fieldToValue["country"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["country"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "Jersey",
 	}
 
@@ -1531,7 +1530,7 @@ func Test_StringExpr(t *testing.T) {
 	assert.Equal(t, strExpr.GetFields(), []string{})
 
 	// Test Evaluate()
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
 
 	value, err := strExpr.Evaluate(fieldToValue)
 	assert.Nil(t, err)
@@ -1581,8 +1580,8 @@ func Test_StringExpr(t *testing.T) {
 	assert.Equal(t, strMax.GetFields(), []string{"http_status"})
 
 	// Test Evaluate()
-	fieldToValue["http_status"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["http_status"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "200",
 	}
 
@@ -1634,8 +1633,8 @@ func Test_StringExpr(t *testing.T) {
 	assert.Equal(t, strMin.GetFields(), []string{"http_status"})
 
 	// Test Evaluate()
-	fieldToValue["http_status"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["http_status"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "200",
 	}
 
@@ -1841,13 +1840,13 @@ func Test_RenameExpr(t *testing.T) {
 	assert.Equal(t, []string{}, renameRegex.GetFields())
 	assert.Equal(t, []string{"http_status"}, renameToExistingField.GetFields())
 
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
-	fieldToValue["city"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+	fieldToValue["city"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "Boston",
 	}
-	fieldToValue["http_status"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue["http_status"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "200",
 	}
 
@@ -2093,9 +2092,9 @@ func Test_MultiValueExpr(t *testing.T) {
 	}
 	assert.Equal(t, mvExpr.GetFields(), []string{"test_field"})
 
-	fieldToValue := make(map[string]segutils.CValueEnclosure)
-	fieldToValue["test_field"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+	fieldToValue["test_field"] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_STRING,
 		CVal:  "a:dc:b2c:123",
 	}
 
@@ -2133,7 +2132,7 @@ func Test_MultiValueExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "4", countVal)
 
-	gobRegex := toputils.GobbableRegex{}
+	gobRegex := utils.GobbableRegex{}
 	err = gobRegex.SetRegex("b2*")
 	assert.Nil(t, err)
 
@@ -2206,55 +2205,55 @@ func Test_GetDefaultTimechartSpanOptions(t *testing.T) {
 		{"endEpoch = 0 should be error", args{1, 0, 1}, nil, true},
 		{"<15*60*1000 should be TMSecond with Num = 10",
 			args{1, 5*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: segutils.TMSecond}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: sutils.TMSecond}, DefaultSettings: false},
 			false},
 		{"15*60*1000 should be TMSecond with Num = 10",
 			args{1, 15*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: segutils.TMSecond}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: sutils.TMSecond}, DefaultSettings: false},
 			false},
 		{"<60*60*1000 should be TMMinute with Num = 1",
 			args{1, 30*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMMinute}, DefaultSettings: false},
 			false},
 		{"60*60*1000 should be TMMinute with Num = 1",
 			args{1, 60*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMMinute}, DefaultSettings: false},
 			false},
 		{"<4*60*60*1000 should be TMMinute with Num = 5",
 			args{1, 2*60*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: sutils.TMMinute}, DefaultSettings: false},
 			false},
 		{"4*60*60*1000 should be TMMinute with Num = 5",
 			args{1, 4*60*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: sutils.TMMinute}, DefaultSettings: false},
 			false},
 		{"<24*60*60*1000 should be TMMinute with Num = 30",
 			args{1, 20*60*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: sutils.TMMinute}, DefaultSettings: false},
 			false},
 		{"24*60*60*1000 should be TMMinute with Num = 30",
 			args{1, 24*60*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: sutils.TMMinute}, DefaultSettings: false},
 			false},
 		{"<7*24*60*60*1000 should be TMHour with Num = 1",
 			args{1, 6*24*60*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMHour}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMHour}, DefaultSettings: false},
 			false},
 		{"7*24*60*60*1000 should be TMHour with Num = 1",
 			args{1, 7*24*60*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMHour}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMHour}, DefaultSettings: false},
 			false},
 		{"<180*24*60*60*1000 should be TMDay with Num = 1",
 			args{1, 179*24*60*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMDay}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMDay}, DefaultSettings: false},
 			false},
 		{"180*24*60*60*1000 should be TMDay with Num = 1",
 			args{1, 180*24*60*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMDay}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMDay}, DefaultSettings: false},
 			false},
 		{">180*24*60*60*1000 should be TMDay with Num = 1",
 			args{1, 181*24*60*60*1000 + 1, 1},
-			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMonth}, DefaultSettings: false},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: sutils.TMMonth}, DefaultSettings: false},
 			false},
 	}
 	for _, tt := range tests {

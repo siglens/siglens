@@ -551,10 +551,6 @@ textarea.form-control.expanded {
     width: 0;
 }
 
-.ui-dialog-title {
-    font-size: 18px;
-}
-
 .completed {
     background-image: var(--complete-bg-img);
     background-repeat: no-repeat;

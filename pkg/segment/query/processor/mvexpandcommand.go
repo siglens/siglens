@@ -23,8 +23,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -62,7 +62,7 @@ func (p *mvexpandProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	limit, hasLimit := p.options.Limit.Get()
 	for i, value := range values {
 		switch value.Dtype {
-		case segutils.SS_DT_STRING_SLICE:
+		case sutils.SS_DT_STRING_SLICE:
 			for j, v := range value.CVal.([]string) {
 				if hasLimit && j >= int(limit) {
 					break
@@ -71,21 +71,21 @@ func (p *mvexpandProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 				orderedItems = append(orderedItems, orderedItem[interface{}]{index: i, value: v})
 			}
 		default:
-			return nil, toputils.TeeErrorf("mvexpand.Process: unexpected dtype: %v", value.Dtype)
+			return nil, utils.TeeErrorf("mvexpand.Process: unexpected dtype: %v", value.Dtype)
 		}
 	}
 
 	// TODO: As a memory optimization, if we have to make a lot of new rows, we
 	// may want to make a new IQR with only some of them, and keep the extras
 	// in our internal state for the next call to Process.
-	newFieldToValues := make(map[string][]segutils.CValueEnclosure, len(fieldToValues))
+	newFieldToValues := make(map[string][]sutils.CValueEnclosure, len(fieldToValues))
 	for fieldName := range fieldToValues {
-		columnValues := make([]segutils.CValueEnclosure, 0, len(orderedItems))
+		columnValues := make([]sutils.CValueEnclosure, 0, len(orderedItems))
 
 		if fieldName == p.options.ColName {
 			for _, item := range orderedItems {
-				value := segutils.CValueEnclosure{
-					Dtype: segutils.SS_DT_STRING,
+				value := sutils.CValueEnclosure{
+					Dtype: sutils.SS_DT_STRING,
 					CVal:  item.value,
 				}
 

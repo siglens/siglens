@@ -35,8 +35,8 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	putils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -147,7 +147,7 @@ type RunningQueryState struct {
 	astNode                  *structs.ASTNode
 	qc                       *structs.QueryContext
 	searchRes                *segresults.SearchResults
-	rawRecords               []*utils.RecordResultContainer
+	rawRecords               []*sutils.RecordResultContainer
 	queryCount               *structs.QueryCount
 	aggs                     *structs.QueryAggregators
 	searchHistogram          map[string]*structs.AggregationResult
@@ -165,7 +165,7 @@ type RunningQueryState struct {
 	pipeResp                 *structs.PipeSearchResponseOuter
 	Progress                 *structs.Progress
 	scrollFrom               uint64
-	batchError               *putils.BatchError
+	batchError               *utils.BatchError
 	queryText                string
 }
 
@@ -219,7 +219,7 @@ func (rQuery *RunningQueryState) GetLatestQueryState() string {
 	return rQuery.latestQueryState.String()
 }
 
-func (rQuery *RunningQueryState) GetQueryBatchError() *putils.BatchError {
+func (rQuery *RunningQueryState) GetQueryBatchError() *utils.BatchError {
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	return rQuery.batchError
@@ -284,7 +284,7 @@ func withLockInitializeQuery(qid uint64, async bool, cleanupCallback func(), sta
 		rqsLock:           &sync.RWMutex{},
 		isAsync:           async,
 		timeoutCancelFunc: nil,
-		batchError:        putils.NewBatchErrorWithQid(qid),
+		batchError:        utils.NewBatchErrorWithQid(qid),
 		latestQueryState:  WAITING,
 	}
 
@@ -311,7 +311,7 @@ func StartQuery(qid uint64, async bool, cleanupCallback func(), forceRun bool) (
 
 	runningState, err := withLockInitializeQuery(qid, async, cleanupCallback, nil)
 	if err != nil {
-		return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be initialized, %v", qid, err)
+		return nil, utils.TeeErrorf("StartQuery: qid=%v cannot be initialized, %v", qid, err)
 	}
 
 	wsData := &WaitStateData{qid, runningState}
@@ -321,7 +321,7 @@ func StartQuery(qid uint64, async bool, cleanupCallback func(), forceRun bool) (
 	} else {
 		err := addToWaitingQueriesQueue(wsData)
 		if err != nil {
-			return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be added to waiting queue, %v", qid, err)
+			return nil, utils.TeeErrorf("StartQuery: qid=%v cannot be added to waiting queue, %v", qid, err)
 		}
 	}
 
@@ -357,7 +357,7 @@ func StartQueryAsCoordinator(qid uint64, async bool, cleanupCallback func(), ast
 	} else {
 		err := addToWaitingQueriesQueue(wsData)
 		if err != nil {
-			return nil, putils.TeeErrorf("StartQueryAsCoordinator: qid=%v cannot be added to waiting queue, %v", qid, err)
+			return nil, utils.TeeErrorf("StartQueryAsCoordinator: qid=%v cannot be added to waiting queue, %v", qid, err)
 		}
 	}
 
@@ -406,7 +406,7 @@ func DeleteQuery(qid uint64) {
 	// Can remove the logGlobalSearchErrors after we fully migrate
 	// to the putils.BatchError
 	_ = logGlobalSearchErrors(qid) // not checking err, since the query is getting deleted
-	putils.LogAllErrorsWithQidAndDelete(qid)
+	utils.LogAllErrorsWithQidAndDelete(qid)
 
 	arqMapLock.Lock()
 	defer arqMapLock.Unlock()
@@ -556,7 +556,7 @@ func AssociateSearchResult(qid uint64, result *segresults.SearchResults) error {
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		return putils.TeeErrorf("AssociateSearchResult: qid %+v does not exist!", qid)
+		return utils.TeeErrorf("AssociateSearchResult: qid %+v does not exist!", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -719,7 +719,7 @@ func SetCleanupCallback(qid uint64, cleanupCallback func()) error {
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		return putils.TeeErrorf("SetCleanupCallback: qid %+v does not exist!", qid)
+		return utils.TeeErrorf("SetCleanupCallback: qid %+v does not exist!", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -884,7 +884,7 @@ func GetQueryType(qid uint64) structs.QueryType {
 	return rQuery.QType
 }
 
-func GetAllRemoteLogs(inrrcs []*utils.RecordResultContainer, qid uint64) ([]map[string]interface{}, []string, error) {
+func GetAllRemoteLogs(inrrcs []*sutils.RecordResultContainer, qid uint64) ([]map[string]interface{}, []string, error) {
 	arqMapLock.RLock()
 	defer arqMapLock.RUnlock()
 
@@ -918,7 +918,7 @@ func checkForCancelledQuery(qid uint64) (bool, error) {
 }
 
 // returns rrcs, raw time buckets, raw groupby buckets, querycounts, map of segkey encoding, and errors
-func GetQueryResponseForRPC(scroll int, qid uint64) ([]*utils.RecordResultContainer, *blockresults.TimeBuckets,
+func GetQueryResponseForRPC(scroll int, qid uint64) ([]*sutils.RecordResultContainer, *blockresults.TimeBuckets,
 	*blockresults.GroupByBuckets, *segresults.RemoteStats, map[uint32]string, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
@@ -928,14 +928,14 @@ func GetQueryResponseForRPC(scroll int, qid uint64) ([]*utils.RecordResultContai
 	}
 
 	if rQuery.queryCount == nil || rQuery.rawRecords == nil {
-		eres := make([]*utils.RecordResultContainer, 0)
+		eres := make([]*sutils.RecordResultContainer, 0)
 		return eres, nil, nil, nil, nil, nil
 	}
-	var eres []*utils.RecordResultContainer
+	var eres []*sutils.RecordResultContainer
 	if rQuery.rawRecords == nil {
-		eres = make([]*utils.RecordResultContainer, 0)
+		eres = make([]*sutils.RecordResultContainer, 0)
 	} else if len(rQuery.rawRecords) <= scroll {
-		eres = make([]*utils.RecordResultContainer, 0)
+		eres = make([]*sutils.RecordResultContainer, 0)
 	} else {
 		eres = rQuery.rawRecords[scroll:]
 	}
@@ -1013,7 +1013,7 @@ func GetQueryInfoForQid(qid uint64) (*structs.QueryCount, uint64, error) {
 func zeroHitsQueryCount() *structs.QueryCount {
 	return &structs.QueryCount{
 		TotalCount: 0,
-		Op:         utils.Equals,
+		Op:         sutils.Equals,
 		EarlyExit:  true,
 	}
 }
@@ -1079,7 +1079,7 @@ func logGlobalSearchErrors(qid uint64) error {
 		if errInfo == nil {
 			continue
 		}
-		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v, ExtraInfo: %v", qid, errMsg, errInfo.Count, errInfo.Error)
+		utils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v, ExtraInfo: %v", qid, errMsg, errInfo.Count, errInfo.Error)
 	}
 	return nil
 }
@@ -1089,7 +1089,7 @@ func SetPipeResp(response *structs.PipeSearchResponseOuter, qid uint64) error {
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		return putils.TeeErrorf("SetPipeResp: qid %+v does not exist!", qid)
+		return utils.TeeErrorf("SetPipeResp: qid %+v does not exist!", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -1170,14 +1170,14 @@ func IncProgressForRRCCmd(recordsSearched uint64, unitsSearched uint64, qid uint
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		return putils.TeeErrorf("IncProgressForRRCCmd: qid %+v does not exist!", qid)
+		return utils.TeeErrorf("IncProgressForRRCCmd: qid %+v does not exist!", qid)
 	}
 
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 
 	if rQuery.Progress == nil {
-		return putils.TeeErrorf("IncProgressForRRCCmd: qid=%v Progress is not initialized!", qid)
+		return utils.TeeErrorf("IncProgressForRRCCmd: qid=%v Progress is not initialized!", qid)
 	}
 
 	rQuery.Progress.UnitsSearched += unitsSearched
@@ -1200,7 +1200,7 @@ func GetProgress(qid uint64) (structs.Progress, error) {
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		return structs.Progress{}, putils.TeeErrorf("GetProgress: qid %+v does not exist!", qid)
+		return structs.Progress{}, utils.TeeErrorf("GetProgress: qid %+v does not exist!", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -1229,13 +1229,13 @@ func IncRecordsSent(qid uint64, recordsSent uint64) error {
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		return putils.TeeErrorf("IncRecordsSent: qid %+v does not exist!", qid)
+		return utils.TeeErrorf("IncRecordsSent: qid %+v does not exist!", qid)
 	}
 
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
 	if rQuery.Progress == nil {
-		return putils.TeeErrorf("IncRecordsSent: qid=%v Progress is not initialized!", qid)
+		return utils.TeeErrorf("IncRecordsSent: qid=%v Progress is not initialized!", qid)
 	}
 
 	rQuery.Progress.RecordsSent += recordsSent
@@ -1250,7 +1250,7 @@ func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, pro
 	if progress.TotalUnits > 0 {
 		percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
 	}
-	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom+utils.QUERY_EARLY_EXIT_LIMIT)
+	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom+sutils.QUERY_EARLY_EXIT_LIMIT)
 	completion = math.Max(float64(percCompleteBySearch), percCompleteByRecordsSent)
 	// TODO: fix completion percentage so that it is accurate - correctly identify UnitsSearched and TotalUnits.
 	completion = math.Min(completion, 100.0)
@@ -1268,7 +1268,7 @@ func InitScrollFrom(qid uint64, scrollFrom uint64) error {
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		return putils.TeeErrorf("InitScrollFrom: qid %+v does not exist!", qid)
+		return utils.TeeErrorf("InitScrollFrom: qid %+v does not exist!", qid)
 	}
 
 	rQuery.rqsLock.Lock()
@@ -1278,16 +1278,16 @@ func InitScrollFrom(qid uint64, scrollFrom uint64) error {
 	return nil
 }
 
-func ConvertQueryCountToTotalResponse(qc *structs.QueryCount) putils.HitsCount {
+func ConvertQueryCountToTotalResponse(qc *structs.QueryCount) utils.HitsCount {
 	if qc == nil {
-		return putils.HitsCount{Value: 0, Relation: "eq"}
+		return utils.HitsCount{Value: 0, Relation: "eq"}
 	}
 
 	if !qc.EarlyExit {
-		return putils.HitsCount{Value: qc.TotalCount, Relation: "eq"}
+		return utils.HitsCount{Value: qc.TotalCount, Relation: "eq"}
 	}
 
-	return putils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
+	return utils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
 }
 
 func GetQueryStats(ctx *fasthttp.RequestCtx) {

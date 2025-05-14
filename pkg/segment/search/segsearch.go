@@ -39,7 +39,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
@@ -193,7 +193,7 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
 	searchRes := executeRawSearchOnNode(searchNode, searchReq, allBlockSearchHelpers, queryMetrics,
 		qid, allSearchResults, nodeRes, blockSummaries, timeRange)
-	mergeSegmentSearchStatus(segmentSearchRecords, searchRes, utils.And, nodeRes)
+	mergeSegmentSearchStatus(segmentSearchRecords, searchRes, sutils.And, nodeRes)
 	err := applyAggregationsToResult(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
 		sizeLimit, fileParallelism, queryMetrics, qid, allSearchResults, nodeRes)
 	if err != nil {
@@ -427,8 +427,8 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 					}
 					sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, recNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
 					if !invalidCol {
-						rrc := &utils.RecordResultContainer{
-							SegKeyInfo: utils.SegKeyInfo{
+						rrc := &sutils.RecordResultContainer{
+							SegKeyInfo: sutils.SegKeyInfo{
 								SegKeyEnc: segKeyEnc,
 								IsRemote:  false,
 							},
@@ -481,27 +481,27 @@ func executeRawSearchOnNode(node *structs.SearchNode, searchReq *structs.Segment
 
 	if node.AndSearchConditions != nil {
 		andSearchRes := applyRawSearchToConditions(node.AndSearchConditions, searchReq, allBlockSearchHelpers,
-			utils.And, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
-		mergeSegmentSearchStatus(searchRes, andSearchRes, utils.And, nodeRes)
+			sutils.And, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
+		mergeSegmentSearchStatus(searchRes, andSearchRes, sutils.And, nodeRes)
 	}
 
 	if node.OrSearchConditions != nil {
 		orSearchRes := applyRawSearchToConditions(node.OrSearchConditions, searchReq, allBlockSearchHelpers,
-			utils.Or, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
-		mergeSegmentSearchStatus(searchRes, orSearchRes, utils.And, nodeRes)
+			sutils.Or, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
+		mergeSegmentSearchStatus(searchRes, orSearchRes, sutils.And, nodeRes)
 	}
 
 	if node.ExclusionSearchConditions != nil {
 		notSearchRes := applyRawSearchToConditions(node.ExclusionSearchConditions, searchReq, allBlockSearchHelpers,
-			utils.Exclusion, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
-		mergeSegmentSearchStatus(searchRes, notSearchRes, utils.And, nodeRes)
+			sutils.Exclusion, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
+		mergeSegmentSearchStatus(searchRes, notSearchRes, sutils.And, nodeRes)
 	}
 
 	return searchRes
 }
 
 func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *structs.SegmentSearchRequest,
-	allBlockSearchHelpers []*structs.BlockSearchHelper, op utils.LogicalOperator, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
+	allBlockSearchHelpers []*structs.BlockSearchHelper, op sutils.LogicalOperator, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
 	allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult, blockSummaries []*structs.BlockSummary, timeRange *dtu.TimeRange) *SegmentSearchStatus {
 
 	searchRes := InitBlocksToSearch(searchReq, blockSummaries, allSearchResults, timeRange)
@@ -523,7 +523,7 @@ func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *struct
 	return searchRes
 }
 
-func mergeSegmentSearchStatus(baseSearch *SegmentSearchStatus, searchToMerge *SegmentSearchStatus, op utils.LogicalOperator, nodeRes *structs.NodeResult) {
+func mergeSegmentSearchStatus(baseSearch *SegmentSearchStatus, searchToMerge *SegmentSearchStatus, op sutils.LogicalOperator, nodeRes *structs.NodeResult) {
 	if searchToMerge == nil {
 		return
 	}
@@ -551,7 +551,7 @@ func extractSortVals(aggs *structs.QueryAggregators, multiColReader *segread.Mul
 		return sortVal, invalidAggsCol
 	}
 
-	var colVal utils.CValueEnclosure
+	var colVal sutils.CValueEnclosure
 	err = multiColReader.ExtractValueFromColumnFile(aggsSortColKeyIdx, blkNum, recNum,
 		qid, false, &colVal)
 	if err != nil {
@@ -764,7 +764,7 @@ func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism i
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
 	searchStatus := executeRawSearchOnNode(searchNode, req, allBlockSearchHelpers, queryMetrics,
 		qid, allSearchResults, nodeRes, blockSummaries, timeRange)
-	mergeSegmentSearchStatus(segmentSearchRecords, searchStatus, utils.And, nodeRes)
+	mergeSegmentSearchStatus(segmentSearchRecords, searchStatus, sutils.And, nodeRes)
 
 	segStats, err := applySegStatsToMatchedRecords(measureOps, segmentSearchRecords, req, blockSummaries, timeRange,
 		fileParallelism, queryMetrics, qid, nodeRes)

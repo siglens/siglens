@@ -22,7 +22,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -34,7 +34,7 @@ Internally, updates the bitset with recNum for all queries that matched
 func applyStreamingSearchToRecord(segStore *SegStore, psNode map[string]*structs.SearchNode,
 	recNum uint16) {
 
-	holderDte := &utils.DtypeEnclosure{}
+	holderDte := &sutils.DtypeEnclosure{}
 	tsKey := config.GetTimeStampKey()
 	for pqid, sNode := range psNode {
 		holderDte.Reset()
@@ -44,10 +44,10 @@ func applyStreamingSearchToRecord(segStore *SegStore, psNode map[string]*structs
 	}
 }
 
-func applySearchSingleNode(colWips map[string]*ColWip, sNode *structs.SearchNode, holderDte *utils.DtypeEnclosure, tsKey string, segStore *SegStore) bool {
+func applySearchSingleNode(colWips map[string]*ColWip, sNode *structs.SearchNode, holderDte *sutils.DtypeEnclosure, tsKey string, segStore *SegStore) bool {
 	retVal := false
 	if sNode.AndSearchConditions != nil {
-		andConditions := applySearchSingleCondition(colWips, sNode.AndSearchConditions, utils.And, holderDte, tsKey, segStore)
+		andConditions := applySearchSingleCondition(colWips, sNode.AndSearchConditions, sutils.And, holderDte, tsKey, segStore)
 		if !andConditions {
 			return false
 		}
@@ -56,7 +56,7 @@ func applySearchSingleNode(colWips map[string]*ColWip, sNode *structs.SearchNode
 
 	// at least one must pass. If and conditions are defined, then this is a noop check
 	if sNode.OrSearchConditions != nil {
-		orConditions := applySearchSingleCondition(colWips, sNode.OrSearchConditions, utils.Or, holderDte, tsKey, segStore)
+		orConditions := applySearchSingleCondition(colWips, sNode.OrSearchConditions, sutils.Or, holderDte, tsKey, segStore)
 		retVal = retVal || orConditions
 	}
 
@@ -65,7 +65,7 @@ func applySearchSingleNode(colWips map[string]*ColWip, sNode *structs.SearchNode
 	}
 	// all must fail
 	if sNode.ExclusionSearchConditions != nil {
-		exclusionConditions := applySearchSingleCondition(colWips, sNode.ExclusionSearchConditions, utils.Exclusion, holderDte, tsKey, segStore)
+		exclusionConditions := applySearchSingleCondition(colWips, sNode.ExclusionSearchConditions, sutils.Exclusion, holderDte, tsKey, segStore)
 		if exclusionConditions {
 			return false
 		}
@@ -73,13 +73,13 @@ func applySearchSingleNode(colWips map[string]*ColWip, sNode *structs.SearchNode
 	return true
 }
 
-func applySearchSingleCondition(colWips map[string]*ColWip, sCond *structs.SearchCondition, op utils.LogicalOperator,
-	holderDte *utils.DtypeEnclosure, tsKey string, segStore *SegStore) bool {
+func applySearchSingleCondition(colWips map[string]*ColWip, sCond *structs.SearchCondition, op sutils.LogicalOperator,
+	holderDte *sutils.DtypeEnclosure, tsKey string, segStore *SegStore) bool {
 	orMatch := false
 	if sCond.SearchNode != nil {
 		for _, sNode := range sCond.SearchNode {
 			retVal := applySearchSingleNode(colWips, sNode, holderDte, tsKey, segStore)
-			if !retVal && op == utils.And {
+			if !retVal && op == sutils.And {
 				return retVal
 			} else {
 				orMatch = orMatch || retVal
@@ -89,7 +89,7 @@ func applySearchSingleCondition(colWips map[string]*ColWip, sCond *structs.Searc
 	if sCond.SearchQueries != nil {
 		for _, query := range sCond.SearchQueries {
 			retVal := applySearchSingleQuery(colWips, query, op, holderDte, tsKey, segStore)
-			if !retVal && op == utils.And {
+			if !retVal && op == sutils.And {
 				return retVal
 			} else {
 				orMatch = orMatch || retVal
@@ -97,15 +97,15 @@ func applySearchSingleCondition(colWips map[string]*ColWip, sCond *structs.Searc
 		}
 	}
 
-	if op == utils.And {
+	if op == sutils.And {
 		// previous false values would have returned already
 		return true
 	}
 	return orMatch
 }
 
-func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQuery, op utils.LogicalOperator,
-	holderDte *utils.DtypeEnclosure, tsKey string, segStore *SegStore) bool {
+func applySearchSingleQuery(colWips map[string]*ColWip, sQuery *structs.SearchQuery, op sutils.LogicalOperator,
+	holderDte *sutils.DtypeEnclosure, tsKey string, segStore *SegStore) bool {
 	switch sQuery.SearchType {
 	case structs.MatchAll:
 		return true

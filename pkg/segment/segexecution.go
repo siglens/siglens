@@ -32,8 +32,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -67,7 +67,7 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 
 	if err != nil {
 		return &mresults.MetricsResult{
-			ErrList: []error{toputils.TeeErrorf("qid=%v ExecuteMetricsQuery: Error initializing query status! %+v", qid, err)},
+			ErrList: []error{utils.TeeErrorf("qid=%v ExecuteMetricsQuery: Error initializing query status! %+v", qid, err)},
 		}
 	}
 
@@ -76,7 +76,7 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 	signal := <-rQuery.StateChan
 	if signal.StateName != query.READY {
 		return &mresults.MetricsResult{
-			ErrList: []error{toputils.TeeErrorf("qid=%v ExecuteMetricsQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
+			ErrList: []error{utils.TeeErrorf("qid=%v ExecuteMetricsQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
 		}
 	}
 
@@ -103,7 +103,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		rQuery, err := query.StartQuery(qid, false, nil, false)
 		if err != nil {
 			return &mresults.MetricsResult{
-				ErrList: []error{toputils.TeeErrorf("ExecuteMultipleMetricsQuery: Error initializing query status! %v", err)},
+				ErrList: []error{utils.TeeErrorf("ExecuteMultipleMetricsQuery: Error initializing query status! %v", err)},
 			}
 		}
 		querySummary.SetFetchQueryStateFn(rQuery.GetLatestQueryState)
@@ -111,7 +111,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		signal := <-rQuery.StateChan
 		if signal.StateName != query.READY {
 			return &mresults.MetricsResult{
-				ErrList: []error{toputils.TeeErrorf("qid=%v, ExecuteMultipleMetricsQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
+				ErrList: []error{utils.TeeErrorf("qid=%v, ExecuteMultipleMetricsQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
 			}
 		}
 
@@ -449,14 +449,14 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 					rGroupID = resultRHS.MetricName + labelStr
 				}
 
-				if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
+				if queryOp.Operation == sutils.LetOr || queryOp.Operation == sutils.LetUnless {
 					labelStrSet[labelStr] = struct{}{}
 				}
 			}
 
 			// If 'and' operation cannot find a matching label set in the right vector, we should skip the current label set in the left vector.
 			// However, for the 'or', 'unless' we do not want to skip that.
-			if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != utils.LetOr && queryOp.Operation != utils.LetUnless {
+			if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != sutils.LetOr && queryOp.Operation != sutils.LetUnless {
 				continue
 			} //Entries for which no matching entry in the right-hand vector are dropped
 			finalResult[lGroupID] = make(map[uint32]float64)
@@ -465,7 +465,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 				putils.SetFinalResult(queryOp, finalResult, lGroupID, timestamp, valueLHS, valueRHS, swapped)
 			}
 		}
-		if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
+		if queryOp.Operation == sutils.LetOr || queryOp.Operation == sutils.LetUnless {
 			for rGroupID, tsRHS := range resultRHS.Results {
 				labelStr := ""
 				if len(rGroupID) >= len(resultRHS.MetricName) {
@@ -473,7 +473,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 				}
 
 				// For 'unless' op, all matching elements in both vectors are dropped
-				if queryOp.Operation == utils.LetUnless {
+				if queryOp.Operation == sutils.LetUnless {
 					lGroupID := resultLHS.MetricName + labelStr
 					delete(finalResult, lGroupID)
 					continue
@@ -501,13 +501,13 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 	rQuery, err := query.StartQuery(qid, false, nil, false)
 	if err != nil {
 		return &structs.NodeResult{
-			ErrList: []error{toputils.TeeErrorf("ExecuteQuery: Error initializing query status! %v", err)},
+			ErrList: []error{utils.TeeErrorf("ExecuteQuery: Error initializing query status! %v", err)},
 		}
 	}
 	signal := <-rQuery.StateChan
 	if signal.StateName != query.READY {
 		return &structs.NodeResult{
-			ErrList: []error{toputils.TeeErrorf("qid=%v, ExecuteQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
+			ErrList: []error{utils.TeeErrorf("qid=%v, ExecuteQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
 		}
 	}
 
@@ -591,19 +591,19 @@ func ExecuteQueryInternalNewPipeline(qid uint64, isAsync bool, root *structs.AST
 func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int) (*processor.QueryProcessor, error) {
 	startTime, querySummary, queryInfo, _, _, _, _, _, _, err := query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to prepare to run query, err: %v", qid, err)
+		return nil, utils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to prepare to run query, err: %v", qid, err)
 	}
 
 	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom, qc.IncludeNulls, *startTime, true)
 	if err != nil {
 		querySummary.Cleanup()
-		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
+		return nil, utils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
 	}
 
 	err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
 	if err != nil {
 		querySummary.Cleanup()
-		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to set cleanup callback, err: %v", qid, err)
+		return nil, utils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to set cleanup callback, err: %v", qid, err)
 	}
 
 	return queryProcessor, nil

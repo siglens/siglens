@@ -31,7 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -196,7 +196,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
 		query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
 		dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
-		dataProcessors[0].SetLimitForDataGenerator(segutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
+		dataProcessors[0].SetLimitForDataGenerator(sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
 	}
 
 	// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
@@ -248,9 +248,9 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	var limit uint64
 	switch queryType {
 	case structs.RRCCmd:
-		limit = segutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom)
+		limit = sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom)
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
-		limit = segutils.QUERY_MAX_BUCKETS
+		limit = sutils.QUERY_MAX_BUCKETS
 	default:
 		return nil, utils.TeeErrorf("newQueryProcessorHelper: invalid query type %v", queryType)
 	}
@@ -514,7 +514,7 @@ func (qp *QueryProcessor) getStatusParams(totalRecords uint64) (bool, string, st
 			relation = "gte"
 		}
 	} else {
-		if totalRecords == segutils.QUERY_EARLY_EXIT_LIMIT {
+		if totalRecords == sutils.QUERY_EARLY_EXIT_LIMIT {
 			relation = "gte"
 			canScrollMore = true
 		}
