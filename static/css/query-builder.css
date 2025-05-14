@@ -748,12 +748,12 @@ div.show-record-popup .ui-dialog-buttonpane button {
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    margin-top: 30px;
 }
 
 .histo-container {
     margin-bottom: 15px;
     transition: all 0.3s ease;
+    display: none;
 }
 
 #histogram-container {
@@ -762,7 +762,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     padding: 10px;
-    display: none;
+    display: block;
     position: relative; 
     overflow: hidden; 
 }
