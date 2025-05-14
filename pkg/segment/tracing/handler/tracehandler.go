@@ -97,34 +97,49 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	traces := make([]*structs.Trace, 0)
 	// Get status code count for each trace
-	for _, traceId := range traceIds {
-		// Get the start time and end time for this trace
-		searchRequestBody.SearchText = "trace_id=" + traceId + " AND parent_span_id=\"\" | fields start_time, end_time, name, service"
-		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
-		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: traceId:%v, Error=%v", traceId, err)
+
+	filters := utils.Transform(traceIds, func(s string) string {
+		return fmt.Sprintf(`trace_id="%s"`, s)
+	})
+
+	oneQuery := fmt.Sprintf("(%s) AND parent_span_id=\"\" | stats values(start_time) as start_time, values(end_time) as end_time, values(name) as name, values(service) as service by trace_id", strings.Join(filters, " OR "))
+	searchRequestBody.SearchText = oneQuery
+	pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
+	if err != nil {
+		log.Errorf("ProcessSearchTracesRequest: traceId:%v, Error=%v", traceId, err)
+		panic(err) // TODO: andrew
+	}
+
+	for _, measureResult := range pipeSearchResponseOuter.MeasureResults {
+		if len(measureResult.GroupByValues) != 1 {
+			log.Errorf("ProcessSearchTracesRequest: expected 1 group by value, got %d",
+				len(measureResult.GroupByValues))
 			continue
 		}
 
-		if pipeSearchResponseOuter.Hits.Hits == nil || len(pipeSearchResponseOuter.Hits.Hits) == 0 {
+		traceId := measureResult.GroupByValues[0]
+		if len(measureResult.MeasureVal) != 4 {
+			log.Errorf("ProcessSearchTracesRequest: expected 4 measure values, got %d for traceId=%v",
+				len(measureResult.MeasureVal), traceId)
 			continue
 		}
 
-		startTime, exists := pipeSearchResponseOuter.Hits.Hits[0]["start_time"]
+		startTime, exists := measureResult.MeasureVal["start_time"]
 		if !exists {
 			continue
 		}
-		endTime, exists := pipeSearchResponseOuter.Hits.Hits[0]["end_time"]
+
+		endTime, exists := measureResult.MeasureVal["end_time"]
 		if !exists {
 			continue
 		}
 
-		serviceName, exists := pipeSearchResponseOuter.Hits.Hits[0]["service"]
+		serviceName, exists := measureResult.MeasureVal["service"]
 		if !exists {
 			continue
 		}
 
-		operationName, exists := pipeSearchResponseOuter.Hits.Hits[0]["name"]
+		operationName, exists := measureResult.MeasureVal["name"]
 		if !exists {
 			continue
 		}
@@ -163,7 +178,18 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 			continue
 		}
 
-		AddTrace(pipeSearchResponseOuter, &traces, traceId, traceStartTime, traceEndTime, serviceName.(string), operationName.(string))
+		service, err := getString(serviceName)
+		if err != nil {
+			log.Errorf("ProcessSearchTracesRequest: failed to convert serviceName: %v", err)
+			continue
+		}
+		operation, err := getString(operationName)
+		if err != nil {
+			log.Errorf("ProcessSearchTracesRequest: failed to convert operationName: %v", err)
+			continue
+		}
+
+		AddTrace(pipeSearchResponseOuter, &traces, traceId, traceStartTime, traceEndTime, service, operation)
 	}
 
 	traceResult := &structs.TraceResult{
@@ -172,6 +198,23 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	utils.WriteJsonResponse(ctx, traceResult)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func getString(val interface{}) (string, error) {
+	switch v := val.(type) {
+	case string:
+		return v, nil
+	case []interface{}:
+		if len(v) == 0 {
+			return "", fmt.Errorf("empty array")
+		} else if len(v) > 1 {
+			return "", fmt.Errorf("array length greater than 1")
+		}
+
+		return getString(v[0])
+	default:
+		return "", fmt.Errorf("getString: unexpected type %T", v)
+	}
 }
 
 func convertTimeToUint64(val interface{}) (uint64, error) {
@@ -191,6 +234,14 @@ func convertTimeToUint64(val interface{}) (uint64, error) {
 			return 0, fmt.Errorf("error converting string to float64 ")
 		}
 		return uint64(floatVal), nil
+	case []interface{}:
+		if len(v) == 0 {
+			return 0, fmt.Errorf("empty array")
+		} else if len(v) > 1 {
+			return 0, fmt.Errorf("array length greater than 1")
+		}
+
+		return convertTimeToUint64(v[0])
 	default:
 		log.Errorf("convertTimeToUint64 : unexpected type %T", v)
 		return 0, fmt.Errorf("unexpected type %T", v)
