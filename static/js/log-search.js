@@ -134,6 +134,7 @@ $(document).ready(async () => {
     $('.theme-btn').on('click', themePickerHandler);
     // eslint-disable-next-line no-undef
     $('.theme-btn').on('click', updateTimeChartTheme);
+    // eslint-disable-next-line no-undef
     $('.theme-btn').on('click', updateHistogramTheme);
 
     setupEventHandlers();
