@@ -252,52 +252,27 @@ func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchReque
 }
 
 func GetTotalUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter) int {
-	if config.IsNewQueryPipelineEnabled() {
-		return pipeSearchResponseOuter.BucketCount
-	}
-	return len(pipeSearchResponseOuter.Aggs[""].Buckets)
+	return pipeSearchResponseOuter.BucketCount
 }
 
 func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
-	if config.IsNewQueryPipelineEnabled() {
-		totalTracesIds := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
-		if totalTracesIds < (page-1)*TRACE_PAGE_LIMIT {
-			return []string{}
-		}
-
-		endIndex := page * TRACE_PAGE_LIMIT
-		if endIndex > totalTracesIds {
-			endIndex = totalTracesIds
-		}
-
-		traceIds := make([]string, 0)
-		for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
-			if len(bucket.GroupByValues) == 1 {
-				traceIds = append(traceIds, bucket.GroupByValues[0])
-			}
-		}
-
-		return traceIds
-	}
-
-	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*TRACE_PAGE_LIMIT {
+	totalTracesIds := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
+	if totalTracesIds < (page-1)*TRACE_PAGE_LIMIT {
 		return []string{}
 	}
 
 	endIndex := page * TRACE_PAGE_LIMIT
-	if endIndex > len(pipeSearchResponseOuter.Aggs[""].Buckets) {
-		endIndex = len(pipeSearchResponseOuter.Aggs[""].Buckets)
+	if endIndex > totalTracesIds {
+		endIndex = totalTracesIds
 	}
 
 	traceIds := make([]string, 0)
-	// Only Process up to 50 traces per page
-	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
-		traceId, exists := bucket["key"]
-		if !exists {
-			continue
+	for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
+		if len(bucket.GroupByValues) == 1 {
+			traceIds = append(traceIds, bucket.GroupByValues[0])
 		}
-		traceIds = append(traceIds, traceId.(string))
 	}
+
 	return traceIds
 }
 
@@ -336,48 +311,22 @@ func AddTrace(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, trace
 	traceEndTime uint64, serviceName string, operationName string) {
 	spanCnt := 0
 	errorCnt := 0
-	if config.IsNewQueryPipelineEnabled() {
-		for _, bucket := range pipeSearchResponseOuter.MeasureResults {
-			if len(bucket.GroupByValues) == 1 {
-				statusCode := bucket.GroupByValues[0]
-				count, exists := bucket.MeasureVal["count(*)"]
-				if !exists {
-					log.Error("AddTrace: Unable to extract 'count(*)' from measure results")
-					return
-				}
-				countVal, isFloat := count.(float64)
-				if !isFloat {
-					log.Error("AddTrace: count is not a float64")
-					return
-				}
-				spanCnt += int(countVal)
-				if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
-					errorCnt += int(countVal)
-				}
-			}
-		}
-	} else {
-		for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
-			statusCode, exists := bucket["key"].(string)
+	for _, bucket := range pipeSearchResponseOuter.MeasureResults {
+		if len(bucket.GroupByValues) == 1 {
+			statusCode := bucket.GroupByValues[0]
+			count, exists := bucket.MeasureVal["count(*)"]
 			if !exists {
-				log.Error("AddTrace: Unable to extract 'key' from bucket Map")
+				log.Error("AddTrace: Unable to extract 'count(*)' from measure results")
 				return
 			}
-			countMap, exists := bucket["count(*)"].(map[string]interface{})
-			if !exists {
-				log.Error("AddTrace: Unable to extract 'count(*)' from bucket Map")
+			countVal, isFloat := count.(float64)
+			if !isFloat {
+				log.Error("AddTrace: count is not a float64")
 				return
 			}
-			countFloat64, exists := countMap["value"].(float64)
-			if !exists {
-				log.Error("AddTrace: Unable to extract 'value' from bucket Map")
-				return
-			}
-
-			count := int(countFloat64)
-			spanCnt += count
+			spanCnt += int(countVal)
 			if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
-				errorCnt += count
+				errorCnt += int(countVal)
 			}
 		}
 	}
