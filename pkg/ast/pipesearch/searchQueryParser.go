@@ -224,15 +224,9 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		return boolNode, nil, queryStruct.IndexNames, nil
 	}
 
-	pipeCommands, err := searchPipeCommandsToASTnode(aggs, qid)
-	if err != nil {
-		log.Errorf("qid=%d, parsePipeSearch: searchPipeCommandsToASTnode error: %v", qid, err)
-		return nil, nil, []string{}, err
-	}
+	updatePositionForGenEvents(aggs)
 
-	updatePositionForGenEvents(pipeCommands)
-
-	return boolNode, pipeCommands, queryStruct.IndexNames, nil
+	return boolNode, aggs, queryStruct.IndexNames, nil
 }
 
 func optimizeQuery(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {
@@ -432,10 +426,6 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, forceCa
 		return errors.New("SearchQueryToASTnode: node type not supported")
 	}
 	return err
-}
-
-func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggregators, error) {
-	return node, nil
 }
 
 func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64, forceCaseSensitive bool) error {

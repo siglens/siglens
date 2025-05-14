@@ -117,6 +117,34 @@ func TestGetTotalUniqueTraceIds(t *testing.T) {
 	assert.Equal(t, 0, totalTraces)
 }
 
+func TestGetUniqueTraceIds(t *testing.T) {
+	// Non-empty PipeSearchResponseOuter
+	pipeSearchResponseOuter := &structs.PipeSearchResponseOuter{
+		Aggs: map[string]structs.AggregationResults{
+			"": {
+				Buckets: []map[string]interface{}{
+					{"key": "trace1"},
+					{"key": "trace2"},
+					{"key": "trace3"},
+				},
+			},
+		},
+		BucketCount: 3,
+		MeasureResults: []*structs.BucketHolder{
+			{GroupByValues: []string{"trace1"}},
+			{GroupByValues: []string{"trace2"}},
+			{GroupByValues: []string{"trace3"}},
+		},
+	}
+	traceIds := GetUniqueTraceIds(pipeSearchResponseOuter, 0, 0, 1)
+	assert.Equal(t, []string{"trace1", "trace2", "trace3"}, traceIds)
+
+	// Empty PipeSearchResponseOuter
+	pipeSearchResponseOuter = &structs.PipeSearchResponseOuter{}
+	traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, 0, 0, 1)
+	assert.Equal(t, []string{}, traceIds)
+}
+
 func TestConvertTimeToUint64(t *testing.T) {
 	tests := []struct {
 		name      string
