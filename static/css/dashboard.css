@@ -604,7 +604,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  padding: 32px;
+  padding: 16px;
 }
 
 /* DASHBOARD SETTINGS - LEFT */
@@ -697,34 +697,7 @@
 .dbSet-textareaContainer {
   height: 100%;
   position: relative;
-}
-
-.dbSet-copyToClipboard {
-  position: absolute;
-  right: 13px;
-  top: 13px;
-  width: 30px;
-  height: 30px;
-}
-
-.dbSet-copyToClipboard img {
-  height: 100%;
-  width: 100%;
-}
-
-.dbSet-jsonModelData {
-  width: 100%;
-  height: calc(100% - 30px);
-  resize: none;
-  color: var(--text-color);
-}
-
-.dbSet-jsonModelData:focus {
-  color: var(--search-bar-text-color-active);
-  border-radius: 5px;
-  background: var(--search-bar-bg);
-  outline: 1pt solid var(--drop-down-btn-border-active);
-  outline-offset: -1pt;
+  margin-top: 8px;
 }
 
 .dbSet-jsonModelHTML {
@@ -733,13 +706,6 @@
   display: flex;
   flex-direction: column;
   position: relative;
-}
-
-#dbSet-edit-json.panEdit-btn,
-#dbSet-save-json.panEdit-btn {
-  width: 80px;
-  margin-top: 10px;
-  margin-bottom: 10px;
 }
 
 /* UNIT TYPE NESTED DROPDOWN */
@@ -1353,4 +1319,63 @@
 
 .accordion-header.expanded::before {
   transform: rotate(90deg);
+}
+
+/* JSONEditor */
+.json-editor-container {
+  width: 100%;
+  height: 100%;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color-regular);
+  border-radius: 5px;
+}
+
+
+.ace_editor.ace-eclipse {
+  background-color: var(--white-0) !important;
+}
+
+.ace_editor.ace-eclipse .ace_gutter {
+  background-color: var(--white-1) !important;
+  border: none;
+}
+
+.ace_string {
+  color: #2A00FF !important;
+}
+
+.ace_constant.ace_numeric,
+.ace_constant.ace_boolean {
+  color: #0000CD !important;
+}
+
+.ace_storage,
+.ace_keyword,
+.ace_variable {
+  color: #C41A16 !important;
+}
+
+[data-theme="dark"] .ace_edito {
+  background-color: var(--black-1) !important;
+  color: var(--white-0) !important;
+}
+
+[data-theme="dark"] .ace_edito .ace_gutter {
+  background-color: var(--black-2) !important;
+  border: none;
+}
+
+[data-theme="dark"] .ace_string {
+  color: #9cdcfe !important;
+}
+
+[data-theme="dark"] .ace_constant.ace_numeric,
+[data-theme="dark"] .ace_constant.ace_boolean {
+  color: #FF73FD !important;
+}
+
+[data-theme="dark"] .ace_storage,
+[data-theme="dark"] .ace_keyword,
+[data-theme="dark"] .ace_variable {
+  color: #FF6C6B !important;
 }

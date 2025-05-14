@@ -69,6 +69,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/echarts.min.js"></script>
     <script src="./js/lib/chart.umd.min.js?cb={{ AppVersion }}"></script>
     <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="./js/lib/ace.js"></script>
+    <script src="./js/lib/mode-json.js"></script>    
+    <script src="./js/lib/worker-json.js"></script>    
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -209,19 +212,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <!-- Dashboard-Settings -->
         <div class="dbSet-container" id="dashboard" style="display: none;">
-            <div class="dbSet-navBar border-bottom">
-                <button class="panEdit-btn btn-secondary" id="dbSet-discard" title="Discard Changes">Back to dashboard</button>
-                <button class="btn btn-primary" id="dbSet-save" title="Save Changes">Save dashboard</button>
+            <div class="dbSet-navBar border-bottom d-flex justify-content-between">
+                <div class="section-buttons">
+                    <div class="section-button active dbSet-general">General</div>
+                    <div class="section-button dbSet-jsonModel">JSON Model</div>
+                </div>
+                <div class="d-flex">
+                    <button class="panEdit-btn btn-secondary" id="dbSet-discard" title="Discard Changes">Back to dashboard</button>
+                    <button class="btn btn-primary" id="dbSet-save" title="Save Changes">Save dashboard</button>
+                </div>
             </div>
             <div class="dbSet-body">
-                <div class="dbSet-left mb-3">
-                    <div class="section-buttons">
-                        <div class="section-button active dbSet-general">General</div>
-                        <div class="section-button dbSet-jsonModel">JSON Model</div>
-                    </div>
-                </div>
-                <hr>
-                <div class="dbSet-right mt-3">
+                <div class="dbSet-right">
                     <div class="dbSet-generalHTML">
                         <div class="dbSet-inputContainer" id="dbSet-nameContainer">
                             <label for="dbSet-dbName">Name</label>
@@ -233,7 +235,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <h3 class="header">Error</h3>
                             <p id="error-message"></p>
                             <div id="buttons-popupContent">
-                                <button type="button" id="error-ok-btn">OK</button>
+                                <button type="button" id="error-ok-btn" class="btn btn-secondary">OK</button>
                             </div>
                         </div>
     
@@ -253,11 +255,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <span class="caption">
                             The JSON model below is the data structure that defines the dashboard. This includes dashboard settings, panel settings, layout, queries, and so on.
                         </span>
-                        <button class="panEdit-btn btn btn-grey" id="dbSet-edit-json" title="Edit JSON">Edit JSON</button>
-                        <button class="panEdit-btn btn btn-primary" id="dbSet-save-json" title="Save Changes">Save JSON</button>
+                        <div class="d-flex gap-3 justify-content-end">
+                            <button class="panEdit-btn btn btn-primary" id="dbSet-save-json" title="Save Changes">Save JSON Changes</button>
+                            <button id="copy-json-btn" class="copy-json-btn btn btn-primary">Copy JSON</button>
+                        </div>
                         <div class="dbSet-textareaContainer">
-                            <textarea class="dbSet-jsonModelData" placeholder="{'field 1':'value 1',\n 'field 2': 'value 2'}" disabled></textarea>
-                            <div class="copy" title="Copy"></div>
+                            <div id="json-editor" class="json-editor-container"></div>
                         </div>
                     </div>
                 </div>
