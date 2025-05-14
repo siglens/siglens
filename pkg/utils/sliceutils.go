@@ -463,3 +463,12 @@ func ProcessWithParallelism[T any](parallelism int, items []T, processor func(T)
 
 	return finalErr
 }
+
+func Transform[T any, R any](slice []T, transform func(T) R) []R {
+	result := make([]R, len(slice))
+	for i, item := range slice {
+		result[i] = transform(item)
+	}
+
+	return result
+}
