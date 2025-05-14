@@ -217,6 +217,18 @@ func WriteSfm(sfmData *structs.SegFullMeta) {
 
 	// create a separate individual file for SegFullMeta
 	sfmFname := GetSegFullMetaFnameFromSegkey(segkey)
+	sfmJson, err := json.Marshal(*sfmData)
+	if err != nil {
+		log.Errorf("WriteSfm: failed to Marshal sfmData: %v, sfmFname: %v, err: %v",
+			sfmData, sfmFname, err)
+		return
+	}
+
+	if string(sfmJson) == "{}" {
+		log.Warnf("WriteSfm: sfmData is empty ({}), skipping write. sfmData: %v, sfmFname: %v", sfmData, sfmFname)
+		return
+	}
+
 	sfmFd, err := os.OpenFile(sfmFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Errorf("WriteSfm: failed to open a sfm filename=%v: err=%v", sfmFname, err)
@@ -224,12 +236,6 @@ func WriteSfm(sfmData *structs.SegFullMeta) {
 	}
 	defer sfmFd.Close()
 
-	sfmJson, err := json.Marshal(*sfmData)
-	if err != nil {
-		log.Errorf("WriteSfm: failed to Marshal sfmData: %v, sfmFname: %v, err: %v",
-			sfmData, sfmFname, err)
-		return
-	}
 	if _, err := sfmFd.Write(sfmJson); err != nil {
 		log.Errorf("WriteSfm: failed to write sfm: %v: err: %v", sfmFname, err)
 		return
