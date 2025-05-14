@@ -1034,6 +1034,11 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 			span.Status = status.(string) // Populate Status from Span
 			idToSpanMap[span.SpanID] = span
 		}
+
+		if len(rawSpans) < searchRequestBody.Size {
+			break
+		}
+
 		searchRequestBody.From += 1000
 	}
 
