@@ -94,6 +94,7 @@ function formatTimestampForGranularity(timestamp, granularity) {
     }
 }
 
+//eslint-disable-next-line no-unused-vars
 function filterDataByRange(data, startTime, endTime, newGranularity) {
     if (!data || !Array.isArray(data.measure)) return null;
 
@@ -146,7 +147,7 @@ function renderHistogram(timechartData, zoomRange = null) {
         return convertIfTimestamp(item.GroupByValues[0]);
     }).filter(ts => ts !== null);
 
-    let counts = dataToRender.measure.map((item, idx) => {
+    let counts = dataToRender.measure.map((item, _idx) => {
         if (!item.MeasureVal || !('count(*)' in item.MeasureVal)) {
             console.warn('Missing count(*) in measure:', item);
             return 0;
@@ -437,6 +438,7 @@ function convertIfTimestamp(value) {
     return value;
 }
 
+//eslint-disable-next-line no-unused-vars
 function updateHistogramTheme() {
     if (!HistogramState.currentHistogram) return;
 
