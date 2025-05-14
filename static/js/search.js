@@ -19,6 +19,7 @@
 //eslint-disable-next-line no-unused-vars
 let lastQType = '';
 let lastColumnsOrder = [];
+//eslint-disable-next-line no-unused-vars
 let timechartComplete = null;
 
 function wsURL(path) {
@@ -754,9 +755,10 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
             totalHits = res.bucketCount;
         }
     }
-
+    
     if (res.timechartComplete) {
         timechartComplete = res.timechartComplete;
+        //eslint-disable-next-line no-undef
         renderHistogram(res.timechartComplete);
     }
 
@@ -831,6 +833,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 
     if (res.timechartComplete) {
         timechartComplete = res.timechartComplete;
+        //eslint-disable-next-line no-undef
         renderHistogram(res.timechartComplete);
     }
 

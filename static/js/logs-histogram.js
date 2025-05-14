@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+//eslint-disable-next-line no-unused-vars
 let currentHistogram = null;
 let originalData = null; 
 let currentGranularity = 'day'; 
@@ -25,6 +26,7 @@ let isDragging = false;
 let dragStartX = 0;
 let dragEndX = 0;
 let selectionOverlay = null;
+let canvas = null;
 
 function determineGranularity(timestamps) {
     if (timestamps.length < 2) return 'day'; 
@@ -39,7 +41,7 @@ function determineGranularity(timestamps) {
     if (minDiff >= 60 * 1000) return 'minute'; 
     return 'second'; 
 }
-
+// Function to filter data based on selected range and granularity
 function formatTimestampForGranularity(timestamp, granularity) {
     const date = new Date(timestamp);
     const year = date.getFullYear();
@@ -65,13 +67,13 @@ function formatTimestampForGranularity(timestamp, granularity) {
             return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function filterDataByRange(data, startTime, endTime, newGranularity) {
     const filteredMeasures = data.measure.filter(item => {
         const timestamp = new Date(convertIfTimestamp(item.GroupByValues[0])).getTime();
         return timestamp >= startTime && timestamp <= endTime;
     });
-y
+
     if (filteredMeasures.length === 0) {
         return null;
     }
@@ -142,7 +144,7 @@ function renderHistogram(timechartData, zoomRange = null) {
     histoContainer.empty();
     histoContainer.html('<canvas width="100%" height="100%"></canvas>');
 
-    const canvas = histoContainer.find('canvas')[0];
+    canvas = histoContainer.find('canvas')[0];
     const ctx = canvas.getContext('2d');
     const fontSize = formattedTimestamps.length > 10 ? 10 : 12;
 
@@ -442,7 +444,9 @@ $(document).ready(function() {
         $(this).toggleClass('active');
         $('#histogram-container').toggle();
 
+       //eslint-disable-next-line no-undef
         if ($('#histogram-container').is(':visible') && !currentHistogram && timechartComplete) {
+            //eslint-disable-next-line no-undef
             renderHistogram(timechartComplete);
             addZoomHelper();
             updateZoomIndicator();
