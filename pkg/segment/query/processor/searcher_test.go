@@ -26,7 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/sortindex"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -99,7 +99,7 @@ func Test_sortBlocks(t *testing.T) {
 }
 
 func Test_sortRRCs(t *testing.T) {
-	rrcs := []*segutils.RecordResultContainer{
+	rrcs := []*sutils.RecordResultContainer{
 		{TimeStamp: 3},
 		{TimeStamp: 1},
 		{TimeStamp: 2},
@@ -107,13 +107,13 @@ func Test_sortRRCs(t *testing.T) {
 
 	err := sortRRCs(rrcs, recentFirst)
 	assert.NoError(t, err)
-	assert.Equal(t, rrcs, []*segutils.RecordResultContainer{
+	assert.Equal(t, rrcs, []*sutils.RecordResultContainer{
 		{TimeStamp: 3},
 		{TimeStamp: 2},
 		{TimeStamp: 1},
 	})
 
-	rrcs = []*segutils.RecordResultContainer{
+	rrcs = []*sutils.RecordResultContainer{
 		{TimeStamp: 3},
 		{TimeStamp: 1},
 		{TimeStamp: 2},
@@ -121,7 +121,7 @@ func Test_sortRRCs(t *testing.T) {
 
 	err = sortRRCs(rrcs, recentLast)
 	assert.NoError(t, err)
-	assert.Equal(t, rrcs, []*segutils.RecordResultContainer{
+	assert.Equal(t, rrcs, []*sutils.RecordResultContainer{
 		{TimeStamp: 1},
 		{TimeStamp: 2},
 		{TimeStamp: 3},
@@ -357,7 +357,7 @@ func Test_getSSRs(t *testing.T) {
 }
 
 func Test_getValidRRCs(t *testing.T) {
-	rrcsSortedRecentFirst := []*segutils.RecordResultContainer{
+	rrcsSortedRecentFirst := []*sutils.RecordResultContainer{
 		{TimeStamp: 40},
 		{TimeStamp: 30},
 		{TimeStamp: 20},
@@ -370,7 +370,7 @@ func Test_getValidRRCs(t *testing.T) {
 	assert.Equal(t, uint64(40), actualRRCs[0].TimeStamp)
 	assert.Equal(t, uint64(30), actualRRCs[1].TimeStamp)
 
-	rrcsSortedRecentLast := []*segutils.RecordResultContainer{
+	rrcsSortedRecentLast := []*sutils.RecordResultContainer{
 		{TimeStamp: 10},
 		{TimeStamp: 20},
 		{TimeStamp: 30},
@@ -385,7 +385,7 @@ func Test_getValidRRCs(t *testing.T) {
 }
 
 func Test_getValidRRCs_boundaries(t *testing.T) {
-	rrcsSortedRecentFirst := []*segutils.RecordResultContainer{
+	rrcsSortedRecentFirst := []*sutils.RecordResultContainer{
 		{TimeStamp: 40},
 		{TimeStamp: 30},
 		{TimeStamp: 20},
@@ -411,7 +411,7 @@ func Test_getValidRRCs_boundaries(t *testing.T) {
 	assert.Equal(t, uint64(20), actualRRCs[2].TimeStamp)
 	assert.Equal(t, uint64(10), actualRRCs[3].TimeStamp)
 
-	rrcsSortedRecentLast := []*segutils.RecordResultContainer{
+	rrcsSortedRecentLast := []*sutils.RecordResultContainer{
 		{TimeStamp: 10},
 		{TimeStamp: 20},
 		{TimeStamp: 30},
@@ -446,12 +446,12 @@ func writeSortIndexForTest(t *testing.T) (string, string, string) {
 	segKey2 := filepath.Join(tempDir, "segKey2")
 
 	cname := "color"
-	seg1Data := map[segutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
-		{Dtype: segutils.SS_DT_STRING, CVal: "blue"}: {
+	seg1Data := map[sutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
+		{Dtype: sutils.SS_DT_STRING, CVal: "blue"}: {
 			1: {1},
 			2: {2, 3},
 		},
-		{Dtype: segutils.SS_DT_STRING, CVal: "green"}: {
+		{Dtype: sutils.SS_DT_STRING, CVal: "green"}: {
 			1: {10, 11},
 			2: {1},
 		},
@@ -459,12 +459,12 @@ func writeSortIndexForTest(t *testing.T) (string, string, string) {
 	err := sortindex.WriteSortIndexMock(segKey1, cname, sortindex.SortAsAuto, seg1Data)
 	assert.NoError(t, err)
 
-	seg2Data := map[segutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
-		{Dtype: segutils.SS_DT_STRING, CVal: "blue"}: {
+	seg2Data := map[sutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
+		{Dtype: sutils.SS_DT_STRING, CVal: "blue"}: {
 			1: {1, 2},
 			2: {3},
 		},
-		{Dtype: segutils.SS_DT_STRING, CVal: "red"}: {
+		{Dtype: sutils.SS_DT_STRING, CVal: "red"}: {
 			1: {10},
 			2: {1, 2},
 		},
@@ -514,7 +514,7 @@ func initSortIndexDataForTest(sortCname string, sortLimit uint64, numRecordsPerB
 	return searcher, qsrs
 }
 
-func fetchAllFromQSRsForTest(t *testing.T, searcher *Searcher, qsrs []*query.QuerySegmentRequest) []*segutils.RecordResultContainer {
+func fetchAllFromQSRsForTest(t *testing.T, searcher *Searcher, qsrs []*query.QuerySegmentRequest) []*sutils.RecordResultContainer {
 	t.Helper()
 
 	iqr, err := searcher.fetchSortedRRCsFromQSRs()
@@ -638,7 +638,7 @@ type rrcData struct {
 	recordNum uint16
 }
 
-func extractRRCData(rrc *segutils.RecordResultContainer) rrcData {
+func extractRRCData(rrc *sutils.RecordResultContainer) rrcData {
 	return rrcData{
 		segEnc:    rrc.SegKeyInfo.SegKeyEnc,
 		blockNum:  rrc.BlockNum,

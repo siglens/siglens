@@ -24,8 +24,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 )
 
 type regexProcessor struct {
@@ -46,13 +46,13 @@ func (p *regexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	case "!=":
 		keepMatch = false
 	default:
-		return nil, toputils.TeeErrorf("qid=%v, regex.Process: unknown operator; op=%s", iqr.GetQID(), p.options.Op)
+		return nil, utils.TeeErrorf("qid=%v, regex.Process: unknown operator; op=%s", iqr.GetQID(), p.options.Op)
 	}
 
 	if p.compiledRegex == nil {
 		p.compiledRegex = p.options.GobRegexp.GetCompiledRegex()
 		if p.compiledRegex == nil {
-			return nil, toputils.TeeErrorf("qid=%v, regex.Process: Gob compiled regex is nil", iqr.GetQID())
+			return nil, utils.TeeErrorf("qid=%v, regex.Process: Gob compiled regex is nil", iqr.GetQID())
 		}
 	}
 
@@ -75,7 +75,7 @@ func (p *regexProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 	return nil, false
 }
 
-func (p *regexProcessor) performRegexMatch(value utils.CValueEnclosure) bool {
+func (p *regexProcessor) performRegexMatch(value sutils.CValueEnclosure) bool {
 	stringVal, err := value.GetString()
 	if err != nil {
 		stringVal = fmt.Sprintf("%v", value.CVal)
@@ -91,7 +91,7 @@ func (p *regexProcessor) processRegexOnAllColumns(iqr *iqr.IQR, keepMatch bool) 
 
 	valuesMap, err := iqr.ReadAllColumns()
 	if err != nil {
-		return iqr, toputils.TeeErrorf("qid=%v, regex.Process.processRegexOnAllColumns: cannot read all columns; err=%v", iqr.GetQID(), err)
+		return iqr, utils.TeeErrorf("qid=%v, regex.Process.processRegexOnAllColumns: cannot read all columns; err=%v", iqr.GetQID(), err)
 	}
 
 	for i := 0; i < numberOfRecords; i++ {
@@ -110,7 +110,7 @@ func (p *regexProcessor) processRegexOnAllColumns(iqr *iqr.IQR, keepMatch bool) 
 
 	err = iqr.DiscardRows(rowsToDiscard)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, regex.Process.processRegexOnAllColumns: cannot discard rows; err=%v", iqr.GetQID(), err)
+		return nil, utils.TeeErrorf("qid=%v, regex.Process.processRegexOnAllColumns: cannot discard rows; err=%v", iqr.GetQID(), err)
 	}
 
 	return iqr, nil
@@ -122,7 +122,7 @@ func (p *regexProcessor) processRegexOnSingleColumn(iqr *iqr.IQR, keepMatch bool
 
 	values, err := iqr.ReadColumn(p.options.Field)
 	if err != nil {
-		return iqr, toputils.TeeErrorf("qid=%v, regex.Process.processRegexOnSingleColumn: cannot get field values; field=%s; err=%v", iqr.GetQID(), p.options.Field, err)
+		return iqr, utils.TeeErrorf("qid=%v, regex.Process.processRegexOnSingleColumn: cannot get field values; field=%s; err=%v", iqr.GetQID(), p.options.Field, err)
 	}
 
 	rowsToDiscard := make([]int, 0, numberOfRecords)
@@ -138,7 +138,7 @@ func (p *regexProcessor) processRegexOnSingleColumn(iqr *iqr.IQR, keepMatch bool
 
 	err = iqr.DiscardRows(rowsToDiscard)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%v, regex.Process.processRegexOnSingleColumn: cannot discard rows; err=%v", iqr.GetQID(), err)
+		return nil, utils.TeeErrorf("qid=%v, regex.Process.processRegexOnSingleColumn: cannot discard rows; err=%v", iqr.GetQID(), err)
 	}
 
 	return iqr, nil

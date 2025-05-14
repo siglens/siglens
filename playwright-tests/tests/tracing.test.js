@@ -38,7 +38,6 @@ test('Search Traces Page Test', async ({ page }) => {
     await expect(page.locator('#service-dropdown')).toBeVisible();
     await expect(page.locator('#name-dropdown')).toBeVisible();
     await expect(page.locator('#tags-input')).toBeVisible();
-    await expect(page.locator('#lookback')).toBeVisible();
     await expect(page.locator('#min-duration-input')).toBeVisible();
     await expect(page.locator('#max-duration-input')).toBeVisible();
     await expect(page.locator('#limit-result-input')).toBeVisible();

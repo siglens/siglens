@@ -27,7 +27,7 @@ import (
 	"github.com/cespare/xxhash"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	wmetrics "github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -140,7 +140,7 @@ func (attr *AllTagTreeReaders) initTagsTreeReader(tagKey string) (*TagTreeReader
 	}
 	versionTagsTree := make([]byte, 1)
 	copy(versionTagsTree, metadataSizeBuf[:1])
-	if versionTagsTree[0] != segutils.VERSION_TAGSTREE[0] {
+	if versionTagsTree[0] != sutils.VERSION_TAGSTREE[0] {
 		return nil, fmt.Errorf("initTagsTreeReader: the file version doesn't match")
 	}
 	metadataSize := utils.BytesToUint32LittleEndian(metadataSizeBuf[1:5])
@@ -171,13 +171,13 @@ func (attr *AllTagTreeReaders) CloseAllTagTreeReaders() {
 	}
 }
 
-func acceptRegexVal(pattern string, tagRawValue []byte, tagOperator segutils.TagOperator) (bool, error) {
+func acceptRegexVal(pattern string, tagRawValue []byte, tagOperator sutils.TagOperator) (bool, error) {
 	fullAnchorPattern := fmt.Sprintf("^(%v)$", pattern)
 	matched, err := regexp.Match(fullAnchorPattern, tagRawValue)
 	if err != nil {
 		return false, err
 	}
-	acceptVal := (matched && tagOperator == segutils.Regex) || (!matched && tagOperator == segutils.NegRegex)
+	acceptVal := (matched && tagOperator == sutils.Regex) || (!matched && tagOperator == sutils.NegRegex)
 
 	return acceptVal, nil
 }
@@ -425,7 +425,7 @@ func isWildcardOrRegex(tf *structs.TagsFilter) bool {
 	return ok && (tagVal == "*" || tf.IsRegex())
 }
 
-func matchesRegex(tagOperator segutils.TagOperator, pattern string, tagRawValue []byte) bool {
+func matchesRegex(tagOperator sutils.TagOperator, pattern string, tagRawValue []byte) bool {
 	match, err := acceptRegexVal(pattern, tagRawValue, tagOperator)
 	if err != nil {
 		log.Errorf("matchesRegex: Regex match error: %v", err)
@@ -435,9 +435,9 @@ func matchesRegex(tagOperator segutils.TagOperator, pattern string, tagRawValue 
 
 func getGroupIDStr(tagRawValue []byte, tagRawValueType []byte) string {
 	switch tagRawValueType[0] {
-	case segutils.VALTYPE_ENC_FLOAT64[0]:
+	case sutils.VALTYPE_ENC_FLOAT64[0]:
 		return fmt.Sprintf("%f", utils.BytesToFloat64LittleEndian(tagRawValue))
-	case segutils.VALTYPE_ENC_INT64[0]:
+	case sutils.VALTYPE_ENC_INT64[0]:
 		return fmt.Sprintf("%d", utils.BytesToInt64LittleEndian(tagRawValue))
 	default:
 		return string(tagRawValue)
@@ -453,7 +453,7 @@ Returns:
 - error, any errors encountered
 */
 func (attr *AllTagTreeReaders) getOrInsertMatchingTSIDs(mName uint64, tagKey string, tagValue uint64,
-	tagOperator segutils.TagOperator,
+	tagOperator sutils.TagOperator,
 	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, error) {
 
 	ttr, ok := attr.tagTrees[tagKey]
@@ -480,10 +480,10 @@ func (attr *AllTagTreeReaders) getOrInsertMatchingTSIDs(mName uint64, tagKey str
 //
 // The return values are (mNameFound, tagValueFound, rawTagValueToTSIDs, error)
 func (ttr *TagTreeReader) getOrInsertMatchingTSIDs(mName uint64, tagValue uint64,
-	tagOperator segutils.TagOperator,
+	tagOperator sutils.TagOperator,
 	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, error) {
 
-	if tagOperator != segutils.Equal && tagOperator != segutils.NotEqual {
+	if tagOperator != sutils.Equal && tagOperator != sutils.NotEqual {
 		log.Errorf("TagTreeReader.getOrInsertMatchingTSIDs: tagOperator %v is not supported; only Equal and NotEqual are currently implemented", tagOperator)
 		return false, false, nil, fmt.Errorf("TagTreeReader.getOrInsertMatchingTSIDs: tagOperator not supported")
 	}
@@ -524,12 +524,12 @@ func (ttr *TagTreeReader) getOrInsertMatchingTSIDs(mName uint64, tagValue uint64
 			treeOffset += 8
 			tagRawValueType := tagTreeBuf[treeOffset : treeOffset+1]
 			treeOffset += 1
-			if tagRawValueType[0] == segutils.VALTYPE_ENC_SMALL_STRING[0] {
+			if tagRawValueType[0] == sutils.VALTYPE_ENC_SMALL_STRING[0] {
 				tagValueLen := utils.BytesToUint16LittleEndian(tagTreeBuf[treeOffset : treeOffset+2])
 				treeOffset += 2
 				rawTagValue = tagTreeBuf[treeOffset : treeOffset+uint32(tagValueLen)]
 				treeOffset += uint32(tagValueLen)
-			} else if tagRawValueType[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
+			} else if tagRawValueType[0] == sutils.VALTYPE_ENC_FLOAT64[0] {
 				rawTagValue = tagTreeBuf[treeOffset : treeOffset+8]
 				treeOffset += 8
 			} else {
@@ -676,7 +676,7 @@ func (ttr *TagTreeReader) countTSIDsForTagValue(tagValue string,
 
 	for hashedMetricName := range hashedMetricNames {
 		_, _, _, err := ttr.getOrInsertMatchingTSIDs(hashedMetricName, hashedTagValue,
-			segutils.Equal, tsidCard)
+			sutils.Equal, tsidCard)
 		if err != nil {
 			log.Errorf("AllTagTreeReaders.countTSIDsForTagValue: failed to get matching TSIDs for tag value %v, metric hash %v. Error: %v",
 				tagValue, hashedMetricName, err)
@@ -746,15 +746,15 @@ func (tvi *TagValueIterator) next() (uint64, []byte, []uint64, []byte, bool) {
 		tvi.treeOffset += 8
 		tagRawValueType := tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+1]
 		tvi.treeOffset += 1
-		if tagRawValueType[0] == segutils.VALTYPE_ENC_SMALL_STRING[0] {
+		if tagRawValueType[0] == sutils.VALTYPE_ENC_SMALL_STRING[0] {
 			tagValueLen := utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2])
 			tvi.treeOffset += 2
 			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+uint32(tagValueLen)]
 			tvi.treeOffset += uint32(tagValueLen)
-		} else if tagRawValueType[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
+		} else if tagRawValueType[0] == sutils.VALTYPE_ENC_FLOAT64[0] {
 			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8]
 			tvi.treeOffset += 8
-		} else if tagRawValueType[0] == segutils.VALTYPE_ENC_INT64[0] {
+		} else if tagRawValueType[0] == sutils.VALTYPE_ENC_INT64[0] {
 			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8]
 			tvi.treeOffset += 8
 		} else {
@@ -862,9 +862,9 @@ func (tvi *TagValueIterator) loopThroughTagValues(currTvMap map[string]struct{})
 			break
 		}
 		var tagvStr string
-		if tagRawValueType[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
+		if tagRawValueType[0] == sutils.VALTYPE_ENC_FLOAT64[0] {
 			tagvStr = fmt.Sprintf("%f", utils.BytesToFloat64LittleEndian(tagRawValue))
-		} else if tagRawValueType[0] == segutils.VALTYPE_ENC_INT64[0] {
+		} else if tagRawValueType[0] == sutils.VALTYPE_ENC_INT64[0] {
 			tagvStr = fmt.Sprintf("%d", utils.BytesToInt64LittleEndian(tagRawValue))
 		} else {
 			tagvStr = string(tagRawValue)
@@ -886,15 +886,15 @@ func (tvi *TagValueIterator) NextTagValue() ([]byte, []byte, bool) {
 		tvi.treeOffset += 8 // for tagHashValue
 		tagRawValueType := tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+1]
 		tvi.treeOffset += 1
-		if tagRawValueType[0] == segutils.VALTYPE_ENC_SMALL_STRING[0] {
+		if tagRawValueType[0] == sutils.VALTYPE_ENC_SMALL_STRING[0] {
 			tagValueLen := utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2])
 			tvi.treeOffset += 2
 			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+uint32(tagValueLen)]
 			tvi.treeOffset += uint32(tagValueLen)
-		} else if tagRawValueType[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
+		} else if tagRawValueType[0] == sutils.VALTYPE_ENC_FLOAT64[0] {
 			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8]
 			tvi.treeOffset += 8
-		} else if tagRawValueType[0] == segutils.VALTYPE_ENC_INT64[0] {
+		} else if tagRawValueType[0] == sutils.VALTYPE_ENC_INT64[0] {
 			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8]
 			tvi.treeOffset += 8
 		} else {

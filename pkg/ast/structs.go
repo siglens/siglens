@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 )
 
 type QueryStruct struct {
@@ -161,7 +161,7 @@ type RelativeTimeModifier struct {
 
 type RelativeTimeOffset struct {
 	Offset   int64
-	TimeUnit utils.TimeUnit
+	TimeUnit sutils.TimeUnit
 }
 
 func MakeValue(val interface{}) (interface{}, error) {
@@ -260,21 +260,21 @@ func GetGroupByTokens(cols, first, rest interface{}, idx int, limit int) *struct
 	return aggNode
 }
 
-func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error) {
-	var aggFunc utils.AggregateFunctions
+func AggTypeToAggregateFunction(aggType string) (sutils.AggregateFunctions, error) {
+	var aggFunc sutils.AggregateFunctions
 
 	if aggType == "avg" {
-		aggFunc = utils.Avg
+		aggFunc = sutils.Avg
 	} else if aggType == "min" {
-		aggFunc = utils.Min
+		aggFunc = sutils.Min
 	} else if aggType == "max" {
-		aggFunc = utils.Max
+		aggFunc = sutils.Max
 	} else if aggType == "sum" {
-		aggFunc = utils.Sum
+		aggFunc = sutils.Sum
 	} else if aggType == "count" {
-		aggFunc = utils.Count
+		aggFunc = sutils.Count
 	} else if aggType == "cardinality" {
-		aggFunc = utils.Cardinality
+		aggFunc = sutils.Cardinality
 	} else {
 		return aggFunc, fmt.Errorf("AggTypeToAggregateFunction: unsupported statistic aggregation type %v", aggType)
 	}

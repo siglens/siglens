@@ -23,7 +23,7 @@ export GO
 
 
 lint:
-	golangci-lint run --timeout=3m
+	golangci-lint run --timeout=3m --fix --max-issues-per-linter=0 --max-same-issues=0
 
 test:
 	$(GO) test ./... -count 1
@@ -31,7 +31,7 @@ test:
 test_all:
 	$(GO) test ./... -count 1 --tags=e2e_all
 
-build:
+build: pkg/ast/spl/spl.go
 	$(GO) mod tidy
 	$(GO) build -o siglens cmd/siglens/main.go
 
@@ -43,6 +43,7 @@ gofmt :
 	~/go/bin/goimports -w .
 
 %.go: %.peg
+	$(GO) install github.com/mna/pigeon@v1.1.0
 	pigeon -o $@ $<
 
 all: lint test_all build

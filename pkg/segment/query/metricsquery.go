@@ -39,10 +39,10 @@ import (
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	tutils "github.com/siglens/siglens/pkg/segment/tracing/utils"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -149,8 +149,8 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 					TagKey:          tkey,
 					RawTagValue:     tagstree.STAR,
 					HashTagValue:    xxhash.Sum64String(tagstree.STAR),
-					LogicalOperator: utils.And,
-					TagOperator:     utils.Equal,
+					LogicalOperator: sutils.And,
+					TagOperator:     sutils.Equal,
 				})
 			}
 		}
@@ -455,7 +455,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 	}
 }
 
-func getRegexMatchedMetricNames(mSegSearchReq *structs.MetricsSearchRequest, regexPattern string, operator utils.TagOperator) ([]string, error) {
+func getRegexMatchedMetricNames(mSegSearchReq *structs.MetricsSearchRequest, regexPattern string, operator sutils.TagOperator) ([]string, error) {
 	var mNamesMap map[string]bool
 	var err error
 
@@ -475,7 +475,7 @@ func getRegexMatchedMetricNames(mSegSearchReq *structs.MetricsSearchRequest, reg
 			return nil, err
 		}
 
-		appendToList := (regexpMatched && operator == utils.Regex) || (!regexpMatched && operator == utils.NegRegex)
+		appendToList := (regexpMatched && operator == sutils.Regex) || (!regexpMatched && operator == sutils.NegRegex)
 
 		if appendToList {
 			metricNames = append(metricNames, mName)
@@ -547,10 +547,10 @@ func GetTagKeysWithMostSeriesRequest(timeRange *dtu.MetricsTimeRange,
 
 	tagKeys := make(map[string]struct{})
 	for _, segmentTagTreeReader := range tagsTreeReaders {
-		tagKeys = toputils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
+		tagKeys = utils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
 	}
 
-	seriesCardMap := make(map[string]*toputils.GobbableHll)
+	seriesCardMap := make(map[string]*utils.GobbableHll)
 	for tagKey := range tagKeys {
 		tsidCard := structs.CreateNewHll()
 		seriesCardMap[tagKey] = tsidCard
