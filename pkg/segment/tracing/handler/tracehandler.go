@@ -433,43 +433,6 @@ func ExtractSpanID(searchText string) (bool, string) {
 	return true, matches[1]
 }
 
-func AddTrace(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64,
-	traceEndTime uint64, serviceName string, operationName string) {
-	spanCnt := 0
-	errorCnt := 0
-	for _, bucket := range pipeSearchResponseOuter.MeasureResults {
-		if len(bucket.GroupByValues) == 1 {
-			statusCode := bucket.GroupByValues[0]
-			count, exists := bucket.MeasureVal["count(*)"]
-			if !exists {
-				log.Error("AddTrace: Unable to extract 'count(*)' from measure results")
-				return
-			}
-			countVal, isFloat := count.(float64)
-			if !isFloat {
-				log.Error("AddTrace: count is not a float64")
-				return
-			}
-			spanCnt += int(countVal)
-			if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
-				errorCnt += int(countVal)
-			}
-		}
-	}
-
-	trace := &structs.Trace{
-		TraceId:         traceId,
-		StartTime:       traceStartTime,
-		EndTime:         traceEndTime,
-		SpanCount:       spanCnt,
-		SpanErrorsCount: errorCnt,
-		ServiceName:     serviceName,
-		OperationName:   operationName,
-	}
-
-	*traces = append(*traces, trace)
-}
-
 // Call /api/search endpoint
 func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid int64) (*segstructs.PipeSearchResponseOuter, error) {
 
