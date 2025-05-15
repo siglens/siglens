@@ -160,9 +160,8 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 			addedTimeHt = true
 		}
 
-		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed,
-			blockSummaries[blockStatus.BlockNum].LowTs,
-			blockSummaries[blockStatus.BlockNum].HighTs, addedTimeHt) {
+		blockSum := blockSummaries[blockStatus.BlockNum]
+		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blockSum.LowTs, blockSum.HighTs) {
 			iterRecsAddRrc(recIT, multiReader, blockStatus, queryRange, aggs, aggsHasTimeHt,
 				addedTimeHt, blkResults, queryMetrics, allSearchResults, searchReq, qid, nodeRes)
 		} else {

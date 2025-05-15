@@ -397,7 +397,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 
 		isBlkFullyEncosed := tRange.AreTimesFullyEnclosed(blkSum.LowTs, blkSum.HighTs)
-		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blkSum.LowTs, blkSum.HighTs, false) {
+		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blkSum.LowTs, blkSum.HighTs) {
 
 			var recordNums []uint16
 			if req.BlockToValidRecNums != nil {
