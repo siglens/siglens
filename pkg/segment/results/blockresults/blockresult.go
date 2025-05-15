@@ -21,7 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sort"
-
+	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -31,7 +31,7 @@ import (
 
 type GroupByBuckets struct {
 	AllRunningBuckets   []*RunningBucketResults
-	StringBucketIdx     map[string]int
+	Uint64BucketIdx     map[uint64]int
 	internalMeasureFns  []*structs.MeasureAggregator // all converted measure requests in order they exist in running stats
 	allMeasureCols      map[string][]int             // maps col name to all indices that it exist in internalMeasureFns
 	reverseMeasureIndex []int                        // reverse index, so idx of original measure will store the index in internalMeasureFns. -1 is reserved for count
@@ -41,7 +41,7 @@ type GroupByBuckets struct {
 
 type SerializedGroupByBuckets struct {
 	AllRunningBuckets []*SerializedRunningBucketResults
-	StringBucketIdx   map[string]int
+	Uint64BucketIdx   map[uint64]int
 	GroupByColValCnt  map[string]int
 }
 
@@ -100,7 +100,7 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 			mCols, mFuns, revIndex := convertRequestToInternalStats(aggs.GroupByRequest, usedByTimechart)
 			blockRes.GroupByAggregation = &GroupByBuckets{
 				AllRunningBuckets:   make([]*RunningBucketResults, 0),
-				StringBucketIdx:     make(map[string]int),
+				Uint64BucketIdx:     make(map[uint64]int),
 				allMeasureCols:      mCols,
 				internalMeasureFns:  mFuns,
 				reverseMeasureIndex: revIndex,
@@ -393,8 +393,8 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []s
 	if b.GroupByAggregation == nil {
 		return
 	}
-	bKey := utils.UnsafeByteSliceToString(currKey)
-	bucketIdx, ok := b.GroupByAggregation.StringBucketIdx[bKey]
+	bKey := xxhash.Sum64(currKey)
+	bucketIdx, ok := b.GroupByAggregation.Uint64BucketIdx[bKey]
 
 	var bucket *RunningBucketResults
 	if !ok {
@@ -404,11 +404,7 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []s
 		}
 		bucket = initRunningGroupByBucket(b.GroupByAggregation.internalMeasureFns, qid)
 		b.GroupByAggregation.AllRunningBuckets = append(b.GroupByAggregation.AllRunningBuckets, bucket)
-		// only make a copy if this is the first time we are inserting it
-		// so that the caller may free up the backing space for this currKey/bKey
-		keyCopy := make([]byte, len(bKey))
-		copy(keyCopy, bKey)
-		b.GroupByAggregation.StringBucketIdx[utils.UnsafeByteSliceToString(keyCopy)] = nBuckets
+		b.GroupByAggregation.Uint64BucketIdx[bKey] = nBuckets
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
@@ -428,14 +424,16 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []s
 
 }
 
-func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKey string,
+func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKeyStr string,
 	measureResults []sutils.CValueEnclosure, qid uint64, cnt uint64,
 	unsetRecord map[string]sutils.CValueEnclosure) {
 
 	if b.GroupByAggregation == nil {
 		return
 	}
-	bucketIdx, ok := b.GroupByAggregation.StringBucketIdx[bKey]
+
+	bKey := xxhash.Sum64String(bKeyStr)
+	bucketIdx, ok := b.GroupByAggregation.Uint64BucketIdx[bKey]
 
 	var bucket *RunningBucketResults
 	if !ok {
@@ -445,7 +443,7 @@ func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKey string,
 		}
 		bucket = initRunningGroupByBucket(b.GroupByAggregation.internalMeasureFns, qid)
 		b.GroupByAggregation.AllRunningBuckets = append(b.GroupByAggregation.AllRunningBuckets, bucket)
-		b.GroupByAggregation.StringBucketIdx[bKey] = nBuckets
+		b.GroupByAggregation.Uint64BucketIdx[bKey] = nBuckets
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
@@ -537,7 +535,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 
 	// Get scores for ranking
 	if isRankBySum {
-		for _, idx := range gb.StringBucketIdx {
+		for _, idx := range gb.Uint64BucketIdx {
 			bucket := gb.AllRunningBuckets[idx]
 			currRes := make(map[string]sutils.CValueEnclosure)
 			// Add results for group by cols inside the time range bucket
@@ -554,7 +552,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 	tmLimitResult.Hll = structs.CreateNewHll()
 	tmLimitResult.StrSet = make(map[string]struct{}, 0)
 	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap, req.MeasureOperations, batchErr)
-	for key, idx := range gb.StringBucketIdx {
+	for key, idx := range gb.Uint64BucketIdx {
 		bucket := gb.AllRunningBuckets[idx]
 		currRes := make(map[string]sutils.CValueEnclosure)
 
@@ -584,10 +582,10 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 			gb.AddResultToStatRes(req, bucket, bucket.runningStats, currRes, "", nil, tmLimitResult, batchErr)
 		}
 
-		var bucketKey interface{}
+		//		var bucketKey interface{}
 		var err error
 
-		bucketKey, err = sutils.ConvertGroupByKeyFromBytes([]byte(key))
+		//		bucketKey, err = sutils.ConvertGroupByKeyFromBytes([]byte(key))
 
 		if err != nil {
 			batchErr.AddError("GroupByBuckets.ConvertToAggregationResult:CONVERT_GROUP_BY_KEY", fmt.Errorf("failed to convert group by key: %v, err: %v", key, err))
@@ -595,7 +593,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 
 		results[bucketNum] = &structs.BucketResult{
 			ElemCount:   bucket.count,
-			BucketKey:   bucketKey,
+			BucketKey:   key,
 			StatRes:     currRes,
 			GroupByKeys: req.GroupByColumns,
 		}
@@ -893,14 +891,14 @@ func (gb *GroupByBuckets) MergeBuckets(toMerge *GroupByBuckets) {
 		gb.GroupByColValCnt = toMerge.GroupByColValCnt
 	}
 
-	for key, idx := range toMerge.StringBucketIdx {
+	for key, idx := range toMerge.Uint64BucketIdx {
 		bucket := toMerge.AllRunningBuckets[idx]
-		if idx, ok := gb.StringBucketIdx[key]; !ok {
+		if idx, ok := gb.Uint64BucketIdx[key]; !ok {
 			if len(gb.AllRunningBuckets) >= gb.maxBuckets {
 				continue
 			}
 			gb.AllRunningBuckets = append(gb.AllRunningBuckets, bucket)
-			gb.StringBucketIdx[key] = len(gb.AllRunningBuckets) - 1
+			gb.Uint64BucketIdx[key] = len(gb.AllRunningBuckets) - 1
 		} else {
 			gb.AllRunningBuckets[idx].MergeRunningBuckets(bucket)
 		}
@@ -911,7 +909,7 @@ func (gb *GroupByBuckets) ConvertToJson() (*GroupByBucketsJSON, error) {
 	retVal := &GroupByBucketsJSON{
 		AllGroupbyBuckets: make(map[string]*RunningBucketResultsJSON, len(gb.AllRunningBuckets)),
 	}
-	for key, idx := range gb.StringBucketIdx {
+	for key, idx := range gb.Uint64BucketIdx {
 		bucket := gb.AllRunningBuckets[idx]
 		newBucket := &RunningBucketResultsJSON{
 			Count:     bucket.count,
@@ -970,7 +968,7 @@ func (gb *GroupByBucketsJSON) ToGroupByBucket(req *structs.GroupByRequest) (*Gro
 	mCols, mFuns, revIndex := convertRequestToInternalStats(req, false)
 	retVal := &GroupByBuckets{
 		AllRunningBuckets:   make([]*RunningBucketResults, 0, len(gb.AllGroupbyBuckets)),
-		StringBucketIdx:     make(map[string]int, len(gb.AllGroupbyBuckets)),
+		Uint64BucketIdx:     make(map[uint64]int, len(gb.AllGroupbyBuckets)),
 		allMeasureCols:      mCols,
 		internalMeasureFns:  mFuns,
 		reverseMeasureIndex: revIndex,
@@ -987,7 +985,8 @@ func (gb *GroupByBucketsJSON) ToGroupByBucket(req *structs.GroupByRequest) (*Gro
 		if err != nil {
 			log.Errorf("GroupByBucketsJSON.ToGroupByBucket: failed to decode base64Key: %v, err: %v", base64Key, err)
 		}
-		retVal.StringBucketIdx[string(key)] = reverseIndex
+		bKey := xxhash.Sum64(key)
+		retVal.Uint64BucketIdx[bKey] = reverseIndex
 		reverseIndex++
 	}
 	return retVal, nil
@@ -1022,7 +1021,7 @@ func (gb *GroupByBuckets) ToSerializedGroupByBuckets() *SerializedGroupByBuckets
 
 	return &SerializedGroupByBuckets{
 		AllRunningBuckets: allRunningBuckets,
-		StringBucketIdx:   gb.StringBucketIdx,
+		Uint64BucketIdx:   gb.Uint64BucketIdx,
 		GroupByColValCnt:  gb.GroupByColValCnt,
 	}
 }
@@ -1061,7 +1060,7 @@ func (sgb *SerializedGroupByBuckets) ToGroupByBuckets(groupByBuckets *GroupByBuc
 
 	return &GroupByBuckets{
 		AllRunningBuckets:   allRunningBuckets,
-		StringBucketIdx:     sgb.StringBucketIdx,
+		Uint64BucketIdx:     sgb.Uint64BucketIdx,
 		GroupByColValCnt:    sgb.GroupByColValCnt,
 		allMeasureCols:      groupByBuckets.allMeasureCols,
 		internalMeasureFns:  groupByBuckets.internalMeasureFns,

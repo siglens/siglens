@@ -45,6 +45,9 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary, queryRange *dtu.TimeRange,
 	sizeLimit uint64, fileParallelism int64, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
 	allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult) error {
+
+	//	fileParallelism = 8
+
 	var blkWG sync.WaitGroup
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
 	aggCols, _, _ := GetAggColsAndTimestamp(aggs)
@@ -99,6 +102,9 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 			sort.Slice(absKeys, func(i, j int) bool { return absKeys[i] > absKeys[j] })
 		}
 	}
+
+	log.Infof("kunal: applyAggregationsToResult: fileParallelism: %v, len(absKeys): %v", fileParallelism, len(absKeys))
+
 	for _, k := range absKeys {
 		blkResults := segmentSearchRecords.AllBlockStatus[k]
 		if blkResults.hasAnyMatched {
@@ -480,7 +486,8 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 	validRecIndens := make(map[string]bool)
 	columnKeys := nodeResult.RecsAggsColumnKeysMap
 
-	for bKey, index := range blockRes.GroupByAggregation.StringBucketIdx {
+	for _, index := range blockRes.GroupByAggregation.Uint64BucketIdx {
+		bKey := "abc"
 		recInden := columnKeys[bKey][len(columnKeys[bKey])-1].(string)
 		validRecIndens[recInden] = true
 		bucketValues, bucketCount := blockRes.GroupByAggregation.AllRunningBuckets[index].GetRunningStatsBucketValues()
