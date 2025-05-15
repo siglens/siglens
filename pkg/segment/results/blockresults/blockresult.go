@@ -364,6 +364,10 @@ func (b *BlockResults) WillValueBeAdded(valToAdd float64) bool {
 func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncosed bool,
 	lowTs uint64, highTs uint64, addedTimeHt bool) bool {
 
+	if aggsHasTimeHt {
+		return false
+	}
+
 	// case 1
 	if !isBlkFullyEncosed {
 		return true
