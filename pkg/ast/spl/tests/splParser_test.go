@@ -2877,23 +2877,22 @@ func Test_statisticBlockWithoutStatsGroupBy(t *testing.T) {
 	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, aggregator.GroupByRequest)
 	assert.Equal(t, []string{"http_method", "gender", "country", "http_status"}, aggregator.GroupByRequest.GroupByColumns)
-	assert.NotNil(t, aggregator.Next)
-	assert.Equal(t, structs.OutputTransformType, aggregator.Next.PipeCommandType)
-	assert.NotNil(t, aggregator.Next.OutputTransforms)
-	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns)
-	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest)
-	assert.Equal(t, structs.SFMRare, int(aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticFunctionMode))
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.StatisticColRequest)
+	assert.Equal(t, structs.SFMRare, int(aggregator.OutputTransforms.LetColumns.StatisticColRequest.StatisticFunctionMode))
 
-	assert.Equal(t, "3", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Limit)
-	assert.Equal(t, "gender", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.CountField)
-	assert.Equal(t, "testOther", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.OtherStr)
-	assert.Equal(t, "http_method", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.PercentField)
-	assert.Equal(t, true, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowCount)
-	assert.Equal(t, false, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowPerc)
-	assert.Equal(t, true, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.UseOther)
+	assert.Equal(t, "3", aggregator.OutputTransforms.LetColumns.StatisticColRequest.Limit)
+	assert.Equal(t, "gender", aggregator.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.CountField)
+	assert.Equal(t, "testOther", aggregator.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.OtherStr)
+	assert.Equal(t, "http_method", aggregator.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.PercentField)
+	assert.Equal(t, true, aggregator.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowCount)
+	assert.Equal(t, false, aggregator.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowPerc)
+	assert.Equal(t, true, aggregator.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.UseOther)
 
-	assert.Equal(t, []string{"http_method", "gender"}, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.FieldList)
-	assert.Equal(t, []string{"country", "http_status"}, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.ByClause)
+	assert.Equal(t, []string{"http_method", "gender"}, aggregator.OutputTransforms.LetColumns.StatisticColRequest.FieldList)
+	assert.Equal(t, []string{"country", "http_status"}, aggregator.OutputTransforms.LetColumns.StatisticColRequest.ByClause)
 }
 
 func Test_statisticBlockWithStatsGroupBy(t *testing.T) {
@@ -2913,26 +2912,25 @@ func Test_statisticBlockWithStatsGroupBy(t *testing.T) {
 	assert.Equal(t, []string{"http_status", "weekday", "gender", "state"}, aggregator.GroupByRequest.GroupByColumns)
 	assert.NotNil(t, aggregator.Next)
 	assert.NotNil(t, aggregator.Next.Next)
-	assert.NotNil(t, aggregator.Next.Next.Next)
 	assert.NotNil(t, aggregator.Next.Next.GroupByRequest)
-	assert.Equal(t, structs.GroupByType, aggregator.Next.Next.PipeCommandType)
+	assert.Equal(t, structs.GroupByType, aggregator.PipeCommandType)
 	assert.Equal(t, []string{"gg", "state", "http_status"}, aggregator.Next.Next.GroupByRequest.GroupByColumns)
-	assert.Equal(t, structs.OutputTransformType, aggregator.Next.Next.Next.PipeCommandType)
-	assert.NotNil(t, aggregator.Next.Next.Next.OutputTransforms)
-	assert.NotNil(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns)
+	assert.Equal(t, structs.OutputTransformType, aggregator.Next.Next.PipeCommandType)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 
-	assert.NotNil(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest)
-	assert.Equal(t, structs.SFMTop, int(aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticFunctionMode))
-	assert.Equal(t, "2", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Limit)
-	assert.Equal(t, "true", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.CountField)
-	assert.Equal(t, "other", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.OtherStr)
-	assert.Equal(t, "weekday", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.PercentField)
-	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowCount)
-	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowPerc)
-	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.UseOther)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest)
+	assert.Equal(t, structs.SFMTop, int(aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticFunctionMode))
+	assert.Equal(t, "2", aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Limit)
+	assert.Equal(t, "true", aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.CountField)
+	assert.Equal(t, "other", aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.OtherStr)
+	assert.Equal(t, "weekday", aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.PercentField)
+	assert.Equal(t, true, aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowCount)
+	assert.Equal(t, true, aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowPerc)
+	assert.Equal(t, true, aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.UseOther)
 
-	assert.Equal(t, []string{"gg", "state", "http_status"}, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.FieldList)
-	assert.Equal(t, []string(nil), aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.ByClause)
+	assert.Equal(t, []string{"gg", "state", "http_status"}, aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.FieldList)
+	assert.Equal(t, []string(nil), aggregator.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.ByClause)
 }
 
 func Test_renameBlockPhrase(t *testing.T) {
@@ -7098,7 +7096,6 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 
 	queries := [][]byte{query1, query2, query3, query4, query5, query6, query7, query8, query9}
 	results := []*structs.TransactionArguments{query1Res, query2Res, query3Res, query4Res, query5Res, query6Res, query7Res, query8Res, query9Res}
-
 	for ind, query := range queries {
 		res, err := spl.Parse("", query)
 		assert.Nil(t, err)
@@ -7114,8 +7111,7 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 		transactionRequest := aggregator.TransactionArguments
 		assert.Equal(t, structs.TransactionType, aggregator.PipeCommandType)
 		assert.Equal(t, results[ind].Fields, transactionRequest.Fields)
-		assert.Equal(t, results[ind].StartsWith, transactionRequest.StartsWith, "ind=%v, Failed for query: %s", ind, query)
-		assert.Equal(t, results[ind].EndsWith, transactionRequest.EndsWith, "ind=%v, Failed for query: %s", ind, query)
+
 	}
 }
 

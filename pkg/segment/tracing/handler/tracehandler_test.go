@@ -106,6 +106,7 @@ func TestGetTotalUniqueTraceIds(t *testing.T) {
 				},
 			},
 		},
+		BucketCount: 3,
 	}
 	totalTraces := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
 	assert.Equal(t, 3, totalTraces)
@@ -127,6 +128,12 @@ func TestGetUniqueTraceIds(t *testing.T) {
 					{"key": "trace3"},
 				},
 			},
+		},
+		BucketCount: 3,
+		MeasureResults: []*structs.BucketHolder{
+			{GroupByValues: []string{"trace1"}},
+			{GroupByValues: []string{"trace2"}},
+			{GroupByValues: []string{"trace3"}},
 		},
 	}
 	traceIds := GetUniqueTraceIds(pipeSearchResponseOuter, 0, 0, 1)

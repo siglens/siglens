@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -357,25 +356,20 @@ func (b *BlockResults) WillValueBeAdded(valToAdd float64) bool {
 	}
 }
 
-// return true if:
-// 1.   if block not fuly enclosed
-// 2  if time-HT but we did not use the rollup info to add time-HT
-// 3.   if sort present and low/high ts can be added
-// 4.   if rrcs left to be filled
 func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncosed bool,
-	lowTs uint64, highTs uint64, addedTimeHt bool) bool {
+	lowTs uint64, highTs uint64) bool {
 
-	// case 1
 	if !isBlkFullyEncosed {
+		// We only want some records.
 		return true
 	}
 
-	if aggsHasTimeHt && !addedTimeHt {
-		return true // case 2
+	if aggsHasTimeHt {
+		return false
 	}
 
-	// case 3
 	if b.aggs != nil && b.aggs.Sort != nil {
+		// Check if some records will be added.
 		if b.aggs.Sort.Ascending {
 			return b.WillValueBeAdded(float64(lowTs))
 		} else {
@@ -383,9 +377,8 @@ func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncose
 		}
 	}
 
-	// case 4
+	// Check if there's space to add more records.
 	return b.nextUnsortedIdx < b.sizeLimit
-
 }
 
 func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []sutils.CValueEnclosure,
@@ -416,12 +409,12 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []s
 
 	if usedByTimechart {
 		var gRunningStats []runningStats
-		_, exists := bucket.groupedRunningStats[groupByColVal]
+		var exists bool
+		gRunningStats, exists = bucket.groupedRunningStats[groupByColVal]
 		if !exists {
 			gRunningStats = initRunningStats(b.GroupByAggregation.internalMeasureFns)
 			bucket.groupedRunningStats[groupByColVal] = gRunningStats
 		}
-		gRunningStats = bucket.groupedRunningStats[groupByColVal]
 		bucket.AddMeasureResults(&gRunningStats, measureResults, qid, 1, true, b.batchErr, unsetRecord)
 	} else {
 		bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, 1, false, b.batchErr, unsetRecord)
@@ -588,20 +581,10 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 		var bucketKey interface{}
 		var err error
 
-		newQueryPipeline := config.IsNewQueryPipelineEnabled()
-
-		if newQueryPipeline {
-			bucketKey, err = sutils.ConvertGroupByKeyFromBytes([]byte(key))
-		} else {
-			bucketKey, err = sutils.ConvertGroupByKey([]byte(key))
-		}
+		bucketKey, err = sutils.ConvertGroupByKeyFromBytes([]byte(key))
 
 		if err != nil {
 			batchErr.AddError("GroupByBuckets.ConvertToAggregationResult:CONVERT_GROUP_BY_KEY", fmt.Errorf("failed to convert group by key: %v, err: %v", key, err))
-		}
-
-		if !newQueryPipeline && len(bucketKey.([]string)) == 1 {
-			bucketKey = bucketKey.([]string)[0]
 		}
 
 		results[bucketNum] = &structs.BucketResult{

@@ -1481,6 +1481,16 @@ func getPQMR(blocks []*block) (*pqmr.SegmentPQMRResults, error) {
 	return finalPQMR, nil
 }
 
+// This should only be used on SSRs for the same query.
+func ssrsEqual(ssr1, ssr2 *structs.SegmentSearchRequest) bool {
+	if ssr1 == nil || ssr2 == nil {
+		return ssr1 == nil && ssr2 == nil
+	}
+
+	// For one query, there should be only one SSR per segment key.
+	return ssr1.SegmentKey == ssr2.SegmentKey
+}
+
 // All of the blocks should be for the same SSR.
 func getSSRs(blocks []*block, blockToValidRecNums map[uint16][]uint16) (map[string]*structs.SegmentSearchRequest, error) {
 
@@ -1491,7 +1501,7 @@ func getSSRs(blocks []*block, blockToValidRecNums map[uint16][]uint16) (map[stri
 	// Each block should have come from the same SSR.
 	firstSSR := blocks[0].parentSSR
 	for _, block := range blocks {
-		if block.parentSSR != firstSSR {
+		if !ssrsEqual(block.parentSSR, firstSSR) {
 			return nil, utils.TeeErrorf("getSSRs: blocks are from different SSRs")
 		}
 	}

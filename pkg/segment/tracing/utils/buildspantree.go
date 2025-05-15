@@ -19,6 +19,7 @@ package utils
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	log "github.com/sirupsen/logrus"
@@ -46,7 +47,24 @@ func BuildSpanTree(spanMap map[string]*structs.GanttChartSpan, idToParentId map[
 
 	rootSpanStartTime := res.StartTime
 
-	for spanID, span := range spanMap {
+	spans := make([]*structs.GanttChartSpan, 0, len(spanMap))
+	for _, span := range spanMap {
+		spans = append(spans, span)
+	}
+
+	sort.Slice(spans, func(i, j int) bool {
+		start1 := spans[i].StartTime
+		start2 := spans[j].StartTime
+		if start1 != start2 {
+			return start1 < start2
+		}
+
+		return spans[i].SpanID < spans[j].SpanID
+	})
+
+	for _, span := range spans {
+		spanID := span.SpanID
+
 		// Calculate the relative start time and end time for each span
 		span.ActualStartTime = span.StartTime
 		span.StartTime -= rootSpanStartTime

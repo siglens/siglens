@@ -20,7 +20,6 @@ package pipesearch
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -31,17 +30,11 @@ import (
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
-	"github.com/siglens/siglens/pkg/config"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
-	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/reader/record"
-	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
-	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -353,15 +346,8 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.IncludeNulls = includeNulls
 	qc.RawQuery = searchText
-	if config.IsNewQueryPipelineEnabled() {
-		return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc)
-	} else {
-		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, includeNulls)
-		log.Infof("qid=%v, Finished execution in %+v", qid, time.Since(result.QueryStartTime))
+	return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc)
 
-		return &httpRespOuter, false, simpleNode.TimeRange, nil
-	}
 }
 
 func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
@@ -418,173 +404,6 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	utils.WriteJsonResponse(ctx, httpRespOuter)
 
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
-func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}, includeNulls bool) structs.PipeSearchResponseOuter {
-	var httpRespOuter structs.PipeSearchResponseOuter
-	var httpResp structs.PipeSearchResponse
-
-	// aggs exist, so just return aggregations instead of all results
-	httpRespOuter.Aggs = convertBucketToAggregationResponse(nodeResult.Histogram)
-	if len(nodeResult.ErrList) > 0 {
-		for _, err := range nodeResult.ErrList {
-			httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
-		}
-	}
-
-	allMeasRes, measFuncs, added := segresults.CreateMeasResultsFromAggResults(aggs.BucketLimit, nodeResult.Histogram)
-
-	if added == 0 {
-		allMeasRes = nodeResult.MeasureResults
-		measFuncs = nodeResult.MeasureFunctions
-	}
-
-	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid,
-		nodeResult.SegEncToKey, aggs, allColsInAggs, includeNulls)
-	if err != nil {
-		httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
-		return httpRespOuter
-	}
-	if nodeResult.RemoteLogs != nil {
-		json = append(json, nodeResult.RemoteLogs...)
-	}
-
-	var canScrollMore bool
-	if numRRCs == sizeLimit {
-		// if the number of RRCs is exactly equal to the requested size, there may be more than size matches. Hence, we can scroll more
-		canScrollMore = true
-	}
-	httpResp.Hits = json
-	httpResp.TotalMatched = query.ConvertQueryCountToTotalResponse(nodeResult.TotalResults)
-	httpRespOuter.Hits = httpResp
-	httpRespOuter.AllPossibleColumns = allCols
-	httpRespOuter.ElapedTimeMS = time.Since(queryStart).Milliseconds()
-	httpRespOuter.Qtype = nodeResult.Qtype
-	httpRespOuter.CanScrollMore = canScrollMore
-	httpRespOuter.TotalRRCCount = numRRCs
-	httpRespOuter.MeasureFunctions = measFuncs
-	httpRespOuter.MeasureResults = allMeasRes
-	httpRespOuter.GroupByCols = nodeResult.GroupByCols
-	httpRespOuter.BucketCount = nodeResult.BucketCount
-	httpRespOuter.DashboardPanelId = dbPanelId
-
-	httpRespOuter.ColumnsOrder = allCols
-	// The length of AllCols is 0, which means it is not a async query
-	if len(allCols) == 0 {
-		httpRespOuter.ColumnsOrder = query.GetFinalColsOrder(nodeResult.ColumnsOrder)
-	}
-
-	if nodeResult.RecsAggregator.RecsAggsType == structs.GroupByType && nodeResult.RecsAggregator.GroupByRequest != nil {
-		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.RecsAggregator.GroupByRequest.MeasureOperations)
-	} else if nodeResult.RecsAggregator.RecsAggsType == structs.MeasureAggsType && nodeResult.RecsAggregator.MeasureOperations != nil {
-		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.RecsAggregator.MeasureOperations)
-	}
-	httpRespOuter.RenameColumns = nodeResult.RenameColumns
-
-	log.Infof("qid=%d, Query Took %+v ms", qid, httpRespOuter.ElapedTimeMS)
-
-	return httpRespOuter
-}
-
-// returns converted json, all columns, or any errors
-func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit uint64,
-	qid uint64, segencmap map[uint32]string, aggs *structs.QueryAggregators,
-	allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
-
-	hits := make([]map[string]interface{}, 0)
-	// if sizeLimit is 0, return empty hits
-	// And Even if len(rrcs) is 0, we will still proceed to the json records
-	// So that any Aggregations that require all the segments to be processed can be done.
-	if sizeLimit == 0 {
-		return hits, []string{}, nil
-	}
-
-	allJsons, allCols, err := record.GetJsonFromAllRrcOldPipeline(rrcs, false, qid, segencmap, aggs, allColsInAggs)
-	if err != nil {
-		log.Errorf("qid=%d, convertRRCsToJSONResponse: failed to get allrecords from rrc, err: %v", qid, err)
-		return allJsons, allCols, err
-	}
-
-	if sizeLimit < uint64(len(allJsons)) {
-		allJsons = allJsons[:sizeLimit]
-	}
-
-	if !includeNulls {
-		for _, record := range allJsons {
-			for key, value := range record {
-				if value == nil {
-					delete(record, key)
-				} else if strValue, ok := value.(string); ok && strValue == "" {
-					delete(record, key)
-				}
-			}
-		}
-	}
-
-	return allJsons, allCols, nil
-}
-
-func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationResult) map[string]structs.AggregationResults {
-	resp := make(map[string]structs.AggregationResults)
-	for aggName, aggRes := range buckets {
-		allBuckets := make([]map[string]interface{}, len(aggRes.Results))
-
-		for idx, hist := range aggRes.Results {
-			res := make(map[string]interface{})
-			var bucketKey interface{}
-			bucketKeyList, ok := hist.BucketKey.([]string)
-			if ok && len(bucketKeyList) == 1 {
-				bucketKey = bucketKeyList[0]
-			} else {
-				bucketKey = hist.BucketKey
-			}
-			res["key"] = bucketKey
-			res["doc_count"] = hist.ElemCount
-			if aggRes.IsDateHistogram {
-				res["key_as_string"] = fmt.Sprintf("%v", hist.BucketKey)
-			}
-			for name, value := range hist.StatRes {
-				res[name] = utils.StatResponse{
-					Value: value.CVal,
-				}
-			}
-
-			allBuckets[idx] = res
-		}
-		resp[aggName] = structs.AggregationResults{Buckets: allBuckets}
-	}
-	return resp
-}
-
-func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid int64) {
-
-	var resp utils.AutoCompleteDataInfo
-	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
-	if err != nil {
-		log.Errorf("GetAutoCompleteData: failed to get all virtual table names, err: %v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	}
-
-	sortedIndices := make([]string, 0, len(allVirtualTableNames))
-
-	for k := range allVirtualTableNames {
-		sortedIndices = append(sortedIndices, k)
-	}
-
-	sort.Strings(sortedIndices)
-
-	for _, indexName := range sortedIndices {
-		if indexName == "" {
-			log.Errorf("GetAutoCompleteData: skipping an empty index name indexName: %v", indexName)
-			continue
-		}
-
-	}
-
-	resp.ColumnNames = segmetadata.GetAllColNames(sortedIndices)
-	resp.MeasureFunctions = []string{"min", "max", "avg", "count", "sum", "cardinality"}
-	utils.WriteJsonResponse(ctx, resp)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 

@@ -67,6 +67,10 @@ func (pqmr *PQMatchResults) ClearBit(recNum uint) {
 	pqmr.b.Clear(recNum)
 }
 
+func (pqmr *PQMatchResults) FlipRange(start, end uint) {
+	pqmr.b.FlipRange(start, end)
+}
+
 func (pqmr *PQMatchResults) ResetAll() {
 	pqmr.b.ClearAll()
 }
