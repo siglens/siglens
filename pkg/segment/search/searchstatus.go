@@ -67,7 +67,8 @@ func init() {
 // Inits blocks & records to search based on input blkSum and tRange.
 // We will generously raw search all records in a block with a HighTS and LowTs inside tRange
 // It is up to the caller to call .Close()
-func InitBlocksToSearch(searchReq *structs.SegmentSearchRequest, blkSum []*structs.BlockSummary, allSearchResults *segresults.SearchResults, tRange *dtu.TimeRange) *SegmentSearchStatus {
+func InitBlocksToSearch(searchReq *structs.SegmentSearchRequest, blkSum []*structs.BlockSummary,
+	allSearchResults *segresults.SearchResults, tRange *dtu.TimeRange) *SegmentSearchStatus {
 
 	allBlocks := make(map[uint16]*BlockSearchStatus, len(blkSum))
 
@@ -95,9 +96,10 @@ func InitBlocksToSearch(searchReq *structs.SegmentSearchRequest, blkSum []*struc
 					passedRecs.AddMatchedRecord(j)
 				}
 			} else {
-				for j := uint(bSum.RecCount); j < PQMR_INITIAL_SIZE; j++ {
-					passedRecs.ClearBit(j)
-				}
+				// Clear the bits from RecCount to PQMR_INITIAL_SIZE. Above, we
+				// cloned the bits from pqmrAllMatchedConst, which are all set
+				// to 1. So we can flip them to 0.
+				passedRecs.FlipRange(uint(bSum.RecCount), PQMR_INITIAL_SIZE)
 			}
 
 			allBlocks[currBlk] = &BlockSearchStatus{
