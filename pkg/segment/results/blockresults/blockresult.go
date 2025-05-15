@@ -356,25 +356,20 @@ func (b *BlockResults) WillValueBeAdded(valToAdd float64) bool {
 	}
 }
 
-// return true if:
-// 1.   if block not fuly enclosed
-// 2  if time-HT but we did not use the rollup info to add time-HT
-// 3.   if sort present and low/high ts can be added
-// 4.   if rrcs left to be filled
 func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncosed bool,
-	lowTs uint64, highTs uint64, addedTimeHt bool) bool {
+	lowTs uint64, highTs uint64) bool {
 
-	// case 1
 	if !isBlkFullyEncosed {
+		// We only want some records.
 		return true
 	}
 
-	if aggsHasTimeHt && !addedTimeHt {
-		return true // case 2
+	if aggsHasTimeHt {
+		return false
 	}
 
-	// case 3
 	if b.aggs != nil && b.aggs.Sort != nil {
+		// Check if some records will be added.
 		if b.aggs.Sort.Ascending {
 			return b.WillValueBeAdded(float64(lowTs))
 		} else {
@@ -382,9 +377,8 @@ func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncose
 		}
 	}
 
-	// case 4
+	// Check if there's space to add more records.
 	return b.nextUnsortedIdx < b.sizeLimit
-
 }
 
 func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []sutils.CValueEnclosure,
