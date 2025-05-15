@@ -70,6 +70,37 @@ function formatTimestampForGranularity(timestamp, granularityType) {
     }
 }
 
+function parseRelativeTime(timeStr, now) {
+    if (timeStr === 'now') {
+        return now.getTime();
+    }
+    const regex = /^now-(\d+)([smhd])$/;
+    const match = timeStr.match(regex);
+    if (!match) {
+        throw new Error(`Invalid relative time format: ${timeStr}`);
+    }
+    const value = parseInt(match[1]);
+    const unit = match[2];
+    let milliseconds;
+    switch (unit) {
+        case 's':
+            milliseconds = value * 1000;
+            break;
+        case 'm':
+            milliseconds = value * 60 * 1000;
+            break;
+        case 'h':
+            milliseconds = value * 60 * 60 * 1000;
+            break;
+        case 'd':
+            milliseconds = value * 24 * 60 * 60 * 1000;
+            break;
+        default:
+            throw new Error(`Unknown time unit: ${unit}`);
+    }
+    return now.getTime() - milliseconds;
+}
+
 function filterDataByRange(data, startTime, endTime, newGranularity) {
     if (!data || !Array.isArray(data.measure)) return null;
 
@@ -149,6 +180,195 @@ function filterDataByRange(data, startTime, endTime, newGranularity) {
     };
 }
 
+function configureHistogramTimeAxis(data, granularityType) {
+    const firstTimestamp = new Date(data.measure[0].GroupByValues[0]).getTime();
+    const lastTimestamp = new Date(data.measure[data.measure.length - 1].GroupByValues[0]).getTime();
+    const duration = lastTimestamp - firstTimestamp;
+    
+    let unit, maxTicksLimit, stepSize;
+    let displayFormats = {};
+    let tooltipFormat = 'MMM d, yyyy, h:mm aaa';
+
+    switch (granularityType) {
+        case 'month':
+            unit = 'month';
+            maxTicksLimit = duration <= 366 * 24 * 60 * 60 * 1000 ? 12 : Math.min(12, Math.ceil(duration / (30 * 24 * 60 * 60 * 1000)));
+            displayFormats.month = 'MMM yyyy';
+            tooltipFormat = 'MMM yyyy';
+            break;
+        case 'week':
+            unit = 'week';
+            maxTicksLimit = Math.min(12, Math.ceil(duration / (7 * 24 * 60 * 60 * 1000)));
+            displayFormats.week = 'MMM d, yyyy';
+            tooltipFormat = 'MMM d, yyyy';
+            break;
+        case 'day':
+            unit = 'day';
+            if (duration <= 15 * 24 * 60 * 60 * 1000) {
+                maxTicksLimit = Math.min(14, Math.ceil(duration / (24 * 60 * 60 * 1000)));
+            } else if (duration <= 90 * 24 * 60 * 60 * 1000) {
+                maxTicksLimit = Math.min(12, Math.ceil(duration / (7 * 24 * 60 * 60 * 1000)));
+            } else {
+                maxTicksLimit = Math.min(15, Math.ceil(duration / (14 * 24 * 60 * 60 * 1000)));
+            }
+            displayFormats.day = 'MMM d';
+            tooltipFormat = 'MMM d, yyyy';
+            break;
+        case 'hour':
+            unit = 'hour';
+            const hoursInRange = Math.ceil(duration / (60 * 60 * 1000));
+            if (hoursInRange <= 24) {
+                stepSize = 1;
+                maxTicksLimit = hoursInRange + 1;
+            } else if (duration <= 4 * 24 * 60 * 60 * 1000) {
+                stepSize = 6;
+                maxTicksLimit = Math.ceil(hoursInRange / 6);
+            } else if (duration <= 15 * 24 * 60 * 60 * 1000) {
+                stepSize = 12;
+                maxTicksLimit = Math.ceil(hoursInRange / 12);
+            } else {
+                stepSize = 24;
+                maxTicksLimit = Math.ceil(hoursInRange / 24);
+            }
+            displayFormats.hour = 'h aaa';
+            tooltipFormat = 'MMM d, yyyy, h aaa';
+            break;
+        case 'minute':
+            unit = 'minute';
+            const minutesInRange = Math.ceil(duration / (60 * 1000));
+            if (minutesInRange <= 60) {
+                stepSize = 5;
+                maxTicksLimit = Math.ceil(minutesInRange / 5);
+            } else {
+                stepSize = 15;
+                maxTicksLimit = Math.ceil(minutesInRange / 15);
+            }
+            displayFormats.minute = 'h:mm aaa';
+            tooltipFormat = 'MMM d, yyyy, h:mm aaa';
+            break;
+        case 'second':
+            unit = 'second';
+            stepSize = 10;
+            maxTicksLimit = Math.ceil(duration / (10 * 1000));
+            displayFormats.second = 'h:mm:ss aaa';
+            tooltipFormat = 'MMM d, yyyy, h:mm:ss aaa';
+            break;
+        default:
+            unit = 'day';
+            maxTicksLimit = 12;
+            displayFormats.day = 'MMM d';
+    }
+
+    const timeOptions = {
+        unit: unit,
+        displayFormats: displayFormats,
+        tooltipFormat: tooltipFormat,
+        bounds: 'ticks',
+    };
+
+    if (stepSize) {
+        timeOptions.stepSize = stepSize;
+    }
+
+    const offsetValue = !['hour', 'minute', 'second'].includes(granularityType);
+    timeOptions.offset = offsetValue;
+
+    const config = {
+        type: 'time',
+        time: timeOptions,
+        title: {
+            display: true,
+            text: 'Time Period',
+        },
+        ticks: {
+            maxRotation: 0,
+            minRotation: 0,
+            maxTicksLimit: maxTicksLimit,
+            includeBounds: true,
+            callback: function (value) {
+                const date = new Date(value);
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const hours = date.getHours();
+                const minutes = date.getMinutes();
+                const day = date.getDate();
+
+                switch (granularityType) {
+                    case 'month':
+                        return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+                    case 'week':
+                        return `${monthNames[date.getMonth()]} ${day}`;
+                    case 'day':
+                        return `${monthNames[date.getMonth()]} ${day}`;
+                    case 'hour':
+                        if (hoursInRange <= 24) {
+                            const hourIn12 = hours % 12 || 12;
+                            const amPm = hours < 12 ? 'AM' : 'PM';
+                            if (hours === 0) {
+                                return `${monthNames[date.getMonth()]} ${day}`;
+                            }
+                            return `${hourIn12}${amPm}`;
+                        } else if (duration <= 4 * 24 * 60 * 60 * 1000) {
+                            if (hours === 0) {
+                                return `${monthNames[date.getMonth()]} ${day}`;
+                            } else if (hours === 6) {
+                                return '6AM';
+                            } else if (hours === 12) {
+                                return '12PM';
+                            } else if (hours === 18) {
+                                return '6PM';
+                            }
+                        } else if (duration <= 15 * 24 * 60 * 60 * 1000) {
+                            if (hours === 0) {
+                                return `${monthNames[date.getMonth()]} ${day}`;
+                            } else if (hours === 12) {
+                                return '12PM';
+                            }
+                        } else {
+                            if (hours === 0) {
+                                return `${monthNames[date.getMonth()]} ${day}`;
+                            }
+                        }
+                        return null;
+                    case 'minute':
+                        if (minutes === 0) {
+                            const hourIn12 = hours % 12 || 12;
+                            const amPm = hours < 12 ? 'AM' : 'PM';
+                            return `${hourIn12}${amPm}`;
+                        }
+                        return null;
+                    case 'second':
+                        if (date.getSeconds() === 0) {
+                            const hourIn12 = hours % 12 || 12;
+                            const amPm = hours < 12 ? 'AM' : 'PM';
+                            return `${hourIn12}:${minutes < 10 ? '0' + minutes : minutes}${amPm}`;
+                        }
+                        return null;
+                    default:
+                        return `${monthNames[date.getMonth()]} ${day}`;
+                }
+            },
+            font: {
+                weight: function (context) {
+                    const value = context.tick.value;
+                    const date = new Date(value);
+                    
+                    if (granularityType === 'hour' && date.getHours() === 0) {
+                        return 'bold';
+                    }
+                    if (granularityType === 'day' && date.getDate() === 1) {
+                        return 'bold';
+                    }
+                    return 'normal';
+                },
+            },
+        },
+        alignToPixels: true,
+        offset: offsetValue,
+    };
+
+    return config;
+}
+
 function renderHistogram(timechartData) {
     const histoContainer = $('#histogram-container');
     const parentContainer = $('.histo-container');
@@ -176,7 +396,34 @@ function renderHistogram(timechartData) {
     }
 
     let dataToRender = timechartData;
-    let timestamps = dataToRender.measure.map(item => {
+
+    // Resolve startEpoch and endEpoch to absolute timestamps
+    const now = new Date(); // Current time: May 15, 2025, 16:52 IST
+    let startTime, endTime;
+
+    try {
+        if (typeof timechartData.startEpoch === 'string') {
+            startTime = parseRelativeTime(timechartData.startEpoch, now);
+        } else {
+            startTime = parseInt(timechartData.startEpoch);
+        }
+        if (typeof timechartData.endEpoch === 'string') {
+            endTime = parseRelativeTime(timechartData.endEpoch, now);
+        } else {
+            endTime = parseInt(timechartData.endEpoch);
+        }
+
+        if (isNaN(startTime) || isNaN(endTime)) {
+            throw new Error('Invalid startEpoch or endEpoch');
+        }
+    } catch (e) {
+        console.error('Error parsing startEpoch or endEpoch:', e);
+        // Fallback to a default range if parsing fails
+        endTime = now.getTime();
+        startTime = endTime - 24 * 60 * 60 * 1000; // Last 24 hours
+    }
+
+    const timestamps = dataToRender.measure.map(item => {
         if (!item.GroupByValues || !item.GroupByValues[0]) {
             console.warn('Missing GroupByValues in measure:', item);
             return null;
@@ -184,17 +431,36 @@ function renderHistogram(timechartData) {
         return convertIfTimestamp(item.GroupByValues[0]);
     }).filter(ts => ts !== null);
 
-    let startTime = Math.min(...timestamps.map(ts => new Date(ts).getTime()));
-    let endTime = Math.max(...timestamps.map(ts => new Date(ts).getTime()));
-
-    if (!isFinite(startTime) || !isFinite(endTime)) {
-        const now = new Date();
-        endTime = now.getTime();
-        startTime = endTime - 24 * 60 * 60 * 1000;
-    }
-
     const granularity = determineGranularity(timestamps, startTime, endTime);
     HistogramState.currentGranularity = granularity;
+
+    const endDate = new Date(endTime);
+    let adjustedEndTime = endTime;
+    switch (granularity.type) {
+        case 'month':
+            adjustedEndTime = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+            break;
+        case 'week':
+            const dayOfWeek = endDate.getDay();
+            const daysToEndOfWeek = 6 - dayOfWeek;
+            adjustedEndTime = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + daysToEndOfWeek, 23, 59, 59, 999).getTime();
+            break;
+        case 'day':
+            adjustedEndTime = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999).getTime();
+            break;
+        case 'hour':
+            adjustedEndTime = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), endDate.getHours(), 59, 59, 999).getTime();
+            break;
+        case 'minute':
+            adjustedEndTime = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), endDate.getHours(), endDate.getMinutes(), 59, 999).getTime();
+            break;
+        case 'second':
+            break;
+        default:
+            adjustedEndTime = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999).getTime();
+    }
+    endTime = adjustedEndTime;
+
     const filteredData = filterDataByRange(dataToRender, startTime, endTime, granularity);
 
     if (!filteredData) {
@@ -204,10 +470,10 @@ function renderHistogram(timechartData) {
     }
 
     dataToRender = filteredData;
-    timestamps = dataToRender.measure.map(item => convertIfTimestamp(item.GroupByValues[0]));
+    const updatedTimestamps = dataToRender.measure.map(item => convertIfTimestamp(item.GroupByValues[0]));
     const counts = dataToRender.measure.map(item => item.MeasureVal['count(*)'] || 0);
 
-    const formattedTimestamps = timestamps.map(ts => formatTimestampForGranularity(ts, granularity.type));
+    const formattedTimestamps = updatedTimestamps.map(ts => formatTimestampForGranularity(ts, granularity.type));
 
     if (HistogramState.currentHistogram) {
         HistogramState.currentHistogram.destroy();
@@ -263,21 +529,11 @@ function renderHistogram(timechartData) {
             maintainAspectRatio: false,
             scales: {
                 x: {
+                    ...configureHistogramTimeAxis(dataToRender, granularity.type),
                     title: {
                         display: true,
                         text: xAxisLabel,
                         color: tickColor
-                    },
-                    ticks: {
-                        font: {
-                            size: fontSize
-                        },
-                        color: tickColor,
-                        maxRotation: shouldRotate ? 45 : 0,
-                        minRotation: shouldRotate ? 45 : 0,
-                        callback: function(value, index) {
-                            return index % skipInterval === 0 ? formattedTimestamps[index] : '';
-                        }
                     },
                     grid: {
                         color: gridLineColor
@@ -297,16 +553,14 @@ function renderHistogram(timechartData) {
                 }
             },
             plugins: {
-                legend: {
-                    display: false
-                },
                 tooltip: {
                     callbacks: {
+                        title: function(context) {
+                            const timestamp = context[0].parsed.x;
+                            return formatTooltipTimestamp(timestamp / 1000, granularity.type);
+                        },
                         label: function(context) {
-                            const index = context.dataIndex;
-                            const originalTimestamp = dataToRender.measure[index].GroupByValues[0];
-                            const fullTimestamp = convertIfTimestamp(originalTimestamp);
-                            return `${context.dataset.label}: ${context.raw} | Time: ${fullTimestamp}`;
+                            return `${context.dataset.label}: ${context.raw}`;
                         }
                     }
                 }
@@ -316,6 +570,35 @@ function renderHistogram(timechartData) {
 
     if ($('#histogram-toggle-btn').hasClass('active')) {
         parentContainer.show();
+    }
+}
+
+function formatTooltipTimestamp(timestamp, granularity) {
+    const date = new Date(timestamp * 1000);
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = monthNames[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+
+    switch (granularity) {
+        case 'month':
+            return `${month} ${year}`;
+        case 'week':
+        case 'day':
+            return `${month} ${day}, ${year}`;
+        case 'hour':
+            return `${month} ${day}, ${year} ${hour12}:00 ${ampm}`;
+        case 'minute':
+            return `${month} ${day}, ${year} ${hour12}:${minutes < 10 ? '0' + minutes : minutes} ${ampm}`;
+        case 'second':
+            const seconds = date.getSeconds();
+            return `${month} ${day}, ${year} ${hour12}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds} ${ampm}`;
+        default:
+            return `${month} ${day}, ${year}`;
     }
 }
 
@@ -347,7 +630,6 @@ function convertIfTimestamp(value) {
     return value;
 }
 
-//eslint-disable-next-line no-unused-vars
 function updateHistogramTheme() {
     if (!HistogramState.currentHistogram) return;
 
