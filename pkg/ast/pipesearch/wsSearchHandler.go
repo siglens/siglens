@@ -195,7 +195,7 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 		websocketR <- map[string]interface{}{"state": "exit"}
 	}()
 
-	_, _, _, err := RunQueryForNewPipeline(conn, qid, simpleNode, aggs, timechartSimpleNode, timechartAggs, qc)
+	_, _, _, err := RunQueryForNewPipeline(conn, qid, simpleNode, aggs, timechartSimpleNode, timechartAggs, qc, sizeLimit)
 	if err != nil {
 		log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to execute query, err: %v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
