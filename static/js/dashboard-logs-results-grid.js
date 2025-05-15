@@ -333,6 +333,9 @@ function renderPanelAggsGrid(columnOrder, hits, panelId) {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         },
+        enableCellTextSelection: true,
+        suppressRowClickSelection: true,
+        ensureDomOrder: true
     };
     $(`.panelDisplay .big-number-display-container`).hide();
     if (panelId == -1) panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');

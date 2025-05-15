@@ -83,6 +83,9 @@ let aggGridOptions = {
         sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
         sortDescending: '<i class="fa fa-sort-alpha-down"/>',
     },
+    enableCellTextSelection: true,
+    suppressRowClickSelection: true,
+    ensureDomOrder: true
 };
 /*eslint-enable*/
 {{ .CommonExtraFunctions }}
