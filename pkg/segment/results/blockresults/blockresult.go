@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -588,20 +587,10 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 		var bucketKey interface{}
 		var err error
 
-		newQueryPipeline := config.IsNewQueryPipelineEnabled()
-
-		if newQueryPipeline {
-			bucketKey, err = sutils.ConvertGroupByKeyFromBytes([]byte(key))
-		} else {
-			bucketKey, err = sutils.ConvertGroupByKey([]byte(key))
-		}
+		bucketKey, err = sutils.ConvertGroupByKeyFromBytes([]byte(key))
 
 		if err != nil {
 			batchErr.AddError("GroupByBuckets.ConvertToAggregationResult:CONVERT_GROUP_BY_KEY", fmt.Errorf("failed to convert group by key: %v, err: %v", key, err))
-		}
-
-		if !newQueryPipeline && len(bucketKey.([]string)) == 1 {
-			bucketKey = bucketKey.([]string)[0]
 		}
 
 		results[bucketNum] = &structs.BucketResult{

@@ -2515,10 +2515,6 @@ input[type="text"].active {
     color: var(--search-bar-text-color-active);
 }
 
-div[aria-describedby="download-info"] {
-    width: 320px !important;
-}
-
 /* end save query dialog  */
 
 .starred-filter {
@@ -5658,73 +5654,27 @@ p#versionInfo {
     width: 140px !important;
 }
 
-.ui-progressbar {
-    height: 1em;
-    text-align: left;
+.download-progress-bar-container {
+    margin: 20px 0;
+    height: 8px;
+    background-color: var(--white-2);
+    border-radius: 4px;
     overflow: hidden;
 }
 
-.ui-progressbar .ui-progressbar-value {
-    margin: -1px;
+.download-progress-bar {
     height: 100%;
-    background-color: #ccc;
+    width: 0%;
+    background-color: var(--purple-1);
+    border-radius: 4px;
+    transition: width 0.3s ease;
 }
 
-.progress-label {
-    position: absolute;
-    left: 43%;
-    top: 4px;
-    font-weight: bold;
-    text-shadow: 1px 1px 0 #fff;
-}
-
-.progress-download {
-    width: 390px !important;
-    height: 10px !important;
-    z-index: 10;
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    -webkit-transform: translate(-50%, -50%);
-    transform: translate(-50%, -50%);
-    margin-top: -7px;
-}
-
-.pop-layer {
-    position: absolute;
-    display: none;
-    left: 0;
-    top: 0;
-    z-index: 10;
-    background: var(--ui-widget-overlay-bg-color);
-    ;
-    -moz-opacity: 0.8;
-    opacity: .80;
-}
-
-.pop-download {
-    display: none;
-    z-index: 10;
-    background: var(--ui-widget-bg-color);
-    width: 400px;
-    height: 140px;
-    border-radius: 10px;
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    -webkit-transform: translate(-50%, -50%);
-    transform: translate(-50%, -50%);
-    padding: 16px;
-}
-
-.pop-text {
-    margin-left: 23px;
-    font-weight: bold;
-    margin-bottom: 10px;
-}
-
-.pop-download button {
-    float: right;
+.download-progress-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--white-4);
+    text-align: end;
 }
 
 /* Log Screen Download  End*/
