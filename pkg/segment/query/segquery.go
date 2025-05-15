@@ -262,7 +262,7 @@ func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.Time
 		containsKibana = true
 	}
 	querytracker.UpdateQTUsage(nonKibanaIndices, searchNode, aggs, qc.RawQuery)
-	parallelismPerFile := int64(runtime.GOMAXPROCS(0) / 2)
+	parallelismPerFile := int64(runtime.GOMAXPROCS(0))
 	if parallelismPerFile < 1 {
 		parallelismPerFile = 1
 	}
