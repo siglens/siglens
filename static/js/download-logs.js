@@ -269,7 +269,6 @@ function setDownloadLogsDialog() {
                 for (let i = 0; i < arrNew.length; i++) {
                     arrNew[i] = arrNew[i].trim();
                 }
-                textArr = arrNew.sort();
             }
 
             $.ajax({
