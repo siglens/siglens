@@ -170,7 +170,7 @@ function updatePaginationDisplay() {
             <i class="fa fa-angle-double-right"></i>
         </button>
         <span class="pagination-info">
-            Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${totalDisplay} records
+            Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${totalDisplay}
         </span>`;
 
     pagesContainer.innerHTML = paginationHTML;
