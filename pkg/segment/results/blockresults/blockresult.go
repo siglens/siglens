@@ -409,12 +409,12 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []s
 
 	if usedByTimechart {
 		var gRunningStats []runningStats
-		_, exists := bucket.groupedRunningStats[groupByColVal]
+		var exists bool
+		gRunningStats, exists = bucket.groupedRunningStats[groupByColVal]
 		if !exists {
 			gRunningStats = initRunningStats(b.GroupByAggregation.internalMeasureFns)
 			bucket.groupedRunningStats[groupByColVal] = gRunningStats
 		}
-		gRunningStats = bucket.groupedRunningStats[groupByColVal]
 		bucket.AddMeasureResults(&gRunningStats, measureResults, qid, 1, true, b.batchErr, unsetRecord)
 	} else {
 		bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, 1, false, b.batchErr, unsetRecord)
