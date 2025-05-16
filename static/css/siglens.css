@@ -2468,9 +2468,12 @@ div#save-queries {
 
 div#download-info,
 .download-result {
-    height: 40px !important;
     margin: 20px !important;
     padding: 0 !important;
+}
+
+div#download-info .form-check-input[type=radio] {
+    border: 1px solid var(--border-color-regular);
 }
 
 .ui-dialog-title {
@@ -7878,6 +7881,6 @@ p#versionInfo {
     color: #FF6C6B !important;
 }
 
-[data-theme="dark"] .ace-tm .ace_indent-guide{
+[data-theme="dark"] .ace-tm .ace_indent-guide {
     background: none;
 }
