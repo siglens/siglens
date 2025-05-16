@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+
 	"github.com/fasthttp/websocket"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/ast/pipesearch/multiplexer"
@@ -499,6 +501,14 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			}
 
 			if isAsync {
+				if runTimechartQuery {
+					err = getFinalBuckets(queryStateData.CompleteWSResp.TimechartComplete, root.TimeRange)
+					if err != nil {
+						log.Errorf("RunQueryForNewPipeline: failed to get final buckets err: %v", err)
+						return nil, false, root.TimeRange, err
+					}
+				}
+
 				wErr := conn.WriteJSON(queryStateData.CompleteWSResp)
 				if wErr != nil {
 					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to write json to websocket, err: %v", qid, wErr)
@@ -591,6 +601,138 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			return nil, false, root.TimeRange, nil
 		}
 	}
+}
+
+func getFinalBuckets(complete *structs.PipeSearchCompleteResponse, timeRange *dtu.TimeRange) error {
+
+	spanOptions, err := structs.GetDefaultTimechartSpanOptions(timeRange.StartEpochMs, timeRange.EndEpochMs, 0)
+	if err != nil {
+		return fmt.Errorf("failed to get default timechart span options: %w", err)
+	}
+
+	interval := spanOptions.SpanLength.Num
+	timeScaler := spanOptions.SpanLength.TimeScalr
+
+	resultMap := make(map[string]*structs.BucketHolder)
+	runningTs := time.UnixMilli(int64(timeRange.StartEpochMs))
+	endEpoch := time.UnixMilli(int64(timeRange.EndEpochMs))
+
+	var duration time.Duration
+
+	switch timeScaler {
+	case sutils.TMSecond:
+		duration = time.Duration(interval) * time.Second
+	case sutils.TMMinute:
+		duration = time.Duration(interval) * time.Minute
+	case sutils.TMHour:
+		duration = time.Duration(interval) * time.Hour
+	case sutils.TMDay:
+		duration = time.Duration(interval) * 24 * time.Hour
+	case sutils.TMMonth:
+		// handled separately
+	default:
+		return fmt.Errorf("unsupported time scaler: %v", timeScaler)
+	}
+
+	if timeScaler != sutils.TMMonth {
+		for !runningTs.After(endEpoch) {
+			var alignedTs time.Time
+
+			switch timeScaler {
+			case sutils.TMSecond:
+				alignedTs = time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(),
+					runningTs.Hour(), runningTs.Minute(), runningTs.Second(), 0, runningTs.Location())
+			case sutils.TMMinute:
+				alignedTs = time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(),
+					runningTs.Hour(), runningTs.Minute(), 0, 0, runningTs.Location())
+			case sutils.TMHour:
+				alignedTs = time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(),
+					runningTs.Hour(), 0, 0, 0, runningTs.Location())
+			case sutils.TMDay:
+				alignedTs = time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(),
+					0, 0, 0, 0, runningTs.Location())
+			default:
+				return fmt.Errorf("unsupported time scaler: %v", timeScaler)
+			}
+
+			bucketInterval := strconv.FormatInt(alignedTs.UnixMilli(), 10)
+
+			groupByVal := []string{bucketInterval}
+			mFunction := map[string]interface{}{complete.MeasureFunctions[0]: 0}
+
+			resultMap[bucketInterval] = &structs.BucketHolder{
+				GroupByValues: groupByVal,
+				MeasureVal:    mFunction,
+			}
+			runningTs = runningTs.Add(duration)
+		}
+
+	} else {
+		runningTs = time.Date(runningTs.Year(), runningTs.Month(), 1, 0, 0, 0, 0, runningTs.Location())
+		for !runningTs.After(endEpoch) {
+			bucketInterval := strconv.FormatInt(runningTs.UnixMilli(), 10)
+			groupByVal := []string{bucketInterval}
+			mFunction := map[string]interface{}{complete.MeasureFunctions[0]: 0}
+
+			resultMap[bucketInterval] = &structs.BucketHolder{
+				GroupByValues: groupByVal,
+				MeasureVal:    mFunction,
+			}
+			runningTs = time.Date(runningTs.Year(), time.Month(int(runningTs.Month())+int(interval)), 1, 0, 0, 0, 0, runningTs.Location())
+		}
+
+	}
+
+	var bucketInterval string
+	for _, bucket := range complete.MeasureResults {
+		millisStr := bucket.GroupByValues[0]
+		millisInt, err := strconv.ParseInt(millisStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse bucket groupBy timestamp '%s': %w", millisStr, err)
+		}
+		timestamp := time.UnixMilli(millisInt)
+
+		switch timeScaler {
+		case sutils.TMSecond:
+			startOfSecond := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), timestamp.Hour(), timestamp.Minute(), timestamp.Second(), 0, timestamp.Location())
+			bucketInterval = strconv.FormatInt(startOfSecond.UnixMilli(), 10)
+
+		case sutils.TMMinute:
+			startOfMinute := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), timestamp.Hour(), timestamp.Minute(), 0, 0, timestamp.Location())
+			bucketInterval = strconv.FormatInt(startOfMinute.UnixMilli(), 10)
+
+		case sutils.TMHour:
+			startOfHour := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), timestamp.Hour(), 0, 0, 0, timestamp.Location())
+			bucketInterval = strconv.FormatInt(startOfHour.UnixMilli(), 10)
+
+		case sutils.TMDay:
+			startOfDay := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), 0, 0, 0, 0, timestamp.Location())
+			bucketInterval = strconv.FormatInt(startOfDay.UnixMilli(), 10)
+
+		case sutils.TMMonth:
+			startOfMonth := time.Date(timestamp.Year(), timestamp.Month(), 1, 0, 0, 0, 0, timestamp.Location())
+			bucketInterval = strconv.FormatInt(startOfMonth.UnixMilli(), 10)
+
+		default:
+			return fmt.Errorf("unsupported time scaler while processing measure results: %v", timeScaler)
+		}
+
+		if _, ok := resultMap[bucketInterval]; !ok {
+			groupVal := []string{bucketInterval}
+			resultMap[bucketInterval] = &structs.BucketHolder{
+				GroupByValues: groupVal,
+			}
+		}
+		resultMap[bucketInterval] = bucket
+	}
+
+	complete.MeasureResults = complete.MeasureResults[:0]
+	for _, val := range resultMap {
+		complete.MeasureResults = append(complete.MeasureResults, val)
+	}
+	complete.BucketCount = len(complete.MeasureResults)
+	return nil
+
 }
 
 func listenToRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync bool, conn *websocket.Conn) (*query.RunningQueryState, uint64, error) {
