@@ -502,7 +502,7 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 
 			if isAsync {
 				if runTimechartQuery {
-					err = getFinalBuckets(queryStateData.CompleteWSResp.TimechartComplete, root.TimeRange)
+					err = populateMissingBuckets(queryStateData.CompleteWSResp.TimechartComplete, root.TimeRange)
 					if err != nil {
 						log.Errorf("RunQueryForNewPipeline: failed to get final buckets err: %v", err)
 						return nil, false, root.TimeRange, err
@@ -603,96 +603,121 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 	}
 }
 
-func getFinalBuckets(complete *structs.PipeSearchCompleteResponse, timeRange *dtu.TimeRange) error {
-
+// populateMissingBuckets fills missing buckets in the response based on the time range and span options.
+func populateMissingBuckets(completeResp *structs.PipeSearchCompleteResponse, timeRange *dtu.TimeRange) error {
 	spanOptions, err := structs.GetDefaultTimechartSpanOptions(timeRange.StartEpochMs, timeRange.EndEpochMs, 0)
 	if err != nil {
-		return fmt.Errorf("failed to get default timechart span options: %w", err)
+		return fmt.Errorf("failed to get span options: %w", err)
 	}
 
-	interval := spanOptions.SpanLength.Num
-	timeScaler := spanOptions.SpanLength.TimeScalr
+	duration, err := getDuration(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
+	if err != nil {
+		return fmt.Errorf("failed to get duration: %w", err)
+	}
 
-	resultMap := make(map[string]*structs.BucketHolder)
+	bucketHolderMap, err := initEmptyBuckets(completeResp, timeRange, duration, spanOptions.SpanLength.TimeScalr, spanOptions.SpanLength.Num)
+	if err != nil {
+		return fmt.Errorf("failed to initialize empty buckets: %w", err)
+	}
+
+	if err = populateBucketsWithExistingResults(completeResp, bucketHolderMap, spanOptions.SpanLength.TimeScalr); err != nil {
+		return fmt.Errorf("failed to populate buckets with existing results: %w", err)
+	}
+
+	completeResp.MeasureResults = completeResp.MeasureResults[:0]
+	for _, v := range bucketHolderMap {
+		completeResp.MeasureResults = append(completeResp.MeasureResults, v)
+	}
+	completeResp.BucketCount = len(completeResp.MeasureResults)
+	return nil
+}
+
+func getDuration(interval int, scaler sutils.TimeUnit) (time.Duration, error) {
+	switch scaler {
+	case sutils.TMSecond:
+		return time.Duration(interval) * time.Second, nil
+	case sutils.TMMinute:
+		return time.Duration(interval) * time.Minute, nil
+	case sutils.TMHour:
+		return time.Duration(interval) * time.Hour, nil
+	case sutils.TMDay:
+		return time.Duration(interval) * 24 * time.Hour, nil
+	case sutils.TMMonth:
+		// Month handled separately
+		return 0, nil
+	default:
+		return 0, fmt.Errorf("unsupported time scaler: %v", scaler)
+	}
+}
+
+func initEmptyBuckets(
+	completeResp *structs.PipeSearchCompleteResponse,
+	timeRange *dtu.TimeRange,
+	duration time.Duration,
+	timeScaler sutils.TimeUnit,
+	interval int,
+) (map[string]*structs.BucketHolder, error) {
+
 	runningTs := time.UnixMilli(int64(timeRange.StartEpochMs))
 	endEpoch := time.UnixMilli(int64(timeRange.EndEpochMs))
-
-	var duration time.Duration
-
-	switch timeScaler {
-	case sutils.TMSecond:
-		duration = time.Duration(interval) * time.Second
-	case sutils.TMMinute:
-		duration = time.Duration(interval) * time.Minute
-	case sutils.TMHour:
-		duration = time.Duration(interval) * time.Hour
-	case sutils.TMDay:
-		duration = time.Duration(interval) * 24 * time.Hour
-	case sutils.TMMonth:
-		// handled separately
-	default:
-		return fmt.Errorf("unsupported time scaler: %v", timeScaler)
-	}
+	bucketHolderMap := make(map[string]*structs.BucketHolder)
 
 	if timeScaler != sutils.TMMonth {
 		for !runningTs.After(endEpoch) {
-			var alignedTs time.Time
-
-			switch timeScaler {
-			case sutils.TMSecond:
-				alignedTs = time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(),
-					runningTs.Hour(), runningTs.Minute(), runningTs.Second(), 0, runningTs.Location())
-			case sutils.TMMinute:
-				alignedTs = time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(),
-					runningTs.Hour(), runningTs.Minute(), 0, 0, runningTs.Location())
-			case sutils.TMHour:
-				alignedTs = time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(),
-					runningTs.Hour(), 0, 0, 0, runningTs.Location())
-			case sutils.TMDay:
-				alignedTs = time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(),
-					0, 0, 0, 0, runningTs.Location())
-			default:
-				return fmt.Errorf("unsupported time scaler: %v", timeScaler)
+			alignedTs := alignToScalerStart(runningTs, timeScaler)
+			if alignedTs.IsZero() {
+				return nil, fmt.Errorf("unsupported time scaler: %v", timeScaler)
 			}
-
 			bucketInterval := strconv.FormatInt(alignedTs.UnixMilli(), 10)
-
-			groupByVal := []string{bucketInterval}
-			key := ""
-			if len(complete.MeasureFunctions) != 0 {
-				key = complete.MeasureFunctions[0]
-			}
-			mFunction := map[string]interface{}{key: 0}
-
-			resultMap[bucketInterval] = &structs.BucketHolder{
-				GroupByValues: groupByVal,
-				MeasureVal:    mFunction,
-			}
+			bucketHolderMap[bucketInterval] = createEmptyBucket(bucketInterval, completeResp)
 			runningTs = runningTs.Add(duration)
 		}
-
 	} else {
 		runningTs = time.Date(runningTs.Year(), runningTs.Month(), 1, 0, 0, 0, 0, runningTs.Location())
 		for !runningTs.After(endEpoch) {
 			bucketInterval := strconv.FormatInt(runningTs.UnixMilli(), 10)
-			groupByVal := []string{bucketInterval}
-			key := ""
-			if len(complete.MeasureFunctions) != 0 {
-				key = complete.MeasureFunctions[0]
-			}
-			mFunction := map[string]interface{}{key: 0}
-
-			resultMap[bucketInterval] = &structs.BucketHolder{
-				GroupByValues: groupByVal,
-				MeasureVal:    mFunction,
-			}
-			runningTs = time.Date(runningTs.Year(), time.Month(int(runningTs.Month())+int(interval)), 1, 0, 0, 0, 0, runningTs.Location())
+			bucketHolderMap[bucketInterval] = createEmptyBucket(bucketInterval, completeResp)
+			runningTs = time.Date(runningTs.Year(), time.Month(int(runningTs.Month())+interval), 1, 0, 0, 0, 0, runningTs.Location())
 		}
-
 	}
 
-	var bucketInterval string
-	for _, bucket := range complete.MeasureResults {
+	return bucketHolderMap, nil
+}
+
+func alignToScalerStart(ts time.Time, scaler sutils.TimeUnit) time.Time {
+	switch scaler {
+	case sutils.TMSecond:
+		return time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), 0, ts.Location())
+	case sutils.TMMinute:
+		return time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), 0, 0, ts.Location())
+	case sutils.TMHour:
+		return time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), 0, 0, 0, ts.Location())
+	case sutils.TMDay:
+		return time.Date(ts.Year(), ts.Month(), ts.Day(), 0, 0, 0, 0, ts.Location())
+	case sutils.TMMonth:
+		return time.Date(ts.Year(), ts.Month(), 1, 0, 0, 0, 0, ts.Location())
+	default:
+		return time.Time{}
+	}
+}
+
+func createEmptyBucket(intervalStr string, completeResp *structs.PipeSearchCompleteResponse) *structs.BucketHolder {
+	key := ""
+	if len(completeResp.MeasureFunctions) > 0 {
+		key = completeResp.MeasureFunctions[0]
+	}
+	return &structs.BucketHolder{
+		GroupByValues: []string{intervalStr},
+		MeasureVal:    map[string]interface{}{key: 0},
+	}
+}
+
+func populateBucketsWithExistingResults(
+	completeResp *structs.PipeSearchCompleteResponse,
+	bucketHolderMap map[string]*structs.BucketHolder,
+	timeScaler sutils.TimeUnit,
+) error {
+	for _, bucket := range completeResp.MeasureResults {
 		if bucket.GroupByValues == nil || len(bucket.GroupByValues) == 0 {
 			return fmt.Errorf("bucket.GroupByValues is empty, cannot extract timestamp")
 		}
@@ -701,49 +726,13 @@ func getFinalBuckets(complete *structs.PipeSearchCompleteResponse, timeRange *dt
 		if err != nil {
 			return fmt.Errorf("failed to parse bucket groupBy timestamp '%s': %w", millisStr, err)
 		}
-		timestamp := time.UnixMilli(millisInt)
 
-		switch timeScaler {
-		case sutils.TMSecond:
-			startOfSecond := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), timestamp.Hour(), timestamp.Minute(), timestamp.Second(), 0, timestamp.Location())
-			bucketInterval = strconv.FormatInt(startOfSecond.UnixMilli(), 10)
+		aligned := alignToScalerStart(time.UnixMilli(millisInt), timeScaler)
+		bucketInterval := strconv.FormatInt(aligned.UnixMilli(), 10)
 
-		case sutils.TMMinute:
-			startOfMinute := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), timestamp.Hour(), timestamp.Minute(), 0, 0, timestamp.Location())
-			bucketInterval = strconv.FormatInt(startOfMinute.UnixMilli(), 10)
-
-		case sutils.TMHour:
-			startOfHour := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), timestamp.Hour(), 0, 0, 0, timestamp.Location())
-			bucketInterval = strconv.FormatInt(startOfHour.UnixMilli(), 10)
-
-		case sutils.TMDay:
-			startOfDay := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), 0, 0, 0, 0, timestamp.Location())
-			bucketInterval = strconv.FormatInt(startOfDay.UnixMilli(), 10)
-
-		case sutils.TMMonth:
-			startOfMonth := time.Date(timestamp.Year(), timestamp.Month(), 1, 0, 0, 0, 0, timestamp.Location())
-			bucketInterval = strconv.FormatInt(startOfMonth.UnixMilli(), 10)
-
-		default:
-			return fmt.Errorf("unsupported time scaler while processing measure results: %v", timeScaler)
-		}
-
-		if _, ok := resultMap[bucketInterval]; !ok {
-			groupVal := []string{bucketInterval}
-			resultMap[bucketInterval] = &structs.BucketHolder{
-				GroupByValues: groupVal,
-			}
-		}
-		resultMap[bucketInterval] = bucket
+		bucketHolderMap[bucketInterval] = bucket
 	}
-
-	complete.MeasureResults = complete.MeasureResults[:0]
-	for _, val := range resultMap {
-		complete.MeasureResults = append(complete.MeasureResults, val)
-	}
-	complete.BucketCount = len(complete.MeasureResults)
 	return nil
-
 }
 
 func listenToRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync bool, conn *websocket.Conn) (*query.RunningQueryState, uint64, error) {
