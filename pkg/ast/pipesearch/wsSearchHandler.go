@@ -88,7 +88,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls, runTimechart := ParseSearchBody(event, nowTs)
-
+	limit := sizeLimit
 	if scrollFrom > 10_000 {
 		processMaxScrollComplete(conn, qid)
 		return
@@ -167,7 +167,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	qc.RawQuery = searchText
 	qc.IncludeNulls = includeNulls
 
-	RunAsyncQueryForNewPipeline(conn, qid, simpleNode, aggs, timechartSimpleNode, timechartAggs, qc, sizeLimit, scrollFrom)
+	RunAsyncQueryForNewPipeline(conn, qid, simpleNode, aggs, timechartSimpleNode, timechartAggs, qc, limit, scrollFrom)
 
 }
 
@@ -195,7 +195,7 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 		websocketR <- map[string]interface{}{"state": "exit"}
 	}()
 
-	_, _, _, err := RunQueryForNewPipeline(conn, qid, simpleNode, aggs, timechartSimpleNode, timechartAggs, qc)
+	_, _, _, err := RunQueryForNewPipeline(conn, qid, simpleNode, aggs, timechartSimpleNode, timechartAggs, qc, sizeLimit)
 	if err != nil {
 		log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to execute query, err: %v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))

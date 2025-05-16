@@ -534,8 +534,8 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 }
 
 func ExecuteQueryInternalNewPipeline(qid uint64, isAsync bool, root *structs.ASTNode, aggs *structs.QueryAggregators,
-	qc *structs.QueryContext, rQuery *query.RunningQueryState) {
-	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, qc.Scroll)
+	qc *structs.QueryContext, rQuery *query.RunningQueryState, sizeLimit uint64) {
+	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, qc.Scroll, sizeLimit)
 	if err != nil {
 		log.Errorf("qid=%v, ExecuteQueryInternalNewPipeline: failed to SetupPipeResQuery, err: %v", qid, err)
 
@@ -588,13 +588,13 @@ func ExecuteQueryInternalNewPipeline(qid uint64, isAsync bool, root *structs.AST
 	}
 }
 
-func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int) (*processor.QueryProcessor, error) {
+func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int, sizeLimit uint64) (*processor.QueryProcessor, error) {
 	startTime, querySummary, queryInfo, _, _, _, _, _, _, err := query.PrepareToRunQuery(root, root.TimeRange, aggs, qid, qc)
 	if err != nil {
 		return nil, utils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to prepare to run query, err: %v", qid, err)
 	}
 
-	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom, qc.IncludeNulls, *startTime, true)
+	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom, qc.IncludeNulls, *startTime, true, sizeLimit)
 	if err != nil {
 		querySummary.Cleanup()
 		return nil, utils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
