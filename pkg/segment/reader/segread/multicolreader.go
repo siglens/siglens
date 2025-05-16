@@ -37,6 +37,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var UninitializedTimeReaderErr = errors.New("uninitialized time reader")
+
 /*
 Defines holder struct and functions to construct & manage SegmentFileReaders
 across multiple columns
@@ -289,7 +291,7 @@ func (scr *SharedMultiColReaders) GetColumnsErrorsMap() map[string]error {
 
 func (mcsr *MultiColSegmentReader) GetTimeStampForRecord(blockNum uint16, recordNum uint16, qid uint64) (uint64, error) {
 	if mcsr.timeReader == nil {
-		return 0, fmt.Errorf("qid=%v, MultiColSegmentReader.GetTimeStampForRecord: Tried to get timestamp using a multi reader without an initialized timeReader, blockNum: %v recordNum: %v", qid, blockNum, recordNum)
+		return 0, UninitializedTimeReaderErr
 	}
 	return mcsr.timeReader.GetTimeStampForRecord(blockNum, recordNum, qid)
 }
