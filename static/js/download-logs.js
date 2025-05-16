@@ -389,17 +389,11 @@ function setDownloadLogsDialog() {
             },
         },
         open: function () {
-            if (curChoose === '.csv') {
-                $('#format').val('CSV');
-            } else if (curChoose === '.json') {
-                $('#format').val('JSON');
-            } else if (curChoose === '.xml') {
-                $('#format').val('XML');
-            } else if (curChoose === '.sql') {
-                $('#format').val('SQL');
-            }
+            $('#format').val(curChoose.replace('.', '').toUpperCase());
 
-            if (lastQType === 'logs-query') {
+            $('#currentScope').prop('checked', true);
+
+            if (lastQType === 'logs-query' && totalLoadedRecords >= 100) {
                 $('.scope-selection').show();
                 $('#current-record-count').html(totalLoadedRecords);
             } else {
