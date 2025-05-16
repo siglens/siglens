@@ -18,7 +18,6 @@
 package segread
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -113,9 +112,11 @@ func (str *AgileTreeReader) Close() error {
 	return nil
 }
 
+var ErrReturnBufferToPool = fmt.Errorf("failed to return buffer to pool")
+
 func (str *AgileTreeReader) returnBuffers() {
 	if err := segreader.PutBufToPool(str.metaFileBuffer); str.metaFileBuffer != nil && err != nil {
-		log.Errorf("AgileTreeReader.returnBuffers: Error putting buffer back to pool, err: %v", err)
+		log.Error(ErrReturnBufferToPool)
 	}
 }
 
@@ -124,16 +125,16 @@ func (str *AgileTreeReader) resetBlkVars() {
 	str.isMetaLoaded = false
 }
 
+var ErrLegacyEncoding = fmt.Errorf("legacy encoding")
+
 func validateTreeEncodingVersion(version byte) error {
 	switch version {
 	case sutils.VERSION_STAR_TREE_BLOCK[0]:
 		// do nothing, this is the expected encoding
 	case sutils.VERSION_STAR_TREE_BLOCK_LEGACY[0]:
-		log.Warnf("AgileTreeReader.ReadTreeMeta: received a legacy encoding type for agileTree: %v", version)
-		return errors.New("received legacy agileTree encoding")
+		return ErrLegacyEncoding
 	default:
-		log.Errorf("AgileTreeReader.ReadTreeMeta: received an unknown encoding type for agileTree: %v", version)
-		return errors.New("received non-agileTree encoding")
+		return ErrBadEncoding
 	}
 
 	return nil

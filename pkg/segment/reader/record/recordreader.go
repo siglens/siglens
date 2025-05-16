@@ -51,6 +51,8 @@ func (reader *RRCsReader) GetReaderId() sutils.T_SegReaderId {
 	return sutils.T_SegReaderId(0)
 }
 
+var ErrDownload = fmt.Errorf("failed to download file")
+
 func (reader *RRCsReader) ReadSegFilesFromBlob(segKey string, allCols map[string]struct{}) ([]string, error) {
 	bulkDownloadFiles := make(map[string]string)
 	allFiles := make([]string, 0)
@@ -64,31 +66,33 @@ func (reader *RRCsReader) ReadSegFilesFromBlob(segKey string, allCols map[string
 
 	err := blob.BulkDownloadSegmentBlob(bulkDownloadFiles, true)
 	if err != nil {
-		return nil, fmt.Errorf("readSegFilesFromBlob: failed to download col file. err=%v", err)
+		return nil, ErrDownload
 	}
 
 	return allFiles, nil
 }
+
+var ErrReadFromBlob = fmt.Errorf("failed to read file from blob")
+var ErrSetNotInUse = fmt.Errorf("failed to set file as not in use")
+var ErrReadColumn = fmt.Errorf("failed to read column from file")
 
 func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*sutils.RecordResultContainer,
 	qid uint64, ignoredCols map[string]struct{}) (map[string][]sutils.CValueEnclosure, error) {
 
 	allCols, err := reader.GetColsForSegKey(segKey, vTable)
 	if err != nil {
-		log.Errorf("qid=%v, ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v",
-			qid, segKey, err)
 		return nil, err
 	}
 
 	allFiles, err := reader.ReadSegFilesFromBlob(segKey, allCols)
 	if err != nil {
-		return nil, utils.TeeErrorf("qid=%d, ReadAllColsForRRCs: failed to read seg files from blob; err=%w", qid, err)
+		return nil, ErrReadFromBlob
 	}
 
 	defer func() {
 		err := blob.SetSegSetFilesAsNotInUse(allFiles)
 		if err != nil {
-			log.Errorf("qid=%d, ReadAllColsForRRCs: failed to set segset files as not in use. err=%v", qid, err)
+			log.Error(ErrSetNotInUse)
 		}
 	}()
 
@@ -103,8 +107,7 @@ func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs 
 		}
 		columnValues, err := reader.ReadColForRRCs(segKey, rrcs, cname, qid, false)
 		if err != nil {
-			log.Errorf("qid=%v, ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v",
-				qid, cname, segKey, err)
+			log.Error(ErrReadColumn)
 			return err
 		}
 
@@ -118,13 +121,15 @@ func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs 
 	return colToValues, err
 }
 
+var ErrMetadataMissingSegKey = fmt.Errorf("globalMetadata does not have segKey")
+
 func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
 	allCols := make(map[string]struct{})
 	exists := writer.CheckAndCollectColNamesForSegKey(segKey, allCols)
 	if !exists {
 		exists = segmetadata.CheckAndCollectColNamesForSegKey(segKey, allCols)
 		if !exists {
-			return nil, utils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
+			return nil, ErrMetadataMissingSegKey
 		}
 	}
 	allCols[config.GetTimeStampKey()] = struct{}{}
@@ -167,6 +172,11 @@ func readIndexForRRCs(rrcs []*sutils.RecordResultContainer) ([]sutils.CValueEncl
 	return result, nil
 }
 
+var ErrGetBlockSummary = fmt.Errorf("failed to get block summary")
+var ErrGetBlockSearchInfo = fmt.Errorf("failed to get block search info")
+var ErrGetNodeResult = fmt.Errorf("failed to get or create query search node result")
+var ErrInitSharedReaders = fmt.Errorf("failed to initialize shared readers")
+
 // All the RRCs must belong to the same segment.
 func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContainer,
 	cname string, qid uint64, fetchFromBlob bool) ([]sutils.CValueEnclosure, error) {
@@ -177,7 +187,6 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContain
 
 	err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(1, 10, "readUserDefinedColForRRCs")
 	if err != nil {
-		log.Errorf("qid=%v, readUserDefinedColForRRCs failed to get lock for opening 1 file; err=%v", qid, err)
 		return nil, err
 	}
 	defer fileutils.GLOBAL_FD_LIMITER.Release(1)
@@ -193,13 +202,13 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContain
 
 		blockSummary, err = writer.GetBlockSummaryForKey(segKey)
 		if err != nil {
-			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block summary for segKey %s; err=%v", qid, segKey, err)
+			log.Error(ErrGetBlockSummary)
 			return nil, err
 		}
 	} else {
 		_, blockSummary, err = segmetadata.GetSearchInfoAndSummary(segKey)
 		if err != nil {
-			log.Errorf("getRecordsFromSegmentHelper: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
+			log.Error(ErrGetBlockSearchInfo)
 			return nil, err
 		}
 	}
@@ -207,7 +216,7 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContain
 	nodeRes, err := query.GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
 		// This should not happen, unless qid is deleted.
-		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get or create query search node result; err=%v", qid, err)
+		log.Error(ErrGetNodeResult)
 		nodeRes = &structs.NodeResult{}
 	}
 
@@ -227,7 +236,7 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContain
 		sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, map[string]bool{cname: fetchFromBlob},
 			allBlocksToSearch, blockSummary, 1, consistentCValLen, qid, nodeRes)
 		if err != nil {
-			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to initialize shared readers for segkey %v; err=%v", qid, segKey, err)
+			log.Error(ErrInitSharedReaders)
 			return nil, err
 		}
 		defer sharedReader.Close()
@@ -247,6 +256,10 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContain
 	return enclosures, nil
 }
 
+var ErrReadColumns = fmt.Errorf("failed to read columns for records")
+var ErrNotOneColumn = fmt.Errorf("didn't get exactly one column")
+var ErrShouldNotReach = fmt.Errorf("should not reach here")
+
 func handleBlock(multiReader *segread.MultiColSegmentReader, blockNum uint16,
 	rrcs []*sutils.RecordResultContainer, qid uint64) ([]sutils.CValueEnclosure, error) {
 
@@ -261,18 +274,18 @@ func handleBlock(multiReader *segread.MultiColSegmentReader, blockNum uint16,
 
 		colToValues, err := readColsForRecords(multiReader, blockNum, allRecNums, qid)
 		if err != nil {
-			return nil, fmt.Errorf("handleBlock: failed to read columns for records; err=%v", err)
+			return nil, ErrReadColumns
 		}
 
 		if len(colToValues) != 1 {
-			return nil, fmt.Errorf("handleBlock: expected 1 column, got %v", len(colToValues))
+			return nil, ErrNotOneColumn
 		}
 
 		for _, values := range colToValues {
 			return values, nil
 		}
 
-		return nil, fmt.Errorf("handleBlock: should not reach here")
+		return nil, ErrShouldNotReach
 	}
 
 	return utils.SortThenProcessThenUnsort(rrcs, sortFunc, operation)
@@ -334,6 +347,10 @@ func isDictCol(col string, esQuery bool) bool {
 	return false
 }
 
+var ErrReadBlock = fmt.Errorf("failed to read and validate block")
+var ErrExtractValue = fmt.Errorf("failed to extract value from column")
+var ErrEvaluateMathOp = fmt.Errorf("failed to evaluate math operation")
+
 // TODO: remove calls to this function so that only readColsForRecords calls
 // this function. Then remove the parameters that are not needed.
 func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segread.MultiColSegmentReader,
@@ -386,8 +403,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 
 	err := segReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
 	if err != nil {
-		return fmt.Errorf("qid=%d, readAllRawRecords: failed to validate and read block, err: %v",
-			qid, err)
+		return ErrReadBlock
 	}
 
 	var isTsCol bool
@@ -408,6 +424,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 				qid, isTsCol, &cValEnc)
 			if err != nil {
 				nodeRes.StoreGlobalSearchError(fmt.Sprintf("readAllRawRecords: Failed to extract value for column %v", cname), log.ErrorLevel, err)
+				nodeRes.StoreGlobalSearchError(ErrExtractValue.Error(), log.ErrorLevel, err)
 			} else {
 
 				if mathColOpsPresent {
@@ -418,7 +435,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 						fieldToValue[mathOp.MathCol] = cValEnc
 						valueFloat, err := mathOp.ValueColRequest.EvaluateToFloat(fieldToValue)
 						if err != nil {
-							return fmt.Errorf("qid=%d, failed to evaluate math operation for col %s, err=%v", qid, cname, err)
+							return ErrEvaluateMathOp
 						} else {
 							cValEnc.CVal = valueFloat
 						}
