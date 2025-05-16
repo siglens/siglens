@@ -533,74 +533,6 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 	return res
 }
 
-func ExecuteQueryForNewPipeline(qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
-	qc *structs.QueryContext, forceRun bool) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
-
-	rQuery, err := query.StartQueryAsCoordinator(qid, false, nil, root, aggs, qc, nil, forceRun)
-	if err != nil {
-		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to start query, err: %v", qid, err)
-		return nil, false, nil, err
-	}
-
-	scrollFrom := qc.Scroll
-
-	signal := <-rQuery.StateChan
-	if signal.StateName != query.READY {
-		return nil, false, nil, utils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: Did not receive ready state, received: %v", qid, signal.StateName)
-	}
-
-	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, scrollFrom)
-	if err != nil {
-		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to SetupPipeResQuery, err: %v", qid, err)
-		return nil, false, nil, err
-	}
-
-	httpResponse, err := queryProcessor.GetFullResult()
-	if err != nil {
-		return nil, false, nil, utils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
-	}
-
-	query.SetQidAsFinishedForPipeRespQuery(qid)
-
-	query.DeleteQuery(qid)
-
-	return httpResponse, false, root.TimeRange, nil
-}
-
-func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext,
-	scrollFrom int, queryStateChan chan *query.QueryStateChanData, forceRun bool) (chan *query.QueryStateChanData, error) {
-	rQuery, err := query.StartQueryAsCoordinator(qid, true, nil, root, aggs, qc, queryStateChan, forceRun)
-	if err != nil {
-		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to start query, err: %v", qid, err)
-		return nil, err
-	}
-
-	signal := <-rQuery.StateChan
-	if signal.StateName != query.READY {
-		return nil, utils.TeeErrorf("qid=%v, ExecuteAsyncQueryForNewPipeline: Did not receive ready state, received: %v", qid, signal.StateName)
-	}
-
-	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, scrollFrom)
-	if err != nil {
-		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to SetupPipeResQuery, err: %v", qid, err)
-		return nil, err
-	}
-
-	go func() {
-		err = queryProcessor.GetStreamedResult(rQuery.StateChan)
-		if err != nil {
-			log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to GetStreamedResult, err: %v", qid, err)
-
-			errorState := query.QueryStateChanData{
-				StateName: query.ERROR,
-				Error:     err,
-			}
-			rQuery.StateChan <- &errorState
-		}
-	}()
-	return rQuery.StateChan, nil
-}
-
 func ExecuteQueryInternalNewPipeline(qid uint64, isAsync bool, root *structs.ASTNode, aggs *structs.QueryAggregators,
 	qc *structs.QueryContext, rQuery *query.RunningQueryState) {
 	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, qc.Scroll)
@@ -654,25 +586,6 @@ func ExecuteQueryInternalNewPipeline(qid uint64, isAsync bool, root *structs.AST
 
 		return
 	}
-}
-
-// The caller of this function is responsible for calling query.DeleteQuery(qid) to remove the qid info from memory.
-// Returns a channel that will have events for query status or any error. An error means the query was not successfully started
-func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (chan *query.QueryStateChanData, error) {
-	rQuery, err := query.StartQuery(qid, true, nil, false)
-	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
-		return nil, err
-	}
-	signal := <-rQuery.StateChan
-	if signal.StateName != query.READY {
-		return nil, utils.TeeErrorf("qid=%v, ExecuteAsyncQueryForNewPipeline: Did not receive ready state, received: %v", qid, signal.StateName)
-	}
-
-	go func() {
-		_ = executeQueryInternal(root, aggs, qid, qc, rQuery)
-	}()
-	return rQuery.StateChan, nil
 }
 
 func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int) (*processor.QueryProcessor, error) {

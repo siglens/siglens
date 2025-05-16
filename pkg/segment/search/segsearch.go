@@ -214,20 +214,8 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 	querySummary.UpdateSummary(summary.RAW, timeElapsed, queryMetrics)
 
 	if pqid, ok := shouldBackFillPQMR(searchNode, searchReq, qid, timeRange); ok {
-		if config.IsNewQueryPipelineEnabled() {
-			go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
-		} else {
-			if finalMatched == 0 {
-				go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey)
-			} else {
-				go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
-			}
-		}
+		go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
 	}
-}
-
-func writeEmptyPqmetaFilesWrapper(pqid string, segKey string) {
-	writer.AddToBackFillAndEmptyPQSChan(segKey, pqid, true)
 }
 
 func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.SegmentSearchRequest,
@@ -409,7 +397,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 
 		isBlkFullyEncosed := tRange.AreTimesFullyEnclosed(blkSum.LowTs, blkSum.HighTs)
-		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blkSum.LowTs, blkSum.HighTs, false) {
+		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blkSum.LowTs, blkSum.HighTs) {
 
 			var recordNums []uint16
 			if req.BlockToValidRecNums != nil {
@@ -437,40 +425,20 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 						pqmr.ClearBit(uint(recNum))
 						continue
 					}
-					if config.IsNewQueryPipelineEnabled() {
-						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, recNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
-						if !invalidCol {
-							rrc := &sutils.RecordResultContainer{
-								SegKeyInfo: sutils.SegKeyInfo{
-									SegKeyEnc: segKeyEnc,
-									IsRemote:  false,
-								},
-								BlockNum:         blockNum,
-								RecordNum:        recNum,
-								SortColumnValue:  sortVal,
-								VirtualTableName: req.VirtualTableName,
-								TimeStamp:        recTs,
-							}
-							blkResults.Add(rrc)
+					sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, recNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
+					if !invalidCol {
+						rrc := &sutils.RecordResultContainer{
+							SegKeyInfo: sutils.SegKeyInfo{
+								SegKeyEnc: segKeyEnc,
+								IsRemote:  false,
+							},
+							BlockNum:         blockNum,
+							RecordNum:        recNum,
+							SortColumnValue:  sortVal,
+							VirtualTableName: req.VirtualTableName,
+							TimeStamp:        recTs,
 						}
-					} else {
-						if blkResults.ShouldAddMore() {
-							sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, recNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
-							if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
-								rrc := &sutils.RecordResultContainer{
-									SegKeyInfo: sutils.SegKeyInfo{
-										SegKeyEnc: segKeyEnc,
-										IsRemote:  false,
-									},
-									BlockNum:         blockNum,
-									RecordNum:        recNum,
-									SortColumnValue:  sortVal,
-									VirtualTableName: req.VirtualTableName,
-									TimeStamp:        recTs,
-								}
-								blkResults.Add(rrc)
-							}
-						}
+						blkResults.Add(rrc)
 					}
 				}
 			}

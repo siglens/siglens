@@ -154,6 +154,14 @@ function updatePaginationDisplay() {
         if (totalPages > 1) paginationHTML += createPageButton(totalPages);
     }
 
+    let totalDisplay;
+    if (hasMoreRecords) {
+        const roundedTotal = Math.ceil(totalLoadedRecords / 100) * 100;
+        totalDisplay = `${roundedTotal.toLocaleString()}+ records`;
+    } else {
+        totalDisplay = `${totalLoadedRecords.toLocaleString()} records`;
+    }
+
     paginationHTML += `</div>
         <button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">
             <i class="fa fa-angle-right"></i>
@@ -162,7 +170,7 @@ function updatePaginationDisplay() {
             <i class="fa fa-angle-double-right"></i>
         </button>
         <span class="pagination-info">
-            Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${totalLoadedRecords.toLocaleString()} records
+            Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${totalDisplay}
         </span>`;
 
     pagesContainer.innerHTML = paginationHTML;

@@ -140,10 +140,14 @@ function initDropdowns() {
 }
 
 async function fetchColumnValues(column, serviceFilter = null) {
-    let searchText = `SELECT DISTINCT \`${column}\` FROM \`traces\``;
+    let searchText;
 
     if (column === 'name' && serviceFilter && serviceFilter !== 'All') {
-        searchText += ` WHERE service='${serviceFilter}'`;
+        // Get operations for a specific service
+        searchText = `service=${JSON.stringify(serviceFilter)} | dedup name | fields name`;
+    } else {
+        // Get all unique values for the column
+        searchText = `* | dedup ${column} | fields ${column}`;
     }
 
     try {
@@ -162,7 +166,7 @@ async function fetchColumnValues(column, serviceFilter = null) {
                 startEpoch: filterStartDate || 'now-1h',
                 endEpoch: filterEndDate || 'now',
                 indexName: 'traces',
-                queryLanguage: 'SQL',
+                queryLanguage: 'Splunk QL',
                 from: 0,
             }),
         });
@@ -701,7 +705,7 @@ function setLoading(loading) {
     isLoading = loading;
     $('body').css('cursor', loading ? 'progress' : 'default');
     $('#search-trace-btn').prop('disabled', loading).toggleClass('disabled', loading);
-    
+
     if (loading) {
         if ($('#scroll-loader').length === 0) {
             $('#warn-bottom').after('<div id="scroll-loader" class="text-center py-3"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div> Loading traces...</div>');
