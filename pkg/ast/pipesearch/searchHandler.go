@@ -609,10 +609,12 @@ func populateMissingBuckets(completeResp *structs.PipeSearchCompleteResponse, ti
 	if err != nil {
 		return fmt.Errorf("failed to get span options: %w", err)
 	}
-
-	duration, err := getDuration(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
-	if err != nil {
-		return fmt.Errorf("failed to get duration: %w", err)
+	var duration time.Duration = 0
+	if spanOptions.SpanLength.TimeScalr != sutils.TMMonth {
+		duration, err = getDuration(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
+		if err != nil {
+			return fmt.Errorf("failed to get duration: %w", err)
+		}
 	}
 
 	bucketHolderMap, err := initEmptyBuckets(completeResp, timeRange, duration, spanOptions.SpanLength.TimeScalr, spanOptions.SpanLength.Num)
@@ -642,9 +644,6 @@ func getDuration(interval int, scaler sutils.TimeUnit) (time.Duration, error) {
 		return time.Duration(interval) * time.Hour, nil
 	case sutils.TMDay:
 		return time.Duration(interval) * 24 * time.Hour, nil
-	case sutils.TMMonth:
-		// Month handled separately
-		return 0, nil
 	default:
 		return 0, fmt.Errorf("unsupported time scaler: %v", scaler)
 	}
@@ -662,7 +661,18 @@ func initEmptyBuckets(
 	endEpoch := time.UnixMilli(int64(timeRange.EndEpochMs))
 	bucketHolderMap := make(map[string]*structs.BucketHolder)
 
-	if timeScaler != sutils.TMMonth {
+	// For TMMonth, we cannot use fixed durations like time.Duration because months have variable lengths (28–31 days).
+	// Instead, we generate buckets by incrementing the month by interval,
+	if timeScaler == sutils.TMMonth {
+		runningTs = time.Date(runningTs.Year(), runningTs.Month(), 1, 0, 0, 0, 0, runningTs.Location())
+		for !runningTs.After(endEpoch) {
+			bucketInterval := strconv.FormatInt(runningTs.UnixMilli(), 10)
+			bucketHolderMap[bucketInterval] = createEmptyBucket(bucketInterval, completeResp)
+			runningTs = time.Date(runningTs.Year(), time.Month(int(runningTs.Month())+interval), 1, 0, 0, 0, 0, runningTs.Location())
+		}
+	} else {
+		// For all other time scalers (seconds, minutes, hours, days),
+		// we can use a fixed duration to increment time safely.
 		for !runningTs.After(endEpoch) {
 			alignedTs := alignToScalerStart(runningTs, timeScaler)
 			if alignedTs.IsZero() {
@@ -671,13 +681,6 @@ func initEmptyBuckets(
 			bucketInterval := strconv.FormatInt(alignedTs.UnixMilli(), 10)
 			bucketHolderMap[bucketInterval] = createEmptyBucket(bucketInterval, completeResp)
 			runningTs = runningTs.Add(duration)
-		}
-	} else {
-		runningTs = time.Date(runningTs.Year(), runningTs.Month(), 1, 0, 0, 0, 0, runningTs.Location())
-		for !runningTs.After(endEpoch) {
-			bucketInterval := strconv.FormatInt(runningTs.UnixMilli(), 10)
-			bucketHolderMap[bucketInterval] = createEmptyBucket(bucketInterval, completeResp)
-			runningTs = time.Date(runningTs.Year(), time.Month(int(runningTs.Month())+interval), 1, 0, 0, 0, 0, runningTs.Location())
 		}
 	}
 
