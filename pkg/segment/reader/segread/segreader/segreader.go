@@ -344,23 +344,22 @@ var ErrBadEncoding = fmt.Errorf("bad encoding type")
 // other blocks
 func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error) {
 	if sfr == nil {
-		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: SegmentFileReader is nil")
+		return false, ErrNilParam
 	}
 
 	blockMeta, blockExists := sfr.allBmi.AllBmh[blockNum]
 	if !blockExists {
-		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v does not exist", blockNum)
+		return true, ErrBlockNotFound
 	}
 
 	if blockMeta == nil {
-		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v is nil", blockNum)
+		return false, ErrBlockNil
 	}
 
 	cnameIdx := sfr.allBmi.CnameDict[sfr.ColName]
 
 	if cnameIdx >= len(blockMeta.ColBlockOffAndLen) {
-		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: blkNum: %v, cname: %v, cnameIdx: %v was higher than len(blockMeta.ColBlockOffAndLen): %v",
-			blockNum, sfr.ColName, cnameIdx, len(blockMeta.ColBlockOffAndLen))
+		return false, ErrInvalidMetadata
 	}
 
 	cOffAndLen := blockMeta.ColBlockOffAndLen[cnameIdx]
@@ -373,7 +372,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		sfr.currRawBlockBuffer = GetBufFromPool(int64(COMPRESSION_FACTOR * cOffAndLen.Length))
 	} else if len(sfr.currRawBlockBuffer) < COMPRESSION_FACTOR*int(cOffAndLen.Length) {
 		if err := PutBufToPool(sfr.currRawBlockBuffer); sfr.currRawBlockBuffer != nil && err != nil {
-			log.Errorf("loadBlockUsingBuffer: Error putting raw block buffer back to pool, err: %v", err)
+			log.Error(ErrReturnBufferToPool)
 		}
 		sfr.currRawBlockBuffer = GetBufFromPool(int64(COMPRESSION_FACTOR * cOffAndLen.Length))
 	}
@@ -382,7 +381,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		sfr.currFileBuffer = GetBufFromPool(int64(cOffAndLen.Length))
 	} else if len(sfr.currFileBuffer) < int(cOffAndLen.Length) {
 		if err := PutBufToPool(sfr.currFileBuffer); sfr.currFileBuffer != nil && err != nil {
-			log.Errorf("loadBlockUsingBuffer: Error putting file buffer back to pool, err: %v", err)
+			log.Error(ErrReturnBufferToPool)
 		}
 		sfr.currFileBuffer = GetBufFromPool(int64(cOffAndLen.Length))
 	}
@@ -390,7 +389,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	checksumFile := utils.ChecksumFile{Fd: sfr.currFD}
 	_, err := checksumFile.ReadAt(sfr.currFileBuffer[:cOffAndLen.Length], cOffAndLen.Offset)
 	if err != nil {
-		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: read file error at offset: %v, err: %+v", cOffAndLen.Offset, err)
+		return true, ErrReadFile
 	}
 	oPtr := uint32(0)
 	sfr.encType = sfr.currFileBuffer[oPtr]
