@@ -656,6 +656,18 @@
     font-weight: bold;
 }
 
+.warning-alert {
+    display: flex;
+    align-items: flex-start;
+    margin-top: 12px;
+    padding: 12px 16px;
+    background-color: #fffbeb;
+    border: 1px solid #fef3c7;
+    border-left: 2px solid #f59e0b;
+    border-radius: 0 5px 5px 0;
+    color: #92400e;
+}
+
 /* Upper Navbar Tabs */
 .section-buttons {
     display: flex;

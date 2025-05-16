@@ -85,6 +85,14 @@ function setDownloadLogsDialog() {
         </div>
     `);
 
+    $('#download-info').find('.scope-selection').append(`
+        <div id="all-records-warning" class="warning-alert" style="display:none;">
+            <i class="fas fa-exclamation-triangle" style="margin-right: 8px; color: #ffc107; font-size:16px;"></i>
+            <span>Warning: Downloading all records may take longer and consume more resources.</span>
+        </div>
+    `);
+
+
     let dialog = null;
     let form = null;
     let qname = $('#qnameDL');
@@ -255,6 +263,14 @@ function setDownloadLogsDialog() {
         document.body.removeChild(downloadLink);
     }
 
+    $('input[name="downloadScope"]').on('change', function() {
+        if ($(this).val() === 'all') {
+          $('#all-records-warning').show();
+        } else {
+          $('#all-records-warning').hide();
+        }
+      });
+
     function download() {
         confirmDownload = true;
         let valid = true;
@@ -278,7 +294,14 @@ function setDownloadLogsDialog() {
             $('.download-progress-bar').css('width', '0%');
             $('.download-progress-label').text('0%');
 
+            const useAllRecords = $('#allScope').is(':checked');
+
             let params = getSearchFilter(false, false);
+            if (useAllRecords) {
+                params.size = 10000;
+            } else {
+                params.size = totalLoadedRecords;
+            }
             let searchText = params.searchText;
             let n = searchText.indexOf('BY');
             if (n != -1) {
@@ -392,8 +415,9 @@ function setDownloadLogsDialog() {
             $('#format').val(curChoose.replace('.', '').toUpperCase());
 
             $('#currentScope').prop('checked', true);
+            $('#all-records-warning').hide();
 
-            if (lastQType === 'logs-query' && totalLoadedRecords >= 100) {
+            if (lastQType === 'logs-query' && totalLoadedRecords >= 100 && totalLoadedRecords >= 100) {
                 $('.scope-selection').show();
                 $('#current-record-count').html(totalLoadedRecords);
             } else {
