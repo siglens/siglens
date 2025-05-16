@@ -35,6 +35,22 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var ErrGetSearchInfo = fmt.Errorf("failed to get search info")
+var ErrReadBlock = fmt.Errorf("failed to read block")
+var ErrReadRecord = fmt.Errorf("failed to read record")
+var ErrReturnBufferToPool = fmt.Errorf("failed to return buffer to pool")
+var ErrColumnNotInBlock = fmt.Errorf("column not in block")
+var ErrNilParam = fmt.Errorf("nil parameter")
+var ErrBlockNotFound = fmt.Errorf("block not found")
+var ErrBlockNil = fmt.Errorf("block is nil")
+var ErrInvalidMetadata = fmt.Errorf("invalid metadata")
+var ErrReadFile = fmt.Errorf("failed to read file")
+var ErrBadEncoding = fmt.Errorf("bad encoding type")
+var ErrResetSegFileReader = fmt.Errorf("failed to reset SegmentFileReader")
+var ErrRecordNotFound = fmt.Errorf("reached end of block before finding record")
+var ErrDecompress = fmt.Errorf("failed to decompress")
+var ErrInvalidIndex = fmt.Errorf("invalid index")
+
 const (
 	// TODO do some heuristics to figure out what buffer sizes are typically needed
 	S_1_KB   = 1024
@@ -195,10 +211,6 @@ func PutBufToPool(buf []byte) error {
 	}
 }
 
-var ErrGetSearchInfo = fmt.Errorf("failed to get search info")
-var ErrReadBlock = fmt.Errorf("failed to read block")
-var ErrReadRecord = fmt.Errorf("failed to read record")
-
 // Returns a map of blockNum -> slice, where each element of the slice has the
 // raw data for the corresponding record.
 func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
@@ -292,8 +304,6 @@ func (sfr *SegmentFileReader) Close() error {
 	return sfr.currFD.Close()
 }
 
-var ErrReturnBufferToPool = fmt.Errorf("failed to return buffer to pool")
-
 func (sfr *SegmentFileReader) ReturnBuffers() error {
 	var errorMessages []string
 	if err := PutBufToPool(sfr.currFileBuffer); sfr.currFileBuffer != nil && err != nil {
@@ -312,8 +322,6 @@ func (sfr *SegmentFileReader) ReturnBuffers() error {
 	return nil
 }
 
-var ErrColumnNotInBlock = fmt.Errorf("column not in block")
-
 // returns a bool indicating if blockNum is valid, and any error encountered
 func (sfr *SegmentFileReader) readBlock(blockNum uint16) (bool, error) {
 	validBlock, err := sfr.loadBlockUsingBuffer(blockNum)
@@ -328,13 +336,6 @@ func (sfr *SegmentFileReader) readBlock(blockNum uint16) (bool, error) {
 	sfr.isBlockLoaded = true
 	return true, nil
 }
-
-var ErrNilParam = fmt.Errorf("nil parameter")
-var ErrBlockNotFound = fmt.Errorf("block not found")
-var ErrBlockNil = fmt.Errorf("block is nil")
-var ErrInvalidMetadata = fmt.Errorf("invalid metadata")
-var ErrReadFile = fmt.Errorf("failed to read file")
-var ErrBadEncoding = fmt.Errorf("bad encoding type")
 
 // Helper function to decompresses and loads block using passed buffers.
 // Returns whether the block is valid, and any error encountered.
@@ -405,9 +406,6 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		return true, ErrBadEncoding
 	}
 }
-
-var ErrResetSegFileReader = fmt.Errorf("failed to reset SegmentFileReader")
-var ErrRecordNotFound = fmt.Errorf("reached end of block before finding record")
 
 // Returns the raw bytes of the record in the currently loaded block
 func (sfr *SegmentFileReader) ReadRecord(recordNum uint16) ([]byte, error) {
@@ -599,8 +597,6 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 	return err
 }
 
-var ErrDecompress = fmt.Errorf("failed to decompress")
-
 func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
 	initialBufferPtr := unsafe.SliceData(sfr.currRawBlockBuffer)
 	uncompressed, err := decoder.DecodeAll(buf[0:], sfr.currRawBlockBuffer[:0])
@@ -732,8 +728,6 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]sutils.CValueEncl
 
 	return true
 }
-
-var ErrInvalidIndex = fmt.Errorf("invalid index")
 
 func (sfr *SegmentFileReader) deGetRec(rn uint16) ([]byte, error) {
 	if int(rn) >= len(sfr.deRecToTlv) {

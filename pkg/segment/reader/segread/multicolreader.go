@@ -38,6 +38,7 @@ import (
 )
 
 var ErrNilTimeReader = errors.New("uninitialized time reader")
+var ErrReadBlock = errors.New("failed to read and validate block")
 
 /*
 Defines holder struct and functions to construct & manage SegmentFileReaders
@@ -468,8 +469,6 @@ func (mcsr *MultiColSegmentReader) GetColKeyIndex(cname string) (int, bool) {
 	idx, ok := mcsr.allColsReverseIndex[cname]
 	return idx, ok
 }
-
-var ErrReadBlock = errors.New("failed to read and validate block")
 
 func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]struct{}, blockNum uint16) error {
 	for keyIndex := range colsIndexMap {

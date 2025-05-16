@@ -31,6 +31,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var ErrReturnBufferToPool = fmt.Errorf("failed to return buffer to pool")
+var ErrLegacyEncoding = fmt.Errorf("legacy encoding")
+
 const MAX_NODE_PTRS = 80_000
 
 type AgileTreeReader struct {
@@ -112,8 +115,6 @@ func (str *AgileTreeReader) Close() error {
 	return nil
 }
 
-var ErrReturnBufferToPool = fmt.Errorf("failed to return buffer to pool")
-
 func (str *AgileTreeReader) returnBuffers() {
 	if err := segreader.PutBufToPool(str.metaFileBuffer); str.metaFileBuffer != nil && err != nil {
 		log.Error(ErrReturnBufferToPool)
@@ -124,8 +125,6 @@ func (str *AgileTreeReader) resetBlkVars() {
 	str.treeMeta = nil
 	str.isMetaLoaded = false
 }
-
-var ErrLegacyEncoding = fmt.Errorf("legacy encoding")
 
 func validateTreeEncodingVersion(version byte) error {
 	switch version {

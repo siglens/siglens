@@ -37,6 +37,22 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var ErrDownload = fmt.Errorf("failed to download file")
+var ErrReadFromBlob = fmt.Errorf("failed to read file from blob")
+var ErrSetNotInUse = fmt.Errorf("failed to set file as not in use")
+var ErrReadColumn = fmt.Errorf("failed to read column from file")
+var ErrMetadataMissingSegKey = fmt.Errorf("globalMetadata does not have segKey")
+var ErrGetBlockSummary = fmt.Errorf("failed to get block summary")
+var ErrGetBlockSearchInfo = fmt.Errorf("failed to get block search info")
+var ErrGetNodeResult = fmt.Errorf("failed to get or create query search node result")
+var ErrInitSharedReaders = fmt.Errorf("failed to initialize shared readers")
+var ErrReadColumns = fmt.Errorf("failed to read columns for records")
+var ErrNotOneColumn = fmt.Errorf("didn't get exactly one column")
+var ErrShouldNotReach = fmt.Errorf("should not reach here")
+var ErrReadBlock = fmt.Errorf("failed to read and validate block")
+var ErrExtractValue = fmt.Errorf("failed to extract value from column")
+var ErrEvaluateMathOp = fmt.Errorf("failed to evaluate math operation")
+
 type RRCsReaderI interface {
 	ReadAllColsForRRCs(segKey string, vTable string, rrcs []*sutils.RecordResultContainer,
 		qid uint64, ignoredCols map[string]struct{}) (map[string][]sutils.CValueEnclosure, error)
@@ -50,8 +66,6 @@ type RRCsReader struct{}
 func (reader *RRCsReader) GetReaderId() sutils.T_SegReaderId {
 	return sutils.T_SegReaderId(0)
 }
-
-var ErrDownload = fmt.Errorf("failed to download file")
 
 func (reader *RRCsReader) ReadSegFilesFromBlob(segKey string, allCols map[string]struct{}) ([]string, error) {
 	bulkDownloadFiles := make(map[string]string)
@@ -71,10 +85,6 @@ func (reader *RRCsReader) ReadSegFilesFromBlob(segKey string, allCols map[string
 
 	return allFiles, nil
 }
-
-var ErrReadFromBlob = fmt.Errorf("failed to read file from blob")
-var ErrSetNotInUse = fmt.Errorf("failed to set file as not in use")
-var ErrReadColumn = fmt.Errorf("failed to read column from file")
 
 func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*sutils.RecordResultContainer,
 	qid uint64, ignoredCols map[string]struct{}) (map[string][]sutils.CValueEnclosure, error) {
@@ -120,8 +130,6 @@ func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs 
 
 	return colToValues, err
 }
-
-var ErrMetadataMissingSegKey = fmt.Errorf("globalMetadata does not have segKey")
 
 func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
 	allCols := make(map[string]struct{})
@@ -171,11 +179,6 @@ func readIndexForRRCs(rrcs []*sutils.RecordResultContainer) ([]sutils.CValueEncl
 
 	return result, nil
 }
-
-var ErrGetBlockSummary = fmt.Errorf("failed to get block summary")
-var ErrGetBlockSearchInfo = fmt.Errorf("failed to get block search info")
-var ErrGetNodeResult = fmt.Errorf("failed to get or create query search node result")
-var ErrInitSharedReaders = fmt.Errorf("failed to initialize shared readers")
 
 // All the RRCs must belong to the same segment.
 func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContainer,
@@ -255,10 +258,6 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContain
 	enclosures, _ := utils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation, maxParallelism)
 	return enclosures, nil
 }
-
-var ErrReadColumns = fmt.Errorf("failed to read columns for records")
-var ErrNotOneColumn = fmt.Errorf("didn't get exactly one column")
-var ErrShouldNotReach = fmt.Errorf("should not reach here")
 
 func handleBlock(multiReader *segread.MultiColSegmentReader, blockNum uint16,
 	rrcs []*sutils.RecordResultContainer, qid uint64) ([]sutils.CValueEnclosure, error) {
@@ -346,10 +345,6 @@ func isDictCol(col string, esQuery bool) bool {
 	}
 	return false
 }
-
-var ErrReadBlock = fmt.Errorf("failed to read and validate block")
-var ErrExtractValue = fmt.Errorf("failed to extract value from column")
-var ErrEvaluateMathOp = fmt.Errorf("failed to evaluate math operation")
 
 // TODO: remove calls to this function so that only readColsForRecords calls
 // this function. Then remove the parameters that are not needed.

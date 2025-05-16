@@ -35,6 +35,22 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var ErrRecordOutOfRange = fmt.Errorf("record number is out of range")
+var ErrBlockNotFound = fmt.Errorf("failed to find block")
+var ErrInvalidOffsetAndLength = fmt.Errorf("invalid block offset and length")
+var ErrReturnToPool = fmt.Errorf("error putting buffer back to pool")
+var ErrInvalidBlockNum = fmt.Errorf("invalid block number")
+var ErrCloseUnopenedTimeReader = fmt.Errorf("tried to close an unopened time reader")
+var ErrSetNotInUse = fmt.Errorf("failed to set segment files as not in use")
+var ErrBufferTooSmall = fmt.Errorf("buffer is too small to contain valid data")
+var ErrBadEncoding = fmt.Errorf("bad encoding type for timestamp column")
+var ErrTooFewRecords = fmt.Errorf("found fewer records than expected")
+var ErrConvertRawRecords = fmt.Errorf("failed to convert raw records to timestamps")
+var ErrDownload = fmt.Errorf("failed to download file")
+var ErrGetSearchInfo = fmt.Errorf("failed to get search info")
+var ErrTimestampKeyNotFound = fmt.Errorf("failed to find timestamp key")
+var ErrReadChunk = fmt.Errorf("failed to read chunk from file")
+
 var rawTimestampsBufferPool = sync.Pool{
 	New: func() interface{} {
 		// The Pool's New function should generally only return pointer
@@ -132,8 +148,6 @@ func InitNewTimeReaderFromBlockSummaries(segKey string, tsKey string,
 	return InitNewTimeReader(segKey, tsKey, allBlocksToSearch, blkRecCount, qid, allBmi)
 }
 
-var ErrRecordOutOfRange = fmt.Errorf("record number is out of range")
-
 // highly optimized for subsequent calls to handle the same blockNum
 func (trr *TimeRangeReader) GetTimeStampForRecord(blockNum uint16, recordNum uint16, qid uint64) (uint64, error) {
 	if !trr.loadedBlock || trr.loadedBlockNum != blockNum {
@@ -159,10 +173,6 @@ func (trr *TimeRangeReader) GetAllTimeStampsForBlock(blockNum uint16) ([]uint64,
 
 	return trr.blockTimestamps[:trr.numBlockReadTimestamps], nil
 }
-
-var ErrBlockNotFound = fmt.Errorf("failed to find block")
-var ErrInvalidOffsetAndLength = fmt.Errorf("invalid block offset and length")
-var ErrReturnToPool = fmt.Errorf("error putting buffer back to pool")
 
 func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 	err := trr.resizeSliceForBlock(blockNum)
@@ -215,8 +225,6 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 	return nil
 }
 
-var ErrInvalidBlockNum = fmt.Errorf("invalid block number")
-
 func (trr *TimeRangeReader) resizeSliceForBlock(blockNum uint16) error {
 	numRecs, ok := trr.blockRecCount[blockNum]
 	if !ok {
@@ -227,9 +235,6 @@ func (trr *TimeRangeReader) resizeSliceForBlock(blockNum uint16) error {
 
 	return nil
 }
-
-var ErrCloseUnopenedTimeReader = fmt.Errorf("tried to close an unopened time reader")
-var ErrSetNotInUse = fmt.Errorf("failed to set segment files as not in use")
 
 func (trr *TimeRangeReader) Close() error {
 	if trr.timeFD == nil {
@@ -252,10 +257,6 @@ func (trr *TimeRangeReader) returnBuffers() {
 		log.Error(ErrReturnToPool)
 	}
 }
-
-var ErrBufferTooSmall = fmt.Errorf("buffer is too small to contain valid data")
-var ErrBadEncoding = fmt.Errorf("bad encoding type for timestamp column")
-var ErrTooFewRecords = fmt.Errorf("found fewer records than expected")
 
 func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uint64) ([]uint64, error) {
 	if bufToUse == nil {
@@ -336,8 +337,6 @@ func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]
 	return buf, nil
 }
 
-var ErrConvertRawRecords = fmt.Errorf("failed to convert raw records to timestamps")
-
 // When the caller of this function is done with retVal, they should call
 // ReturnTimeBuffers(retVal) to return the buffers to rawTimestampsBufferPool.
 func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, retVal map[uint16][]uint64,
@@ -361,11 +360,6 @@ func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, r
 		log.Error(ErrConvertRawRecords)
 	}
 }
-
-var ErrDownload = fmt.Errorf("failed to download file")
-var ErrGetSearchInfo = fmt.Errorf("failed to get search info")
-var ErrTimestampKeyNotFound = fmt.Errorf("failed to find timestamp key")
-var ErrReadChunk = fmt.Errorf("failed to read chunk from file")
 
 // When the caller of this function is done with the returned map, they should
 // call ReturnTimeBuffers() on it to return the buffers to rawTimestampsBufferPool.

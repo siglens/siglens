@@ -33,6 +33,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var ErrGiveBackToPool = fmt.Errorf("Error putting buffers back to the pool")
+var ErrInitReader = fmt.Errorf("failed to init reader for block")
+var ErrInitDecompressor = fmt.Errorf("failed to init decompressor")
+var ErrBadTsoVersion = fmt.Errorf("invalid TSO version")
+var ErrOpenFileForPoolBuffer = fmt.Errorf("failed to open file for pool buffer")
+var ErrReadFileForPoolBuffer = fmt.Errorf("failed to read file for pool buffer")
+var ErrLoadTsoFile = fmt.Errorf("failed to load TSO file")
+var ErrLoadTsgFile = fmt.Errorf("failed to load TSG file")
+var ErrBadTsgVersion = fmt.Errorf("bad TSG version")
+
 /*
 Holder struct to read a single time series segment
 
@@ -171,8 +181,6 @@ func InitTimeSeriesReader(mKey string) (*TimeSeriesSegmentReader, error) {
 	}, nil
 }
 
-var ErrGiveBackToPool = fmt.Errorf("Error putting buffers back to the pool")
-
 /*
 Closes the iterator by returning all buffers back to the pool
 */
@@ -218,8 +226,6 @@ func (stssr *SharedTimeSeriesSegmentReader) Close() error {
 	}
 	return nil
 }
-
-var ErrInitReader = fmt.Errorf("failed to init reader for block")
 
 /*
 Exposes init functions for timeseries block readers.
@@ -297,8 +303,6 @@ func (tssr *TimeSeriesSegmentReader) InitReaderForBlock(blkNum uint16, queryMetr
 	}, nil
 }
 
-var ErrInitDecompressor = fmt.Errorf("failed to init decompressor")
-
 /*
 Exposes function that will return a TimeSeriesIterator for a given tsid
 
@@ -344,8 +348,6 @@ func (tsbr *TimeSeriesBlockReader) GetTimeSeriesIterator(tsid uint64) (*compress
 	return it, true, nil
 }
 
-var ErrBadTsoVersion = fmt.Errorf("invalid TSO version")
-
 // returns bool if found. If true, returns the tsidx and offset in the TSG file
 func getOffsetFromTsoFile(tsoVersion byte, low uint32, high uint32, nTsids uint32, tsid uint64,
 	tsoBuf []byte) (bool, uint32, uint32) {
@@ -382,9 +384,6 @@ func getOffsetFromTsoFile(tsoVersion byte, low uint32, high uint32, nTsids uint3
 	return false, 0, 0
 }
 
-var ErrOpenFileForPoolBuffer = fmt.Errorf("failed to open file for pool buffer")
-var ErrReadFileForPoolBuffer = fmt.Errorf("failed to read file for pool buffer")
-
 func loadFileIntoPoolBuffer(fileName string, bufferFromPool []byte) error {
 	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
@@ -401,8 +400,6 @@ func loadFileIntoPoolBuffer(fileName string, bufferFromPool []byte) error {
 
 	return nil
 }
-
-var ErrLoadTsoFile = fmt.Errorf("failed to load TSO file")
 
 func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) (byte, []byte, uint64, error) {
 
@@ -425,9 +422,6 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) (byte, []byte,
 
 	return tsoVersion, tssr.tsoBuf, nEntries, nil
 }
-
-var ErrLoadTsgFile = fmt.Errorf("failed to load TSG file")
-var ErrBadTsgVersion = fmt.Errorf("bad TSG version")
 
 func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error) {
 	err := loadFileIntoPoolBuffer(fileName, tssr.tsgBuf)
