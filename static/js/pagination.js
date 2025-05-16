@@ -100,18 +100,12 @@ function updatePaginationState(results) {
             }
         }
     } else if (results.qtype === 'aggs-query' || results.qtype === 'segstats-query') {
-        if (results.state === 'QUERY_UPDATE' && results.measure) {
-            if (totalLoadedRecords === 0) {
-                currentPage = 1;
-            }
-        } else if (results.state === 'COMPLETE') {
-            if (results.bucketCount) {
-                totalLoadedRecords = results.bucketCount;
-                hasMoreRecords = false;
-            }
+        if (results.state === 'COMPLETE') {
+            currentPage = 1;
+            totalLoadedRecords = results.bucketCount;
+            hasMoreRecords = false;
         }
     }
-
     updatePaginationDisplay();
 
     if (results.state === 'COMPLETE') {
