@@ -289,7 +289,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls, _ := ParseSearchBody(readJSON, nowTs)
-
+	limit := sizeLimit
 	if scrollFrom > 10_000 {
 		return nil, true, nil, nil
 	}
@@ -346,7 +346,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.IncludeNulls = includeNulls
 	qc.RawQuery = searchText
-	return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc)
+	return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc, limit)
 
 }
 
@@ -420,7 +420,7 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 
 func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
 	timechartRoot *structs.ASTNode, timechartAggs *structs.QueryAggregators,
-	qc *structs.QueryContext) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
+	qc *structs.QueryContext, sizeLimit uint64) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
 
 	isAsync := conn != nil
 
@@ -472,9 +472,9 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 		case query.READY:
 			switch queryStateData.ChannelIndex {
 			case multiplexer.MainIndex:
-				go segment.ExecuteQueryInternalNewPipeline(qid, isAsync, root, aggs, qc, rQuery)
+				go segment.ExecuteQueryInternalNewPipeline(qid, isAsync, root, aggs, qc, rQuery, sizeLimit)
 			case multiplexer.TimechartIndex:
-				go segment.ExecuteQueryInternalNewPipeline(timechartQid, isAsync, timechartRoot, timechartAggs, qc, timechartQuery)
+				go segment.ExecuteQueryInternalNewPipeline(timechartQid, isAsync, timechartRoot, timechartAggs, qc, timechartQuery, sizeLimit)
 			}
 		case query.RUNNING:
 			if isAsync {

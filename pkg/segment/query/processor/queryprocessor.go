@@ -134,7 +134,7 @@ func canUseSortIndex(queryAgg *structs.QueryAggregators, sorterAgg *structs.Quer
 }
 
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
-	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time, shouldDistribute bool) (*QueryProcessor, error) {
+	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time, shouldDistribute bool, sizeLimit uint64) (*QueryProcessor, error) {
 
 	if err := validateStreamStatsTimeWindow(firstAgg); err != nil {
 		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
@@ -227,7 +227,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	queryProcessor, err := newQueryProcessorHelper(fullQueryType, lastStreamer,
-		dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls, shouldDistribute)
+		dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls, shouldDistribute, sizeLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -243,12 +243,16 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 }
 
 func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
-	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool, shoulDistribute bool) (*QueryProcessor, error) {
+	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool, shoulDistribute bool, sizeLimit uint64) (*QueryProcessor, error) {
 
 	var limit uint64
 	switch queryType {
 	case structs.RRCCmd:
-		limit = sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom)
+		defaultLimit := sutils.QUERY_EARLY_EXIT_LIMIT
+		if sizeLimit == 0 {
+			sizeLimit = defaultLimit
+		}
+		limit = sizeLimit
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		limit = sutils.QUERY_MAX_BUCKETS
 	default:
