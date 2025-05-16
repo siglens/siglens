@@ -114,6 +114,7 @@ function formatTooltipTimestamp(timestamp, granularity) {
         return result;
     }
 }
+
 function formatAxisTitle(intervalMs, unit) {
     function msToReadable(ms) {
         const seconds = ms / 1000;
@@ -298,8 +299,6 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
         title: {
             display: true,
             text: axisTitle,
-            
-            
         },
         ticks: {
             maxRotation: 45, 
@@ -603,7 +602,7 @@ function renderHistogram(timechartData) {
                 borderWidth: 1,
                 barPercentage: 0.8,
                 categoryPercentage: 0.8,
-                // barThickness: 'flex',
+                barThickness: 'flex',
             }]
         },
         options: {
