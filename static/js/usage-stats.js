@@ -98,11 +98,13 @@ function setupUsageStatsCharts(data) {
         logs: {
             dates: dates,
             gbCount: dates.map((date) => data.chartStats[date].LogsBytesCount),
+            eventCount: dates.map((date) => data.chartStats[date].LogsEventCount || 0),
             granularity: chartGranularity,
         },
         traces: {
             dates: dates,
             gbCount: dates.map((date) => data.chartStats[date].TraceBytesCount),
+            spanCount: dates.map((date) => data.chartStats[date].TraceSpanCount || 0),
             granularity: chartGranularity,
         },
         stacked: {
@@ -142,12 +144,16 @@ function updateChartColors(chart, gridLineColor, tickColor) {
     chart.options.scales.y.grid.color = gridLineColor;
     chart.options.scales.y.ticks.color = tickColor;
 
+    if (chart.options.scales.y1) {
+        chart.options.scales.y1.ticks.color = tickColor;
+    }
+
     chart.update();
 }
 
 function determineUnit(data) {
     let maxBytes = 0;
-    data.forEach(point => {
+    data.forEach((point) => {
         if (point.y > maxBytes) {
             maxBytes = point.y;
         }
@@ -162,13 +168,13 @@ function determineUnit(data) {
 
     return {
         unit: sizes[i],
-        divisor: Math.pow(k, i)
+        divisor: Math.pow(k, i),
     };
 }
 
 function createVolumeChart(chartId, data, options) {
     const ctx = document.getElementById(chartId).getContext('2d');
-    const { chartType, color, gridLineColor, tickColor, title } = options;
+    const { chartType, color, lineColor, gridLineColor, tickColor, title, lineTitle, lineData } = options;
 
     // Destroy existing chart instance if it exists
     if (window[chartType] && typeof window[chartType].destroy === 'function') {
@@ -187,9 +193,15 @@ function createVolumeChart(chartId, data, options) {
         y: item.y / scale.divisor,
     }));
 
+    const lineChartData = data.dates.map((timestamp, index) => ({
+        x: parseInt(timestamp) * 1000,
+        y: lineData[index],
+    }));
+
     const xAxisConfig = configureTimeAxis(data, data.granularity);
 
     scaledData.sort((a, b) => a.x - b.x);
+    lineChartData.sort((a, b) => a.x - b.x);
 
     const chartConfig = {
         type: 'bar',
@@ -203,6 +215,22 @@ function createVolumeChart(chartId, data, options) {
                     barPercentage: 0.8,
                     categoryPercentage: 0.8,
                     barThickness: 'flex',
+                    order: 1,
+                    yAxisID: 'y',
+                },
+                {
+                    label: lineTitle,
+                    data: lineChartData,
+                    type: 'line',
+                    borderColor: lineColor,
+                    backgroundColor: lineColor + '50',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    fill: false,
+                    tension: 0.3,
+                    order: 0,
+                    yAxisID: 'y1',
                 },
             ],
         },
@@ -218,14 +246,32 @@ function createVolumeChart(chartId, data, options) {
                             const timestamp = tooltipItems[0].parsed.x / 1000;
                             return formatTooltipTimestamp(timestamp, data.granularity);
                         },
+                        label: function (context) {
+                            const label = context.dataset.label || '';
+                            let value = '';
+
+                            if (context.datasetIndex === 0) {
+                                // Volume data (bars)
+                                value = context.parsed.y.toFixed(3) + ' ' + scale.unit;
+                            } else if (context.datasetIndex === 1) {
+                                // Count data (line)
+                                value = context.parsed.y.toLocaleString();
+                            }
+
+                            return `${label}: ${value}`;
+                        },
                     },
                 },
                 legend: {
-                    display: false,
+                    display: true,
+                    position: 'bottom',
                 },
             },
             scales: {
                 y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
                     beginAtZero: true,
                     title: {
                         display: true,
@@ -240,6 +286,22 @@ function createVolumeChart(chartId, data, options) {
                         callback: function (value) {
                             return value + ' ' + scale.unit;
                         },
+                    },
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Count',
+                    },
+                    grid: {
+                        display: false,
+                    },
+                    ticks: {
+                        color: tickColor,
                     },
                 },
                 x: {
@@ -263,14 +325,16 @@ function createVolumeChart(chartId, data, options) {
     window[chartType] = new Chart(ctx, chartConfig);
     return window[chartType];
 }
-
 function renderLogsVolumeChart(data, gridLineColor, tickColor) {
     return createVolumeChart('logsVolumeChart', data, {
         chartType: 'logsVolumeChart',
         color: '#36A2EB',
+        lineColor: '#FF6484',
         gridLineColor,
         tickColor,
         title: 'Logs Volume',
+        lineTitle: 'Event Count',
+        lineData: data.dates.map((date, index) => data.eventCount[index]),
     });
 }
 
@@ -278,9 +342,12 @@ function renderTracesVolumeChart(data, gridLineColor, tickColor) {
     return createVolumeChart('tracesVolumeChart', data, {
         chartType: 'tracesVolumeChart',
         color: '#4BC0C0',
+        lineColor: '#FFCD56',
         gridLineColor,
         tickColor,
         title: 'Traces Volume',
+        lineTitle: 'Span Count',
+        lineData: data.dates.map((date, index) => data.spanCount[index]),
     });
 }
 
@@ -591,14 +658,14 @@ function convertStatsToCSV(chartStats) {
     const logsUnit = determineUnit(timestamps.map((ts) => ({ y: chartStats[ts].LogsBytesCount || 0 })));
     const tracesUnit = determineUnit(timestamps.map((ts) => ({ y: chartStats[ts].TraceBytesCount || 0 })));
 
-    const headers = ['Date', `Logs (${logsUnit.unit})`, `Traces (${tracesUnit.unit})`, 'Active Series', 'Metrics Datapoints'].join(',');
+    const headers = ['Date', `Logs (${logsUnit.unit})`, 'Event Count', `Traces (${tracesUnit.unit})`, 'Span Count', 'Active Series', 'Metrics Datapoints'].join(',');
 
     const granularity = $('.granularity-tabs .tab.active').data('tab');
 
     const rows = timestamps.map((timestamp) => {
         const stats = chartStats[timestamp];
         const date = formatTooltipTimestamp(parseInt(timestamp), granularity);
-        return [`"${date}"`, ((stats.LogsBytesCount || 0) / logsUnit.divisor).toFixed(2), ((stats.TraceBytesCount || 0) / tracesUnit.divisor).toFixed(2), stats.ActiveSeriesCount || 0, stats.MetricsDatapointsCount || 0].join(',');
+        return [`"${date}"`, ((stats.LogsBytesCount || 0) / logsUnit.divisor).toFixed(2), stats.LogsEventCount || 0, ((stats.TraceBytesCount || 0) / tracesUnit.divisor).toFixed(2), stats.TraceSpanCount || 0, stats.ActiveSeriesCount || 0, stats.MetricsDatapointsCount || 0].join(',');
     });
 
     return headers + '\n' + rows.join('\n');
