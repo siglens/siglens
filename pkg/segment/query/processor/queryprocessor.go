@@ -252,7 +252,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 		if sizeLimit == 0 {
 			sizeLimit = defaultLimit
 		}
-		limit = sizeLimit + uint64(scrollFrom)
+		limit = sizeLimit
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		limit = sutils.QUERY_MAX_BUCKETS
 	default:

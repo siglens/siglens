@@ -289,7 +289,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls, _ := ParseSearchBody(readJSON, nowTs)
-
+	limit := sizeLimit
 	if scrollFrom > 10_000 {
 		return nil, true, nil, nil
 	}
@@ -346,7 +346,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.IncludeNulls = includeNulls
 	qc.RawQuery = searchText
-	return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc, sizeLimit)
+	return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc, limit)
 
 }
 
