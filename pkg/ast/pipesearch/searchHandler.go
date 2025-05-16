@@ -658,7 +658,11 @@ func getFinalBuckets(complete *structs.PipeSearchCompleteResponse, timeRange *dt
 			bucketInterval := strconv.FormatInt(alignedTs.UnixMilli(), 10)
 
 			groupByVal := []string{bucketInterval}
-			mFunction := map[string]interface{}{complete.MeasureFunctions[0]: 0}
+			key := ""
+			if len(complete.MeasureFunctions) != 0 {
+				key = complete.MeasureFunctions[0]
+			}
+			mFunction := map[string]interface{}{key: 0}
 
 			resultMap[bucketInterval] = &structs.BucketHolder{
 				GroupByValues: groupByVal,
@@ -672,7 +676,11 @@ func getFinalBuckets(complete *structs.PipeSearchCompleteResponse, timeRange *dt
 		for !runningTs.After(endEpoch) {
 			bucketInterval := strconv.FormatInt(runningTs.UnixMilli(), 10)
 			groupByVal := []string{bucketInterval}
-			mFunction := map[string]interface{}{complete.MeasureFunctions[0]: 0}
+			key := ""
+			if len(complete.MeasureFunctions) != 0 {
+				key = complete.MeasureFunctions[0]
+			}
+			mFunction := map[string]interface{}{key: 0}
 
 			resultMap[bucketInterval] = &structs.BucketHolder{
 				GroupByValues: groupByVal,
@@ -685,6 +693,9 @@ func getFinalBuckets(complete *structs.PipeSearchCompleteResponse, timeRange *dt
 
 	var bucketInterval string
 	for _, bucket := range complete.MeasureResults {
+		if bucket.GroupByValues == nil || len(bucket.GroupByValues) == 0 {
+			return fmt.Errorf("bucket.GroupByValues is empty, cannot extract timestamp")
+		}
 		millisStr := bucket.GroupByValues[0]
 		millisInt, err := strconv.ParseInt(millisStr, 10, 64)
 		if err != nil {
