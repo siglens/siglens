@@ -206,7 +206,7 @@ function loadMoreResults() {
     isLoadingMore = true;
     updateLoadMoreMessage();
 
-    const data = getSearchFilter(true, true);
+    const data = getSearchFilter(true, true, false, false, true);
     data.from = totalLoadedRecords;
 
     if (initialSearchData && (data.searchText !== initialSearchData.searchText || data.indexName !== initialSearchData.indexName || data.startEpoch !== initialSearchData.startEpoch || data.endEpoch !== initialSearchData.endEpoch || data.queryLanguage !== initialSearchData.queryLanguage)) {

@@ -777,6 +777,14 @@ div.show-record-popup .ui-dialog-buttonpane button {
     border: 1px solid var(--border-btn-color) !important;
 }
 
+.info-message {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-size: 16px;
+    font-style: italic;
+}
+
 .tab-content-size {
     height: 100%;
 }
