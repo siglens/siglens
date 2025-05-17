@@ -425,7 +425,7 @@ function renderHistogram(timechartData) {
                 borderWidth: 1,
                 barPercentage: 0.8,
                 categoryPercentage: 0.8,
-                barThickness: 'flex',
+                // barThickness: 'flex',
             }]
         },
         options: {
