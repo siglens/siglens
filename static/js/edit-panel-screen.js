@@ -404,7 +404,6 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
 
         // Chart Type: Bar or Line Chart
         if (selectedChartTypeIndex === 0 || selectedChartTypeIndex === 1) {
-            console.log('selectedChartTypeIndex: ' + selectedChartTypeIndex);
             $('#logs-vis-format-options').show();
 
             // Initialize format settings if they don't exist

@@ -19,53 +19,80 @@
 
 let curChoose = '';
 let interval = null;
-var progressBar = $('#progressbar');
-var progressLabel = $('.progress-label');
 let confirmDownload = true;
+let progressWidth = 0;
+
 $(document).ready(() => {
     setDownloadLogsDialog();
-});
-$(function () {
-    if (typeof interval != 'undefined') {
-        doClearInterval();
-    } else {
-        interval = null;
-    }
+    $('#cancel-loading').on('click', cancelDownload);
 });
 
-var progressWidth = 0;
 function beginProgress(t) {
     progressWidth = 1;
     interval = setInterval(doProgress, t * 10);
 }
+
 function cancelDownload() {
     confirmDownload = false;
-    var popBox = document.getElementById('pop-box');
-    var popLayer = document.getElementById('pop-layer');
-    popLayer.style.display = 'none';
-    popBox.style.display = 'none';
-    $('#progressbar').hide();
-}
-function setProgress(node, width) {
-    if (node) {
-        progressBar.progressbar({
-            value: width,
-        });
-        progressLabel.text(width + '%');
-    }
-}
-function doProgress() {
-    if (progressWidth == 98) {
-        doClearInterval();
-    }
-    setProgress(progressBar, progressWidth);
-    progressWidth++;
-}
-function doClearInterval() {
+    $('.popupOverlay, .download-progress-box').removeClass('active');
     clearInterval(interval);
 }
 
+function setProgress(width) {
+    $('.download-progress-bar').css('width', width + '%');
+    $('.download-progress-label').text(width + '%');
+}
+
+function doProgress() {
+    if (progressWidth >= 98) {
+        clearInterval(interval);
+    }
+    setProgress(progressWidth);
+    progressWidth++;
+}
+
 function setDownloadLogsDialog() {
+    $('body').append(`
+        <div class="download-progress-box popupContent p-0">
+            <div class="p-4 border-bottom">
+                <h3 class="header mb-0">Preparing Your Download</h3>
+            </div>
+            <div class="p-4 border-bottom">
+                <div class="download-progress-bar-container">
+                    <div class="download-progress-bar"></div>
+                </div>
+                <div class="download-progress-label">0%</div>
+            </div>
+            <div class="p-4 d-flex justify-content-end"><button id="cancel-loading" class="btn btn-secondary">Cancel</button></div>
+        </div>
+    `);
+
+    $('#download-info').append(`
+        <div class="scope-selection mt-4 mb-3 mx-1">
+            <label class="form-label">Download Scope:</label>
+            <div class="form-check d-flex align-items-end">
+                <input class="form-check-input" type="radio" name="downloadScope" id="currentScope" value="current" checked>
+                <label class="form-check-label mx-2" for="currentScope">
+                    Current View (<span id="current-record-count">0</span> records)
+                </label>
+            </div>
+            <div class="form-check d-flex align-items-end mt-1">
+                <input class="form-check-input" type="radio" name="downloadScope" id="allScope" value="all">
+                <label class="form-check-label mx-2" for="allScope">
+                    All Records (up to 10,000 records)
+                </label>
+            </div>
+        </div>
+    `);
+
+    $('#download-info').find('.scope-selection').append(`
+        <div id="all-records-warning" class="warning-alert" style="display:none;">
+            <i class="fas fa-exclamation-triangle" style="margin-right: 8px; color: #ffc107; font-size:16px;"></i>
+            <span>Warning: Downloading all records may take longer and consume more resources.</span>
+        </div>
+    `);
+
+
     let dialog = null;
     let form = null;
     let qname = $('#qnameDL');
@@ -75,7 +102,6 @@ function setDownloadLogsDialog() {
 
     function updateTips(t) {
         tips.addClass('active');
-        $('#validateTips').show();
         tips.text(t).addClass('ui-state-highlight');
     }
 
@@ -108,6 +134,7 @@ function setDownloadLogsDialog() {
         saveLink.download = fileName;
         saveLink.click();
     }
+
     function convertToCSV(json) {
         const items = JSON.parse(json);
 
@@ -159,7 +186,6 @@ function setDownloadLogsDialog() {
         document.body.removeChild(downloadLink);
     }
 
-    // Function to convert JSON data to XML format
     function convertToXML(json) {
         const items = JSON.parse(json);
         let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n<root>\n';
@@ -182,7 +208,6 @@ function setDownloadLogsDialog() {
         return xmlString;
     }
 
-    // Function to download XML data as a file
     function downloadXml(xmlData, fileName) {
         const blob = new Blob([xmlData], { type: 'text/xml' });
         const url = URL.createObjectURL(blob);
@@ -194,7 +219,6 @@ function setDownloadLogsDialog() {
         document.body.removeChild(downloadLink);
     }
 
-    // Function to convert JSON data to SQL format
     function convertToSQL(json) {
         const data = JSON.parse(json);
         const tableName = 'SQL_Table';
@@ -228,7 +252,6 @@ function setDownloadLogsDialog() {
         return sqlStatements.join('\n');
     }
 
-    // Function to download SQL data as a file
     function downloadSql(sqlData, fileName) {
         const blob = new Blob([sqlData], { type: 'text/sql' });
         const url = URL.createObjectURL(blob);
@@ -239,6 +262,14 @@ function setDownloadLogsDialog() {
         downloadLink.click();
         document.body.removeChild(downloadLink);
     }
+
+    $('input[name="downloadScope"]').on('change', function() {
+        if ($(this).val() === 'all') {
+          $('#all-records-warning').show();
+        } else {
+          $('#all-records-warning').hide();
+        }
+      });
 
     function download() {
         confirmDownload = true;
@@ -258,27 +289,29 @@ function setDownloadLogsDialog() {
 
         if (valid) {
             dialog.dialog('close');
-            $('#progressbar').show();
-            //show progress box
-            var popBox = document.getElementById('pop-box');
-            var popLayer = document.getElementById('pop-layer');
-            popLayer.style.width = document.body.scrollWidth + 'px';
-            popLayer.style.height = document.body.scrollHeight + 'px';
-            popLayer.style.display = 'block';
-            popBox.style.display = 'block';
+
+            $('.popupOverlay, .download-progress-box').addClass('active');
+            $('.download-progress-bar').css('width', '0%');
+            $('.download-progress-label').text('0%');
+
+            const useAllRecords = $('#allScope').is(':checked');
 
             let params = getSearchFilter(false, false);
+            if (useAllRecords) {
+                params.size = 10000;
+            } else {
+                params.size = totalLoadedRecords;
+            }
             let searchText = params.searchText;
             let n = searchText.indexOf('BY');
-            let textArr = [];
             if (n != -1) {
                 let textCut = searchText.substring(n + 2, searchText.length);
                 let arrNew = textCut.split(',');
                 for (let i = 0; i < arrNew.length; i++) {
                     arrNew[i] = arrNew[i].trim();
                 }
-                textArr = arrNew.sort();
             }
+
             $.ajax({
                 method: 'post',
                 url: 'api/search',
@@ -293,66 +326,72 @@ function setDownloadLogsDialog() {
                     beginProgress(10);
                 },
                 success: function (res) {
-                    //close progress box
-                    var popBox = document.getElementById('pop-box');
-                    var popLayer = document.getElementById('pop-layer');
-                    popLayer.style.display = 'none';
-                    popBox.style.display = 'none';
-                    //set progress finished
-                    doClearInterval();
-                    $('#progressbar').hide();
-                    setProgress(progressBar, 100);
+                    $('.popupOverlay, .download-progress-box').removeClass('active');
+
+                    clearInterval(interval);
+
                     if (!confirmDownload) return;
+
                     if (res && res.hits && res.hits.records && res.hits.records.length > 0 && res.qtype === 'logs-query') {
                         let json = JSON.stringify(res.hits.records);
+
                         downloadData(json, name);
-                    } else if (res && res.qtype === 'aggs-query' && res.aggregations && res.aggregations[''].buckets.length > 0) {
-                        let arr = res.aggregations[''].buckets;
+                    } else if (res && res.qtype === 'aggs-query' && res.measure && res.measure.length > 0) {
                         let createNewRecords = [];
-                        for (let i = 0; i < arr.length; i++) {
-                            let perInfo = arr[i];
-                            let newPerInfo = {};
-                            for (let key in perInfo) {
-                                if (key != 'key' && key != 'doc_count') newPerInfo[key] = perInfo[key].value;
-                                else if (key == 'key') {
-                                    for (let j = 0; j < textArr.length; j++) {
-                                        if (Array.isArray(perInfo.key)) {
-                                            newPerInfo[textArr[j]] = perInfo.key[j];
-                                        } else {
-                                            newPerInfo[textArr[j]] = perInfo.key;
-                                        }
-                                    }
+
+                        for (let i = 0; i < res.measure.length; i++) {
+                            const item = res.measure[i];
+                            const newItem = {};
+
+                            if (item.GroupByValues && item.GroupByValues.length > 0) {
+                                for (let j = 0; j < item.GroupByValues.length; j++) {
+                                    const columnName = res.groupByCols && res.groupByCols[j] ? res.groupByCols[j] : `group_${j}`;
+                                    newItem[columnName] = item.GroupByValues[j];
                                 }
                             }
-                            createNewRecords.push(newPerInfo);
+
+                            if (item.MeasureVal) {
+                                for (const key in item.MeasureVal) {
+                                    newItem[key] = item.MeasureVal[key];
+                                }
+                            }
+
+                            createNewRecords.push(newItem);
                         }
+
                         let json = JSON.stringify(createNewRecords);
                         downloadData(json, name);
                     } else if (res.qtype === 'segstats-query') {
                         let segstatsData = {};
+
                         if (res.measure && res.measure.length > 0 && res.measure[0].MeasureVal) {
                             for (let key in res.measure[0].MeasureVal) {
                                 segstatsData[key] = res.measure[0].MeasureVal[key];
                             }
                         }
+
                         let json = JSON.stringify(segstatsData);
                         downloadData(json, name);
                     } else {
-                        alert('no data available');
+                        alert('No data available');
                     }
                 },
-                error: function () {
-                    doClearInterval();
+                error: function (err) {
+                    console.error('Error fetching data:', err);
+                    $('.popupOverlay, .download-progress-box').removeClass('active');
+                    clearInterval(interval);
+                    alert('An error occurred while fetching data. Please try again.');
                 },
             });
         }
     }
+
     dialog = $('#download-info').dialog({
         autoOpen: false,
         resizable: false,
         width: 464,
         modal: true,
-        title: 'Download Logs',
+        title: 'Download Data',
         position: {
             my: 'center',
             at: 'center',
@@ -368,13 +407,27 @@ function setDownloadLogsDialog() {
             },
             Save: {
                 class: 'saveqButton btn btn-primary',
-                text: 'Save',
+                text: 'Download',
                 click: download,
             },
+        },
+        open: function () {
+            $('#format').val(curChoose.replace('.', '').toUpperCase());
+
+            $('#currentScope').prop('checked', true);
+            $('#all-records-warning').hide();
+
+            if (lastQType === 'logs-query' && totalLoadedRecords >= 100 && totalLoadedRecords >= 100) {
+                $('.scope-selection').show();
+                $('#current-record-count').html(totalLoadedRecords);
+            } else {
+                $('.scope-selection').hide();
+            }
         },
         close: function () {
             form[0].reset();
             allFields.removeClass('ui-state-error');
+            $('.download-format-item').removeClass('selected');
         },
         create: function () {
             $(this).parent().find('.ui-dialog-titlebar').show().addClass('border-bottom p-4');
@@ -385,34 +438,24 @@ function setDownloadLogsDialog() {
         event.preventDefault();
         download();
     });
-    $('#csv-block').on('click', function () {
-        curChoose = '.csv';
-        $('#validateTips').hide();
-        $('#download-info').dialog('open');
-        $('.ui-widget-overlay').addClass('opacity-75');
-        return false;
+
+    const downloadOptionToExtension = {
+        'csv-block': '.csv',
+        'json-block': '.json',
+        'xml-block': '.xml',
+        'sql-block': '.sql',
+    };
+
+    Object.keys(downloadOptionToExtension).forEach((optionId) => {
+        $(`#${optionId}`).on('click', function () {
+            curChoose = downloadOptionToExtension[optionId];
+            $('#validateTips').hide();
+            $('#download-info').dialog('open');
+            $('.ui-widget-overlay').addClass('opacity-75');
+            return false;
+        });
     });
-    $('#json-block').on('click', function () {
-        curChoose = '.json';
-        $('#validateTips').hide();
-        $('#download-info').dialog('open');
-        $('.ui-widget-overlay').addClass('opacity-75');
-        return false;
-    });
-    $('#xml-block').on('click', function () {
-        curChoose = '.xml';
-        $('#validateTips').hide();
-        $('#download-info').dialog('open');
-        $('.ui-widget-overlay').addClass('opacity-75');
-        return false;
-    });
-    $('#sql-block').on('click', function () {
-        curChoose = '.sql';
-        $('#validateTips').hide();
-        $('#download-info').dialog('open');
-        $('.ui-widget-overlay').addClass('opacity-75');
-        return false;
-    });
+
     function downloadData(json, fileName) {
         if (curChoose === '.json') {
             downloadJson(fileName, json);
@@ -428,8 +471,3 @@ function setDownloadLogsDialog() {
         }
     }
 }
-
-// Delete confirmation popup
-$(document).ready(function () {
-    $('#cancel-loading').on('click', cancelDownload);
-});

@@ -96,36 +96,55 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	traces := make([]*structs.Trace, 0)
-	// Get status code count for each trace
-	for _, traceId := range traceIds {
-		// Get the start time and end time for this trace
-		searchRequestBody.SearchText = "trace_id=" + traceId + " AND parent_span_id=\"\" | fields start_time, end_time, name, service"
-		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
-		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: traceId:%v, Error=%v", traceId, err)
+
+	filters := utils.Transform(traceIds, func(s string) string {
+		return fmt.Sprintf(`trace_id="%s"`, s)
+	})
+	searchRequestBody.SearchText = fmt.Sprintf(`(%s) AND parent_span_id="" |
+	stats values(start_time) as start_time, values(end_time) as end_time, values(name) as name,
+	values(service) as service by trace_id`, strings.Join(filters, " OR "))
+
+	pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
+	if err != nil {
+		utils.SendError(ctx, "Failed to query traces", fmt.Sprintf("query=%s", searchRequestBody.SearchText), err)
+		return
+	}
+
+	for _, measureResult := range pipeSearchResponseOuter.MeasureResults {
+		if len(measureResult.GroupByValues) != 1 {
+			log.Errorf("ProcessSearchTracesRequest: expected 1 group by value, got %d",
+				len(measureResult.GroupByValues))
 			continue
 		}
 
-		if pipeSearchResponseOuter.Hits.Hits == nil || len(pipeSearchResponseOuter.Hits.Hits) == 0 {
+		traceId := measureResult.GroupByValues[0]
+		if len(measureResult.MeasureVal) != 4 {
+			log.Errorf("ProcessSearchTracesRequest: expected 4 measure values, got %d for traceId=%v",
+				len(measureResult.MeasureVal), traceId)
 			continue
 		}
 
-		startTime, exists := pipeSearchResponseOuter.Hits.Hits[0]["start_time"]
+		startTime, exists := measureResult.MeasureVal["start_time"]
 		if !exists {
-			continue
-		}
-		endTime, exists := pipeSearchResponseOuter.Hits.Hits[0]["end_time"]
-		if !exists {
+			log.Errorf("ProcessSearchTracesRequest: start_time not found for traceId=%v", traceId)
 			continue
 		}
 
-		serviceName, exists := pipeSearchResponseOuter.Hits.Hits[0]["service"]
+		endTime, exists := measureResult.MeasureVal["end_time"]
 		if !exists {
+			log.Errorf("ProcessSearchTracesRequest: end_time not found for traceId=%v", traceId)
 			continue
 		}
 
-		operationName, exists := pipeSearchResponseOuter.Hits.Hits[0]["name"]
+		serviceName, exists := measureResult.MeasureVal["service"]
 		if !exists {
+			log.Errorf("ProcessSearchTracesRequest: service not found for traceId=%v", traceId)
+			continue
+		}
+
+		operationName, exists := measureResult.MeasureVal["name"]
+		if !exists {
+			log.Errorf("ProcessSearchTracesRequest: name not found for traceId=%v", traceId)
 			continue
 		}
 
@@ -156,14 +175,96 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 			continue
 		}
 
-		searchRequestBody.SearchText = "trace_id=" + traceId + " | stats count BY status"
-		pipeSearchResponseOuter, err = processSearchRequest(searchRequestBody, myid)
+		service, err := getString(serviceName)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: traceId:%v, Error=%v", traceId, err)
+			log.Errorf("ProcessSearchTracesRequest: failed to convert serviceName: %v", err)
 			continue
 		}
 
-		AddTrace(pipeSearchResponseOuter, &traces, traceId, traceStartTime, traceEndTime, serviceName.(string), operationName.(string))
+		operation, err := getString(operationName)
+		if err != nil {
+			log.Errorf("ProcessSearchTracesRequest: failed to convert operationName: %v", err)
+			continue
+		}
+
+		traces = append(traces, &structs.Trace{
+			TraceId:       traceId,
+			StartTime:     traceStartTime,
+			EndTime:       traceEndTime,
+			ServiceName:   service,
+			OperationName: operation,
+
+			// We'll set these later.
+			SpanCount:       0,
+			SpanErrorsCount: 0,
+		})
+	}
+
+	// Run the second query, to find the span counts for each trace.
+	filters = utils.Transform(traces, func(t *structs.Trace) string {
+		return fmt.Sprintf(`trace_id="%s"`, t.TraceId)
+	})
+	searchRequestBody.SearchText = fmt.Sprintf(`%s | stats count as count by status, trace_id`,
+		strings.Join(filters, " OR "))
+	pipeSearchResponseOuter, err = processSearchRequest(searchRequestBody, myid)
+	if err != nil {
+		utils.SendError(ctx, "Failed to query traces", fmt.Sprintf("query=%s", searchRequestBody.SearchText), err)
+		return
+	}
+
+	for _, measureResult := range pipeSearchResponseOuter.MeasureResults {
+		if len(pipeSearchResponseOuter.GroupByCols) != 2 {
+			log.Errorf("ProcessSearchTracesRequest: expected 2 group by columns, got %d",
+				len(pipeSearchResponseOuter.GroupByCols))
+			continue
+		}
+		swapped := false
+		if pipeSearchResponseOuter.GroupByCols[0] == "trace_id" {
+			swapped = true
+		}
+
+		if len(measureResult.GroupByValues) != 2 {
+			log.Errorf("ProcessSearchTracesRequest: expected 2 group by values, got %d",
+				len(measureResult.GroupByValues))
+			continue
+		}
+
+		statusCode := measureResult.GroupByValues[0]
+		traceId := measureResult.GroupByValues[1]
+		if swapped {
+			traceId, statusCode = statusCode, traceId
+		}
+
+		if len(measureResult.MeasureVal) != 1 {
+			log.Errorf("ProcessSearchTracesRequest: expected 1 measure value, got %d for traceId=%v",
+				len(measureResult.MeasureVal), traceId)
+			continue
+		}
+
+		count, exists := measureResult.MeasureVal["count"]
+		if !exists {
+			log.Errorf("ProcessSearchTracesRequest: expected count measure value, got %d for traceId=%v",
+				len(measureResult.MeasureVal), traceId)
+			continue
+		}
+
+		countVal, isFloat := count.(float64)
+		if !isFloat {
+			log.Errorf("ProcessSearchTracesRequest: expected count measure value to be float64, got %T for traceId=%v",
+				count, traceId)
+			continue
+		}
+
+		// Find the trace in the list of traces.
+		for _, trace := range traces {
+			if trace.TraceId == traceId {
+				trace.SpanCount += int(countVal)
+				if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
+					trace.SpanErrorsCount += int(countVal)
+				}
+				break
+			}
+		}
 	}
 
 	traceResult := &structs.TraceResult{
@@ -172,6 +273,23 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	utils.WriteJsonResponse(ctx, traceResult)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func getString(val interface{}) (string, error) {
+	switch v := val.(type) {
+	case string:
+		return v, nil
+	case []interface{}:
+		if len(v) == 0 {
+			return "", fmt.Errorf("empty array")
+		} else if len(v) > 1 {
+			return "", fmt.Errorf("array length greater than 1")
+		}
+
+		return getString(v[0])
+	default:
+		return "", fmt.Errorf("getString: unexpected type %T", v)
+	}
 }
 
 func convertTimeToUint64(val interface{}) (uint64, error) {
@@ -191,6 +309,14 @@ func convertTimeToUint64(val interface{}) (uint64, error) {
 			return 0, fmt.Errorf("error converting string to float64 ")
 		}
 		return uint64(floatVal), nil
+	case []interface{}:
+		if len(v) == 0 {
+			return 0, fmt.Errorf("empty array")
+		} else if len(v) > 1 {
+			return 0, fmt.Errorf("array length greater than 1")
+		}
+
+		return convertTimeToUint64(v[0])
 	default:
 		log.Errorf("convertTimeToUint64 : unexpected type %T", v)
 		return 0, fmt.Errorf("unexpected type %T", v)
@@ -252,52 +378,27 @@ func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchReque
 }
 
 func GetTotalUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter) int {
-	if config.IsNewQueryPipelineEnabled() {
-		return pipeSearchResponseOuter.BucketCount
-	}
-	return len(pipeSearchResponseOuter.Aggs[""].Buckets)
+	return pipeSearchResponseOuter.BucketCount
 }
 
 func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
-	if config.IsNewQueryPipelineEnabled() {
-		totalTracesIds := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
-		if totalTracesIds < (page-1)*TRACE_PAGE_LIMIT {
-			return []string{}
-		}
-
-		endIndex := page * TRACE_PAGE_LIMIT
-		if endIndex > totalTracesIds {
-			endIndex = totalTracesIds
-		}
-
-		traceIds := make([]string, 0)
-		for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
-			if len(bucket.GroupByValues) == 1 {
-				traceIds = append(traceIds, bucket.GroupByValues[0])
-			}
-		}
-
-		return traceIds
-	}
-
-	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*TRACE_PAGE_LIMIT {
+	totalTracesIds := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
+	if totalTracesIds < (page-1)*TRACE_PAGE_LIMIT {
 		return []string{}
 	}
 
 	endIndex := page * TRACE_PAGE_LIMIT
-	if endIndex > len(pipeSearchResponseOuter.Aggs[""].Buckets) {
-		endIndex = len(pipeSearchResponseOuter.Aggs[""].Buckets)
+	if endIndex > totalTracesIds {
+		endIndex = totalTracesIds
 	}
 
 	traceIds := make([]string, 0)
-	// Only Process up to 50 traces per page
-	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
-		traceId, exists := bucket["key"]
-		if !exists {
-			continue
+	for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
+		if len(bucket.GroupByValues) == 1 {
+			traceIds = append(traceIds, bucket.GroupByValues[0])
 		}
-		traceIds = append(traceIds, traceId.(string))
 	}
+
 	return traceIds
 }
 
@@ -330,69 +431,6 @@ func ExtractSpanID(searchText string) (bool, string) {
 	}
 
 	return true, matches[1]
-}
-
-func AddTrace(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64,
-	traceEndTime uint64, serviceName string, operationName string) {
-	spanCnt := 0
-	errorCnt := 0
-	if config.IsNewQueryPipelineEnabled() {
-		for _, bucket := range pipeSearchResponseOuter.MeasureResults {
-			if len(bucket.GroupByValues) == 1 {
-				statusCode := bucket.GroupByValues[0]
-				count, exists := bucket.MeasureVal["count(*)"]
-				if !exists {
-					log.Error("AddTrace: Unable to extract 'count(*)' from measure results")
-					return
-				}
-				countVal, isFloat := count.(float64)
-				if !isFloat {
-					log.Error("AddTrace: count is not a float64")
-					return
-				}
-				spanCnt += int(countVal)
-				if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
-					errorCnt += int(countVal)
-				}
-			}
-		}
-	} else {
-		for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
-			statusCode, exists := bucket["key"].(string)
-			if !exists {
-				log.Error("AddTrace: Unable to extract 'key' from bucket Map")
-				return
-			}
-			countMap, exists := bucket["count(*)"].(map[string]interface{})
-			if !exists {
-				log.Error("AddTrace: Unable to extract 'count(*)' from bucket Map")
-				return
-			}
-			countFloat64, exists := countMap["value"].(float64)
-			if !exists {
-				log.Error("AddTrace: Unable to extract 'value' from bucket Map")
-				return
-			}
-
-			count := int(countFloat64)
-			spanCnt += count
-			if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
-				errorCnt += count
-			}
-		}
-	}
-
-	trace := &structs.Trace{
-		TraceId:         traceId,
-		StartTime:       traceStartTime,
-		EndTime:         traceEndTime,
-		SpanCount:       spanCnt,
-		SpanErrorsCount: errorCnt,
-		ServiceName:     serviceName,
-		OperationName:   operationName,
-	}
-
-	*traces = append(*traces, trace)
 }
 
 // Call /api/search endpoint
@@ -1034,6 +1072,11 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 			span.Status = status.(string) // Populate Status from Span
 			idToSpanMap[span.SpanID] = span
 		}
+
+		if len(rawSpans) < searchRequestBody.Size {
+			break
+		}
+
 		searchRequestBody.From += 1000
 	}
 

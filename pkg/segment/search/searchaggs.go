@@ -160,9 +160,8 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 			addedTimeHt = true
 		}
 
-		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed,
-			blockSummaries[blockStatus.BlockNum].LowTs,
-			blockSummaries[blockStatus.BlockNum].HighTs, addedTimeHt) {
+		blockSum := blockSummaries[blockStatus.BlockNum]
+		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blockSum.LowTs, blockSum.HighTs) {
 			iterRecsAddRrc(recIT, multiReader, blockStatus, queryRange, aggs, aggsHasTimeHt,
 				addedTimeHt, blkResults, queryMetrics, allSearchResults, searchReq, qid, nodeRes)
 		} else {
@@ -251,6 +250,11 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			ts, err := multiColReader.GetTimeStampForRecord(blockNum, recNum, qid)
 			if err != nil {
 				nodeRes.StoreGlobalSearchError("addRecordToAggregations: Failed to extract timestamp from record", log.ErrorLevel, err)
+
+				if err == segread.UninitializedTimeReaderErr {
+					// We'll keep getting this error if we try other records.
+					break
+				}
 				continue
 			}
 			if ts < timeHistogram.StartTime || ts > timeHistogram.EndTime {
@@ -1089,12 +1093,10 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 	queryMetrics *structs.QueryProcessingMetrics, allSearchResults *segresults.SearchResults,
 	searchReq *structs.SegmentSearchRequest, qid uint64, nodeRes *structs.NodeResult) {
 
-	var aggsSortColKeyIdx int
 	colsToReadIndices := make(map[int]struct{})
 	if aggs != nil && aggs.Sort != nil {
 		colKeyIdx, ok := mcr.GetColKeyIndex(aggs.Sort.ColName)
 		if ok {
-			aggsSortColKeyIdx = colKeyIdx
 			colsToReadIndices[colKeyIdx] = struct{}{}
 		}
 	}
@@ -1126,37 +1128,18 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		}
 		numRecsMatched++
 
-		if config.IsNewQueryPipelineEnabled() {
-			rrc := &sutils.RecordResultContainer{
-				SegKeyInfo: sutils.SegKeyInfo{
-					SegKeyEnc: segKeyEnc,
-					IsRemote:  false,
-				},
-				BlockNum:         blockStatus.BlockNum,
-				RecordNum:        recNumUint16,
-				VirtualTableName: searchReq.VirtualTableName,
-				TimeStamp:        recTs,
-			}
-			blkResults.Add(rrc)
-		} else { // TODO: delete this else block when we migrate to new query pipeline
-			if blkResults.ShouldAddMore() {
-				sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx, nodeRes)
-				if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
-					rrc := &sutils.RecordResultContainer{
-						SegKeyInfo: sutils.SegKeyInfo{
-							SegKeyEnc: segKeyEnc,
-							IsRemote:  false,
-						},
-						BlockNum:         blockStatus.BlockNum,
-						RecordNum:        recNumUint16,
-						SortColumnValue:  sortVal,
-						VirtualTableName: searchReq.VirtualTableName,
-						TimeStamp:        recTs,
-					}
-					blkResults.Add(rrc)
-				}
-			}
+		rrc := &sutils.RecordResultContainer{
+			SegKeyInfo: sutils.SegKeyInfo{
+				SegKeyEnc: segKeyEnc,
+				IsRemote:  false,
+			},
+			BlockNum:         blockStatus.BlockNum,
+			RecordNum:        recNumUint16,
+			VirtualTableName: searchReq.VirtualTableName,
+			TimeStamp:        recTs,
 		}
+		blkResults.Add(rrc)
+
 	}
 	if numRecsMatched > 0 {
 		blkResults.AddMatchedCount(uint64(numRecsMatched))
