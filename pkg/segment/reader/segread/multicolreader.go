@@ -37,7 +37,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var UninitializedTimeReaderErr = errors.New("uninitialized time reader")
+var ErrNilTimeReader = errors.New("uninitialized time reader")
+var ErrReadBlock = errors.New("failed to read and validate block")
 
 /*
 Defines holder struct and functions to construct & manage SegmentFileReaders
@@ -291,14 +292,14 @@ func (scr *SharedMultiColReaders) GetColumnsErrorsMap() map[string]error {
 
 func (mcsr *MultiColSegmentReader) GetTimeStampForRecord(blockNum uint16, recordNum uint16, qid uint64) (uint64, error) {
 	if mcsr.timeReader == nil {
-		return 0, UninitializedTimeReaderErr
+		return 0, ErrNilTimeReader
 	}
 	return mcsr.timeReader.GetTimeStampForRecord(blockNum, recordNum, qid)
 }
 
 func (mcsr *MultiColSegmentReader) GetAllTimeStampsForBlock(blockNum uint16) ([]uint64, error) {
 	if mcsr.timeReader == nil {
-		return nil, errors.New("MultiColSegmentReader.GetAllTimeStampsForBlock: uninitialized timerange reader")
+		return nil, ErrNilTimeReader
 	}
 	return mcsr.timeReader.GetAllTimeStampsForBlock(blockNum)
 }
@@ -477,7 +478,7 @@ func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]str
 
 		err := mcsr.allFileReaders[keyIndex].ValidateAndReadBlock(blockNum)
 		if err != nil {
-			return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
+			return ErrReadBlock
 		}
 	}
 

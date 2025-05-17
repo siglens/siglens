@@ -18,7 +18,6 @@
 package segread
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 
@@ -27,6 +26,8 @@ import (
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 )
+
+var ErrNilRegex = fmt.Errorf("got nil regex")
 
 /*
 parameters:
@@ -51,7 +52,7 @@ func ApplySearchToMatchFilterDictCsg(sfr *segreader.SegmentFileReader, match *st
 	if match.MatchType == structs.MATCH_PHRASE {
 		compiledRegex, err = match.GetRegexp()
 		if err != nil {
-			return false, fmt.Errorf("ApplySearchToMatchFilterDictCsg: error getting match regex: %v", err)
+			return false, ErrNilRegex
 		}
 	}
 
@@ -89,7 +90,7 @@ func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qVal
 	}
 
 	if isRegexSearch && qValDte.GetRegexp() == nil {
-		return false, errors.New("ApplySearchToExpressionFilterDictCsg: qValDte had nil regexp compilation")
+		return false, ErrNilRegex
 	}
 
 	dte := &sutils.DtypeEnclosure{}
