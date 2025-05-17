@@ -19,6 +19,14 @@
 //eslint-disable-next-line no-unused-vars
 let lastQType = '';
 let lastColumnsOrder = [];
+//eslint-disable-next-line no-unused-vars
+let timechartComplete = null;
+let isHistogramViewActive = false;
+let isSearchButtonTriggered = false;
+//eslint-disable-next-line no-unused-vars
+let hasNewSearchWhileHistogramClosed = false; 
+//eslint-disable-next-line no-unused-vars
+let hasRenderedHistogramOnce = false;
 
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -73,8 +81,15 @@ function doSearch(data) {
         let lastKnownHits = 0;
         let errorMessages = [];
         const timerName = `socket timing ${doSearchCounter}`;
+        const isLoadMoreSearch = data.isLoadMoreSearch || false;
         doSearchCounter++;
+        if (!isLoadMoreSearch) {
+            hasNewSearchWhileHistogramClosed = false;
+            hasRenderedHistogramOnce = false;
+        }
         console.time(timerName);
+        hasNewSearchWhileHistogramClosed = false;
+        hasRenderedHistogramOnce = false;
 
         socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
@@ -126,7 +141,7 @@ function doSearch(data) {
                     console.time('COMPLETE');
                     canScrollMore = jsonEvent.can_scroll_more;
                     scrollFrom = jsonEvent.total_rrc_count;
-                    processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
+                    processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel, isLoadMoreSearch);
                     console.timeEnd('COMPLETE');
                     socket.close(1000);
                     break;
@@ -234,6 +249,8 @@ function doLiveTailSearch(data) {
     let timeToFirstByte = 0;
     let firstQUpdate = true;
     let lastKnownHits = 0;
+    hasNewSearchWhileHistogramClosed = false;
+    hasRenderedHistogramOnce = false;
     socket.onopen = function (_e) {
         //  console.time("socket timing");
         $('body').css('cursor', 'progress');
@@ -427,6 +444,8 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         sFrom = scrollFrom;
     }
 
+    const runTimechartValue = isSearchButtonTriggered && isHistogramViewActive ;
+
     return {
         state: 'query',
         searchText: filterValue,
@@ -437,6 +456,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         queryLanguage: queryLanguage,
         includeNulls: false, // Exclude null values
         fieldsHidden: fieldsHidden,
+        runTimechart: runTimechartValue,
     };
 }
 
@@ -467,6 +487,8 @@ function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
         sFrom = scrollFrom;
     }
 
+    const runTimechartValue = isSearchButtonTriggered && isHistogramViewActive ;
+
     return {
         state: wsState,
         searchText: filterValue,
@@ -475,6 +497,7 @@ function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
+        runTimechart: runTimechartValue,
     };
 }
 
@@ -522,7 +545,7 @@ function getQueryBuilderCode() {
 }
 
 //eslint-disable-next-line no-unused-vars
-function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false) {
+function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false, isZoomSearch = false, isLoadMoreSearch = false) {
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
     let endDate = filterEndDate || 'now';
     let stDate = filterStartDate || 'now-15m';
@@ -581,6 +604,8 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         sFrom = totalLoadedRecords;
     }
 
+    const runTimechartValue = isSearchButtonTriggered && isHistogramViewActive ;
+
     return {
         state: wsState,
         searchText: filterValue,
@@ -589,6 +614,8 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
+        isLoadMoreSearch: isLoadMoreSearch,
+        runTimechart: isZoomSearch || runTimechartValue ,
     };
 }
 //eslint-disable-next-line no-unused-vars
@@ -751,6 +778,17 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
             totalHits = res.bucketCount;
         }
     }
+    
+    if (res.timechartComplete) {
+        timechartComplete = res.timechartComplete;
+        if (isHistogramViewActive) {
+            //eslint-disable-next-line no-undef
+            renderHistogram(res.timechartComplete);
+            hasRenderedHistogramOnce = true;
+        }
+    }else if (isHistogramViewActive) {
+        $('#histogram-container').html('<div class="error-message">No histogram data returned for the selected range</div>');
+    }
 
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
@@ -767,7 +805,7 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
     }
 }
 
-function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
+function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel, isLoadMoreSearch = false) {
     let totalHits = res.totalMatched ? res.totalMatched.value : 0;
 
     if (res.qtype === 'logs-query' && res.hits && res.hits.records) {
@@ -779,6 +817,9 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 
     if ((totalHits === 0 || totalHits === undefined) && res.measure === undefined && accumulatedRecords.length === 0) {
         processEmptyQueryResults();
+        if (isHistogramViewActive && !isLoadMoreSearch) {
+            $('#histogram-container').html('<div class="error-message">No histogram data returned for the selected range</div>');
+        }
     } else {
         if (res.measureFunctions && res.measureFunctions.length > 0) {
             measureFunctions = res.measureFunctions;
@@ -813,12 +854,21 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
             }
         } else if (res.qtype === 'logs-query' && accumulatedRecords.length > 0) {
             renderLogsGrid(lastColumnsOrder, accumulatedRecords);
-
             //eslint-disable-next-line no-undef
-            initializeAvailableFieldsSidebar(lastColumnsOrder);
+           initializeAvailableFieldsSidebar(lastColumnsOrder);
         }
-
         timeChart(res.qtype, res.measure, res.isTimechart);
+    }
+
+    if (res.timechartComplete && !isLoadMoreSearch) {
+        timechartComplete = res.timechartComplete;
+        if (isHistogramViewActive) {
+            //eslint-disable-next-line no-undef
+            renderHistogram(res.timechartComplete);
+            hasRenderedHistogramOnce = true;
+        }
+    } else if (isHistogramViewActive && !isLoadMoreSearch) {
+        $('#histogram-container').html('<div class="error-message">No histogram data returned for the selected range</div>');
     }
 
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
@@ -840,15 +890,24 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 }
 function processTimeoutUpdate(res) {
     showError(`Query ${res.qid} timed out`, `Your query exceeded the <strong>${res.timeoutSeconds} second</strong> time limit.`);
+    if (isHistogramViewActive) {
+        $('#histogram-container').html('<div class="error-message">Query timed out</div>');
+    }
 }
 
 function processCancelUpdate(res) {
     showError(`Query ${res.qid} has been cancelled`, 'The query was terminated before completion.');
     $('#show-record-intro-btn').hide();
+    if (isHistogramViewActive) {
+        $('#histogram-container').html('<div class="error-message">Query was cancelled</div>');
+    }
 }
 
 function processErrorUpdate(message) {
     showError(`Message: ${message}`);
+    if (isHistogramViewActive) {
+        $('#histogram-container').html('<div class="error-message">Error: ${message}</div>');
+    }
 }
 
 function processSearchErrorLog(res) {
@@ -857,6 +916,9 @@ function processSearchErrorLog(res) {
     } else if (res.message != '') {
         showErrorResponse(res);
         resetDashboard();
+    }
+    if (isHistogramViewActive) {
+        $('#histogram-container').html('<div class="error-message">${res.no_data_err || res.message}</div>');
     }
 }
 

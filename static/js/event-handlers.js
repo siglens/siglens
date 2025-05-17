@@ -461,6 +461,13 @@ function runFilterBtnHandler(evt) {
             initialSearchData = data;
             doCancel(data);
         } else {
+            //eslint-disable-next-line no-undef
+            isSearchButtonTriggered = true;
+            //eslint-disable-next-line no-undef
+            if (!isHistogramViewActive) {
+                //eslint-disable-next-line no-undef
+                hasNewSearchWhileHistogramClosed = true;
+            }
             resetDashboard();
             logsRowData = [];
             accumulatedRecords = [];
@@ -470,7 +477,10 @@ function runFilterBtnHandler(evt) {
             data = getSearchFilter(false, false);
             initialSearchData = data;
             $('#pagination-container').hide();
-            doSearch(data);
+            doSearch(data).finally(() => {
+                //eslint-disable-next-line no-undef
+                isSearchButtonTriggered = false; 
+            });
         }
         $('#daterangepicker').hide();
     }
