@@ -231,7 +231,7 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
                             return `${hourIn12}:${('0' + minutes).slice(-2)} ${amPm}`;
                         }
                     }
-                    else if (minutes === 0 && hoursInRange <= 24) {
+                    else if (minutes === 0) {
                         return `${monthNames[date.getMonth()]} ${day} ${hours % 12 || 12}:00 ${hours < 12 ? 'AM' : 'PM'}`;
                     } else {
                         return `${hours % 12 || 12}:${('0' + minutes).slice(-2)} ${hours < 12 ? 'AM' : 'PM'}`;
@@ -306,6 +306,7 @@ function triggerZoomSearch(startTime, endTime) {
     const data = getSearchFilter(false, false, true, false);
     data.startEpoch = Math.floor(startTime);
     data.endEpoch = Math.ceil(endTime);
+    //eslint-disable-next-line no-undef
     isZoomSearch=true;
 
     Cookies.set('startEpoch', data.startEpoch);
@@ -360,7 +361,6 @@ function renderHistogram(timechartData) {
     let startTime = Math.min(...timestamps);
     let endTime = Math.max(...timestamps);
 
-    // Store original time range on first render
     if (!HistogramState.isZoomed) {
         HistogramState.originalStartTime = startTime;
         HistogramState.originalEndTime = endTime;
