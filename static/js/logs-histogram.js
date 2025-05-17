@@ -119,6 +119,7 @@ function formatTooltipTimestamp(timestamp, granularity) {
 function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars) {
     const daysInRange = Math.ceil((endTime - startTime) / (1000 * 60 * 60 * 24));
     const hoursInRange = Math.ceil((endTime - startTime) / (1000 * 60 * 60));
+    const minutesInRange = Math.ceil((endTime - startTime) / (1000 * 60));
     let unit, maxTicksLimit;
 
     if (granularity === 'second') {
@@ -218,10 +219,19 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
                     if (seconds === 0) {
                         return `${monthNames[date.getMonth()]} ${day} ${hours % 12 || 12}:${('0' + minutes).slice(-2)} ${hours < 12 ? 'AM' : 'PM'}`;
                     } else {
-                        return `${('0' + seconds).slice(-2)}`;
+                        return `${hours % 12 || 12}:${('0' + seconds).slice(-2)} ${hours < 12 ? 'AM' : 'PM'}`;
                     }
                 } else if (granularity === 'minute') {
-                    if (minutes === 0 && hoursInRange <= 24) {
+                    if (hoursInRange <= 24 || minutesInRange <= 60) {
+                        const hourIn12 = hours % 12 || 12;
+                        const amPm = hours < 12 ? 'AM' : 'PM';
+                        if (hours === 0) {
+                            return `${monthNames[date.getMonth()]} ${day} ${hourIn12}:${('0' + minutes).slice(-2)} ${amPm}`;
+                        } else {
+                            return `${hourIn12}:${('0' + minutes).slice(-2)} ${amPm}`;
+                        }
+                    }
+                    else if (minutes === 0 && hoursInRange <= 24) {
                         return `${monthNames[date.getMonth()]} ${day} ${hours % 12 || 12}:00 ${hours < 12 ? 'AM' : 'PM'}`;
                     } else {
                         return `${hours % 12 || 12}:${('0' + minutes).slice(-2)} ${hours < 12 ? 'AM' : 'PM'}`;
@@ -266,6 +276,7 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
                     const seconds = date.getSeconds();
                     if ((granularity === 'second' && seconds === 0) ||
                         (granularity === 'minute' && minutes === 0) ||
+                        (granularity === 'minute' && hours === 0) ||
                         (granularity === 'hour' && hours === 0)) {
                         return 'bold';
                     }
@@ -292,9 +303,10 @@ function triggerZoomSearch(startTime, endTime) {
         hasNewSearchWhileHistogramClosed = true;
     }
 
-    const data = getSearchFilter(false, false);
+    const data = getSearchFilter(false, false, true, false);
     data.startEpoch = Math.floor(startTime);
     data.endEpoch = Math.ceil(endTime);
+    isZoomSearch=true;
 
     Cookies.set('startEpoch', data.startEpoch);
     Cookies.set('endEpoch', data.endEpoch);

@@ -614,8 +614,8 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false,
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
-        runTimechart: isZoomSearch || runTimechartValue ,
         isLoadMoreSearch: isLoadMoreSearch,
+        runTimechart: isZoomSearch || runTimechartValue ,
     };
 }
 //eslint-disable-next-line no-unused-vars
