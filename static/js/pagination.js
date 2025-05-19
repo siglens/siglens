@@ -100,18 +100,12 @@ function updatePaginationState(results) {
             }
         }
     } else if (results.qtype === 'aggs-query' || results.qtype === 'segstats-query') {
-        if (results.state === 'QUERY_UPDATE' && results.measure) {
-            if (totalLoadedRecords === 0) {
-                currentPage = 1;
-            }
-        } else if (results.state === 'COMPLETE') {
-            if (results.bucketCount) {
-                totalLoadedRecords = results.bucketCount;
-                hasMoreRecords = false;
-            }
+        if (results.state === 'COMPLETE') {
+            currentPage = 1;
+            totalLoadedRecords = results.bucketCount;
+            hasMoreRecords = false;
         }
     }
-
     updatePaginationDisplay();
 
     if (results.state === 'COMPLETE') {
@@ -154,6 +148,14 @@ function updatePaginationDisplay() {
         if (totalPages > 1) paginationHTML += createPageButton(totalPages);
     }
 
+    let totalDisplay;
+    if (hasMoreRecords) {
+        const roundedTotal = Math.ceil(totalLoadedRecords / 100) * 100;
+        totalDisplay = `${roundedTotal.toLocaleString()}+ records`;
+    } else {
+        totalDisplay = `${totalLoadedRecords.toLocaleString()} records`;
+    }
+
     paginationHTML += `</div>
         <button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">
             <i class="fa fa-angle-right"></i>
@@ -162,7 +164,7 @@ function updatePaginationDisplay() {
             <i class="fa fa-angle-double-right"></i>
         </button>
         <span class="pagination-info">
-            Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${totalLoadedRecords.toLocaleString()} records
+            Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${totalDisplay}
         </span>`;
 
     pagesContainer.innerHTML = paginationHTML;

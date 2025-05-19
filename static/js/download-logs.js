@@ -67,6 +67,32 @@ function setDownloadLogsDialog() {
         </div>
     `);
 
+    $('#download-info').append(`
+        <div class="scope-selection mt-4 mb-3 mx-1">
+            <label class="form-label">Download Scope:</label>
+            <div class="form-check d-flex align-items-end">
+                <input class="form-check-input" type="radio" name="downloadScope" id="currentScope" value="current" checked>
+                <label class="form-check-label mx-2" for="currentScope">
+                    Current View (<span id="current-record-count">0</span> records)
+                </label>
+            </div>
+            <div class="form-check d-flex align-items-end mt-1">
+                <input class="form-check-input" type="radio" name="downloadScope" id="allScope" value="all">
+                <label class="form-check-label mx-2" for="allScope">
+                    All Records (up to 10,000 records)
+                </label>
+            </div>
+        </div>
+    `);
+
+    $('#download-info').find('.scope-selection').append(`
+        <div id="all-records-warning" class="warning-alert" style="display:none;">
+            <i class="fas fa-exclamation-triangle" style="margin-right: 8px; color: #ffc107; font-size:16px;"></i>
+            <span>Warning: Downloading all records may take longer and consume more resources.</span>
+        </div>
+    `);
+
+
     let dialog = null;
     let form = null;
     let qname = $('#qnameDL');
@@ -237,6 +263,14 @@ function setDownloadLogsDialog() {
         document.body.removeChild(downloadLink);
     }
 
+    $('input[name="downloadScope"]').on('change', function() {
+        if ($(this).val() === 'all') {
+          $('#all-records-warning').show();
+        } else {
+          $('#all-records-warning').hide();
+        }
+      });
+
     function download() {
         confirmDownload = true;
         let valid = true;
@@ -260,7 +294,14 @@ function setDownloadLogsDialog() {
             $('.download-progress-bar').css('width', '0%');
             $('.download-progress-label').text('0%');
 
+            const useAllRecords = $('#allScope').is(':checked');
+
             let params = getSearchFilter(false, false);
+            if (useAllRecords) {
+                params.size = 10000;
+            } else {
+                params.size = totalLoadedRecords;
+            }
             let searchText = params.searchText;
             let n = searchText.indexOf('BY');
             if (n != -1) {
@@ -370,6 +411,19 @@ function setDownloadLogsDialog() {
                 click: download,
             },
         },
+        open: function () {
+            $('#format').val(curChoose.replace('.', '').toUpperCase());
+
+            $('#currentScope').prop('checked', true);
+            $('#all-records-warning').hide();
+
+            if (lastQType === 'logs-query' && totalLoadedRecords >= 100 && totalLoadedRecords >= 100) {
+                $('.scope-selection').show();
+                $('#current-record-count').html(totalLoadedRecords);
+            } else {
+                $('.scope-selection').hide();
+            }
+        },
         close: function () {
             form[0].reset();
             allFields.removeClass('ui-state-error');
@@ -385,35 +439,21 @@ function setDownloadLogsDialog() {
         download();
     });
 
-    $('#csv-block').on('click', function () {
-        curChoose = '.csv';
-        $('#validateTips').hide();
-        $('#download-info').dialog('open');
-        $('.ui-widget-overlay').addClass('opacity-75');
-        return false;
-    });
+    const downloadOptionToExtension = {
+        'csv-block': '.csv',
+        'json-block': '.json',
+        'xml-block': '.xml',
+        'sql-block': '.sql',
+    };
 
-    $('#json-block').on('click', function () {
-        curChoose = '.json';
-        $('#validateTips').hide();
-        $('#download-info').dialog('open');
-        $('.ui-widget-overlay').addClass('opacity-75');
-        return false;
-    });
-
-    $('#xml-block').on('click', function () {
-        curChoose = '.xml';
-        $('#validateTips').hide();
-        $('#download-info').dialog('open');
-        $('.ui-widget-overlay').addClass('opacity-75');
-        return false;
-    });
-    $('#sql-block').on('click', function () {
-        curChoose = '.sql';
-        $('#validateTips').hide();
-        $('#download-info').dialog('open');
-        $('.ui-widget-overlay').addClass('opacity-75');
-        return false;
+    Object.keys(downloadOptionToExtension).forEach((optionId) => {
+        $(`#${optionId}`).on('click', function () {
+            curChoose = downloadOptionToExtension[optionId];
+            $('#validateTips').hide();
+            $('#download-info').dialog('open');
+            $('.ui-widget-overlay').addClass('opacity-75');
+            return false;
+        });
     });
 
     function downloadData(json, fileName) {

@@ -160,9 +160,8 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 			addedTimeHt = true
 		}
 
-		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed,
-			blockSummaries[blockStatus.BlockNum].LowTs,
-			blockSummaries[blockStatus.BlockNum].HighTs, addedTimeHt) {
+		blockSum := blockSummaries[blockStatus.BlockNum]
+		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blockSum.LowTs, blockSum.HighTs) {
 			iterRecsAddRrc(recIT, multiReader, blockStatus, queryRange, aggs, aggsHasTimeHt,
 				addedTimeHt, blkResults, queryMetrics, allSearchResults, searchReq, qid, nodeRes)
 		} else {
@@ -251,6 +250,11 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			ts, err := multiColReader.GetTimeStampForRecord(blockNum, recNum, qid)
 			if err != nil {
 				nodeRes.StoreGlobalSearchError("addRecordToAggregations: Failed to extract timestamp from record", log.ErrorLevel, err)
+
+				if err == segread.ErrNilTimeReader {
+					// We'll keep getting this error if we try other records.
+					break
+				}
 				continue
 			}
 			if ts < timeHistogram.StartTime || ts > timeHistogram.EndTime {

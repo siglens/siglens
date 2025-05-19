@@ -33,6 +33,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var ErrGiveBackToPool = fmt.Errorf("Error putting buffers back to the pool")
+var ErrInitReader = fmt.Errorf("failed to init reader for block")
+var ErrInitDecompressor = fmt.Errorf("failed to init decompressor")
+var ErrBadTsoVersion = fmt.Errorf("invalid TSO version")
+var ErrOpenFileForPoolBuffer = fmt.Errorf("failed to open file for pool buffer")
+var ErrReadFileForPoolBuffer = fmt.Errorf("failed to read file for pool buffer")
+var ErrLoadTsoFile = fmt.Errorf("failed to load TSO file")
+var ErrLoadTsgFile = fmt.Errorf("failed to load TSG file")
+var ErrBadTsgVersion = fmt.Errorf("bad TSG version")
+
 /*
 Holder struct to read a single time series segment
 
@@ -186,7 +196,7 @@ func (tssr *TimeSeriesSegmentReader) Close() error {
 	}
 
 	if err1 != nil || err2 != nil {
-		return fmt.Errorf("Error putting buffers back to the pool")
+		return ErrGiveBackToPool
 	}
 
 	return nil
@@ -248,7 +258,7 @@ func (tssr *TimeSeriesSegmentReader) InitReaderForBlock(blkNum uint16, queryMetr
 
 	tsoVersion, readTSO, nTSIDs, err := tssr.loadTSOFile(tsoFName)
 	if err != nil {
-		log.Errorf("InitReaderForBlock: failed to init reader for block %v! Err:%+v", blkNum, err)
+		log.Error(ErrInitReader)
 		return nil, err
 	}
 
@@ -275,7 +285,7 @@ func (tssr *TimeSeriesSegmentReader) InitReaderForBlock(blkNum uint16, queryMetr
 	readTSG, err := tssr.loadTSGFile(tsgFName)
 
 	if err != nil {
-		log.Errorf("InitReaderForBlock: failed to init reader for block %v! Err:%+v", blkNum, err)
+		log.Error(ErrInitReader)
 		return nil, err
 	}
 
@@ -332,7 +342,7 @@ func (tsbr *TimeSeriesBlockReader) GetTimeSeriesIterator(tsid uint64) (*compress
 	rawSeries := bytes.NewReader(tsbr.rawTSG[offset : offset+tsgLen])
 	it, err := compress.NewDecompressIterator(rawSeries)
 	if err != nil {
-		log.Errorf("GetTimeSeriesIterator: Error initialising a decompressor! err: %v", err)
+		log.Error(ErrInitDecompressor)
 		return nil, true, err
 	}
 	return it, true, nil
@@ -348,7 +358,7 @@ func getOffsetFromTsoFile(tsoVersion byte, low uint32, high uint32, nTsids uint3
 	case sutils.VERSION_TSOFILE_V2[0]:
 		tsoBuf = tsoBuf[9:] // strip the version and number of entries
 	default:
-		log.Errorf("getOffsetFromTsoFile: invalid TSO version: %v", tsoVersion)
+		log.Error(ErrBadTsoVersion)
 		return false, 0, 0
 	}
 
@@ -377,14 +387,14 @@ func getOffsetFromTsoFile(tsoVersion byte, low uint32, high uint32, nTsids uint3
 func loadFileIntoPoolBuffer(fileName string, bufferFromPool []byte) error {
 	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Errorf("loadFileIntoPoolBuffer: failed to open fileName: %v  Error: %v", fileName, err)
+		log.Error(ErrOpenFileForPoolBuffer)
 		return err
 	}
 	defer fd.Close()
 
 	_, err = fd.ReadAt(bufferFromPool, 0)
 	if err != nil {
-		log.Errorf("loadFileIntoPoolBuffer: Error reading file: %v, err: %v", fileName, err)
+		log.Error(ErrReadFileForPoolBuffer)
 		return err
 	}
 
@@ -395,7 +405,7 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) (byte, []byte,
 
 	err := loadFileIntoPoolBuffer(fileName, tssr.tsoBuf)
 	if err != nil {
-		log.Errorf("loadTSOFile: Error loading TSO file: %v", err)
+		log.Error(ErrLoadTsoFile)
 		return 0, nil, 0, err
 	}
 
@@ -407,7 +417,7 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) (byte, []byte,
 	case sutils.VERSION_TSOFILE_V2[0]:
 		nEntries = utils.BytesToUint64LittleEndian(tssr.tsoBuf[1:9])
 	default:
-		return 0, nil, 0, fmt.Errorf("loadFileIntoPoolBuffer: invalid TSO version: %+v", tsoVersion)
+		return 0, nil, 0, ErrBadTsoVersion
 	}
 
 	return tsoVersion, tssr.tsoBuf, nEntries, nil
@@ -416,14 +426,14 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) (byte, []byte,
 func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error) {
 	err := loadFileIntoPoolBuffer(fileName, tssr.tsgBuf)
 	if err != nil {
-		log.Errorf("loadTSGFile: Error loading TSG file: %v", err)
+		log.Error(ErrLoadTsgFile)
 		return nil, err
 	}
 
 	versionTsgFile := make([]byte, 1)
 	copy(versionTsgFile, tssr.tsgBuf[:1])
 	if versionTsgFile[0] != sutils.VERSION_TSGFILE[0] {
-		return nil, fmt.Errorf("loadTSGFile: the file version doesn't match; expected=%+v, got=%+v", sutils.VERSION_TSGFILE[0], versionTsgFile[0])
+		return nil, ErrBadTsgVersion
 	}
 	return tssr.tsgBuf, nil
 }
