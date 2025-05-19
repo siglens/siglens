@@ -132,7 +132,7 @@ function doSearch(data) {
                     console.time('COMPLETE');
                     canScrollMore = jsonEvent.can_scroll_more;
                     scrollFrom = jsonEvent.total_rrc_count;
-                    processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel, isLoadMoreSearch);
+                    processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
                     console.timeEnd('COMPLETE');
                     socket.close(1000);
                     break;
@@ -793,7 +793,7 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
     }
 }
 
-function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel, isLoadMoreSearch = false) {
+function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
     let totalHits = res.totalMatched ? res.totalMatched.value : 0;
 
     if (res.qtype === 'logs-query' && res.hits && res.hits.records) {
@@ -805,9 +805,6 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 
     if ((totalHits === 0 || totalHits === undefined) && res.measure === undefined && accumulatedRecords.length === 0) {
         processEmptyQueryResults();
-        if (isHistogramViewActive && !isLoadMoreSearch) {
-            $('#histogram-container').html('<div class="error-message">No histogram data returned for the selected range</div>');
-        }
     } else {
         if (res.measureFunctions && res.measureFunctions.length > 0) {
             measureFunctions = res.measureFunctions;
@@ -848,7 +845,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         timeChart(res.qtype, res.measure, res.isTimechart);
     }
 
-    if (res.timechartComplete && !isLoadMoreSearch) {
+    if (res.timechartComplete ) {
         timechartComplete = res.timechartComplete;
         if (isHistogramViewActive) {
             //eslint-disable-next-line no-undef
@@ -876,24 +873,15 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 }
 function processTimeoutUpdate(res) {
     showError(`Query ${res.qid} timed out`, `Your query exceeded the <strong>${res.timeoutSeconds} second</strong> time limit.`);
-    if (isHistogramViewActive) {
-        $('#histogram-container').html('<div class="error-message">Query timed out</div>');
-    }
 }
 
 function processCancelUpdate(res) {
     showError(`Query ${res.qid} has been cancelled`, 'The query was terminated before completion.');
     $('#show-record-intro-btn').hide();
-    if (isHistogramViewActive) {
-        $('#histogram-container').html('<div class="error-message">Query was cancelled</div>');
-    }
 }
 
 function processErrorUpdate(message) {
     showError(`Message: ${message}`);
-    if (isHistogramViewActive) {
-        $('#histogram-container').html('<div class="error-message">Error: ${message}</div>');
-    }
 }
 
 function processSearchErrorLog(res) {
@@ -902,9 +890,6 @@ function processSearchErrorLog(res) {
     } else if (res.message != '') {
         showErrorResponse(res);
         resetDashboard();
-    }
-    if (isHistogramViewActive) {
-        $('#histogram-container').html('<div class="error-message">${res.no_data_err || res.message}</div>');
     }
 }
 
