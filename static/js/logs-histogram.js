@@ -29,7 +29,6 @@ const HistogramState = {
     eventListeners: {},
 };
 
-// Custom plugin to draw dashed left and right borders for drag selection
 const customDragBorderPlugin = {
     id: 'customDragBorder',
     afterDraw: (chart) => {
@@ -115,28 +114,114 @@ function formatTooltipTimestamp(timestamp, granularity) {
         return result;
     }
 }
+function formatAxisTitle(intervalMs, unit) {
+    function msToReadable(ms) {
+        const seconds = ms / 1000;
+        const minutes = seconds / 60;
+        const hours = minutes / 60;
+        const days = hours / 24;
+        const months = days / 30; 
+
+        if (months >= 1) {
+            const value = Math.round(months * 10) / 10;
+            return `${value} month${value !== 1 ? 's' : ''}`;
+        } else if (days >= 1) {
+            const value = Math.round(days * 10) / 10;
+            return `${value} day${value !== 1 ? 's' : ''}`;
+        } else if (hours >= 1) {
+            const value = Math.round(hours * 10) / 10;
+            return `${value} hour${value !== 1 ? 's' : ''}`;
+        } else if (minutes >= 1) {
+            const value = Math.round(minutes * 10) / 10;
+            return `${value} minute${value !== 1 ? 's' : ''}`;
+        } else {
+            const value = Math.round(seconds * 10) / 10;
+            return `${value} second${value !== 1 ? 's' : ''}`;
+        }
+    }
+
+    const readableInterval = msToReadable(intervalMs);
+    const capitalizedUnit = unit.charAt(0).toUpperCase() + unit.slice(1);
+
+    return `Timestamp (Interval: ${readableInterval}, Unit: ${capitalizedUnit})`;
+}
 
 function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars) {
-    const daysInRange = Math.ceil((endTime - startTime) / (1000 * 60 * 60 * 24));
-    const hoursInRange = Math.ceil((endTime - startTime) / (1000 * 60 * 60));
-    const minutesInRange = Math.ceil((endTime - startTime) / (1000 * 60));
-    let unit, maxTicksLimit;
+    const durationMs = endTime - startTime;
+    const daysInRange = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
+    const hoursInRange = Math.ceil(durationMs / (1000 * 60 * 60));
 
+    let unit, maxTicksLimit, stepSize;
+
+    let adjustedStartTime = startTime;
+    let adjustedEndTime = endTime;
+    
+    if (granularity === 'second') {
+        const startDate = new Date(startTime);
+        const startSeconds = startDate.getSeconds();
+        const startAdjustment = startSeconds % 30 === 0 ? 0 : (30 - (startSeconds % 30));
+        adjustedStartTime = startTime + startAdjustment * 1000;
+
+        const endDate = new Date(endTime);
+        const endSeconds = endDate.getSeconds();
+        const endAdjustment = endSeconds % 30 === 0 ? 0 : (30 - (endSeconds % 30));
+        adjustedEndTime = endTime + endAdjustment * 1000;
+    }
+
+
+    const adjustedDurationMs = adjustedEndTime - adjustedStartTime;
+
+    // Set tick intervals based on granularity and time range
     if (granularity === 'second') {
         unit = 'second';
-        maxTicksLimit = Math.min(maxBars, Math.ceil((endTime - startTime) / intervalMs) + 1);
+        if (adjustedDurationMs <= 5 * 60 * 1000) {
+            // 5 min range: 30-sec ticks
+            stepSize = 30; // 30 seconds
+            maxTicksLimit = Math.ceil(adjustedDurationMs / (30 * 1000)) + 1;
+            maxTicksLimit = Math.min(maxTicksLimit, 11); // Cap at 11 ticks
+        } else if (adjustedDurationMs <= 15 * 60 * 1000) {
+            // 15 min range: 60-sec (1-min) ticks
+            unit = 'minute';
+            stepSize = 1; // 1 minute
+            maxTicksLimit = Math.ceil(adjustedDurationMs / (60 * 1000)) + 1;
+        } else {
+            unit = 'minute';
+            stepSize = 2; // 2 minutes
+            maxTicksLimit = Math.ceil(adjustedDurationMs / (2 * 60 * 1000)) + 1;
+        }
+        maxTicksLimit = Math.min(maxBars, maxTicksLimit);
     } else if (granularity === 'minute') {
         unit = 'minute';
-        maxTicksLimit = Math.min(maxBars, Math.ceil((endTime - startTime) / intervalMs) + 1);
+        if (durationMs <= 60 * 60 * 1000 && intervalMs === 60 * 1000) {
+            // 1 hr range: 5-min ticks
+            stepSize = 5; // 5 minutes
+            maxTicksLimit = Math.ceil(durationMs / (5 * 60 * 1000)) + 1;
+        } else if (durationMs <= 4 * 60 * 60 * 1000 && intervalMs === 5 * 60 * 1000) {
+            // ≤ 4 hr range: 15-min ticks
+            stepSize = 15; // 15 minutes
+            maxTicksLimit = Math.ceil(durationMs / (15 * 60 * 1000)) + 1;
+        } else if (durationMs <= 24 * 60 * 60 * 1000 && intervalMs === 30 * 60 * 1000) {
+            // ≤ 1 day range: 2-hr ticks
+            unit = 'hour';
+            stepSize = 2; // 2 hours
+            maxTicksLimit = Math.ceil(durationMs / (2 * 60 * 60 * 1000)) + 1;
+        } else {
+            stepSize = Math.max(1, Math.ceil(intervalMs / (60 * 1000)));
+            maxTicksLimit = Math.ceil(durationMs / (stepSize * 60 * 1000)) + 1;
+        }
+        maxTicksLimit = Math.min(maxBars, maxTicksLimit);
     } else if (granularity === 'hour') {
         unit = 'hour';
-        maxTicksLimit = Math.min(maxBars, Math.ceil((endTime - startTime) / intervalMs) + 1);
+        stepSize = Math.max(1, Math.ceil(intervalMs / (60 * 60 * 1000)));
+        maxTicksLimit = Math.min(maxBars, Math.ceil(durationMs / (stepSize * 60 * 60 * 1000)) + 1);
     } else if (granularity === 'day') {
         unit = 'day';
-        maxTicksLimit = Math.min(maxBars, Math.ceil((endTime - startTime) / intervalMs) + 1);
+        stepSize = Math.max(1, Math.ceil(intervalMs / (24 * 60 * 60 * 1000)));
+        maxTicksLimit = Math.min(maxBars, Math.ceil(durationMs / (stepSize * 24 * 60 * 60 * 1000)) + 1);
     } else {
         unit = 'month';
-        maxTicksLimit = Math.min(maxBars, Math.ceil((endTime - startTime) / intervalMs) + 1);
+        stepSize = Math.max(1, Math.ceil(intervalMs / (30 * 24 * 60 * 60 * 1000)));
+        maxTicksLimit = Math.min(maxBars, Math.ceil(durationMs / (stepSize * 30 * 24 * 60 * 60 * 1000)) + 1);
     }
 
     const timeOptions = {
@@ -152,22 +237,25 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
         bounds: 'ticks',
     };
 
-    let offsetValue = true;
+    let offsetValue = granularity !== 'second' && granularity !== 'minute' && granularity !== 'hour';
+    
     if (granularity === 'second') {
         timeOptions.round = 'second';
-        offsetValue = false;
-        timeOptions.stepSize = intervalMs / 1000;
+        timeOptions.min = adjustedStartTime;
+        timeOptions.max = adjustedEndTime;
+        timeOptions.stepSize = stepSize;
     } else if (granularity === 'minute') {
         timeOptions.round = 'minute';
-        offsetValue = false;
-        timeOptions.stepSize = intervalMs / (60 * 1000);
+        timeOptions.stepSize = stepSize;
     } else if (granularity === 'hour') {
         timeOptions.round = 'hour';
-        offsetValue = false;
-        timeOptions.stepSize = intervalMs / (60 * 60 * 1000);
+        timeOptions.stepSize = stepSize;
     } else if (granularity === 'day') {
         timeOptions.round = 'day';
-        timeOptions.stepSize = intervalMs / (24 * 60 * 60 * 1000);
+        timeOptions.stepSize = stepSize;
+    } else {
+        timeOptions.round = 'month';
+        timeOptions.stepSize = stepSize;
     }
 
     timeOptions.offset = offsetValue;
@@ -175,94 +263,172 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
     let paddingMs;
     switch (granularity) {
         case 'second':
-            paddingMs = 10 * 1000;
+            paddingMs = Math.min(30 * 1000, durationMs * 0.05); // 30 seconds or 5% of duration
             break;
         case 'minute':
-            paddingMs = 60 * 1000;
+            paddingMs = Math.min(5 * 60 * 1000, durationMs * 0.05); // 5 minutes or 5% of duration
             break;
         case 'hour':
-            paddingMs = 60 * 60 * 1000;
+            paddingMs = Math.min(30 * 60 * 1000, durationMs * 0.05); // 30 minutes or 5% of duration
             break;
         case 'day':
-            paddingMs = 12 * 60 * 60 * 1000;
+            paddingMs = Math.min(12 * 60 * 60 * 1000, durationMs * 0.05); // 12 hours or 5% of duration
             break;
         case 'month':
-            paddingMs = 5 * 24 * 60 * 60 * 1000;
+            paddingMs = Math.min(5 * 24 * 60 * 60 * 1000, durationMs * 0.05); // 5 days or 5% of duration
             break;
         default:
-            paddingMs = 12 * 60 * 60 * 1000;
+            paddingMs = durationMs * 0.05; // 5% of duration
     }
+
+    const startDate = new Date(startTime);
+    const endDate = new Date(endTime);
+    const spansDifferentDays = startDate.getDate() !== endDate.getDate() || 
+                              startDate.getMonth() !== endDate.getMonth() || 
+                              startDate.getFullYear() !== endDate.getFullYear();
+    
+    const spansDifferentHours = startDate.getHours() !== endDate.getHours() || spansDifferentDays;
+    const axisTitle = formatAxisTitle(intervalMs, unit);
 
     const config = {
         type: 'time',
         time: timeOptions,
-        min: startTime - paddingMs,
-        max: endTime + paddingMs,
+        min: (granularity === 'second' ? adjustedStartTime : startTime) - paddingMs,
+        max: (granularity === 'second' ? adjustedEndTime : endTime) + paddingMs,
         title: {
             display: true,
-            text: `Timestamp (Interval - ${granularity})`,
+            text: axisTitle,
+            
+            
         },
         ticks: {
-            maxRotation: 0,
+            maxRotation: 45, 
             minRotation: 0,
             maxTicksLimit: maxTicksLimit,
             includeBounds: true,
             callback: function (value) {
                 const date = new Date(value);
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const hours = date.getHours();
+                const hours = date.getHours(); 
                 const minutes = date.getMinutes();
                 const seconds = date.getSeconds();
                 const day = date.getDate();
 
-                if (granularity === 'second') {
-                    if (seconds === 0) {
-                        return `${monthNames[date.getMonth()]} ${day} ${hours % 12 || 12}:${('0' + minutes).slice(-2)} ${hours < 12 ? 'AM' : 'PM'}`;
+                const formatTime = (h, m, s, showHours = true) => {
+                    const hourIn12 = h % 12 || 12;
+                    const amPm = h < 12 ? 'AM' : 'PM';
+                    const minuteStr = ('0' + m).slice(-2);
+                    const secondStr = ('0' + s).slice(-2);
+                    
+                    if (showHours) {
+                        return `${hourIn12}:${minuteStr}:${secondStr} ${amPm}`;
                     } else {
-                        return `${hours % 12 || 12}:${('0' + seconds).slice(-2)} ${hours < 12 ? 'AM' : 'PM'}`;
+                        return `${minuteStr}:${secondStr}`;
                     }
-                } else if (granularity === 'minute') {
-                    if (hoursInRange <= 24 || minutesInRange <= 60) {
-                        const hourIn12 = hours % 12 || 12;
-                        const amPm = hours < 12 ? 'AM' : 'PM';
-                        if (hours === 0) {
-                            return `${monthNames[date.getMonth()]} ${day} ${hourIn12}:${('0' + minutes).slice(-2)} ${amPm}`;
-                        } else {
-                            return `${hourIn12}:${('0' + minutes).slice(-2)} ${amPm}`;
+                };
+
+                const formatDate = (m, d) => `${monthNames[m]} ${d}`;
+
+                if (granularity === 'second') {
+                    if (adjustedDurationMs <= 5 * 60 * 1000) {
+                        // For 30-sec ticks
+                        if (seconds % 30 === 0) {
+                            if (seconds === 0) {
+                                if (spansDifferentDays) {
+                                    return `${formatDate(date.getMonth(), day)} ${formatTime(hours, minutes, seconds)}`;
+                                } else if (spansDifferentHours) {
+                                    return formatTime(hours, minutes, seconds);
+                                } else {
+                                    return formatTime(hours, minutes, seconds, false);
+                                }
+                            } else {
+                                if (spansDifferentHours) {
+                                    return formatTime(hours, minutes, seconds);
+                                } else {
+                                    return formatTime(hours, minutes, seconds, false);
+                                }
+                            }
+                        }
+                    } else if (adjustedDurationMs <= 15 * 60 * 1000) {
+                        // For 60-sec ticks
+                        if (seconds % 60 === 0) {
+                            if (seconds === 0) {
+                                if (spansDifferentDays) {
+                                    return `${formatDate(date.getMonth(), day)} ${formatTime(hours, minutes, seconds)}`;
+                                } else if (spansDifferentHours) {
+                                    return formatTime(hours, minutes, seconds);
+                                } else {
+                                    return formatTime(hours, minutes, seconds, false);
+                                }
+                            } else {
+                                if (spansDifferentHours) {
+                                    return formatTime(hours, minutes, seconds);
+                                } else {
+                                    return formatTime(hours, minutes, seconds, false);
+                                }
+                            }
                         }
                     }
-                    else if (minutes === 0) {
-                        return `${monthNames[date.getMonth()]} ${day} ${hours % 12 || 12}:00 ${hours < 12 ? 'AM' : 'PM'}`;
-                    } else {
-                        return `${hours % 12 || 12}:${('0' + minutes).slice(-2)} ${hours < 12 ? 'AM' : 'PM'}`;
+                    return null;
+                } else if (granularity === 'minute') {
+                    if (durationMs <= 60 * 60 * 1000) {
+                        // 5-min ticks for ≤ 1 hr
+                        if (minutes % 5 === 0) {
+                            if (spansDifferentDays && hours === 0) {
+                                return `${formatDate(date.getMonth(), day)} ${formatTime(hours, minutes, 0, true).slice(0, -3)}`;
+                            } else {
+                                return formatTime(hours, minutes, 0, true).slice(0, -3);
+                            }
+                        }
+                    } else if (durationMs <= 4 * 60 * 60 * 1000) {
+                        // 15-min ticks for ≤ 4 hr
+                        if (minutes % 15 === 0) {
+                            if (spansDifferentDays && hours === 0) {
+                                return `${formatDate(date.getMonth(), day)} ${formatTime(hours, minutes, 0, true).slice(0, -3)}`;
+                            } else {
+                                return formatTime(hours, minutes, 0, true).slice(0, -3);
+                            }
+                        }
+                    } else if (durationMs <= 24 * 60 * 60 * 1000) {
+                        // 2-hr ticks for ≤ 1 day
+                        if (hours % 2 === 0 && minutes === 0) {
+                            if (hours === 0) {
+                                return formatDate(date.getMonth(), day);
+                            } else {
+                                return `${hours % 12 || 12}:00 ${hours < 12 ? 'AM' : 'PM'}`;
+                            }
+                        }
                     }
+                    return null;
                 } else if (granularity === 'hour') {
                     if (hoursInRange <= 24) {
                         const hourIn12 = hours % 12 || 12;
                         const amPm = hours < 12 ? 'AM' : 'PM';
                         if (hours === 0) {
-                            return `${monthNames[date.getMonth()]} ${day}`;
+                            return formatDate(date.getMonth(), day);
                         } else {
                             return `${hourIn12}${amPm}`;
                         }
                     } else if (daysInRange <= 4) {
                         if (hours === 0) {
                             return `${monthNames[date.getMonth()]} ${day}`;
-                        } else if (hours % (intervalMs / (60 * 60 * 1000)) === 0) {
-                            const hourIn12 = hours % 12 || 12;
-                            const amPm = hours < 12 ? 'AM' : 'PM';
-                            return `${hourIn12}${amPm}`;
+                        } else if (hours === 6) {
+                            return '6AM';
+                        } else if (hours === 12) {
+                            return '12PM';
+                        } else if (hours === 18) {
+                            return '6PM';
                         }
                     } else {
                         if (hours === 0) {
-                            return `${monthNames[date.getMonth()]} ${day}`;
+                            return formatDate(date.getMonth(), day);
                         } else if (hours === 12) {
                             return '12PM';
                         }
                     }
                     return null;
                 } else if (granularity === 'day') {
-                    return `${monthNames[date.getMonth()]} ${day}`;
+                    return formatDate(date.getMonth(), day);
                 } else {
                     return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
                 }
@@ -273,11 +439,11 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
                     const date = new Date(value);
                     const hours = date.getHours();
                     const minutes = date.getMinutes();
-                    const seconds = date.getSeconds();
-                    if ((granularity === 'second' && seconds === 0) ||
-                        (granularity === 'minute' && minutes === 0) ||
+                    if (
+                        (granularity === 'second' && minutes === 0) ||
                         (granularity === 'minute' && hours === 0) ||
-                        (granularity === 'hour' && hours === 0)) {
+                        (granularity === 'hour' && hours === 0) 
+                    ) {
                         return 'bold';
                     }
                     return 'normal';
@@ -311,6 +477,18 @@ function triggerZoomSearch(startTime, endTime) {
 
     Cookies.set('startEpoch', data.startEpoch);
     Cookies.set('endEpoch', data.endEpoch);
+
+    addQSParm('startEpoch', data.startEpoch);
+    addQSParm('endEpoch', data.endEpoch);
+    window.history.pushState({ path: myUrl }, '', myUrl);
+
+    datePickerHandler(data.startEpoch, data.endEpoch, 'custom');
+    loadCustomDateTimeFromEpoch(data.startEpoch, data.endEpoch);
+
+    filterStartDate = data.startEpoch;
+    filterEndDate = data.endEpoch;
+    displayStart = new Date(data.startEpoch);
+    displayEnd = new Date(data.endEpoch);
 
     resetDashboard();
     logsRowData = [];
@@ -533,12 +711,10 @@ function renderHistogram(timechartData) {
             HistogramState.currentGranularity = 'day';
             HistogramState.isZoomed = false;
             HistogramState.currentHistogram.resetZoom();
-            // Trigger search with original time range
             triggerZoomSearch(HistogramState.originalStartTime, HistogramState.originalEndTime);
         }
     };
 
-    // Remove existing event listeners
     const eventTypes = ['dblclick'];
     eventTypes.forEach(eventType => {
         if (HistogramState.eventListeners[eventType]) {
@@ -546,7 +722,6 @@ function renderHistogram(timechartData) {
         }
     });
 
-    // Add double-click listener
     HistogramState.canvas.addEventListener('dblclick', handleDoubleClick);
     HistogramState.eventListeners = {
         dblclick: handleDoubleClick
@@ -633,20 +808,6 @@ $(document).ready(function() {
                     const isVisible = $(emptyResponse).is(':visible');
                     if (isVisible) {
                         $('.histo-container').hide();
-                        $('#histogram-toggle-btn').removeClass('active');
-                        //eslint-disable-next-line no-undef
-                        isHistogramViewActive = false;
-                        //eslint-disable-next-line no-undef
-                        timechartComplete = null;
-                        //eslint-disable-next-line no-undef
-                        hasRenderedHistogramOnce = false;
-                        HistogramState.isZoomed = false;
-                        HistogramState.originalStartTime = null;
-                        HistogramState.originalEndTime = null;
-                        if (HistogramState.currentHistogram) {
-                            HistogramState.currentHistogram.destroy();
-                            HistogramState.currentHistogram = null;
-                        }
                     }
                 }
             });
@@ -657,20 +818,6 @@ $(document).ready(function() {
         });
         if ($(emptyResponse).is(':visible')) {
             $('.histo-container').hide();
-            $('#histogram-toggle-btn').removeClass('active');
-            //eslint-disable-next-line no-undef
-            isHistogramViewActive = false;
-            //eslint-disable-next-line no-undef
-            timechartComplete = null;
-            //eslint-disable-next-line no-undef
-            hasRenderedHistogramOnce = false;
-            HistogramState.isZoomed = false;
-            HistogramState.originalStartTime = null;
-            HistogramState.originalEndTime = null;
-            if (HistogramState.currentHistogram) {
-                HistogramState.currentHistogram.destroy();
-                HistogramState.currentHistogram = null;
-            }
         }
     }
 });
