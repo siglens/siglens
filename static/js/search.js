@@ -27,6 +27,8 @@ let isSearchButtonTriggered = false;
 let hasNewSearchWhileHistogramClosed = false; 
 //eslint-disable-next-line no-unused-vars
 let hasRenderedHistogramOnce = false;
+//eslint-disable-next-line no-unused-vars
+let isHistogramOpen = false; 
 
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -777,15 +779,18 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
         }
     }
     
-    if (res.timechartComplete) {
+    if (res.timechartComplete ) {
         timechartComplete = res.timechartComplete;
         if (isHistogramViewActive) {
             //eslint-disable-next-line no-undef
             renderHistogram(res.timechartComplete);
             hasRenderedHistogramOnce = true;
         }
-    }else if (isHistogramViewActive) {
-        $('#histogram-container').html('<div class="error-message">No histogram data returned for the selected range</div>');
+    } else if (isSearchButtonTriggered) {
+        timechartComplete = null;
+        if (isHistogramViewActive) {
+            $('#histogram-container').html('<div class="error-message">Histogram data is not available</div>');
+        }
     }
 
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
@@ -862,6 +867,11 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
             renderHistogram(res.timechartComplete);
             hasRenderedHistogramOnce = true;
         }
+    } else if (isSearchButtonTriggered) {
+        timechartComplete = null;
+        if (isHistogramViewActive) {
+            $('#histogram-container').html('<div class="error-message">Histogram data is not available</div>');
+        }
     }
 
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
@@ -883,24 +893,15 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 }
 function processTimeoutUpdate(res) {
     showError(`Query ${res.qid} timed out`, `Your query exceeded the <strong>${res.timeoutSeconds} second</strong> time limit.`);
-    if (isHistogramViewActive) {
-        $('#histogram-container').html('<div class="error-message">Query timed out</div>');
-    }
 }
 
 function processCancelUpdate(res) {
     showError(`Query ${res.qid} has been cancelled`, 'The query was terminated before completion.');
     $('#show-record-intro-btn').hide();
-    if (isHistogramViewActive) {
-        $('#histogram-container').html('<div class="error-message">Query was cancelled</div>');
-    }
 }
 
 function processErrorUpdate(message) {
     showError(`Message: ${message}`);
-    if (isHistogramViewActive) {
-        $('#histogram-container').html('<div class="error-message">Error: ${message}</div>');
-    }
 }
 
 function processSearchErrorLog(res) {
@@ -909,9 +910,6 @@ function processSearchErrorLog(res) {
     } else if (res.message != '') {
         showErrorResponse(res);
         resetDashboard();
-    }
-    if (isHistogramViewActive) {
-        $('#histogram-container').html('<div class="error-message">${res.no_data_err || res.message}</div>');
     }
 }
 
@@ -923,6 +921,8 @@ function processEmptyQueryResults() {
 
     $('#show-record-intro-btn').show();
     $('#empty-response').empty().show();
+    $('.histo-container').hide(); 
+    isHistogramOpen = false;
 
     addEmptyMessagePopup();
 }
@@ -934,6 +934,8 @@ function showErrorResponse(res) {
     $('.json-popup').hide();
 
     $('#empty-response').empty().show();
+    $('.histo-container').hide();
+    isHistogramOpen = false;
     if (res && res.no_data_err && res.no_data_err.includes('No data found')) {
         addEmptyMessagePopup();
     } else {

@@ -29,41 +29,6 @@ const HistogramState = {
     eventListeners: {},
 };
 
-const customDragBorderPlugin = {
-    id: 'customDragBorder',
-    afterDraw: (chart) => {
-        const zoomPlugin = chart.$zoom;
-        if (!zoomPlugin || !zoomPlugin._active || !zoomPlugin._active.length) {
-            return;
-        }
-
-        const { ctx, chartArea } = chart;
-        const zoomState = zoomPlugin._active[0];
-        const { startX, endX } = zoomState;
-
-        if (startX !== undefined && endX !== undefined) {
-            const leftX = Math.min(startX, endX);
-            const rightX = Math.max(startX, endX);
-            const top = chartArea.top;
-            const bottom = chartArea.bottom;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.setLineDash([3, 3]);
-            ctx.strokeStyle = 'rgba(0, 0, 255, 0.8)';
-            ctx.lineWidth = 1;
-
-            ctx.moveTo(leftX, top);
-            ctx.lineTo(leftX, bottom);
-            ctx.moveTo(rightX, top);
-            ctx.lineTo(rightX, bottom);
-
-            ctx.stroke();
-            ctx.restore();
-        }
-    }
-};
-
 function determineGranularity(startTime, endTime) {
     const durationMs = endTime - startTime;
     const MAX_BARS = 50;
@@ -115,7 +80,7 @@ function formatTooltipTimestamp(timestamp, granularity) {
     }
 }
 
-function formatAxisTitle(intervalMs, unit) {
+function formatAxisTitle(intervalMs) {
     function msToReadable(ms) {
         const seconds = ms / 1000;
         const minutes = seconds / 60;
@@ -142,9 +107,8 @@ function formatAxisTitle(intervalMs, unit) {
     }
 
     const readableInterval = msToReadable(intervalMs);
-    const capitalizedUnit = unit.charAt(0).toUpperCase() + unit.slice(1);
 
-    return `Timestamp (Interval: ${readableInterval}, Unit: ${capitalizedUnit})`;
+    return `Timestamp (Interval: ${readableInterval})`;
 }
 
 function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars) {
@@ -456,53 +420,6 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
     return config;
 }
 
-function triggerZoomSearch(startTime, endTime) {
-    const histoContainer = $('#histogram-container');
-    histoContainer.html('<div class="loading-message">Loading new data...</div>');
-
-    //eslint-disable-next-line no-undef
-    isSearchButtonTriggered = true;
-    //eslint-disable-next-line no-undef
-    if (!isHistogramViewActive) {
-        //eslint-disable-next-line no-undef
-        hasNewSearchWhileHistogramClosed = true;
-    }
-
-    const data = getSearchFilter(false, false, true, false);
-    data.startEpoch = Math.floor(startTime);
-    data.endEpoch = Math.ceil(endTime);
-    //eslint-disable-next-line no-undef
-    isZoomSearch=true;
-
-    Cookies.set('startEpoch', data.startEpoch);
-    Cookies.set('endEpoch', data.endEpoch);
-
-    addQSParm('startEpoch', data.startEpoch);
-    addQSParm('endEpoch', data.endEpoch);
-    window.history.pushState({ path: myUrl }, '', myUrl);
-
-    datePickerHandler(data.startEpoch, data.endEpoch, 'custom');
-    loadCustomDateTimeFromEpoch(data.startEpoch, data.endEpoch);
-
-    filterStartDate = data.startEpoch;
-    filterEndDate = data.endEpoch;
-    displayStart = new Date(data.startEpoch);
-    displayEnd = new Date(data.endEpoch);
-
-    resetDashboard();
-    logsRowData = [];
-    accumulatedRecords = [];
-    lastColumnsOrder = [];
-    totalLoadedRecords = 0;
-    wsState = 'query';
-    initialSearchData = data;
-
-    doSearch(data).finally(() => {
-        //eslint-disable-next-line no-undef
-        isSearchButtonTriggered = false;
-    });
-}
-
 function renderHistogram(timechartData) {
     const histoContainer = $('#histogram-container');
 
@@ -583,13 +500,6 @@ function renderHistogram(timechartData) {
     HistogramState.canvas = histoContainer.find('canvas')[0];
     const ctx = HistogramState.canvas.getContext('2d');
 
-    //eslint-disable-next-line no-undef
-    if (typeof ChartZoom !== 'undefined') {
-        //eslint-disable-next-line no-undef
-        Chart.register(ChartZoom);
-        Chart.register(customDragBorderPlugin);
-    }
-
     HistogramState.currentHistogram = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -657,76 +567,9 @@ function renderHistogram(timechartData) {
                         },
                     }
                 },
-                zoom: {
-                    zoom: {
-                        wheel: {
-                            enabled: false,
-                        },
-                        pinch: {
-                            enabled: false,
-                        },
-                        drag: {
-                            enabled: true,
-                            backgroundColor: 'rgba(0, 0, 255, 0.1)',
-                            borderWidth: 0,
-                        },
-                        mode: 'x',
-                        onZoomComplete: ({ chart }) => {
-                            const xScale = chart.scales.x;
-                            const min = xScale.min;
-                            const max = xScale.max;
-
-                            if (min >= HistogramState.originalStartTime && max <= HistogramState.originalEndTime) {
-                                HistogramState.isZoomed = true;
-                                triggerZoomSearch(min, max);
-                            }
-                        }
-                    },
-                    limits: {
-                        x: {
-                            min: 'original',
-                            max: 'original',
-                        }
-                    }
-                }
-            },
-            onHover: function (event, elements, chart) {
-                const canvas = chart.canvas;
-                if (event.native.buttons === 1) {
-                    canvas.style.cursor = 'crosshair';
-                    HistogramState.isDragging = true;
-                } else if (HistogramState.isDragging) {
-                    canvas.style.cursor = 'crosshair';
-                } else {
-                    canvas.style.cursor = 'default';
-                }
             }
         }
     });
-
-    // Add double-click to reset zoom
-    const handleDoubleClick = () => {
-        if (HistogramState.currentHistogram && HistogramState.originalData) {
-            HistogramState.currentGranularity = 'day';
-            HistogramState.isZoomed = false;
-            HistogramState.currentHistogram.resetZoom();
-            triggerZoomSearch(HistogramState.originalStartTime, HistogramState.originalEndTime);
-        }
-    };
-
-    const eventTypes = ['dblclick'];
-    eventTypes.forEach(eventType => {
-        if (HistogramState.eventListeners[eventType]) {
-            HistogramState.canvas.removeEventListener(eventType, HistogramState.eventListeners[eventType]);
-        }
-    });
-
-    HistogramState.canvas.addEventListener('dblclick', handleDoubleClick);
-    HistogramState.eventListeners = {
-        dblclick: handleDoubleClick
-    };
-
-    addZoomHelper();
 }
 
 //eslint-disable-next-line no-unused-vars
@@ -750,30 +593,12 @@ function updateHistogramTheme() {
     HistogramState.currentHistogram.update();
 }
 
-function addZoomHelper() {
-    const helpText = document.createElement('div');
-    helpText.className = 'zoom-helper';
-    helpText.style.cssText = `
-        position: absolute;
-        color: var(--text-color);
-        bottom: 5px;
-        right: 10px;
-        font-size: 10px;
-        opacity: 0.7;
-        transition: opacity 0.3s ease;
-        pointer-events: none;
-    `;
-    helpText.textContent = HistogramState.isZoomed
-        ? 'Double-click to reset zoom'
-        : 'Drag to zoom and Double-click to reset zoom';
-
-    $('#histogram-container').append(helpText);
-}
-
 $(document).ready(function() {
     $('#histogram-toggle-btn').on('click', function() {
         $(this).toggleClass('active');
         $('.histo-container').toggle();
+        //eslint-disable-next-line no-undef
+        isHistogramOpen = $(this).hasClass('active');
 
         if ($(this).hasClass('active')) {
             //eslint-disable-next-line no-undef
@@ -785,10 +610,12 @@ $(document).ready(function() {
                     //eslint-disable-next-line no-undef
                     hasNewSearchWhileHistogramClosed = false;
                     //eslint-disable-next-line no-undef
+                } else if (isSearchButtonTriggered && !timechartComplete) {
+                    $('#histogram-container').html('<div class="error-message">Histogram data is not available</div>');
+                    //eslint-disable-next-line no-undef
                 } else if (hasRenderedHistogramOnce && timechartComplete) {
                     //eslint-disable-next-line no-undef
                     renderHistogram(timechartComplete);
-                    addZoomHelper();
                 } else {
                     $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
                 }
@@ -796,6 +623,8 @@ $(document).ready(function() {
         } else {
             //eslint-disable-next-line no-undef
             isHistogramViewActive = false;
+            //eslint-disable-next-line no-undef
+            isHistogramOpen = false;
         }
     });
 
@@ -807,6 +636,28 @@ $(document).ready(function() {
                     const isVisible = $(emptyResponse).is(':visible');
                     if (isVisible) {
                         $('.histo-container').hide();
+                        //eslint-disable-next-line no-undef
+                        isHistogramOpen = false;
+                        //eslint-disable-next-line no-undef
+                    } else if (isHistogramViewActive && !isHistogramOpen) {
+                        $('.histo-container').show();
+                        //eslint-disable-next-line no-undef
+                        isHistogramOpen = true;
+                        //eslint-disable-next-line no-undef
+                        if (hasNewSearchWhileHistogramClosed) {
+                            $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
+                            //eslint-disable-next-line no-undef
+                            hasNewSearchWhileHistogramClosed = false;
+                            //eslint-disable-next-line no-undef
+                        } else if (isSearchButtonTriggered && !timechartComplete) {
+                            $('#histogram-container').html('<div class="error-message">Histogram data is not available</div>');
+                            //eslint-disable-next-line no-undef
+                        } else if (hasRenderedHistogramOnce && timechartComplete) {
+                            //eslint-disable-next-line no-undef
+                            renderHistogram(timechartComplete);
+                        } else {
+                            $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
+                        }
                     }
                 }
             });
@@ -817,6 +668,8 @@ $(document).ready(function() {
         });
         if ($(emptyResponse).is(':visible')) {
             $('.histo-container').hide();
+            //eslint-disable-next-line no-undef
+            isHistogramOpen = false;
         }
     }
 });
