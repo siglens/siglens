@@ -27,6 +27,7 @@ import (
 
 	"github.com/cespare/xxhash"
 	"github.com/klauspost/compress/zstd"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/memorypool"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
