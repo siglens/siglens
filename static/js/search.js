@@ -24,6 +24,8 @@ let timechartComplete = null;
 let isHistogramViewActive = false;
 let isSearchButtonTriggered = false;
 //eslint-disable-next-line no-unused-vars
+let hasNewSearchWhileHistogramClosed = false; 
+//eslint-disable-next-line no-unused-vars
 let hasRenderedHistogramOnce = false;
 
 function wsURL(path) {
@@ -81,6 +83,8 @@ function doSearch(data) {
         const timerName = `socket timing ${doSearchCounter}`;
         doSearchCounter++;
         console.time(timerName);
+        hasNewSearchWhileHistogramClosed = false;
+        hasRenderedHistogramOnce = false;
 
         socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
@@ -240,6 +244,8 @@ function doLiveTailSearch(data) {
     let timeToFirstByte = 0;
     let firstQUpdate = true;
     let lastKnownHits = 0;
+    hasNewSearchWhileHistogramClosed = false;
+    hasRenderedHistogramOnce = false;
     socket.onopen = function (_e) {
         //  console.time("socket timing");
         $('body').css('cursor', 'progress');
@@ -873,15 +879,24 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 }
 function processTimeoutUpdate(res) {
     showError(`Query ${res.qid} timed out`, `Your query exceeded the <strong>${res.timeoutSeconds} second</strong> time limit.`);
+    if (isHistogramViewActive) {
+        $('#histogram-container').html('<div class="error-message">Query timed out</div>');
+    }
 }
 
 function processCancelUpdate(res) {
     showError(`Query ${res.qid} has been cancelled`, 'The query was terminated before completion.');
     $('#show-record-intro-btn').hide();
+    if (isHistogramViewActive) {
+        $('#histogram-container').html('<div class="error-message">Query was cancelled</div>');
+    }
 }
 
 function processErrorUpdate(message) {
     showError(`Message: ${message}`);
+    if (isHistogramViewActive) {
+        $('#histogram-container').html('<div class="error-message">Error: ${message}</div>');
+    }
 }
 
 function processSearchErrorLog(res) {
@@ -890,6 +905,9 @@ function processSearchErrorLog(res) {
     } else if (res.message != '') {
         showErrorResponse(res);
         resetDashboard();
+    }
+    if (isHistogramViewActive) {
+        $('#histogram-container').html('<div class="error-message">${res.no_data_err || res.message}</div>');
     }
 }
 
