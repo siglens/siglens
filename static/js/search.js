@@ -79,15 +79,8 @@ function doSearch(data) {
         let lastKnownHits = 0;
         let errorMessages = [];
         const timerName = `socket timing ${doSearchCounter}`;
-        const isLoadMoreSearch = data.isLoadMoreSearch || false;
         doSearchCounter++;
-        if (!isLoadMoreSearch) {
-            hasNewSearchWhileHistogramClosed = false;
-            hasRenderedHistogramOnce = false;
-        }
         console.time(timerName);
-        hasNewSearchWhileHistogramClosed = false;
-        hasRenderedHistogramOnce = false;
 
         socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
@@ -247,8 +240,6 @@ function doLiveTailSearch(data) {
     let timeToFirstByte = 0;
     let firstQUpdate = true;
     let lastKnownHits = 0;
-    hasNewSearchWhileHistogramClosed = false;
-    hasRenderedHistogramOnce = false;
     socket.onopen = function (_e) {
         //  console.time("socket timing");
         $('body').css('cursor', 'progress');
