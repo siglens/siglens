@@ -251,7 +251,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			if err != nil {
 				nodeRes.StoreGlobalSearchError("addRecordToAggregations: Failed to extract timestamp from record", log.ErrorLevel, err)
 
-				if err == segread.UninitializedTimeReaderErr {
+				if err == segread.ErrNilTimeReader {
 					// We'll keep getting this error if we try other records.
 					break
 				}
