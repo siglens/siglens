@@ -34,7 +34,7 @@ Steps to create a fork, clone and create a PR in Github:
 2. Make the desired changes to the code or files.
 3. Stage your changes using the `git add` command.
    For example: `git add .`
-4. Commit your changes using the git commit command.
+4. Commit your changes using the `git commit` command.
    For example: `git commit -m "commit message"`
 
 
