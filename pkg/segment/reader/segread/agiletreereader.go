@@ -18,7 +18,6 @@
 package segread
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -31,6 +30,9 @@ import (
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
+
+var ErrReturnBufferToPool = fmt.Errorf("failed to return buffer to pool")
+var ErrLegacyEncoding = fmt.Errorf("legacy encoding")
 
 const MAX_NODE_PTRS = 80_000
 
@@ -115,7 +117,7 @@ func (str *AgileTreeReader) Close() error {
 
 func (str *AgileTreeReader) returnBuffers() {
 	if err := segreader.PutBufToPool(str.metaFileBuffer); str.metaFileBuffer != nil && err != nil {
-		log.Errorf("AgileTreeReader.returnBuffers: Error putting buffer back to pool, err: %v", err)
+		log.Error(ErrReturnBufferToPool)
 	}
 }
 
@@ -129,11 +131,9 @@ func validateTreeEncodingVersion(version byte) error {
 	case sutils.VERSION_STAR_TREE_BLOCK[0]:
 		// do nothing, this is the expected encoding
 	case sutils.VERSION_STAR_TREE_BLOCK_LEGACY[0]:
-		log.Warnf("AgileTreeReader.ReadTreeMeta: received a legacy encoding type for agileTree: %v", version)
-		return errors.New("received legacy agileTree encoding")
+		return ErrLegacyEncoding
 	default:
-		log.Errorf("AgileTreeReader.ReadTreeMeta: received an unknown encoding type for agileTree: %v", version)
-		return errors.New("received non-agileTree encoding")
+		return ErrBadEncoding
 	}
 
 	return nil
