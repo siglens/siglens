@@ -86,7 +86,7 @@ type Hooks struct {
 	UploadIngestNodeExtrasHook          func() (bool, error)
 	UploadQueryNodeExtrasHook           func() (bool, error)
 	DeleteBlobExtrasHook                func(filepath string) (bool, error)
-	GetAllFilesInDirectoryHook          func(filepath string) ([]string, error)
+	GetAllFilesInDirectoryHook          func(dirPath string) ([]string, error)
 	DownloadAllIngestNodesDirExtrasHook func() (bool, error)
 	DownloadAllQueryNodesDirExtrasHook  func() (bool, error)
 	DownloadSegmentBlobExtrasHook       func(filename string) (bool, error)
