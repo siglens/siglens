@@ -672,4 +672,49 @@ $(document).ready(function() {
             isHistogramOpen = false;
         }
     }
+
+    const cornerPopup = document.getElementById('corner-popup');
+if (cornerPopup) {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'style') {
+                const isVisible = $(cornerPopup).is(':visible');
+                if (isVisible) {
+                    $('.histo-container').hide();
+                    //eslint-disable-next-line no-undef
+                    isHistogramOpen = false;
+                    //eslint-disable-next-line no-undef
+                } else if (isHistogramViewActive && !isHistogramOpen) {
+                    $('.histo-container').show();
+                    //eslint-disable-next-line no-undef
+                    isHistogramOpen = true;
+                    //eslint-disable-next-line no-undef
+                    if (hasNewSearchWhileHistogramClosed) {
+                        $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
+                        //eslint-disable-next-line no-undef
+                        hasNewSearchWhileHistogramClosed = false;
+                        //eslint-disable-next-line no-undef
+                    } else if (isSearchButtonTriggered && !timechartComplete) {
+                        $('#histogram-container').html('<div class="error-message">Histogram data is not available</div>');
+                        //eslint-disable-next-line no-undef
+                    } else if (hasRenderedHistogramOnce && timechartComplete) {
+                        //eslint-disable-next-line no-undef
+                        renderHistogram(timechartComplete);
+                    } else {
+                        $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
+                    }
+                }
+            }
+        });
+    });
+    observer.observe(cornerPopup, {
+        attributes: true,
+        attributeFilter: ['style'],
+    });
+    if ($(cornerPopup).is(':visible')) {
+        $('.histo-container').hide();
+        //eslint-disable-next-line no-undef
+        isHistogramOpen = false;
+    }
+}
 });
