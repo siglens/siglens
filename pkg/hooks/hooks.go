@@ -81,11 +81,13 @@ type Hooks struct {
 	GetWaitingQueriesHook             func() (interface{}, error)
 
 	// Blobstore
-	InitBlobStoreExtrasHook             func() (bool, error)
-	UploadSegmentFilesExtrasHook        func(allFiles []string) (bool, error)
-	UploadIngestNodeExtrasHook          func() (bool, error)
-	UploadQueryNodeExtrasHook           func() (bool, error)
-	DeleteBlobExtrasHook                func(filepath string) (bool, error)
+	InitBlobStoreExtrasHook      func() (bool, error)
+	UploadSegmentFilesExtrasHook func(allFiles []string) (bool, error)
+	UploadIngestNodeExtrasHook   func() (bool, error)
+	UploadQueryNodeExtrasHook    func() (bool, error)
+	DeleteBlobExtrasHook         func(filepath string) (bool, error)
+	GetAllFilesInDirectoryHook   func(dirPath string) ([]string, error)
+
 	DownloadAllIngestNodesDirExtrasHook func() (bool, error)
 	DownloadAllQueryNodesDirExtrasHook  func() (bool, error)
 	DownloadSegmentBlobExtrasHook       func(filename string) (bool, error)
