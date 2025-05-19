@@ -475,7 +475,10 @@ func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *s
 	if err != nil {
 		log.Errorf("qid=%d GetSortedQSRs: Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
 	}
-	totalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
+	totalLocalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
+	totalRemoteRecsToBeSearched := queryInfo.GetDQS().GetNumRemoteRecordsToSearch()
+	totalRecsToBeSearched := totalLocalRecsToBeSearched + totalRemoteRecsToBeSearched
+
 	err = setTotalRecordsToBeSearched(queryInfo.qid, totalRecsToBeSearched)
 	if err != nil {
 		log.Errorf("qid=%d GetSortedQSRs: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
@@ -504,7 +507,10 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 			ErrList: []error{err},
 		}
 	}
-	totalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
+	totalLocalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
+	totalRemoteRecsToBeSearched := queryInfo.GetDQS().GetNumRemoteRecordsToSearch()
+	totalRecsToBeSearched := totalLocalRecsToBeSearched + totalRemoteRecsToBeSearched
+
 	err = setTotalRecordsToBeSearched(queryInfo.qid, totalRecsToBeSearched)
 	if err != nil {
 		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
