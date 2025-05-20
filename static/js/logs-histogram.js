@@ -22,7 +22,6 @@ const HistogramState = {
     originalData: null,
     currentGranularity: 'day',
     canvas: null,
-    eventListeners: {},
 };
 
 function determineGranularity(startTime, endTime) {
@@ -30,163 +29,129 @@ function determineGranularity(startTime, endTime) {
     const MAX_BARS = 50;
     const MIN_BARS = 10;
 
-    const calculateMaxBars = (intervalMs) => {
-        const totalBars = Math.ceil(durationMs / intervalMs);
-        return Math.max(MIN_BARS, Math.min(MAX_BARS, totalBars));
-    };
+    const calculateMaxBars = (intervalMs) => Math.max(MIN_BARS, Math.min(MAX_BARS, Math.ceil(durationMs / intervalMs)));
 
-    if (durationMs <= 15 * 60 * 1000) {
-        return { granularity: 'second', intervalMs: 10 * 1000, maxBars: calculateMaxBars(10 * 1000) };
-    } else if (durationMs <= 60 * 60 * 1000) {
-        return { granularity: 'minute', intervalMs: 60 * 1000, maxBars: calculateMaxBars(60 * 1000) };
-    } else if (durationMs <= 4 * 60 * 60 * 1000) {
-        return { granularity: 'minute', intervalMs: 5 * 60 * 1000, maxBars: calculateMaxBars(5 * 60 * 1000) };
-    } else if (durationMs <= 24 * 60 * 60 * 1000) {
-        return { granularity: 'minute', intervalMs: 30 * 60 * 1000, maxBars: calculateMaxBars(30 * 60 * 1000) };
-    } else if (durationMs <= 7 * 24 * 60 * 60 * 1000) {
-        return { granularity: 'hour', intervalMs: 60 * 60 * 1000, maxBars: calculateMaxBars(60 * 60 * 1000) };
-    } else if (durationMs <= 180 * 24 * 60 * 60 * 1000) {
-        return { granularity: 'day', intervalMs: 24 * 60 * 60 * 1000, maxBars: calculateMaxBars(24 * 60 * 60 * 1000) };
-    } else {
-        return { granularity: 'month', intervalMs: 30 * 24 * 60 * 60 * 1000, maxBars: calculateMaxBars(30 * 24 * 60 * 60 * 1000) };
-    }
+    const granularityOptions = [
+        { duration: 15 * 60 * 1000, granularity: 'second', intervalMs: 10 * 1000 },
+        { duration: 60 * 60 * 1000, granularity: 'minute', intervalMs: 60 * 1000 },
+        { duration: 4 * 60 * 60 * 1000, granularity: 'minute', intervalMs: 5 * 60 * 1000 },
+        { duration: 24 * 60 * 60 * 1000, granularity: 'minute', intervalMs: 30 * 60 * 1000 },
+        { duration: 7 * 24 * 60 * 60 * 1000, granularity: 'hour', intervalMs: 60 * 60 * 1000 },
+        { duration: 180 * 24 * 60 * 60 * 1000, granularity: 'day', intervalMs: 24 * 60 * 60 * 1000 },
+        { duration: Infinity, granularity: 'month', intervalMs: 30 * 24 * 60 * 60 * 1000 },
+    ];
+
+    const { granularity, intervalMs } = granularityOptions.find(opt => durationMs <= opt.duration);
+    return { granularity, intervalMs, maxBars: calculateMaxBars(intervalMs) };
 }
 
-function formatTooltipTimestamp(timestamp, granularity) {
+function parseTimestamp(timestamp) {
     const date = new Date(timestamp);
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = monthNames[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-    const hours = date.getHours();
-    const minutes = ('0' + date.getMinutes()).slice(-2);
-    const seconds = ('0' + date.getSeconds()).slice(-2);
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12;
+    return {
+        month: monthNames[date.getMonth()],
+        day: date.getDate(),
+        year: date.getFullYear(),
+        hours: date.getHours(),
+        minutes: ('0' + date.getMinutes()).slice(-2),
+        seconds: ('0' + date.getSeconds()).slice(-2),
+        hour12: date.getHours() % 12 || 12,
+        ampm: date.getHours() >= 12 ? 'PM' : 'AM'
+    };
+}
 
-    let result = `${month} ${day}, ${year}`;
-    if (granularity === 'second') {
-        return `${result} ${hour12}:${minutes}:${seconds} ${ampm}`;
-    } else if (granularity === 'minute') {
-        return `${result} ${hour12}:${minutes} ${ampm}`;
-    } else if (granularity === 'hour') {
-        return `${result} ${hour12}:00 ${ampm}`;
-    } else {
-        return result;
+function formatTooltipTimestamp(timestamp) {
+    const { month, day, year, hour12, minutes, seconds, ampm } = parseTimestamp(timestamp);
+    return `${month} ${day}, ${year} ${hour12}:${minutes}:${seconds} ${ampm}`;
+}
+
+function formatXTicks(timestamp, granularity, startTime, isFirstTickOfDay, daysInRange) {
+    const { month, day, year, hours, minutes, seconds, hour12, ampm } = parseTimestamp(timestamp);
+
+    const startDate = new Date(startTime);
+    const isNewYear = granularity === 'day' && year !== startDate.getFullYear();
+
+    const showMonthDate = (granularity === 'second' || granularity === 'minute' || granularity === 'hour') && isFirstTickOfDay;
+
+    switch (granularity) {
+        case 'second':
+            if (showMonthDate) {
+                return `${month} ${day}`;
+            }
+            return `${hour12}:${minutes}:${seconds} ${ampm}`;
+        case 'minute':
+            if (showMonthDate) {
+                return `${month} ${day}`;
+            }
+            return `${hour12}:${minutes} ${ampm}`;
+        case 'hour':
+            if (showMonthDate) {
+                return `${month} ${day}`;
+            }
+            if (daysInRange <= 1) { 
+                return `${hour12}${ampm}`;
+            } else if (daysInRange <= 4) {
+                if (hours === 6) return '6AM';
+                if (hours === 12) return '12PM';
+                if (hours === 18) return '6PM';
+            } else if (daysInRange <= 15) {
+                if (hours === 12) return '12PM';
+            }
+            return null; 
+        case 'day':
+            if (isNewYear) {
+                return `${month} ${day}, ${year}`;
+            }
+            return `${month} ${day}`;
+        case 'month':
+            return `${month} ${year}`;
+        default:
+            return `${month} ${day}`;
     }
 }
 
-function formatAxisTitle(intervalMs) {
-    function msToReadable(ms) {
-        const seconds = ms / 1000;
-        const minutes = seconds / 60;
-        const hours = minutes / 60;
-        const days = hours / 24;
-        const months = days / 30; 
+function msToReadable(intervalMs) {
+    const units = [
+        { name: 'month', ms: 30 * 24 * 60 * 60 * 1000 },
+        { name: 'day', ms: 24 * 60 * 60 * 1000 },
+        { name: 'hour', ms: 60 * 60 * 1000 },
+        { name: 'minute', ms: 60 * 1000 },
+        { name: 'second', ms: 1000 },
+    ];
 
-        if (months >= 1) {
-            const value = Math.round(months * 10) / 10;
-            return `${value} month${value !== 1 ? 's' : ''}`;
-        } else if (days >= 1) {
-            const value = Math.round(days * 10) / 10;
-            return `${value} day${value !== 1 ? 's' : ''}`;
-        } else if (hours >= 1) {
-            const value = Math.round(hours * 10) / 10;
-            return `${value} hour${value !== 1 ? 's' : ''}`;
-        } else if (minutes >= 1) {
-            const value = Math.round(minutes * 10) / 10;
-            return `${value} minute${value !== 1 ? 's' : ''}`;
-        } else {
-            const value = Math.round(seconds * 10) / 10;
-            return `${value} second${value !== 1 ? 's' : ''}`;
-        }
-    }
-
-    const readableInterval = msToReadable(intervalMs);
-
-    return `Timestamp (Interval: ${readableInterval})`;
+    const { name, ms } = units.find(unit => intervalMs >= unit.ms) || units[units.length - 1];
+    const value = Math.round((intervalMs / ms) * 10) / 10;
+    return `${value} ${name}${value !== 1 ? 's' : ''}`;
 }
 
 function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars) {
     const durationMs = endTime - startTime;
     const daysInRange = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
-    const hoursInRange = Math.ceil(durationMs / (1000 * 60 * 60));
+    const hoursInRange = durationMs / (1000 * 60 * 60);
 
-    let unit, maxTicksLimit, stepSize;
+    const paddingMs = Math.min(
+        {
+            second: 30 * 1000,
+            minute: 5 * 60 * 1000,
+            hour: 30 * 60 * 1000,
+            day: 12 * 60 * 60 * 1000,
+            month: 5 * 24 * 60 * 60 * 1000,
+        }[granularity] || durationMs * 0.05,
+        durationMs * 0.05
+    );
 
     let adjustedStartTime = startTime;
     let adjustedEndTime = endTime;
-    
     if (granularity === 'second') {
         const startDate = new Date(startTime);
-        const startSeconds = startDate.getSeconds();
-        const startAdjustment = startSeconds % 30 === 0 ? 0 : (30 - (startSeconds % 30));
-        adjustedStartTime = startTime + startAdjustment * 1000;
-
         const endDate = new Date(endTime);
-        const endSeconds = endDate.getSeconds();
-        const endAdjustment = endSeconds % 30 === 0 ? 0 : (30 - (endSeconds % 30));
-        adjustedEndTime = endTime + endAdjustment * 1000;
+        adjustedStartTime += (30 - (startDate.getSeconds() % 30)) % 30 * 1000;
+        adjustedEndTime += (30 - (endDate.getSeconds() % 30)) % 30 * 1000;
     }
-
-
     const adjustedDurationMs = adjustedEndTime - adjustedStartTime;
 
-    // Set tick intervals based on granularity and time range
-    if (granularity === 'second') {
-        unit = 'second';
-        if (adjustedDurationMs <= 5 * 60 * 1000) {
-            // 5 min range: 30-sec ticks
-            stepSize = 30; // 30 seconds
-            maxTicksLimit = Math.ceil(adjustedDurationMs / (30 * 1000)) + 1;
-            maxTicksLimit = Math.min(maxTicksLimit, 11); // Cap at 11 ticks
-        } else if (adjustedDurationMs <= 15 * 60 * 1000) {
-            // 15 min range: 60-sec (1-min) ticks
-            unit = 'minute';
-            stepSize = 1; // 1 minute
-            maxTicksLimit = Math.ceil(adjustedDurationMs / (60 * 1000)) + 1;
-        } else {
-            unit = 'minute';
-            stepSize = 2; // 2 minutes
-            maxTicksLimit = Math.ceil(adjustedDurationMs / (2 * 60 * 1000)) + 1;
-        }
-        maxTicksLimit = Math.min(maxBars, maxTicksLimit);
-    } else if (granularity === 'minute') {
-        unit = 'minute';
-        if (durationMs <= 60 * 60 * 1000 && intervalMs === 60 * 1000) {
-            // 1 hr range: 5-min ticks
-            stepSize = 5; // 5 minutes
-            maxTicksLimit = Math.ceil(durationMs / (5 * 60 * 1000)) + 1;
-        } else if (durationMs <= 4 * 60 * 60 * 1000 && intervalMs === 5 * 60 * 1000) {
-            // ≤ 4 hr range: 15-min ticks
-            stepSize = 15; // 15 minutes
-            maxTicksLimit = Math.ceil(durationMs / (15 * 60 * 1000)) + 1;
-        } else if (durationMs <= 24 * 60 * 60 * 1000 && intervalMs === 30 * 60 * 1000) {
-            // ≤ 1 day range: 2-hr ticks
-            unit = 'hour';
-            stepSize = 2; // 2 hours
-            maxTicksLimit = Math.ceil(durationMs / (2 * 60 * 60 * 1000)) + 1;
-        } else {
-            stepSize = Math.max(1, Math.ceil(intervalMs / (60 * 1000)));
-            maxTicksLimit = Math.ceil(durationMs / (stepSize * 60 * 1000)) + 1;
-        }
-        maxTicksLimit = Math.min(maxBars, maxTicksLimit);
-    } else if (granularity === 'hour') {
-        unit = 'hour';
-        stepSize = Math.max(1, Math.ceil(intervalMs / (60 * 60 * 1000)));
-        maxTicksLimit = Math.min(maxBars, Math.ceil(durationMs / (stepSize * 60 * 60 * 1000)) + 1);
-    } else if (granularity === 'day') {
-        unit = 'day';
-        stepSize = Math.max(1, Math.ceil(intervalMs / (24 * 60 * 60 * 1000)));
-        maxTicksLimit = Math.min(maxBars, Math.ceil(durationMs / (stepSize * 24 * 60 * 60 * 1000)) + 1);
-    } else {
-        unit = 'month';
-        stepSize = Math.max(1, Math.ceil(intervalMs / (30 * 24 * 60 * 60 * 1000)));
-        maxTicksLimit = Math.min(maxBars, Math.ceil(durationMs / (stepSize * 30 * 24 * 60 * 60 * 1000)) + 1);
-    }
-
     const timeOptions = {
-        unit: unit,
+        unit: granularity,
         displayFormats: {
             second: 'h:mm:ss a',
             minute: 'h:mm a',
@@ -196,224 +161,156 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
         },
         tooltipFormat: 'MMM d, yyyy, h:mm:ss a',
         bounds: 'ticks',
+        round: granularity,
+        offset: granularity !== 'second' && granularity !== 'minute' && granularity !== 'hour',
     };
 
-    let offsetValue = granularity !== 'second' && granularity !== 'minute' && granularity !== 'hour';
-    
+    let stepSize, maxTicksLimit;
+    let lastDay = null; // Track the last day to identify the first tick of a new day
+
     if (granularity === 'second') {
-        timeOptions.round = 'second';
-        timeOptions.min = adjustedStartTime;
-        timeOptions.max = adjustedEndTime;
-        timeOptions.stepSize = stepSize;
+        if (adjustedDurationMs <= 5 * 60 * 1000) {
+            timeOptions.unit = 'second';
+            stepSize = 30;
+            maxTicksLimit = Math.min(11, Math.ceil(adjustedDurationMs / (30 * 1000)) + 1);
+        } else if (adjustedDurationMs <= 15 * 60 * 1000) {
+            timeOptions.unit = 'minute';
+            stepSize = 1;
+            maxTicksLimit = Math.ceil(adjustedDurationMs / (60 * 1000)) + 1;
+        } else {
+            timeOptions.unit = 'minute';
+            stepSize = 2;
+            maxTicksLimit = Math.ceil(adjustedDurationMs / (2 * 60 * 1000)) + 1;
+        }
     } else if (granularity === 'minute') {
-        timeOptions.round = 'minute';
-        timeOptions.stepSize = stepSize;
+        if (durationMs <= 60 * 60 * 1000) {
+            stepSize = 5;
+            maxTicksLimit = Math.ceil(durationMs / (5 * 60 * 1000)) + 1;
+        } else if (durationMs <= 4 * 60 * 60 * 1000) {
+            stepSize = 15;
+            maxTicksLimit = Math.ceil(durationMs / (15 * 60 * 1000)) + 1;
+        } else if (durationMs <= 24 * 60 * 60 * 1000) {
+            timeOptions.unit = 'hour';
+            stepSize = 2;
+            maxTicksLimit = Math.ceil(durationMs / (2 * 60 * 60 * 1000)) + 1;
+        } else {
+            stepSize = Math.ceil(intervalMs / (60 * 1000));
+            maxTicksLimit = Math.ceil(durationMs / (stepSize * 60 * 1000)) + 1;
+        }
     } else if (granularity === 'hour') {
-        timeOptions.round = 'hour';
+        stepSize = 1; 
+        maxTicksLimit = Math.ceil(durationMs / (60 * 60 * 1000)) + 1; 
+        timeOptions.unit = 'hour';
         timeOptions.stepSize = stepSize;
+        timeOptions.ticks = {
+            source: 'auto',
+            autoSkip: false,
+            callback: (value) => {
+                const date = new Date(value);
+                const hours = date.getHours();
+                if (hoursInRange <= 24) {
+                    // Show every hour
+                    return value;
+                } else if (daysInRange <= 4) {
+                    // Show at 00:00, 06:00, 12:00, 18:00
+                    if (hours % 6 === 0) {
+                        return value;
+                    }
+                } else if (daysInRange <= 15) {
+                    // Show at 00:00, 12:00
+                    if (hours % 12 === 0) {
+                        return value;
+                    }
+                } else {
+                    // Show at 00:00 every day (or every other day if needed)
+                    if (hours === 0) {
+                        return value;
+                    }
+                }
+                return null;
+            }
+        };
     } else if (granularity === 'day') {
-        timeOptions.round = 'day';
-        timeOptions.stepSize = stepSize;
+        stepSize = Math.ceil(intervalMs / (24 * 60 * 60 * 1000));
+        maxTicksLimit = Math.ceil(durationMs / (stepSize * 24 * 60 * 60 * 1000)) + 1;
     } else {
-        timeOptions.round = 'month';
+        timeOptions.unit = 'month';
+        stepSize = Math.ceil(intervalMs / (30 * 24 * 60 * 60 * 1000));
+        maxTicksLimit = Math.ceil(durationMs / (stepSize * 30 * 24 * 60 * 60 * 1000)) + 1;
+    }
+    maxTicksLimit = Math.min(maxBars, maxTicksLimit);
+
+    if (!timeOptions.stepSize) {
         timeOptions.stepSize = stepSize;
     }
 
-    timeOptions.offset = offsetValue;
-
-    let paddingMs;
-    switch (granularity) {
-        case 'second':
-            paddingMs = Math.min(30 * 1000, durationMs * 0.05); // 30 seconds or 5% of duration
-            break;
-        case 'minute':
-            paddingMs = Math.min(5 * 60 * 1000, durationMs * 0.05); // 5 minutes or 5% of duration
-            break;
-        case 'hour':
-            paddingMs = Math.min(30 * 60 * 1000, durationMs * 0.05); // 30 minutes or 5% of duration
-            break;
-        case 'day':
-            paddingMs = Math.min(12 * 60 * 60 * 1000, durationMs * 0.05); // 12 hours or 5% of duration
-            break;
-        case 'month':
-            paddingMs = Math.min(5 * 24 * 60 * 60 * 1000, durationMs * 0.05); // 5 days or 5% of duration
-            break;
-        default:
-            paddingMs = durationMs * 0.05; // 5% of duration
-    }
-
-    const startDate = new Date(startTime);
-    const endDate = new Date(endTime);
-    const spansDifferentDays = startDate.getDate() !== endDate.getDate() || 
-                              startDate.getMonth() !== endDate.getMonth() || 
-                              startDate.getFullYear() !== endDate.getFullYear();
-    
-    const spansDifferentHours = startDate.getHours() !== endDate.getHours() || spansDifferentDays;
-    const axisTitle = formatAxisTitle(intervalMs, unit);
-
-    const config = {
+    return {
         type: 'time',
         time: timeOptions,
         min: (granularity === 'second' ? adjustedStartTime : startTime) - paddingMs,
         max: (granularity === 'second' ? adjustedEndTime : endTime) + paddingMs,
         title: {
             display: true,
-            text: axisTitle,
+            text: `Timestamp (Interval: ${msToReadable(intervalMs)})`,
         },
         ticks: {
-            maxRotation: 45, 
+            maxRotation: 45,
             minRotation: 0,
-            maxTicksLimit: maxTicksLimit,
-            includeBounds: true,
-            callback: function (value) {
+            maxTicksLimit,
+            callback: (value) => {
                 const date = new Date(value);
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const hours = date.getHours(); 
+                const hours = date.getHours();
                 const minutes = date.getMinutes();
                 const seconds = date.getSeconds();
-                const day = date.getDate();
-
-                const formatTime = (h, m, s, showHours = true) => {
-                    const hourIn12 = h % 12 || 12;
-                    const amPm = h < 12 ? 'AM' : 'PM';
-                    const minuteStr = ('0' + m).slice(-2);
-                    const secondStr = ('0' + s).slice(-2);
-                    
-                    if (showHours) {
-                        return `${hourIn12}:${minuteStr}:${secondStr} ${amPm}`;
-                    } else {
-                        return `${minuteStr}:${secondStr}`;
-                    }
-                };
-
-                const formatDate = (m, d) => `${monthNames[m]} ${d}`;
+                const currentDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+                const isFirstTickOfDay = lastDay !== null && currentDay !== lastDay;
+                lastDay = currentDay; 
 
                 if (granularity === 'second') {
-                    if (adjustedDurationMs <= 5 * 60 * 1000) {
-                        // For 30-sec ticks
-                        if (seconds % 30 === 0) {
-                            if (seconds === 0) {
-                                if (spansDifferentDays) {
-                                    return `${formatDate(date.getMonth(), day)} ${formatTime(hours, minutes, seconds)}`;
-                                } else if (spansDifferentHours) {
-                                    return formatTime(hours, minutes, seconds);
-                                } else {
-                                    return formatTime(hours, minutes, seconds, false);
-                                }
-                            } else {
-                                if (spansDifferentHours) {
-                                    return formatTime(hours, minutes, seconds);
-                                } else {
-                                    return formatTime(hours, minutes, seconds, false);
-                                }
-                            }
-                        }
-                    } else if (adjustedDurationMs <= 15 * 60 * 1000) {
-                        // For 60-sec ticks
-                        if (seconds % 60 === 0) {
-                            if (seconds === 0) {
-                                if (spansDifferentDays) {
-                                    return `${formatDate(date.getMonth(), day)} ${formatTime(hours, minutes, seconds)}`;
-                                } else if (spansDifferentHours) {
-                                    return formatTime(hours, minutes, seconds);
-                                } else {
-                                    return formatTime(hours, minutes, seconds, false);
-                                }
-                            } else {
-                                if (spansDifferentHours) {
-                                    return formatTime(hours, minutes, seconds);
-                                } else {
-                                    return formatTime(hours, minutes, seconds, false);
-                                }
-                            }
-                        }
+                    if ((seconds % 30 === 0 && adjustedDurationMs <= 5 * 60 * 1000) || 
+                        (seconds % 60 === 0 && adjustedDurationMs <= 15 * 60 * 1000)) {
+                        return formatXTicks(value, 'second', startTime, isFirstTickOfDay, daysInRange);
                     }
-                    return null;
                 } else if (granularity === 'minute') {
-                    if (durationMs <= 60 * 60 * 1000) {
-                        // 5-min ticks for ≤ 1 hr
-                        if (minutes % 5 === 0) {
-                            if (spansDifferentDays && hours === 0) {
-                                return `${formatDate(date.getMonth(), day)} ${formatTime(hours, minutes, 0, true).slice(0, -3)}`;
-                            } else {
-                                return formatTime(hours, minutes, 0, true).slice(0, -3);
-                            }
-                        }
-                    } else if (durationMs <= 4 * 60 * 60 * 1000) {
-                        // 15-min ticks for ≤ 4 hr
-                        if (minutes % 15 === 0) {
-                            if (spansDifferentDays && hours === 0) {
-                                return `${formatDate(date.getMonth(), day)} ${formatTime(hours, minutes, 0, true).slice(0, -3)}`;
-                            } else {
-                                return formatTime(hours, minutes, 0, true).slice(0, -3);
-                            }
-                        }
-                    } else if (durationMs <= 24 * 60 * 60 * 1000) {
-                        // 2-hr ticks for ≤ 1 day
-                        if (hours % 2 === 0 && minutes === 0) {
-                            if (hours === 0) {
-                                return formatDate(date.getMonth(), day);
-                            } else {
-                                return `${hours % 12 || 12}:00 ${hours < 12 ? 'AM' : 'PM'}`;
-                            }
-                        }
+                    if ((durationMs <= 60 * 60 * 1000 && minutes % 5 === 0) ||
+                        (durationMs <= 4 * 60 * 60 * 1000 && minutes % 15 === 0) ||
+                        (durationMs <= 24 * 60 * 60 * 1000 && hours % 2 === 0 && minutes === 0)) {
+                        return formatXTicks(value, 'minute', startTime, isFirstTickOfDay, daysInRange);
                     }
-                    return null;
                 } else if (granularity === 'hour') {
                     if (hoursInRange <= 24) {
-                        const hourIn12 = hours % 12 || 12;
-                        const amPm = hours < 12 ? 'AM' : 'PM';
-                        if (hours === 0) {
-                            return formatDate(date.getMonth(), day);
-                        } else {
-                            return `${hourIn12}${amPm}`;
-                        }
+                        return formatXTicks(value, 'hour', startTime, isFirstTickOfDay, daysInRange);
                     } else if (daysInRange <= 4) {
-                        if (hours === 0) {
-                            return `${monthNames[date.getMonth()]} ${day}`;
-                        } else if (hours === 6) {
-                            return '6AM';
-                        } else if (hours === 12) {
-                            return '12PM';
-                        } else if (hours === 18) {
-                            return '6PM';
+                        if (hours % 6 === 0) {
+                            return formatXTicks(value, 'hour', startTime, isFirstTickOfDay, daysInRange);
+                        }
+                    } else if (daysInRange <= 15) {
+                        if (hours % 12 === 0) {
+                            return formatXTicks(value, 'hour', startTime, isFirstTickOfDay, daysInRange);
                         }
                     } else {
                         if (hours === 0) {
-                            return formatDate(date.getMonth(), day);
-                        } else if (hours === 12) {
-                            return '12PM';
+                            return formatXTicks(value, 'hour', startTime, isFirstTickOfDay, daysInRange);
                         }
                     }
-                    return null;
-                } else if (granularity === 'day') {
-                    return formatDate(date.getMonth(), day);
                 } else {
-                    return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+                    return formatXTicks(value, granularity, startTime, isFirstTickOfDay, daysInRange);
                 }
+                return null;
             },
             font: {
-                weight: function (context) {
-                    const value = context.tick.value;
-                    const date = new Date(value);
-                    const hours = date.getHours();
-                    const minutes = date.getMinutes();
-                    if (
-                        (granularity === 'second' && minutes === 0) ||
-                        (granularity === 'minute' && hours === 0) ||
-                        (granularity === 'hour' && hours === 0) 
-                    ) {
+                weight: ({ tick }) => {
+                    const date = new Date(tick.value);
+                    if ((granularity === 'second' && date.getMinutes() === 0) ||
+                        (granularity === 'minute' && date.getHours() === 0) ||
+                        (granularity === 'hour' && date.getHours() === 0)) {
                         return 'bold';
                     }
                     return 'normal';
                 },
             },
         },
-        alignToPixels: true,
-        offset: offsetValue,
     };
-
-    return config;
 }
 
 function renderHistogram(timechartData) {
@@ -425,11 +322,10 @@ function renderHistogram(timechartData) {
     }
 
     if (!timechartData || !Array.isArray(timechartData.measure) || timechartData.measure.length === 0) {
-        histoContainer.html('<div class="error-message">No histogram data available</div>');
+        histoContainer.html('<div class="info-message">No histogram data available</div>');
         return;
     }
 
-    //eslint-disable-next-line no-undef
     if (!HistogramState.originalData && isSearchButtonTriggered ) {
         HistogramState.originalData = JSON.parse(JSON.stringify(timechartData));
     }
@@ -468,12 +364,6 @@ function renderHistogram(timechartData) {
             return null;
         }
     }).filter(item => item !== null).sort((a, b) => a.x - b.x);
-
-    if (!chartData.length) {
-        console.log('No data available to render');
-        histoContainer.html('<div class="error-message">No data available for the selected range</div>');
-        return;
-    }
 
     const { gridLineColor, tickColor } = typeof getGraphGridColors === 'function'
         ? getGraphGridColors()
@@ -551,7 +441,7 @@ function renderHistogram(timechartData) {
                         title: function (tooltipItems) {
                             const dataPoint = tooltipItems[0].raw;
                             const timestamp = dataPoint.originalTimestamps[0] || dataPoint.x;
-                            return formatTooltipTimestamp(timestamp, granularity);
+                            return formatTooltipTimestamp(timestamp);
                         },
                         label: function (context) {
                             const count = context.parsed.y;
@@ -585,30 +475,34 @@ function updateHistogramTheme() {
     HistogramState.currentHistogram.update();
 }
 
+function checkAndRestoreHistogramVisibility() {
+    if (isHistogramViewActive && isSearchButtonTriggered &&
+        !$('#empty-response').is(':visible') && !$('#corner-popup').is(':visible')) {
+        $('.histo-container').show();
+        
+        if (timechartComplete) {
+            renderHistogram(timechartComplete);
+        }
+    }
+}
 
 $(document).ready(function() {
     $('#histogram-toggle-btn').on('click', function() {
         $(this).toggleClass('active');
         const isActive = $(this).hasClass('active');
-        //eslint-disable-next-line no-undef
         isHistogramViewActive = isActive;
 
         if (isActive) {
             $('.histo-container').show();
-            //eslint-disable-next-line no-undef
             if (hasSearchSinceHistogramClosed) {
                 // Show message if a search was performed while histogram was closed
                 $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
-                //eslint-disable-next-line no-undef
                 hasSearchSinceHistogramClosed = false; 
-                //eslint-disable-next-line no-undef
             } else if (timechartComplete && HistogramState.currentHistogram) {
                 // Show cached histogram if no new search and data exists
                 $('.histo-container').show();
-                //eslint-disable-next-line no-undef
             } else if (timechartComplete) {
                 // Render histogram if data exists but no chart is cached
-                //eslint-disable-next-line no-undef
                 renderHistogram(timechartComplete);
             } else {
                 // Default message when no data is available
@@ -617,6 +511,6 @@ $(document).ready(function() {
         } else {
             $('.histo-container').hide();
         }
+        checkAndRestoreHistogramVisibility()
     });
-
 });

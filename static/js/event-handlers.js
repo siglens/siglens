@@ -461,11 +461,8 @@ function runFilterBtnHandler(evt) {
             initialSearchData = data;
             doCancel(data);
         } else {
-            //eslint-disable-next-line no-undef
             isSearchButtonTriggered = true;
-            //eslint-disable-next-line no-undef
             if (!isHistogramViewActive) {
-                //eslint-disable-next-line no-undef
                 hasSearchSinceHistogramClosed = true; 
             }
             resetDashboard();

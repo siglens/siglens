@@ -20,11 +20,12 @@
 let lastQType = '';
 let lastColumnsOrder = [];
 //eslint-disable-next-line no-unused-vars
-let timechartComplete = null;
-let isHistogramViewActive = false;
-let isSearchButtonTriggered = false;
+let timechartComplete= null;
+let isHistogramViewActive= false;
+let isSearchButtonTriggered= false;
 //eslint-disable-next-line no-unused-vars
-let hasSearchSinceHistogramClosed = false;
+let hasSearchSinceHistogramClosed= false;
+
 
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -199,6 +200,7 @@ function doSearch(data) {
             const finalResultResponseTime = (new Date().getTime() - startQueryTime).toLocaleString();
             $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
             isSearchButtonTriggered = false;
+            checkAndRestoreHistogramVisibility()
         };
 
         socket.addEventListener('error', (event) => {
@@ -477,8 +479,6 @@ function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
         sFrom = scrollFrom;
     }
 
-    const runTimechartValue = isSearchButtonTriggered && isHistogramViewActive ;
-
     return {
         state: wsState,
         searchText: filterValue,
@@ -487,7 +487,6 @@ function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
-        runTimechart: runTimechartValue,
     };
 }
 
@@ -535,7 +534,7 @@ function getQueryBuilderCode() {
 }
 
 //eslint-disable-next-line no-unused-vars
-function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false, isZoomSearch = false) {
+function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false) {
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
     let endDate = filterEndDate || 'now';
     let stDate = filterStartDate || 'now-15m';
@@ -604,7 +603,7 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false,
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
-        runTimechart: isZoomSearch || runTimechartValue ,
+        runTimechart: runTimechartValue ,
     };
 }
 //eslint-disable-next-line no-unused-vars
@@ -768,19 +767,6 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
         }
     }
 
-    if (res.timechartComplete) {
-        timechartComplete = res.timechartComplete;
-        if (isHistogramViewActive && $('.histo-container').is(':visible')) {
-            //eslint-disable-next-line no-undef
-            renderHistogram(res.timechartComplete);
-            hasSearchSinceHistogramClosed = false; 
-        }
-    } else if (isSearchButtonTriggered && isHistogramViewActive && $('.histo-container').is(':visible')) {
-        timechartComplete = null;
-        $('#histogram-container').html('<div class="error-message">Histogram data is not available</div>');
-    }
-
-
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     if (res.total_rrc_count > 0) {
@@ -857,8 +843,9 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         }
     } else if (isSearchButtonTriggered && isHistogramViewActive && $('.histo-container').is(':visible')) {
         timechartComplete = null;
-        $('#histogram-container').html('<div class="error-message">Histogram data is not available</div>');
+        $('#histogram-container').html('<div class="info-message">Histogram data is not available</div>');
     }
+    checkAndRestoreHistogramVisibility()
 
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
@@ -909,6 +896,7 @@ function processEmptyQueryResults() {
     $('#empty-response').empty().show();
 
     addEmptyMessagePopup();
+    checkAndRestoreHistogramVisibility()
 }
 
 function showErrorResponse(res) {
@@ -929,6 +917,7 @@ function showErrorResponse(res) {
     $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
 
     wsState = 'query';
+    checkAndRestoreHistogramVisibility()
 }
 
 function addEmptyMessagePopup() {
