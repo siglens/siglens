@@ -466,7 +466,7 @@ function runFilterBtnHandler(evt) {
             //eslint-disable-next-line no-undef
             if (!isHistogramViewActive) {
                 //eslint-disable-next-line no-undef
-                hasNewSearchWhileHistogramClosed = true;
+                hasSearchSinceHistogramClosed = true; 
             }
             resetDashboard();
             logsRowData = [];

@@ -21,10 +21,6 @@ const HistogramState = {
     currentHistogram: null,
     originalData: null,
     currentGranularity: 'day',
-    isDragging: false,
-    isZoomed: false,
-    originalStartTime: null,
-    originalEndTime: null,
     canvas: null,
     eventListeners: {},
 };
@@ -433,7 +429,8 @@ function renderHistogram(timechartData) {
         return;
     }
 
-    if (!HistogramState.originalData) {
+    //eslint-disable-next-line no-undef
+    if (!HistogramState.originalData && isSearchButtonTriggered ) {
         HistogramState.originalData = JSON.parse(JSON.stringify(timechartData));
     }
 
@@ -454,11 +451,6 @@ function renderHistogram(timechartData) {
 
     let startTime = Math.min(...timestamps);
     let endTime = Math.max(...timestamps);
-
-    if (!HistogramState.isZoomed) {
-        HistogramState.originalStartTime = startTime;
-        HistogramState.originalEndTime = endTime;
-    }
 
     const { granularity, intervalMs, maxBars } = determineGranularity(startTime, endTime);
     HistogramState.currentGranularity = granularity;
@@ -593,128 +585,38 @@ function updateHistogramTheme() {
     HistogramState.currentHistogram.update();
 }
 
+
 $(document).ready(function() {
     $('#histogram-toggle-btn').on('click', function() {
         $(this).toggleClass('active');
-        $('.histo-container').toggle();
+        const isActive = $(this).hasClass('active');
         //eslint-disable-next-line no-undef
-        isHistogramOpen = $(this).hasClass('active');
+        isHistogramViewActive = isActive;
 
-        if ($(this).hasClass('active')) {
+        if (isActive) {
+            $('.histo-container').show();
             //eslint-disable-next-line no-undef
-            isHistogramViewActive = true;
-            if ($('#histogram-container').is(':visible')) {
+            if (hasSearchSinceHistogramClosed) {
+                // Show message if a search was performed while histogram was closed
+                $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
                 //eslint-disable-next-line no-undef
-                if (hasNewSearchWhileHistogramClosed) {
-                    $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
-                    //eslint-disable-next-line no-undef
-                    hasNewSearchWhileHistogramClosed = false;
-                    //eslint-disable-next-line no-undef
-                } else if (isSearchButtonTriggered && !timechartComplete) {
-                    $('#histogram-container').html('<div class="error-message">Histogram data is not available</div>');
-                    //eslint-disable-next-line no-undef
-                } else if (hasRenderedHistogramOnce && timechartComplete) {
-                    //eslint-disable-next-line no-undef
-                    renderHistogram(timechartComplete);
-                } else {
-                    $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
-                }
+                hasSearchSinceHistogramClosed = false; 
+                //eslint-disable-next-line no-undef
+            } else if (timechartComplete && HistogramState.currentHistogram) {
+                // Show cached histogram if no new search and data exists
+                $('.histo-container').show();
+                //eslint-disable-next-line no-undef
+            } else if (timechartComplete) {
+                // Render histogram if data exists but no chart is cached
+                //eslint-disable-next-line no-undef
+                renderHistogram(timechartComplete);
+            } else {
+                // Default message when no data is available
+                $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
             }
         } else {
-            //eslint-disable-next-line no-undef
-            isHistogramViewActive = false;
-            //eslint-disable-next-line no-undef
-            isHistogramOpen = false;
-        }
-    });
-
-    const emptyResponse = document.getElementById('empty-response');
-    if (emptyResponse) {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.attributeName === 'style') {
-                    const isVisible = $(emptyResponse).is(':visible');
-                    if (isVisible) {
-                        $('.histo-container').hide();
-                        //eslint-disable-next-line no-undef
-                        isHistogramOpen = false;
-                        //eslint-disable-next-line no-undef
-                    } else if (isHistogramViewActive && !isHistogramOpen) {
-                        $('.histo-container').show();
-                        //eslint-disable-next-line no-undef
-                        isHistogramOpen = true;
-                        //eslint-disable-next-line no-undef
-                        if (hasNewSearchWhileHistogramClosed) {
-                            $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
-                            //eslint-disable-next-line no-undef
-                            hasNewSearchWhileHistogramClosed = false;
-                            //eslint-disable-next-line no-undef
-                        } else if (isSearchButtonTriggered && !timechartComplete) {
-                            $('#histogram-container').html('<div class="error-message">Histogram data is not available</div>');
-                            //eslint-disable-next-line no-undef
-                        } else if (hasRenderedHistogramOnce && timechartComplete) {
-                            //eslint-disable-next-line no-undef
-                            renderHistogram(timechartComplete);
-                        } else {
-                            $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
-                        }
-                    }
-                }
-            });
-        });
-        observer.observe(emptyResponse, {
-            attributes: true,
-            attributeFilter: ['style'],
-        });
-        if ($(emptyResponse).is(':visible')) {
             $('.histo-container').hide();
-            //eslint-disable-next-line no-undef
-            isHistogramOpen = false;
         }
-    }
+    });
 
-    const cornerPopup = document.getElementById('corner-popup');
-if (cornerPopup) {
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.attributeName === 'style') {
-                const isVisible = $(cornerPopup).is(':visible');
-                if (isVisible) {
-                    $('.histo-container').hide();
-                    //eslint-disable-next-line no-undef
-                    isHistogramOpen = false;
-                    //eslint-disable-next-line no-undef
-                } else if (isHistogramViewActive && !isHistogramOpen) {
-                    $('.histo-container').show();
-                    //eslint-disable-next-line no-undef
-                    isHistogramOpen = true;
-                    //eslint-disable-next-line no-undef
-                    if (hasNewSearchWhileHistogramClosed) {
-                        $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
-                        //eslint-disable-next-line no-undef
-                        hasNewSearchWhileHistogramClosed = false;
-                        //eslint-disable-next-line no-undef
-                    } else if (isSearchButtonTriggered && !timechartComplete) {
-                        $('#histogram-container').html('<div class="error-message">Histogram data is not available</div>');
-                        //eslint-disable-next-line no-undef
-                    } else if (hasRenderedHistogramOnce && timechartComplete) {
-                        //eslint-disable-next-line no-undef
-                        renderHistogram(timechartComplete);
-                    } else {
-                        $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
-                    }
-                }
-            }
-        });
-    });
-    observer.observe(cornerPopup, {
-        attributes: true,
-        attributeFilter: ['style'],
-    });
-    if ($(cornerPopup).is(':visible')) {
-        $('.histo-container').hide();
-        //eslint-disable-next-line no-undef
-        isHistogramOpen = false;
-    }
-}
 });
