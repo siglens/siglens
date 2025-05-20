@@ -92,6 +92,7 @@ type Searcher struct {
 
 	gotBlocks             bool
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
+	didFirstFetch         bool
 	qsrs                  []*query.QuerySegmentRequest
 	cutOffTimestampInMs   uint64
 	unprocessedQSRs       *list.List
@@ -196,8 +197,6 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 	subsearchers[1].sortIndexState.forceNormalSearch = true
 	subsearchers[1].segEncToKeyBaseValue += uint32(len(sortIndexQSRs))
 
-	query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(qsrs))), searcher.qid)
-
 	sortExpr := searcher.sortExpr.ShallowCopy()
 	sortExpr.Limit = math.MaxInt64
 	merger := NewSortDP(sortExpr) // TODO: use a mergeDP, since each stream is already sorted.
@@ -264,6 +263,10 @@ func (s *Searcher) initUnprocessedQSRs() {
 }
 
 func (s *Searcher) Fetch() (*iqr.IQR, error) {
+	defer func() {
+		s.didFirstFetch = true
+	}()
+
 	if s.subsearch != nil {
 		return s.subsearch.merger.Fetch()
 	}
@@ -277,7 +280,12 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 			return s.fetchColumnSortedRRCs()
 		}
 		// initialize QSRs if they don't exist
-		if s.qsrs == nil {
+		// TODO: remove the !didFirstFetch check. Currently it's done to force
+		// calling query.setTotalRecordsToBeSearched(), which happens as a
+		// side-effct of reloading the QSRs. We do this so that
+		// InitProgressForRRCCmd() initializes the progress with the correct
+		// total records.
+		if s.qsrs == nil || !s.didFirstFetch {
 			err := s.initializeQSRs()
 			if err != nil {
 				return nil, utils.TeeErrorf("qid=%v, searcher.Fetch: failed to get and set QSRs: %v", s.qid, err)
