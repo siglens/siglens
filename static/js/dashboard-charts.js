@@ -322,7 +322,7 @@ function addSuffix(number) {
         number /= 1e6;
     }
 
-    return [number.toFixed(2), suffix];
+    return [parseFloat(number).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), suffix];
 }
 
 function findSmallestGreaterOne(number) {
@@ -351,7 +351,7 @@ function findSmallestGreaterOne(number) {
         suffix = 's';
     }
 
-    return [smallest.toFixed(2), suffix];
+    return [parseFloat(smallest).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), suffix];
 }
 
 //eslint-disable-next-line no-unused-vars
@@ -423,13 +423,14 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
                 bigNum = findSmallestGreaterOne(number);
             } else if (dataTypeAbbrev === '' || dataTypeAbbrev === '%') {
                 bigNum[1] = '';
-                bigNum[0] = number;
+                bigNum[0] = parseFloat(number).toLocaleString('en-US');
             } else {
                 bigNum = addSuffix(number);
             }
             panelChartEl.append(`<div class="big-number">${bigNum[0]} </div> <div class="unit">${bigNum[1] + dataTypeAbbrev} </div> `);
         } else {
-            panelChartEl.append(`<div class="big-number">${value} </div> `);
+            const formattedValue = !isNaN(parseFloat(value)) ? parseFloat(value).toLocaleString('en-US') : value;
+            panelChartEl.append(`<div class="big-number">${formattedValue} </div> `);
         }
     }
 
