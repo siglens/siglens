@@ -26,10 +26,6 @@ const HistogramState = {
 
 function determineGranularity(startTime, endTime) {
     const durationMs = endTime - startTime;
-    const MAX_BARS = 50;
-    const MIN_BARS = 10;
-
-    const calculateMaxBars = (intervalMs) => Math.max(MIN_BARS, Math.min(MAX_BARS, Math.ceil(durationMs / intervalMs)));
 
     const granularityOptions = [
         { duration: 15 * 60 * 1000, granularity: 'second', intervalMs: 10 * 1000 },
@@ -42,7 +38,7 @@ function determineGranularity(startTime, endTime) {
     ];
 
     const { granularity, intervalMs } = granularityOptions.find(opt => durationMs <= opt.duration);
-    return { granularity, intervalMs, maxBars: calculateMaxBars(intervalMs) };
+    return { granularity, intervalMs };
 }
 
 function parseTimestamp(timestamp) {
@@ -130,7 +126,7 @@ function msToReadable(intervalMs) {
     return `${value} ${name}${value !== 1 ? 's' : ''}`;
 }
 
-function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars) {
+function configureTimeAxis(startTime, endTime, intervalMs, granularity) {
     const durationMs = endTime - startTime;
     const daysInRange = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
     const hoursInRange = durationMs / (1000 * 60 * 60);
@@ -178,7 +174,7 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
         if (adjustedDurationMs <= 5 * 60 * 1000) {
             timeOptions.unit = 'second';
             stepSize = 30;
-            maxTicksLimit = Math.min(11, Math.ceil(adjustedDurationMs / (30 * 1000)) + 1);
+            maxTicksLimit = Math.ceil(adjustedDurationMs / (30 * 1000)) + 1;
         } else if (adjustedDurationMs <= 15 * 60 * 1000) {
             timeOptions.unit = 'minute';
             stepSize = 1;
@@ -243,11 +239,6 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars)
         timeOptions.unit = 'month';
         stepSize = Math.ceil(intervalMs / (30 * 24 * 60 * 60 * 1000));
         maxTicksLimit = Math.ceil(durationMs / (stepSize * 30 * 24 * 60 * 60 * 1000)) + 1;
-    }
-    maxTicksLimit = Math.min(maxBars, maxTicksLimit);
-
-    if (!timeOptions.stepSize) {
-        timeOptions.stepSize = stepSize;
     }
 
     return {
@@ -354,7 +345,7 @@ function renderHistogram(timechartData) {
     let startTime = Math.min(...timestamps);
     let endTime = Math.max(...timestamps);
 
-    const { granularity, intervalMs, maxBars } = determineGranularity(startTime, endTime);
+    const { granularity, intervalMs } = determineGranularity(startTime, endTime);
     HistogramState.currentGranularity = granularity;
 
     let chartData = dataToRender.measure.map(item => {
@@ -375,7 +366,7 @@ function renderHistogram(timechartData) {
         ? getGraphGridColors()
         : { gridLineColor: '#e0e0e0', tickColor: '#666' };
 
-    const xAxisConfig = configureTimeAxis(startTime, endTime, intervalMs, granularity, maxBars);
+    const xAxisConfig = configureTimeAxis(startTime, endTime, intervalMs, granularity);
 
     if (HistogramState.currentHistogram) {
         HistogramState.currentHistogram.destroy();
@@ -400,7 +391,6 @@ function renderHistogram(timechartData) {
                 borderWidth: 1,
                 barPercentage: 0.8,
                 categoryPercentage: 0.8,
-
             }]
         },
         options: {
