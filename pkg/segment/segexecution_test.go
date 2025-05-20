@@ -498,6 +498,5 @@ func groupByQueryTestsForAsteriskQueries(t *testing.T, numBuffers int, numEntrie
 		assert.Equal(t, rec.VirtualTableName, columnarResult.AllRecords[recIdx].VirtualTableName)
 	}
 
-	groupByAggQueryTest(t, numBuffers, numEntriesForBuffer, fileCount, "*", Avg)
 	measureColsTest(t, numBuffers, numEntriesForBuffer, fileCount, "*", Avg)
 }

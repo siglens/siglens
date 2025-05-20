@@ -763,7 +763,7 @@ func GetQueryTimeoutSecs() int {
 
 func GetDefaultRunModConfig() common.RunModConfig {
 	return common.RunModConfig{
-		PQSEnabled:       false,
+		PQSEnabled:       true,
 		QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
 	}
 }
@@ -868,8 +868,8 @@ func GetTestConfig(dataPath string) common.Configuration {
 		S3IngestBufferSize:          1000,
 		MaxParallelS3IngestBuffers:  10,
 		SSInstanceName:              "",
-		PQSEnabled:                  "false",
-		PQSEnabledConverted:         false,
+		PQSEnabled:                  "true",
+		PQSEnabledConverted:         true,
 		SafeServerStart:             false,
 		AnalyticsEnabled:            "false",
 		AnalyticsEnabledConverted:   false,
@@ -1054,13 +1054,13 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	config.PProfEnabledConverted = pprofEnabled
 
 	if len(config.PQSEnabled) <= 0 {
-		config.PQSEnabled = "false"
+		config.PQSEnabled = "true"
 	}
 	pqsEnabled, err := strconv.ParseBool(config.PQSEnabled)
 	if err != nil {
-		log.Errorf("ExtractConfigData: failed to parse PQS enabled flag. Defaulting to false. Error: %v", err)
-		pqsEnabled = false
-		config.PQSEnabled = "false"
+		log.Errorf("ExtractConfigData: failed to parse PQS enabled flag. Defaulting to true. Error: %v", err)
+		pqsEnabled = true
+		config.PQSEnabled = "true"
 	}
 	config.PQSEnabledConverted = pqsEnabled
 

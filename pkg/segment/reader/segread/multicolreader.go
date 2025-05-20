@@ -319,7 +319,9 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 
 	if colKeyIndex == -1 || colKeyIndex >= mcsr.maxColIdx {
 		// Debug to avoid log flood for when the column does not exist
-		log.Debugf("MultiColSegmentReader.ReadRawRecordFromColumnFile: failed to find colKeyIndex %v in multi col reader. All cols: %+v", colKeyIndex, mcsr.allColsReverseIndex)
+		if config.IsDebugMode() {
+			log.Debugf("MultiColSegmentReader.ReadRawRecordFromColumnFile: failed to find colKeyIndex %v in multi col reader. All cols: %+v", colKeyIndex, mcsr.allColsReverseIndex)
+		}
 		return nil, nil
 	}
 
@@ -393,7 +395,9 @@ func (mcsr *MultiColSegmentReader) IsBlkDictEncoded(cname string,
 	keyIndex, ok := mcsr.allColsReverseIndex[cname]
 	if !ok {
 		// Debug to avoid log flood for when the column does not exist
-		log.Debugf("MultiColSegmentReader.IsBlkDictEncoded: failed to find column %s in multi col reader. All cols: %+v", cname, mcsr.allColsReverseIndex)
+		if config.IsDebugMode() {
+			log.Debugf("MultiColSegmentReader.IsBlkDictEncoded: failed to find column %s in multi col reader. All cols: %+v", cname, mcsr.allColsReverseIndex)
+		}
 		return false, errors.New("column not found in MultipleColumnSegmentReader")
 	}
 
