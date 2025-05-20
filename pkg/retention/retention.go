@@ -351,7 +351,7 @@ func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta) {
 		dirPath := segMetaEntry.SegmentKey
 		filesToDelete, err := blob.GetAllFilesInDirectory(path.Dir(dirPath) + "/")
 		if err != nil {
-			log.Errorf("DeleteSegmentData: Failed to list files in S3 directory: %v, error: %v", path.Dir(dirPath), err)
+			log.Errorf("DeleteSegmentData: Failed to list files in blob directory: %v, error: %v", path.Dir(dirPath), err)
 		}
 		svFileName := ""
 		for _, file := range filesToDelete {
@@ -410,7 +410,7 @@ func DeleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[strin
 		dirPath := metricsSegmentMeta.MSegmentDir
 		filesToDelete, err := blob.GetAllFilesInDirectory(path.Dir(dirPath) + "/")
 		if err != nil {
-			log.Errorf("DeleteSegmentData: Failed to list files in S3 directory: %v, error: %v", path.Dir(dirPath), err)
+			log.Errorf("DeleteSegmentData: Failed to list files in blob directory: %v, error: %v", path.Dir(dirPath), err)
 		}
 
 		for _, file := range filesToDelete {
