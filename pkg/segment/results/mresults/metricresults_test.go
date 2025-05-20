@@ -23,7 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -115,7 +115,7 @@ func Test_ApplyAggregationToResults_NoGroupBy_Single_Series(t *testing.T) {
 	mResult.Results = results
 
 	aggregation := structs.Aggregation{
-		AggregatorFunction: utils.Sum,
+		AggregatorFunction: sutils.Sum,
 	}
 
 	errors := mResult.ApplyAggregationToResults(parallelism, aggregation)
@@ -155,7 +155,7 @@ func Test_ApplyAggregationToResults_NoGroupBy_Multiple_Series(t *testing.T) {
 	mResult.Results = results
 
 	aggregation := structs.Aggregation{
-		AggregatorFunction: utils.Avg,
+		AggregatorFunction: sutils.Avg,
 	}
 
 	errors := mResult.ApplyAggregationToResults(parallelism, aggregation)
@@ -187,7 +187,7 @@ func Test_ApplyAggregationToResults_GroupBy_Single_Series(t *testing.T) {
 	mResult.Results = results
 
 	aggregation := structs.Aggregation{
-		AggregatorFunction: utils.Sum,
+		AggregatorFunction: sutils.Sum,
 		GroupByFields:      []string{"tk1"},
 	}
 
@@ -230,7 +230,7 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v1(t *testing.T) {
 	mResult.Results = results
 
 	aggregation := structs.Aggregation{
-		AggregatorFunction: utils.Avg,
+		AggregatorFunction: sutils.Avg,
 		GroupByFields:      []string{"tk1"},
 	}
 
@@ -273,7 +273,7 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v2(t *testing.T) {
 	mResult.Results = results
 
 	aggregation := structs.Aggregation{
-		AggregatorFunction: utils.Avg,
+		AggregatorFunction: sutils.Avg,
 		GroupByFields:      []string{"tk1"},
 	}
 
@@ -334,7 +334,7 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v3(t *testing.T) {
 	mResult.Results = results
 
 	aggregation := structs.Aggregation{
-		AggregatorFunction: utils.Avg,
+		AggregatorFunction: sutils.Avg,
 		GroupByFields:      []string{"tk1", "tk2"},
 	}
 

@@ -14,7 +14,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/valyala/fasthttp"
 )
@@ -103,7 +103,7 @@ func ProcessPutPostSingleDocRequest(ctx *fasthttp.RequestCtx, updateArg bool, my
 	if docType != "" {
 		request["_type"] = docType
 	}
-	if len(request) > segutils.MAX_RECORD_SIZE {
+	if len(request) > sutils.MAX_RECORD_SIZE {
 		var httpResp utils.HttpServerResponse
 		ctx.SetStatusCode(fasthttp.StatusRequestEntityTooLarge)
 		httpResp.Message = "Request entity too large"

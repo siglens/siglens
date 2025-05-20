@@ -33,7 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/language"
@@ -192,8 +192,8 @@ func getBaseQueryStatsDir(orgid int64) string {
 }
 
 func getBaseStatsDirs(startTime, endTime time.Time, orgid int64) []string {
-	startTOD := (startTime.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
-	endTOD := (endTime.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
+	startTOD := (startTime.UnixMilli() / sutils.MS_IN_DAY) * sutils.MS_IN_DAY
+	endTOD := (endTime.UnixMilli() / sutils.MS_IN_DAY) * sutils.MS_IN_DAY
 	ingestDir := config.GetIngestNodeBaseDir()
 	// read all files in dir
 
@@ -232,7 +232,7 @@ func getBaseStatsDirs(startTime, endTime time.Time, orgid int64) []string {
 			sb.WriteString(t1.UTC().Format("2006/01/02"))
 			sb.WriteString("/")
 			statsDirs = append(statsDirs, sb.String())
-			fileStartTOD = fileStartTOD + segutils.MS_IN_DAY
+			fileStartTOD = fileStartTOD + sutils.MS_IN_DAY
 			fileStartTime = fileStartTime.AddDate(0, 0, 1)
 		}
 
@@ -537,10 +537,10 @@ func GetUsageStats(startTs int64, endTs int64, granularity UsageStatsGranularity
 
 	endEpoch := time.Unix(endTs, 0)
 	startEpoch := time.Unix(startTs, 0)
-	startTOD := (startEpoch.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
-	endTOD := (endEpoch.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
-	startTOH := (startEpoch.UnixMilli() / segutils.MS_IN_HOUR) * segutils.MS_IN_HOUR
-	endTOH := (endEpoch.UnixMilli() / segutils.MS_IN_HOUR) * segutils.MS_IN_HOUR
+	startTOD := (startEpoch.UnixMilli() / sutils.MS_IN_DAY) * sutils.MS_IN_DAY
+	endTOD := (endEpoch.UnixMilli() / sutils.MS_IN_DAY) * sutils.MS_IN_DAY
+	startTOH := (startEpoch.UnixMilli() / sutils.MS_IN_HOUR) * sutils.MS_IN_HOUR
+	endTOH := (endEpoch.UnixMilli() / sutils.MS_IN_HOUR) * sutils.MS_IN_HOUR
 
 	resultMap := make(map[string]*ReadStats)
 	var bucketInterval string
@@ -567,7 +567,7 @@ func GetUsageStats(startTs int64, endTs int64, granularity UsageStatsGranularity
 			roundedToDay := time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(), 0, 0, 0, 0, runningTs.Location())
 			bucketInterval = strconv.FormatInt(roundedToDay.Unix(), 10)
 			runningTs = runningTs.Add(24 * time.Hour)
-			startTOD = startTOD + segutils.MS_IN_DAY
+			startTOD = startTOD + sutils.MS_IN_DAY
 			resultMap[bucketInterval] = &ReadStats{}
 		}
 	} else if granularity == Hourly {
@@ -575,7 +575,7 @@ func GetUsageStats(startTs int64, endTs int64, granularity UsageStatsGranularity
 			roundedToHour := time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(), runningTs.Hour(), 0, 0, 0, runningTs.Location())
 			bucketInterval = strconv.FormatInt(roundedToHour.Unix(), 10)
 			runningTs = runningTs.Add(1 * time.Hour)
-			startTOH = startTOH + segutils.MS_IN_HOUR
+			startTOH = startTOH + sutils.MS_IN_HOUR
 			resultMap[bucketInterval] = &ReadStats{}
 		}
 	} else if granularity == Monthly {

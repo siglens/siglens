@@ -62,7 +62,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script src="./js/lib/chart.umd.min.js"></script>
-
+    <script src="./js/lib/ace.js"></script>
+    <script src="./js/lib/mode-json.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -628,18 +629,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <p class="validateTips" id="validateTips"></p>
             <form>
                 <fieldset>
-                    <input type="text" name="qnameDL" id="qnameDL" placeholder="Name"
-                        class="text ui-widget-content ui-corner-all">
+                    <div>
+                        <label class="mb-1">File Name</label>
+                        <input type="text" name="qnameDL" id="qnameDL" placeholder="logs_export"
+                            class="text ui-widget-content ui-corner-all">
+                        <small class="grey-text mb-0 mt-1 ">Name may consist of a-z, 0-9, period, dash, underscores</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="mb-1 mt-4">Format</label>
+                        <input readonly id="format">
+                    </div>
                     <!-- Allow form submission with keyboard without duplicating the dialog button -->
                     <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
                 </fieldset>
             </form>
         </div>
-        <div class="pop-download" id="pop-box">
-            <div class="pop-text">Downloading Logs</div>
-            <button class="btn btn-secondary" id="cancel-loading">Cancel</button>
-        </div>
-        <div id="progressbar" class="progress-download"></div>
         <!-- Dashboard Popup-->
         <div class="popupOverlay"></div>
         <div class="popupContent" id="create-db-popup">

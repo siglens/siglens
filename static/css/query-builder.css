@@ -551,10 +551,6 @@ textarea.form-control.expanded {
     width: 0;
 }
 
-.ui-dialog-title {
-    font-size: 18px;
-}
-
 .completed {
     background-image: var(--complete-bg-img);
     background-repeat: no-repeat;
@@ -710,7 +706,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     background-color: var(--border-btn-color);
 }
 
-.custom-chart-tab {
+#custom-chart-tab {
     position: relative;
     width: 100%;
     height: 100%;

@@ -31,8 +31,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -218,7 +218,7 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 	}
 
 	// for cmilen (4) and blkNum (2)
-	bb := make([]byte, utils.LEN_BLOCK_CMI_SIZE+utils.LEN_BLKNUM_CMI_SIZE)
+	bb := make([]byte, sutils.LEN_BLOCK_CMI_SIZE+sutils.LEN_BLKNUM_CMI_SIZE)
 	cmbuf := make([]byte, 0)
 
 	bulkDownloadFiles := make(map[string]string)
@@ -249,7 +249,7 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 			continue
 		}
 		if err != nil {
-			return toputils.TeeErrorf("readCmis: cannot open fname=%v, cname=%v, err=[%v]",
+			return utils.TeeErrorf("readCmis: cannot open fname=%v, cname=%v, err=[%v]",
 				fName, cname, err)
 		}
 		defer fd.Close()
@@ -264,12 +264,12 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 				}
 				break
 			}
-			offset += utils.LEN_BLOCK_CMI_SIZE + utils.LEN_BLKNUM_CMI_SIZE // for cmilenHolder (4) and blkNum (2)
-			cmilen := toputils.BytesToUint32LittleEndian(bb[0:utils.LEN_BLOCK_CMI_SIZE])
-			cmilen -= utils.LEN_BLKNUM_CMI_SIZE // for the blkNum(2)
-			cmbuf = toputils.ResizeSlice(cmbuf, int(cmilen))
+			offset += sutils.LEN_BLOCK_CMI_SIZE + sutils.LEN_BLKNUM_CMI_SIZE // for cmilenHolder (4) and blkNum (2)
+			cmilen := utils.BytesToUint32LittleEndian(bb[0:sutils.LEN_BLOCK_CMI_SIZE])
+			cmilen -= sutils.LEN_BLKNUM_CMI_SIZE // for the blkNum(2)
+			cmbuf = utils.ResizeSlice(cmbuf, int(cmilen))
 
-			blkNum := toputils.BytesToUint16LittleEndian(bb[utils.LEN_BLOCK_CMI_SIZE:])
+			blkNum := utils.BytesToUint16LittleEndian(bb[sutils.LEN_BLOCK_CMI_SIZE:])
 
 			_, err = fd.ReadAt(cmbuf[:cmilen], offset)
 			if err != nil {
@@ -330,14 +330,14 @@ func GetLoadSsm(segkey string, qid uint64) (*SegmentMicroIndex, error) {
 
 	smi, exists := GetMicroIndex(segkey)
 	if !exists {
-		return nil, toputils.TeeErrorf("qid=%v, seg file %+v does not exist in block meta, but existed in time filtering", qid, segkey)
+		return nil, utils.TeeErrorf("qid=%v, seg file %+v does not exist in block meta, but existed in time filtering", qid, segkey)
 	}
 
 	if !smi.loadedSearchMetadata {
 		err := smi.loadSearchMetadata()
 		if err != nil {
 			return nil,
-				toputils.TeeErrorf("qid=%d, Failed to load search metadata for segKey %+v! Error: %v", qid, smi.SegmentKey, err)
+				utils.TeeErrorf("qid=%d, Failed to load search metadata for segKey %+v! Error: %v", qid, smi.SegmentKey, err)
 		}
 	}
 

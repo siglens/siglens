@@ -42,7 +42,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -197,7 +197,7 @@ func ApplyVectorArithmetic(aggs *structs.QueryAggregators, qid uint64) *structs.
 
 	vectorExpr := aggs.VectorArithmeticExpr
 
-	result, err := vectorExpr.Evaluate(map[string]segutils.CValueEnclosure{})
+	result, err := vectorExpr.Evaluate(map[string]sutils.CValueEnclosure{})
 	if err != nil {
 		nodeRes.ErrList = []error{err}
 		return nodeRes
@@ -262,7 +262,7 @@ func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.Time
 		containsKibana = true
 	}
 	querytracker.UpdateQTUsage(nonKibanaIndices, searchNode, aggs, qc.RawQuery)
-	parallelismPerFile := int64(runtime.GOMAXPROCS(0) / 2)
+	parallelismPerFile := int64(runtime.GOMAXPROCS(0))
 	if parallelismPerFile < 1 {
 		parallelismPerFile = 1
 	}
@@ -475,7 +475,10 @@ func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *s
 	if err != nil {
 		log.Errorf("qid=%d GetSortedQSRs: Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
 	}
-	totalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
+	totalLocalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
+	totalRemoteRecsToBeSearched := queryInfo.GetDQS().GetNumRemoteRecordsToSearch()
+	totalRecsToBeSearched := totalLocalRecsToBeSearched + totalRemoteRecsToBeSearched
+
 	err = setTotalRecordsToBeSearched(queryInfo.qid, totalRecsToBeSearched)
 	if err != nil {
 		log.Errorf("qid=%d GetSortedQSRs: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
@@ -504,7 +507,10 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 			ErrList: []error{err},
 		}
 	}
-	totalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
+	totalLocalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
+	totalRemoteRecsToBeSearched := queryInfo.GetDQS().GetNumRemoteRecordsToSearch()
+	totalRecsToBeSearched := totalLocalRecsToBeSearched + totalRemoteRecsToBeSearched
+
 	err = setTotalRecordsToBeSearched(queryInfo.qid, totalRecsToBeSearched)
 	if err != nil {
 		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
@@ -673,7 +679,7 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 					// Reuse the bucket keys from the previous segments so we
 					// sync which buckets we're using across segments.
 					str.SetBuckets(agileTreeBuckets)
-					str.SetBucketLimit(segutils.QUERY_MAX_BUCKETS)
+					str.SetBucketLimit(sutils.QUERY_MAX_BUCKETS)
 				}
 
 				search.ApplyAgileTree(str, segReq.aggs, allSegFileResults, segReq.sizeLimit, queryInfo.qid,
@@ -868,15 +874,7 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 	finalQsrs = append(finalQsrs, rotatedQSR...)
 	numRawSearch += rotatedRawCount
 
-	if config.IsNewQueryPipelineEnabled() {
-		numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
-	} else {
-		numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
-		if err != nil {
-			log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
-			return nil, 0, 0, err
-		}
-	}
+	numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
 
 	return finalQsrs, numRawSearch, numDistributed, nil
 }
@@ -1092,15 +1090,7 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*Que
 	numRawSearch += rotatedRawCount
 	numPQS += rotatedPQS
 
-	if config.IsNewQueryPipelineEnabled() {
-		numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
-	} else if queryInfo.dqs != nil {
-		numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
-		if err != nil {
-			log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
-			return nil, 0, 0, 0, err
-		}
-	}
+	numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
 
 	// Sort query segment results depending on aggs
 	sortedQSRSlice := getSortedQSRResult(queryInfo.aggs, unsortedQsrs)

@@ -83,6 +83,9 @@ let aggGridOptions = {
         sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
         sortDescending: '<i class="fa fa-sort-alpha-down"/>',
     },
+    enableCellTextSelection: true,
+    suppressRowClickSelection: true,
+    ensureDomOrder: true
 };
 /*eslint-enable*/
 {{ .CommonExtraFunctions }}
@@ -476,7 +479,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             // Check if no measure data exists
             if (!res.measure || !Array.isArray(res.measure) || res.measure.length === 0) {
                 panelProcessEmptyQueryResults('', panelId);
-            } else if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && res.qtype === 'segstats-query') {
+            } else if ((chartType === 'Pie Chart' || chartType === 'Bar Chart' || chartType === 'Line Chart') && res.qtype === 'segstats-query') {
                 // Bar or Pie chart with segstats query is not compatible
                 panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
             } else if (chartType === 'number' && (resultVal === undefined || resultVal === null)) {
@@ -1151,6 +1154,30 @@ function ExpandableJsonCellRenderer(type = 'events') {
             this.params.api.sizeColumnsToFit();
         }
 
+        initAceEditor(container, jsonData) {
+            const editor = ace.edit(container);
+            editor.session.setMode("ace/mode/json");
+            editor.setOptions({
+                readOnly: true,
+                showPrintMargin: false,
+                highlightActiveLine: false,
+                highlightGutterLine: false,
+                fontSize: "12px",
+                showGutter: true,
+                wrap: true
+            });
+            
+            editor.setValue(JSON.stringify(jsonData, null, 2), -1);
+            
+            editor.selection.on('changeSelection', function(e) {
+                editor.renderer.$cursorLayer.element.style.display = "none";
+            });
+            
+            editor.resize();
+            
+            return editor;
+        }
+
         toggleJsonPanel(event) {
             event.stopPropagation();
 
@@ -1187,7 +1214,8 @@ function ExpandableJsonCellRenderer(type = 'events') {
             state.currentExpandedCell = this;
 
             window.copyJsonToClipboard = function () {
-                const jsonContent = document.querySelector('#json-tab div').innerText;
+                const editor = ace.edit(document.querySelector('#json-tab .ace-editor-container'));
+                const jsonContent = editor.getValue();
                 navigator.clipboard
                     .writeText(jsonContent)
                     .then(() => {
@@ -1288,7 +1316,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
                 </div>
                 <div class="json-popup-content">
                     <div id="json-tab" class="tab-content active">
-                        <div class="json-key-values">${syntaxHighlight(JSON.unflatten(rowData))}</div>
+                        <div class="ace-editor-container" style="width: 100%; height: 100%; line-height: 20px"></div>
                     </div>
                     <div id="table-tab" class="tab-content">
                         <table border="1" class="json-table">
@@ -1312,6 +1340,9 @@ function ExpandableJsonCellRenderer(type = 'events') {
                 this.closeJsonPanel();
             };
 
+            const aceContainer = document.querySelector('#json-tab .ace-editor-container');
+            const unflattenedData = JSON.unflatten(rowData);
+            this.initAceEditor(aceContainer, unflattenedData);
             this.params.api.sizeColumnsToFit();
         }
 

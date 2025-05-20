@@ -140,6 +140,10 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 		}
 
 		update.State = data.StateName.String()
+		update.TotalEventsSearched = data.UpdateWSResp.TotalEventsSearched
+		update.TotalPossibleEvents = data.UpdateWSResp.TotalPossibleEvents
+		update.Completion = data.UpdateWSResp.Completion
+
 		data.UpdateWSResp = update
 		q.output <- &QueryStateEnvelope{
 			QueryStateChanData: data,

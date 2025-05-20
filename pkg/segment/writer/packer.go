@@ -35,7 +35,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	statswriter "github.com/siglens/siglens/pkg/segment/writer/stats"
 	"github.com/siglens/siglens/pkg/utils"
@@ -71,7 +71,7 @@ const FPARM_FLOAT64 = float64(0)
 		  3) error
 */
 func (ss *SegStore) EncodeColumns(rawData []byte, recordTime uint64, tsKey *string,
-	signalType segutils.SIGNAL_TYPE,
+	signalType sutils.SIGNAL_TYPE,
 	cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte) (bool, error) {
 
@@ -109,7 +109,7 @@ func (ss *SegStore) EncodeColumns(rawData []byte, recordTime uint64, tsKey *stri
 }
 
 func (ss *SegStore) encodeRawJsonObject(currKey string, data []byte, tsKey *string,
-	matchedCol bool, signalType segutils.SIGNAL_TYPE,
+	matchedCol bool, signalType sutils.SIGNAL_TYPE,
 	cnameCacheByteHashToStr map[uint64]string, jsParsingStackbuf []byte) (bool, error) {
 
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
@@ -186,7 +186,7 @@ func (ss *SegStore) encodeRawJsonObject(currKey string, data []byte, tsKey *stri
 }
 
 func (ss *SegStore) encodeRawJsonArray(currKey string, data []byte, tsKey *string,
-	matchedCol bool, signalType segutils.SIGNAL_TYPE) (bool, error) {
+	matchedCol bool, signalType sutils.SIGNAL_TYPE) (bool, error) {
 	var encErr error
 	if signalType == SIGNAL_JAEGER_TRACES {
 		if currKey != "references" && currKey != "logs" {
@@ -206,7 +206,7 @@ func (ss *SegStore) encodeRawJsonArray(currKey string, data []byte, tsKey *strin
 }
 
 func (ss *SegStore) encodeNonJaegerRawJsonArray(currKey string, data []byte, tsKey *string,
-	matchedCol bool, signalType segutils.SIGNAL_TYPE,
+	matchedCol bool, signalType sutils.SIGNAL_TYPE,
 	cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte) (bool, error) {
 
@@ -277,7 +277,7 @@ func (ss *SegStore) encodeNonJaegerRawJsonArray(currKey string, data []byte, tsK
 }
 
 func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
-	tsKey *string, matchedCol bool, signalType segutils.SIGNAL_TYPE) (bool, error) {
+	tsKey *string, matchedCol bool, signalType sutils.SIGNAL_TYPE) (bool, error) {
 	if arraykey == *tsKey {
 		return matchedCol, nil
 	}
@@ -348,7 +348,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 				colWip.cbuf.Append(keyVal)
 				colWip.cbufidx += uint32(keyValLen)
 			case "float64":
-				colWip.cbuf.Append(segutils.VALTYPE_ENC_FLOAT64[:])
+				colWip.cbuf.Append(sutils.VALTYPE_ENC_FLOAT64[:])
 				colWip.cbufidx += 1
 				colWip.cbuf.Append(keyValLenBytes)
 				colWip.cbufidx += 2
@@ -414,7 +414,7 @@ func getNestedDictEntries(data []byte) ([]byte, string, []byte, error) {
 }
 
 func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte,
-	tsKey *string, matchedCol bool, signalType segutils.SIGNAL_TYPE) (bool, error) {
+	tsKey *string, matchedCol bool, signalType sutils.SIGNAL_TYPE) (bool, error) {
 	if key == *tsKey {
 		return matchedCol, nil
 	}
@@ -1635,7 +1635,7 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 		return
 	}
 
-	UpdateMinMax(stats, segutils.CValueEnclosure{
+	UpdateMinMax(stats, sutils.CValueEnclosure{
 		CVal:  string(valBytes),
 		Dtype: SS_DT_STRING,
 	})

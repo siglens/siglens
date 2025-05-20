@@ -27,7 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -54,7 +54,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 	colCSG := fmt.Sprintf("%s_%v.csg", segKey, xxhash.Sum64String(colName))
 	fd, err := os.Open(colCSG)
 	assert.NoError(b, err)
-	fileReader, err := segreader.InitNewSegFileReader(fd, colName, allBlocksToSearch, 0, blockSums, segutils.INCONSISTENT_CVAL_SIZE, allBmi)
+	fileReader, err := segreader.InitNewSegFileReader(fd, colName, allBlocksToSearch, 0, blockSums, sutils.INCONSISTENT_CVAL_SIZE, allBmi)
 	assert.Nil(b, err)
 
 	b.ResetTimer()
@@ -96,7 +96,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	allBlockSummaries := make([]*structs.BlockSummary, 1)
 	allBlockSummaries[0] = &structs.BlockSummary{RecCount: recCounts}
 
-	sfr, err := segreader.InitNewSegFileReader(nil, cname, nil, 0, allBlockSummaries, segutils.INCONSISTENT_CVAL_SIZE, nil)
+	sfr, err := segreader.InitNewSegFileReader(nil, cname, nil, 0, allBlockSummaries, sutils.INCONSISTENT_CVAL_SIZE, nil)
 	assert.NoError(t, err)
 
 	recNum := uint16(0)
@@ -106,7 +106,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 
 		cval := fmt.Sprintf("mycval-%v", dwIdx)
 		cvalBytes := make([]byte, 3+len(cval))
-		cvalBytes[0] = segutils.VALTYPE_ENC_SMALL_STRING[0]
+		cvalBytes[0] = sutils.VALTYPE_ENC_SMALL_STRING[0]
 		utils.Uint16ToBytesLittleEndianInplace(uint16(len(cval)), cvalBytes[1:])
 		copy(cvalBytes[3:], cval)
 
@@ -150,7 +150,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 func Test_readDictEncDiscardsOldData(t *testing.T) {
 	encodeString := func(s string) []byte {
 		encoding := make([]byte, 3+len(s))
-		encoding[0] = segutils.VALTYPE_ENC_SMALL_STRING[0]
+		encoding[0] = sutils.VALTYPE_ENC_SMALL_STRING[0]
 		utils.Uint16ToBytesLittleEndianInplace(uint16(len(s)), encoding[1:3])
 		copy(encoding[3:], []byte(s))
 

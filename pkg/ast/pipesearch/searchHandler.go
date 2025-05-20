@@ -20,10 +20,11 @@ package pipesearch
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 
 	"github.com/fasthttp/websocket"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
@@ -31,17 +32,11 @@ import (
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
-	"github.com/siglens/siglens/pkg/config"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
-	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/reader/record"
-	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
-	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -296,7 +291,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls, _ := ParseSearchBody(readJSON, nowTs)
-
+	limit := sizeLimit
 	if scrollFrom > 10_000 {
 		return nil, true, nil, nil
 	}
@@ -353,15 +348,8 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.IncludeNulls = includeNulls
 	qc.RawQuery = searchText
-	if config.IsNewQueryPipelineEnabled() {
-		return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc)
-	} else {
-		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, includeNulls)
-		log.Infof("qid=%v, Finished execution in %+v", qid, time.Since(result.QueryStartTime))
+	return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc, limit)
 
-		return &httpRespOuter, false, simpleNode.TimeRange, nil
-	}
 }
 
 func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
@@ -421,173 +409,6 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}, includeNulls bool) structs.PipeSearchResponseOuter {
-	var httpRespOuter structs.PipeSearchResponseOuter
-	var httpResp structs.PipeSearchResponse
-
-	// aggs exist, so just return aggregations instead of all results
-	httpRespOuter.Aggs = convertBucketToAggregationResponse(nodeResult.Histogram)
-	if len(nodeResult.ErrList) > 0 {
-		for _, err := range nodeResult.ErrList {
-			httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
-		}
-	}
-
-	allMeasRes, measFuncs, added := segresults.CreateMeasResultsFromAggResults(aggs.BucketLimit, nodeResult.Histogram)
-
-	if added == 0 {
-		allMeasRes = nodeResult.MeasureResults
-		measFuncs = nodeResult.MeasureFunctions
-	}
-
-	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid,
-		nodeResult.SegEncToKey, aggs, allColsInAggs, includeNulls)
-	if err != nil {
-		httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
-		return httpRespOuter
-	}
-	if nodeResult.RemoteLogs != nil {
-		json = append(json, nodeResult.RemoteLogs...)
-	}
-
-	var canScrollMore bool
-	if numRRCs == sizeLimit {
-		// if the number of RRCs is exactly equal to the requested size, there may be more than size matches. Hence, we can scroll more
-		canScrollMore = true
-	}
-	httpResp.Hits = json
-	httpResp.TotalMatched = query.ConvertQueryCountToTotalResponse(nodeResult.TotalResults)
-	httpRespOuter.Hits = httpResp
-	httpRespOuter.AllPossibleColumns = allCols
-	httpRespOuter.ElapedTimeMS = time.Since(queryStart).Milliseconds()
-	httpRespOuter.Qtype = nodeResult.Qtype
-	httpRespOuter.CanScrollMore = canScrollMore
-	httpRespOuter.TotalRRCCount = numRRCs
-	httpRespOuter.MeasureFunctions = measFuncs
-	httpRespOuter.MeasureResults = allMeasRes
-	httpRespOuter.GroupByCols = nodeResult.GroupByCols
-	httpRespOuter.BucketCount = nodeResult.BucketCount
-	httpRespOuter.DashboardPanelId = dbPanelId
-
-	httpRespOuter.ColumnsOrder = allCols
-	// The length of AllCols is 0, which means it is not a async query
-	if len(allCols) == 0 {
-		httpRespOuter.ColumnsOrder = query.GetFinalColsOrder(nodeResult.ColumnsOrder)
-	}
-
-	if nodeResult.RecsAggregator.RecsAggsType == structs.GroupByType && nodeResult.RecsAggregator.GroupByRequest != nil {
-		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.RecsAggregator.GroupByRequest.MeasureOperations)
-	} else if nodeResult.RecsAggregator.RecsAggsType == structs.MeasureAggsType && nodeResult.RecsAggregator.MeasureOperations != nil {
-		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.RecsAggregator.MeasureOperations)
-	}
-	httpRespOuter.RenameColumns = nodeResult.RenameColumns
-
-	log.Infof("qid=%d, Query Took %+v ms", qid, httpRespOuter.ElapedTimeMS)
-
-	return httpRespOuter
-}
-
-// returns converted json, all columns, or any errors
-func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit uint64,
-	qid uint64, segencmap map[uint32]string, aggs *structs.QueryAggregators,
-	allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
-
-	hits := make([]map[string]interface{}, 0)
-	// if sizeLimit is 0, return empty hits
-	// And Even if len(rrcs) is 0, we will still proceed to the json records
-	// So that any Aggregations that require all the segments to be processed can be done.
-	if sizeLimit == 0 {
-		return hits, []string{}, nil
-	}
-
-	allJsons, allCols, err := record.GetJsonFromAllRrcOldPipeline(rrcs, false, qid, segencmap, aggs, allColsInAggs)
-	if err != nil {
-		log.Errorf("qid=%d, convertRRCsToJSONResponse: failed to get allrecords from rrc, err: %v", qid, err)
-		return allJsons, allCols, err
-	}
-
-	if sizeLimit < uint64(len(allJsons)) {
-		allJsons = allJsons[:sizeLimit]
-	}
-
-	if !includeNulls {
-		for _, record := range allJsons {
-			for key, value := range record {
-				if value == nil {
-					delete(record, key)
-				} else if strValue, ok := value.(string); ok && strValue == "" {
-					delete(record, key)
-				}
-			}
-		}
-	}
-
-	return allJsons, allCols, nil
-}
-
-func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationResult) map[string]structs.AggregationResults {
-	resp := make(map[string]structs.AggregationResults)
-	for aggName, aggRes := range buckets {
-		allBuckets := make([]map[string]interface{}, len(aggRes.Results))
-
-		for idx, hist := range aggRes.Results {
-			res := make(map[string]interface{})
-			var bucketKey interface{}
-			bucketKeyList, ok := hist.BucketKey.([]string)
-			if ok && len(bucketKeyList) == 1 {
-				bucketKey = bucketKeyList[0]
-			} else {
-				bucketKey = hist.BucketKey
-			}
-			res["key"] = bucketKey
-			res["doc_count"] = hist.ElemCount
-			if aggRes.IsDateHistogram {
-				res["key_as_string"] = fmt.Sprintf("%v", hist.BucketKey)
-			}
-			for name, value := range hist.StatRes {
-				res[name] = utils.StatResponse{
-					Value: value.CVal,
-				}
-			}
-
-			allBuckets[idx] = res
-		}
-		resp[aggName] = structs.AggregationResults{Buckets: allBuckets}
-	}
-	return resp
-}
-
-func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid int64) {
-
-	var resp utils.AutoCompleteDataInfo
-	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
-	if err != nil {
-		log.Errorf("GetAutoCompleteData: failed to get all virtual table names, err: %v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	}
-
-	sortedIndices := make([]string, 0, len(allVirtualTableNames))
-
-	for k := range allVirtualTableNames {
-		sortedIndices = append(sortedIndices, k)
-	}
-
-	sort.Strings(sortedIndices)
-
-	for _, indexName := range sortedIndices {
-		if indexName == "" {
-			log.Errorf("GetAutoCompleteData: skipping an empty index name indexName: %v", indexName)
-			continue
-		}
-
-	}
-
-	resp.ColumnNames = segmetadata.GetAllColNames(sortedIndices)
-	resp.MeasureFunctions = []string{"min", "max", "avg", "count", "sum", "cardinality"}
-	utils.WriteJsonResponse(ctx, resp)
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
 func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 	resp := &structs.PipeSearchResponseOuter{
 		CanScrollMore: false,
@@ -601,7 +422,7 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 
 func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
 	timechartRoot *structs.ASTNode, timechartAggs *structs.QueryAggregators,
-	qc *structs.QueryContext) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
+	qc *structs.QueryContext, sizeLimit uint64) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
 
 	isAsync := conn != nil
 
@@ -653,9 +474,9 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 		case query.READY:
 			switch queryStateData.ChannelIndex {
 			case multiplexer.MainIndex:
-				go segment.ExecuteQueryInternalNewPipeline(qid, isAsync, root, aggs, qc, rQuery)
+				go segment.ExecuteQueryInternalNewPipeline(qid, isAsync, root, aggs, qc, rQuery, sizeLimit)
 			case multiplexer.TimechartIndex:
-				go segment.ExecuteQueryInternalNewPipeline(timechartQid, isAsync, timechartRoot, timechartAggs, qc, timechartQuery)
+				go segment.ExecuteQueryInternalNewPipeline(timechartQid, isAsync, timechartRoot, timechartAggs, qc, timechartQuery, sizeLimit)
 			}
 		case query.RUNNING:
 			if isAsync {
@@ -680,6 +501,14 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			}
 
 			if isAsync {
+				if runTimechartQuery {
+					err = populateMissingBuckets(queryStateData.CompleteWSResp.TimechartComplete, root.TimeRange)
+					if err != nil {
+						log.Errorf("RunQueryForNewPipeline: failed to get final buckets err: %v", err)
+						return nil, false, root.TimeRange, err
+					}
+				}
+
 				wErr := conn.WriteJSON(queryStateData.CompleteWSResp)
 				if wErr != nil {
 					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to write json to websocket, err: %v", qid, wErr)
@@ -772,6 +601,141 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			return nil, false, root.TimeRange, nil
 		}
 	}
+}
+
+// populateMissingBuckets fills missing buckets in the response based on the time range and span options.
+func populateMissingBuckets(completeResp *structs.PipeSearchCompleteResponse, timeRange *dtu.TimeRange) error {
+	spanOptions, err := structs.GetDefaultTimechartSpanOptions(timeRange.StartEpochMs, timeRange.EndEpochMs, 0)
+	if err != nil {
+		return fmt.Errorf("failed to get span options: %w", err)
+	}
+	var duration time.Duration = 0
+	if spanOptions.SpanLength.TimeScalr != sutils.TMMonth {
+		duration, err = getDuration(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
+		if err != nil {
+			return fmt.Errorf("failed to get duration: %w", err)
+		}
+	}
+
+	bucketHolderMap, err := initEmptyBuckets(completeResp, timeRange, duration, spanOptions.SpanLength.TimeScalr, spanOptions.SpanLength.Num)
+	if err != nil {
+		return fmt.Errorf("failed to initialize empty buckets: %w", err)
+	}
+
+	if err = populateBucketsWithExistingResults(completeResp, bucketHolderMap, spanOptions.SpanLength.TimeScalr); err != nil {
+		return fmt.Errorf("failed to populate buckets with existing results: %w", err)
+	}
+
+	completeResp.MeasureResults = completeResp.MeasureResults[:0]
+	for _, v := range bucketHolderMap {
+		completeResp.MeasureResults = append(completeResp.MeasureResults, v)
+	}
+	completeResp.BucketCount = len(completeResp.MeasureResults)
+	return nil
+}
+
+func getDuration(interval int, scaler sutils.TimeUnit) (time.Duration, error) {
+	switch scaler {
+	case sutils.TMSecond:
+		return time.Duration(interval) * time.Second, nil
+	case sutils.TMMinute:
+		return time.Duration(interval) * time.Minute, nil
+	case sutils.TMHour:
+		return time.Duration(interval) * time.Hour, nil
+	case sutils.TMDay:
+		return time.Duration(interval) * 24 * time.Hour, nil
+	default:
+		return 0, fmt.Errorf("unsupported time scaler: %v", scaler)
+	}
+}
+
+func initEmptyBuckets(
+	completeResp *structs.PipeSearchCompleteResponse,
+	timeRange *dtu.TimeRange,
+	duration time.Duration,
+	timeScaler sutils.TimeUnit,
+	interval int,
+) (map[string]*structs.BucketHolder, error) {
+
+	runningTs := time.UnixMilli(int64(timeRange.StartEpochMs))
+	endEpoch := time.UnixMilli(int64(timeRange.EndEpochMs))
+	bucketHolderMap := make(map[string]*structs.BucketHolder)
+
+	// For TMMonth, we cannot use fixed durations like time.Duration because months have variable lengths (28–31 days).
+	// Instead, we generate buckets by incrementing the month by interval,
+	if timeScaler == sutils.TMMonth {
+		runningTs = time.Date(runningTs.Year(), runningTs.Month(), 1, 0, 0, 0, 0, runningTs.Location())
+		for !runningTs.After(endEpoch) {
+			bucketInterval := strconv.FormatInt(runningTs.UnixMilli(), 10)
+			bucketHolderMap[bucketInterval] = createEmptyBucket(bucketInterval, completeResp)
+			runningTs = time.Date(runningTs.Year(), time.Month(int(runningTs.Month())+interval), 1, 0, 0, 0, 0, runningTs.Location())
+		}
+	} else {
+		// For all other time scalers (seconds, minutes, hours, days),
+		// we can use a fixed duration to increment time safely.
+		for !runningTs.After(endEpoch) {
+			alignedTs := alignToScalerStart(runningTs, timeScaler)
+			if alignedTs.IsZero() {
+				return nil, fmt.Errorf("unsupported time scaler: %v", timeScaler)
+			}
+			bucketInterval := strconv.FormatInt(alignedTs.UnixMilli(), 10)
+			bucketHolderMap[bucketInterval] = createEmptyBucket(bucketInterval, completeResp)
+			runningTs = runningTs.Add(duration)
+		}
+	}
+
+	return bucketHolderMap, nil
+}
+
+func alignToScalerStart(ts time.Time, scaler sutils.TimeUnit) time.Time {
+	switch scaler {
+	case sutils.TMSecond:
+		return time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), 0, ts.Location())
+	case sutils.TMMinute:
+		return time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), 0, 0, ts.Location())
+	case sutils.TMHour:
+		return time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), 0, 0, 0, ts.Location())
+	case sutils.TMDay:
+		return time.Date(ts.Year(), ts.Month(), ts.Day(), 0, 0, 0, 0, ts.Location())
+	case sutils.TMMonth:
+		return time.Date(ts.Year(), ts.Month(), 1, 0, 0, 0, 0, ts.Location())
+	default:
+		return time.Time{}
+	}
+}
+
+func createEmptyBucket(intervalStr string, completeResp *structs.PipeSearchCompleteResponse) *structs.BucketHolder {
+	key := ""
+	if len(completeResp.MeasureFunctions) > 0 {
+		key = completeResp.MeasureFunctions[0]
+	}
+	return &structs.BucketHolder{
+		GroupByValues: []string{intervalStr},
+		MeasureVal:    map[string]interface{}{key: 0},
+	}
+}
+
+func populateBucketsWithExistingResults(
+	completeResp *structs.PipeSearchCompleteResponse,
+	bucketHolderMap map[string]*structs.BucketHolder,
+	timeScaler sutils.TimeUnit,
+) error {
+	for _, bucket := range completeResp.MeasureResults {
+		if bucket.GroupByValues == nil || len(bucket.GroupByValues) == 0 {
+			return fmt.Errorf("bucket.GroupByValues is empty, cannot extract timestamp")
+		}
+		millisStr := bucket.GroupByValues[0]
+		millisInt, err := strconv.ParseInt(millisStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse bucket groupBy timestamp '%s': %w", millisStr, err)
+		}
+
+		aligned := alignToScalerStart(time.UnixMilli(millisInt), timeScaler)
+		bucketInterval := strconv.FormatInt(aligned.UnixMilli(), 10)
+
+		bucketHolderMap[bucketInterval] = bucket
+	}
+	return nil
 }
 
 func listenToRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync bool, conn *websocket.Conn) (*query.RunningQueryState, uint64, error) {

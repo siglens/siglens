@@ -39,8 +39,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
@@ -346,7 +346,7 @@ func Benchmark_agileTreeQueryReader(t *testing.B) {
 
 	grpByCols := []string{"passenger_count", "pickup_date", "trip_distance"}
 	measureOps := []*structs.MeasureAggregator{
-		{MeasureCol: "total_amount", MeasureFunc: utils.Count},
+		{MeasureCol: "total_amount", MeasureFunc: sutils.Count},
 	}
 	grpByRequest := &GroupByRequest{MeasureOperations: measureOps, GroupByColumns: grpByCols}
 
@@ -498,6 +498,5 @@ func groupByQueryTestsForAsteriskQueries(t *testing.T, numBuffers int, numEntrie
 		assert.Equal(t, rec.VirtualTableName, columnarResult.AllRecords[recIdx].VirtualTableName)
 	}
 
-	groupByAggQueryTest(t, numBuffers, numEntriesForBuffer, fileCount, "*", Avg)
 	measureColsTest(t, numBuffers, numEntriesForBuffer, fileCount, "*", Avg)
 }

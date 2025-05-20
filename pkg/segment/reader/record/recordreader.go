@@ -31,24 +31,40 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
+var ErrDownload = fmt.Errorf("failed to download file")
+var ErrReadFromBlob = fmt.Errorf("failed to read file from blob")
+var ErrSetNotInUse = fmt.Errorf("failed to set file as not in use")
+var ErrReadColumn = fmt.Errorf("failed to read column from file")
+var ErrMetadataMissingSegKey = fmt.Errorf("globalMetadata does not have segKey")
+var ErrGetBlockSummary = fmt.Errorf("failed to get block summary")
+var ErrGetBlockSearchInfo = fmt.Errorf("failed to get block search info")
+var ErrGetNodeResult = fmt.Errorf("failed to get or create query search node result")
+var ErrInitSharedReaders = fmt.Errorf("failed to initialize shared readers")
+var ErrReadColumns = fmt.Errorf("failed to read columns for records")
+var ErrNotOneColumn = fmt.Errorf("didn't get exactly one column")
+var ErrShouldNotReach = fmt.Errorf("should not reach here")
+var ErrReadBlock = fmt.Errorf("failed to read and validate block")
+var ErrExtractValue = fmt.Errorf("failed to extract value from column")
+var ErrEvaluateMathOp = fmt.Errorf("failed to evaluate math operation")
+
 type RRCsReaderI interface {
-	ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
-		qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error)
+	ReadAllColsForRRCs(segKey string, vTable string, rrcs []*sutils.RecordResultContainer,
+		qid uint64, ignoredCols map[string]struct{}) (map[string][]sutils.CValueEnclosure, error)
 	GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error)
-	ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64, fetchFromBlob bool) ([]utils.CValueEnclosure, error)
-	GetReaderId() utils.T_SegReaderId
+	ReadColForRRCs(segKey string, rrcs []*sutils.RecordResultContainer, cname string, qid uint64, fetchFromBlob bool) ([]sutils.CValueEnclosure, error)
+	GetReaderId() sutils.T_SegReaderId
 }
 
 type RRCsReader struct{}
 
-func (reader *RRCsReader) GetReaderId() utils.T_SegReaderId {
-	return utils.T_SegReaderId(0)
+func (reader *RRCsReader) GetReaderId() sutils.T_SegReaderId {
+	return sutils.T_SegReaderId(0)
 }
 
 func (reader *RRCsReader) ReadSegFilesFromBlob(segKey string, allCols map[string]struct{}) ([]string, error) {
@@ -64,47 +80,44 @@ func (reader *RRCsReader) ReadSegFilesFromBlob(segKey string, allCols map[string
 
 	err := blob.BulkDownloadSegmentBlob(bulkDownloadFiles, true)
 	if err != nil {
-		return nil, fmt.Errorf("readSegFilesFromBlob: failed to download col file. err=%v", err)
+		return nil, ErrDownload
 	}
 
 	return allFiles, nil
 }
 
-func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
-	qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error) {
+func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*sutils.RecordResultContainer,
+	qid uint64, ignoredCols map[string]struct{}) (map[string][]sutils.CValueEnclosure, error) {
 
 	allCols, err := reader.GetColsForSegKey(segKey, vTable)
 	if err != nil {
-		log.Errorf("qid=%v, ReadAllColsForRRCs: failed to get columns for segKey %s; err=%v",
-			qid, segKey, err)
 		return nil, err
 	}
 
 	allFiles, err := reader.ReadSegFilesFromBlob(segKey, allCols)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%d, ReadAllColsForRRCs: failed to read seg files from blob; err=%w", qid, err)
+		return nil, ErrReadFromBlob
 	}
 
 	defer func() {
 		err := blob.SetSegSetFilesAsNotInUse(allFiles)
 		if err != nil {
-			log.Errorf("qid=%d, ReadAllColsForRRCs: failed to set segset files as not in use. err=%v", qid, err)
+			log.Error(ErrSetNotInUse)
 		}
 	}()
 
-	colToValues := make(map[string][]utils.CValueEnclosure)
+	colToValues := make(map[string][]sutils.CValueEnclosure)
 	mapLock := sync.Mutex{}
-	cnames := toputils.GetKeysOfMap(allCols)
+	cnames := utils.GetKeysOfMap(allCols)
 	parallelism := runtime.GOMAXPROCS(0)
 
-	err = toputils.ProcessWithParallelism(parallelism, cnames, func(cname string) error {
+	err = utils.ProcessWithParallelism(parallelism, cnames, func(cname string) error {
 		if _, ignore := ignoredCols[cname]; ignore {
 			return nil
 		}
 		columnValues, err := reader.ReadColForRRCs(segKey, rrcs, cname, qid, false)
 		if err != nil {
-			log.Errorf("qid=%v, ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v",
-				qid, cname, segKey, err)
+			log.Error(ErrReadColumn)
 			return err
 		}
 
@@ -124,7 +137,7 @@ func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[st
 	if !exists {
 		exists = segmetadata.CheckAndCollectColNamesForSegKey(segKey, allCols)
 		if !exists {
-			return nil, toputils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
+			return nil, ErrMetadataMissingSegKey
 		}
 	}
 	allCols[config.GetTimeStampKey()] = struct{}{}
@@ -132,7 +145,7 @@ func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[st
 	return allCols, nil
 }
 
-func (reader *RRCsReader) ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64, fetchFromBlob bool) ([]utils.CValueEnclosure, error) {
+func (reader *RRCsReader) ReadColForRRCs(segKey string, rrcs []*sutils.RecordResultContainer, cname string, qid uint64, fetchFromBlob bool) ([]sutils.CValueEnclosure, error) {
 	switch cname {
 	case config.GetTimeStampKey():
 		return readTimestampForRRCs(rrcs)
@@ -143,11 +156,11 @@ func (reader *RRCsReader) ReadColForRRCs(segKey string, rrcs []*utils.RecordResu
 	}
 }
 
-func readTimestampForRRCs(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
-	result := make([]utils.CValueEnclosure, len(rrcs))
+func readTimestampForRRCs(rrcs []*sutils.RecordResultContainer) ([]sutils.CValueEnclosure, error) {
+	result := make([]sutils.CValueEnclosure, len(rrcs))
 	for i, rrc := range rrcs {
-		result[i] = utils.CValueEnclosure{
-			Dtype: utils.SS_DT_UNSIGNED_NUM,
+		result[i] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_UNSIGNED_NUM,
 			CVal:  rrc.TimeStamp,
 		}
 	}
@@ -155,11 +168,11 @@ func readTimestampForRRCs(rrcs []*utils.RecordResultContainer) ([]utils.CValueEn
 	return result, nil
 }
 
-func readIndexForRRCs(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
-	result := make([]utils.CValueEnclosure, len(rrcs))
+func readIndexForRRCs(rrcs []*sutils.RecordResultContainer) ([]sutils.CValueEnclosure, error) {
+	result := make([]sutils.CValueEnclosure, len(rrcs))
 	for i, rrc := range rrcs {
-		result[i] = utils.CValueEnclosure{
-			Dtype: utils.SS_DT_STRING,
+		result[i] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING,
 			CVal:  rrc.VirtualTableName,
 		}
 	}
@@ -168,8 +181,8 @@ func readIndexForRRCs(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclos
 }
 
 // All the RRCs must belong to the same segment.
-func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContainer,
-	cname string, qid uint64, fetchFromBlob bool) ([]utils.CValueEnclosure, error) {
+func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContainer,
+	cname string, qid uint64, fetchFromBlob bool) ([]sutils.CValueEnclosure, error) {
 
 	if len(rrcs) == 0 {
 		return nil, nil
@@ -177,7 +190,6 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 
 	err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(1, 10, "readUserDefinedColForRRCs")
 	if err != nil {
-		log.Errorf("qid=%v, readUserDefinedColForRRCs failed to get lock for opening 1 file; err=%v", qid, err)
 		return nil, err
 	}
 	defer fileutils.GLOBAL_FD_LIMITER.Release(1)
@@ -193,13 +205,13 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 
 		blockSummary, err = writer.GetBlockSummaryForKey(segKey)
 		if err != nil {
-			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get block summary for segKey %s; err=%v", qid, segKey, err)
+			log.Error(ErrGetBlockSummary)
 			return nil, err
 		}
 	} else {
 		_, blockSummary, err = segmetadata.GetSearchInfoAndSummary(segKey)
 		if err != nil {
-			log.Errorf("getRecordsFromSegmentHelper: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
+			log.Error(ErrGetBlockSearchInfo)
 			return nil, err
 		}
 	}
@@ -207,27 +219,27 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 	nodeRes, err := query.GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
 		// This should not happen, unless qid is deleted.
-		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get or create query search node result; err=%v", qid, err)
+		log.Error(ErrGetNodeResult)
 		nodeRes = &structs.NodeResult{}
 	}
 
-	batchingFunc := func(rrc *utils.RecordResultContainer) uint16 {
+	batchingFunc := func(rrc *sutils.RecordResultContainer) uint16 {
 		return rrc.BlockNum
 	}
-	batchKeyLess := toputils.NewOptionWithValue(func(blockNum1, blockNum2 uint16) bool {
+	batchKeyLess := utils.NewOptionWithValue(func(blockNum1, blockNum2 uint16) bool {
 		// We want to read the file in order, so read the blocks in order.
 		return blockNum1 < blockNum2
 	})
-	operation := func(rrcsInBatch []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
+	operation := func(rrcsInBatch []*sutils.RecordResultContainer) ([]sutils.CValueEnclosure, error) {
 		if len(rrcsInBatch) == 0 {
 			return nil, nil
 		}
 
-		consistentCValLen := map[string]uint32{cname: utils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value
+		consistentCValLen := map[string]uint32{cname: sutils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value
 		sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, map[string]bool{cname: fetchFromBlob},
 			allBlocksToSearch, blockSummary, 1, consistentCValLen, qid, nodeRes)
 		if err != nil {
-			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to initialize shared readers for segkey %v; err=%v", qid, segKey, err)
+			log.Error(ErrInitSharedReaders)
 			return nil, err
 		}
 		defer sharedReader.Close()
@@ -243,17 +255,17 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 	}
 
 	maxParallelism := runtime.GOMAXPROCS(0)
-	enclosures, _ := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation, maxParallelism)
+	enclosures, _ := utils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation, maxParallelism)
 	return enclosures, nil
 }
 
 func handleBlock(multiReader *segread.MultiColSegmentReader, blockNum uint16,
-	rrcs []*utils.RecordResultContainer, qid uint64) ([]utils.CValueEnclosure, error) {
+	rrcs []*sutils.RecordResultContainer, qid uint64) ([]sutils.CValueEnclosure, error) {
 
-	sortFunc := func(rrc1, rrc2 *utils.RecordResultContainer) bool {
+	sortFunc := func(rrc1, rrc2 *sutils.RecordResultContainer) bool {
 		return rrc1.RecordNum < rrc2.RecordNum
 	}
-	operation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
+	operation := func(rrcs []*sutils.RecordResultContainer) ([]sutils.CValueEnclosure, error) {
 		allRecNums := make([]uint16, len(rrcs))
 		for i, rrc := range rrcs {
 			allRecNums[i] = rrc.RecordNum
@@ -261,21 +273,21 @@ func handleBlock(multiReader *segread.MultiColSegmentReader, blockNum uint16,
 
 		colToValues, err := readColsForRecords(multiReader, blockNum, allRecNums, qid)
 		if err != nil {
-			return nil, fmt.Errorf("handleBlock: failed to read columns for records; err=%v", err)
+			return nil, ErrReadColumns
 		}
 
 		if len(colToValues) != 1 {
-			return nil, fmt.Errorf("handleBlock: expected 1 column, got %v", len(colToValues))
+			return nil, ErrNotOneColumn
 		}
 
 		for _, values := range colToValues {
 			return values, nil
 		}
 
-		return nil, fmt.Errorf("handleBlock: should not reach here")
+		return nil, ErrShouldNotReach
 	}
 
-	return toputils.SortThenProcessThenUnsort(rrcs, sortFunc, operation)
+	return utils.SortThenProcessThenUnsort(rrcs, sortFunc, operation)
 }
 
 // returns a map of record identifiers to record maps, and all columns seen
@@ -298,13 +310,13 @@ func getMathOpsColMap(MathOps []*structs.MathEvaluator) map[string]int {
 }
 
 func readColsForRecords(segReader *segread.MultiColSegmentReader, blockNum uint16,
-	orderedRecNums []uint16, qid uint64) (map[string][]utils.CValueEnclosure, error) {
+	orderedRecNums []uint16, qid uint64) (map[string][]sutils.CValueEnclosure, error) {
 
 	allMatchedColumns := make(map[string]bool)
 	esQuery := false
 	aggs := &structs.QueryAggregators{}
 	nodeRes := &structs.NodeResult{}
-	results := make(map[string][]utils.CValueEnclosure)
+	results := make(map[string][]sutils.CValueEnclosure)
 
 	for _, colInfo := range segReader.AllColums {
 		cname := colInfo.ColumnName
@@ -317,7 +329,7 @@ func readColsForRecords(segReader *segread.MultiColSegmentReader, blockNum uint1
 			continue
 		}
 
-		results[cname] = make([]utils.CValueEnclosure, len(orderedRecNums))
+		results[cname] = make([]sutils.CValueEnclosure, len(orderedRecNums))
 	}
 
 	return results, readAllRawRecords(orderedRecNums, blockNum, segReader,
@@ -339,7 +351,7 @@ func isDictCol(col string, esQuery bool) bool {
 func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segread.MultiColSegmentReader,
 	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
 	nodeRes *structs.NodeResult,
-	results map[string][]utils.CValueEnclosure) error {
+	results map[string][]sutils.CValueEnclosure) error {
 
 	dictEncCols := make(map[string]bool)
 	allColKeyIndices := make(map[int]string)
@@ -386,8 +398,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 
 	err := segReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
 	if err != nil {
-		return fmt.Errorf("qid=%d, readAllRawRecords: failed to validate and read block, err: %v",
-			qid, err)
+		return ErrReadBlock
 	}
 
 	var isTsCol bool
@@ -402,23 +413,24 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 
 			isTsCol = (config.GetTimeStampKey() == cname)
 
-			var cValEnc utils.CValueEnclosure
+			var cValEnc sutils.CValueEnclosure
 
 			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
 				qid, isTsCol, &cValEnc)
 			if err != nil {
 				nodeRes.StoreGlobalSearchError(fmt.Sprintf("readAllRawRecords: Failed to extract value for column %v", cname), log.ErrorLevel, err)
+				nodeRes.StoreGlobalSearchError(ErrExtractValue.Error(), log.ErrorLevel, err)
 			} else {
 
 				if mathColOpsPresent {
 					colIndex, exists := mathColMap[cname]
 					if exists {
 						mathOp := aggs.MathOperations[colIndex]
-						fieldToValue := make(map[string]utils.CValueEnclosure)
+						fieldToValue := make(map[string]sutils.CValueEnclosure)
 						fieldToValue[mathOp.MathCol] = cValEnc
 						valueFloat, err := mathOp.ValueColRequest.EvaluateToFloat(fieldToValue)
 						if err != nil {
-							return fmt.Errorf("qid=%d, failed to evaluate math operation for col %s, err=%v", qid, cname, err)
+							return ErrEvaluateMathOp
 						} else {
 							cValEnc.CVal = valueFloat
 						}
@@ -456,7 +468,7 @@ func applyColNameTransform(allCols map[string]bool, aggs *structs.QueryAggregato
 	} else {
 		index := 0
 		for _, cName := range aggs.OutputTransforms.OutputColumns.IncludeColumns {
-			for _, matchingColumn := range toputils.SelectMatchingStringsWithWildcard(cName, allColNames) {
+			for _, matchingColumn := range utils.SelectMatchingStringsWithWildcard(cName, allColNames) {
 				retCols[matchingColumn] = true
 				colsIndexMap[matchingColumn] = index
 				index++
@@ -465,7 +477,7 @@ func applyColNameTransform(allCols map[string]bool, aggs *structs.QueryAggregato
 	}
 	if len(aggs.OutputTransforms.OutputColumns.ExcludeColumns) != 0 {
 		for _, cName := range aggs.OutputTransforms.OutputColumns.ExcludeColumns {
-			for _, matchingColumn := range toputils.SelectMatchingStringsWithWildcard(cName, allColNames) {
+			for _, matchingColumn := range utils.SelectMatchingStringsWithWildcard(cName, allColNames) {
 				delete(retCols, matchingColumn)
 			}
 		}

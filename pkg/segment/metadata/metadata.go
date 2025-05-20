@@ -28,7 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
 )
@@ -228,11 +228,11 @@ func (hm *allSegmentMetadata) rebalanceCmi(cmiSizeBytes uint64) {
 	evicted := hm.evictCmiPastIndices(cmiIndex)
 
 	log.Infof("rebalanceCmi: evcitCmiIndex: %v, totalSMI: %v, allocated: %+v MB, evicted: %v, allowedMB: %v",
-		cmiIndex, len(hm.allSegmentMicroIndex), utils.ConvertUintBytesToMB(inMemSize),
-		evicted, utils.ConvertUintBytesToMB(cmiSizeBytes))
+		cmiIndex, len(hm.allSegmentMicroIndex), sutils.ConvertUintBytesToMB(inMemSize),
+		evicted, sutils.ConvertUintBytesToMB(cmiSizeBytes))
 
 	GlobalSegStoreSummary.SetInMemoryBlockMicroIndexCount(uint64(cmiIndex))
-	GlobalSegStoreSummary.SetInMemoryBlockMicroIndexSizeMB(utils.ConvertUintBytesToMB(inMemSize))
+	GlobalSegStoreSummary.SetInMemoryBlockMicroIndexSizeMB(sutils.ConvertUintBytesToMB(inMemSize))
 	hm.updateLock.RUnlock()
 }
 
@@ -435,8 +435,8 @@ func GetAllSegKeys() map[string]struct{} {
 }
 
 func RebalanceInMemorySsm(ssmSizeBytes uint64) {
-	logsSSM := uint64(float64(ssmSizeBytes) * utils.METADATA_LOGS_MEM_PERCENT / 100)
-	metricsSSM := uint64(float64(ssmSizeBytes) * utils.METADATA_METRICS_MEM_PERCENT / 100)
+	logsSSM := uint64(float64(ssmSizeBytes) * sutils.METADATA_LOGS_MEM_PERCENT / 100)
+	metricsSSM := uint64(float64(ssmSizeBytes) * sutils.METADATA_METRICS_MEM_PERCENT / 100)
 	globalMetadata.rebalanceSsm(logsSSM)
 	globalMetricsMetadata.rebalanceMetricsSsm(metricsSSM)
 }
@@ -452,13 +452,13 @@ func (hm *allSegmentMetadata) rebalanceSsm(ssmSizeBytes uint64) {
 	inMemSize, inMemSearchMetaCount, newloaded := hm.loadSsmUntilIndex(searchIndex)
 
 	log.Infof("rebalanceSsm SSM, inMem: %+v SSM, allocated: %+v MB, evicted: %v, newloaded: %v, totalSsmCount: %v, allowedMB: %v, took: %vms",
-		inMemSearchMetaCount, utils.ConvertUintBytesToMB(inMemSize),
+		inMemSearchMetaCount, sutils.ConvertUintBytesToMB(inMemSize),
 		evicted, newloaded, len(hm.allSegmentMicroIndex),
-		utils.ConvertUintBytesToMB(ssmSizeBytes),
+		sutils.ConvertUintBytesToMB(ssmSizeBytes),
 		int(time.Since(sTime).Milliseconds()))
 
 	GlobalSegStoreSummary.SetInMemorySearchmetadataCount(uint64(inMemSearchMetaCount))
-	GlobalSegStoreSummary.SetInMemorySsmSizeMB(utils.ConvertUintBytesToMB(inMemSize))
+	GlobalSegStoreSummary.SetInMemorySsmSizeMB(sutils.ConvertUintBytesToMB(inMemSize))
 	hm.updateLock.RUnlock()
 }
 

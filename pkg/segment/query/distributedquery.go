@@ -29,6 +29,7 @@ type DistributedQueryServiceInterface interface {
 	IsDistributed() bool
 	GetSegEncToKeyBaseValue() uint32
 	GetNumNodesDistributedTo() uint64
+	GetNumRemoteRecordsToSearch() uint64
 	GetOwnedSegments(orgId int64) (map[string]struct{}, error)
 }
 
@@ -72,6 +73,10 @@ func (d *DistributedQueryService) GetSegEncToKeyBaseValue() uint32 {
 }
 
 func (d *DistributedQueryService) GetNumNodesDistributedTo() uint64 {
+	return 0
+}
+
+func (d *DistributedQueryService) GetNumRemoteRecordsToSearch() uint64 {
 	return 0
 }
 
