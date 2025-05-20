@@ -200,7 +200,6 @@ function doSearch(data) {
             const finalResultResponseTime = (new Date().getTime() - startQueryTime).toLocaleString();
             $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
             isSearchButtonTriggered = false;
-            checkAndRestoreHistogramVisibility()
         };
 
         socket.addEventListener('error', (event) => {
@@ -845,7 +844,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         timechartComplete = null;
         $('#histogram-container').html('<div class="info-message">Histogram data is not available</div>');
     }
-    checkAndRestoreHistogramVisibility()
+    checkAndRestoreHistogramVisibility();
 
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
@@ -896,7 +895,6 @@ function processEmptyQueryResults() {
     $('#empty-response').empty().show();
 
     addEmptyMessagePopup();
-    checkAndRestoreHistogramVisibility()
 }
 
 function showErrorResponse(res) {
@@ -917,7 +915,6 @@ function showErrorResponse(res) {
     $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
 
     wsState = 'query';
-    checkAndRestoreHistogramVisibility()
 }
 
 function addEmptyMessagePopup() {

@@ -60,9 +60,15 @@ function parseTimestamp(timestamp) {
     };
 }
 
-function formatTooltipTimestamp(timestamp) {
+function formatTooltipTimestamp(timestamp, granularity) {
     const { month, day, year, hour12, minutes, seconds, ampm } = parseTimestamp(timestamp);
-    return `${month} ${day}, ${year} ${hour12}:${minutes}:${seconds} ${ampm}`;
+    const base = `${month} ${day}, ${year}`;
+    switch (granularity) {
+        case 'second': return `${base} ${hour12}:${minutes}:${seconds} ${ampm}`;
+        case 'minute': return `${base} ${hour12}:${minutes} ${ampm}`;
+        case 'hour': return `${base} ${hour12}:00 ${ampm}`;
+        default: return base;
+    }
 }
 
 function formatXTicks(timestamp, granularity, startTime, isFirstTickOfDay, daysInRange) {
@@ -441,7 +447,7 @@ function renderHistogram(timechartData) {
                         title: function (tooltipItems) {
                             const dataPoint = tooltipItems[0].raw;
                             const timestamp = dataPoint.originalTimestamps[0] || dataPoint.x;
-                            return formatTooltipTimestamp(timestamp);
+                            return formatTooltipTimestamp(timestamp, granularity);
                         },
                         label: function (context) {
                             const count = context.parsed.y;
@@ -511,6 +517,5 @@ $(document).ready(function() {
         } else {
             $('.histo-container').hide();
         }
-        checkAndRestoreHistogramVisibility()
     });
 });
