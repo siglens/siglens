@@ -102,7 +102,7 @@ function updatePaginationState(results) {
     } else if (results.qtype === 'aggs-query' || results.qtype === 'segstats-query') {
         if (results.state === 'COMPLETE') {
             currentPage = 1;
-            totalLoadedRecords = results.bucketCount;
+            totalLoadedRecords = results.bucketCount || 0;
             hasMoreRecords = false;
         }
     }
@@ -114,6 +114,8 @@ function updatePaginationState(results) {
 }
 
 function updatePaginationDisplay() {
+    if (!totalLoadedRecords) return;
+
     const totalPages = Math.ceil(totalLoadedRecords / pageSize);
     const pagesContainer = document.querySelector('.pagination-right');
 
@@ -148,24 +150,16 @@ function updatePaginationDisplay() {
         if (totalPages > 1) paginationHTML += createPageButton(totalPages);
     }
 
-    let totalDisplay;
-    if (hasMoreRecords) {
-        const roundedTotal = Math.ceil(totalLoadedRecords / 100) * 100;
-        totalDisplay = `${roundedTotal.toLocaleString()}+ records`;
-    } else {
-        totalDisplay = `${totalLoadedRecords.toLocaleString()} records`;
-    }
-
     paginationHTML += `</div>
-        <button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">
-            <i class="fa fa-angle-right"></i>
-        </button>
-        <button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${totalPages})">
-            <i class="fa fa-angle-double-right"></i>
-        </button>
-        <span class="pagination-info">
-            Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${totalDisplay}
-        </span>`;
+    <button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">
+        <i class="fa fa-angle-right"></i>
+    </button>
+    <button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${totalPages})">
+        <i class="fa fa-angle-double-right"></i>
+    </button>
+    <span class="pagination-info">
+        Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${hasMoreRecords ? `${totalLoadedRecords?.toLocaleString()}+` : totalLoadedRecords?.toLocaleString()} records
+    </span>`;
 
     pagesContainer.innerHTML = paginationHTML;
 }

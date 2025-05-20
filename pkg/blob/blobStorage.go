@@ -81,6 +81,18 @@ func DeleteBlob(filepath string) error {
 	return nil
 }
 
+func GetAllFilesInDirectory(dirPath string) ([]string, error) {
+	var allFiles []string
+	var err error
+	if hook := hooks.GlobalHooks.GetAllFilesInDirectoryHook; hook != nil {
+		allFiles, err = hook(dirPath)
+		if err != nil {
+			return allFiles, fmt.Errorf("GetAllFilesInDirectory: error from hook: %v", err)
+		}
+	}
+	return allFiles, nil
+}
+
 func DownloadAllIngestNodesDir() error {
 	if hook := hooks.GlobalHooks.DownloadAllIngestNodesDirExtrasHook; hook != nil {
 		alreadyHandled, err := hook()
