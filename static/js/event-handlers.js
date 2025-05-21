@@ -463,49 +463,28 @@ function runFilterBtnHandler(evt) {
         } else {
             isSearchButtonTriggered = true;
             if (!isHistogramViewActive) {
-                hasSearchSinceHistogramClosed = true; 
+                hasSearchSinceHistogramClosed = true;
             }
             resetDashboard();
             logsRowData = [];
             accumulatedRecords = [];
             lastColumnsOrder = [];
             totalLoadedRecords = 0;
+
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;
             $('#pagination-container').hide();
-            doSearch(data).finally(() => {
-                //eslint-disable-next-line no-undef
-                isSearchButtonTriggered = false; 
-            });
+            doSearch(data);
         }
         $('#daterangepicker').hide();
     }
 }
 
 function filterInputHandler(evt) {
-    if ( !evt.shiftKey && evt.keyCode === 13) {
-        const currentUrl = window.location.href;
-        const url = new URL(currentUrl);
-        const pathOnly = url.pathname;
-
-        const isIndexPage = pathOnly === '/' || pathOnly === '' || pathOnly.endsWith('index.html');
-        const isDashboardPage = pathOnly.includes('dashboard.html');
-
-        if (isIndexPage) {
-            evt.preventDefault();
-            resetDashboard();
-            logsRowData = [];
-            accumulatedRecords = [];
-            lastColumnsOrder = [];
-            totalLoadedRecords = 0;
-            data = getSearchFilter(false, false);
-            initialSearchData = data;
-            doSearch(data);
-        }else if (isDashboardPage) {
-            evt.preventDefault();
-            runQueryBtnHandler();
-        }
+    if (!evt.shiftKey && evt.keyCode === 13) {
+        evt.preventDefault();
+        runFilterBtnHandler(evt);
     }
 }
 
