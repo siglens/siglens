@@ -3912,6 +3912,34 @@ AggCount <- ("count" / "c") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     }
 
     return agg, nil
+} / ("earliest") L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Earliest,
+    }
+
+    return agg, nil
+} / ("earliest_time") L_PAREN field:FieldName R_PAREN{
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.EarliestTime,
+    }
+
+    return agg, nil
+} / ("latest") L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Latest,
+    }
+
+    return agg, nil
+} / ("latest_time") L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator{
+        MeasureCol: field.(string),
+        MeasureFunc: utils.LatestTime,
+    }
+
+    return agg, nil
 }
 
 AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {

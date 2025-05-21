@@ -279,7 +279,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 
 				if values[i].IsFloat() {
 					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_FLOAT64, 0, 0, values[i].CVal.(float64),
-						stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+						stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, 0)
 				} else {
 					intVal, err := values[i].GetIntValue()
 					if err != nil {
@@ -288,7 +288,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 						intVal = 0
 					}
 
-					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, 0)
 				}
 			} else {
 				p.errorData.notSupportedStatsType[colName] = struct{}{}

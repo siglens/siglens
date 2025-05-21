@@ -287,6 +287,16 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 			return incomingSegStat, nil
 		}
 		return runningSegStat, nil
+	case sutils.Latest:
+		res, err := segread.GetSegLatest(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+		if runningSegStat == nil {
+			return incomingSegStat, nil
+		}
+		return runningSegStat, nil
 	case sutils.Range:
 		res, err := segread.GetSegRange(runningSegStat, incomingSegStat)
 		if err != nil {
@@ -554,6 +564,8 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues boo
 			} else {
 				bucketHolder.MeasureVal[mfName] = strVal
 			}
+		case sutils.SS_DT_UNSIGNED_NUM:
+			bucketHolder.MeasureVal[mfName] = measureVal
 		default:
 			log.Errorf("GetSegmentStatsResults: unsupported dtype: %v, qid=%v", aggVal.Dtype, sr.qid)
 		}

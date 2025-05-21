@@ -541,6 +541,8 @@ type SegStats struct {
 	Min         sutils.CValueEnclosure
 	Max         sutils.CValueEnclosure
 	Hll         *utils.GobbableHll
+	LatestTs    sutils.CValueEnclosure
+	EarliestTs  sutils.CValueEnclosure
 	NumStats    *NumericStats
 	StringStats *StringStats
 	Records     []*sutils.CValueEnclosure
@@ -752,6 +754,21 @@ func GetMeasureAggregatorStrEncColumns(measureAggs []*MeasureAggregator) []strin
 		columns = append(columns, ma.String())
 	}
 	return columns
+}
+
+func UpdateLatestEarliest(stats *SegStats, value sutils.CValueEnclosure) {
+	earliestTs, err := sutils.ReduceMinMax(stats.EarliestTs, value, true)
+	if err != nil {
+		log.Errorf("UpdateLatestEarliest: Error while reducing min: %v", err)
+	} else {
+		stats.EarliestTs = earliestTs
+	}
+	latestTs, err := sutils.ReduceMinMax(stats.LatestTs, value, false)
+	if err != nil {
+		log.Errorf("UpdateLatestEarliest: Error while reducing max: %v", err)
+	} else {
+		stats.LatestTs = latestTs
+	}
 }
 
 func UpdateMinMax(stats *SegStats, value sutils.CValueEnclosure) {
@@ -1460,9 +1477,9 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.Last:         {},
 	sutils.Earliest:     {},
 	sutils.EarliestTime: {},
-	sutils.Latest:       {},
-	sutils.LatestTime:   {},
-	sutils.StatsRate:    {},
+	// utils.Latest:       {},
+	sutils.LatestTime: {},
+	sutils.StatsRate:  {},
 }
 
 var unsupportedEvalFuncs = map[string]struct{}{

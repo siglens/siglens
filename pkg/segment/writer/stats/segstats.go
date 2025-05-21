@@ -36,7 +36,7 @@ func GetDefaultNumStats() *NumericStats {
 
 func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	inNumType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
-	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
+	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool, timestampVal uint64) {
 
 	var stats *SegStats
 	var ok bool
@@ -67,7 +67,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	bb.Reset()
 	_, _ = bb.WriteString(numstr)
 	stats.InsertIntoHll(bb.B)
-	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc)
+	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc, timestampVal)
 }
 
 func AddSegStatsCount(segstats map[string]*SegStats, cname string,
@@ -89,7 +89,7 @@ func AddSegStatsCount(segstats map[string]*SegStats, cname string,
 }
 
 func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
-	uintVal uint64, fltVal float64, colUsage AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
+	uintVal uint64, fltVal float64, colUsage AggColUsageMode, hasValuesFunc bool, hasListFunc bool, timestampVal uint64) {
 
 	stats.Count++
 	stats.NumStats.NumericCount++
@@ -119,6 +119,8 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 			}
 		}
 	}
+
+	UpdateLatestEarliest(stats, CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: timestampVal})
 
 	// we just use the Min stats for stored val comparison but apply the same
 	// logic to max and sum
@@ -219,7 +221,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 
 	floatVal, err := strconv.ParseFloat(strVal, 64)
 	if err == nil {
-		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, strVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
+		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, strVal, bb, aggColUsage, hasValuesFunc, hasListFunc, 0)
 		return
 	}
 
