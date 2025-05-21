@@ -1477,9 +1477,9 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.Last:         {},
 	sutils.Earliest:     {},
 	sutils.EarliestTime: {},
-	// utils.Latest:       {},
-	sutils.LatestTime: {},
-	sutils.StatsRate:  {},
+	sutils.Latest:       {},
+	// sutils.LatestTime: {},
+	sutils.StatsRate: {},
 }
 
 var unsupportedEvalFuncs = map[string]struct{}{

@@ -287,7 +287,7 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 			return incomingSegStat, nil
 		}
 		return runningSegStat, nil
-	case sutils.Latest:
+	case sutils.LatestTime:
 		res, err := segread.GetSegLatest(runningSegStat, incomingSegStat)
 		if err != nil {
 			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
