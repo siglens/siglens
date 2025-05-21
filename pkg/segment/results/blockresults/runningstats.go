@@ -26,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type RunningBucketResults struct {
@@ -45,11 +46,28 @@ type SerializedRunningBucketResults struct {
 
 type runningStats struct {
 	rawVal sutils.CValueEnclosure // raw value
-	number *sutils.Number
+	number *sutils.Number         // If this is not nil, it's always correct
+	dirty  bool                   // If true, "number" is correct but "rawVal" is not
 
 	hll       *utils.GobbableHll
 	rangeStat *structs.RangeStat
 	avgStat   *structs.AvgStat
+}
+
+var ErrFailedConversion = fmt.Errorf("failed to convert CVal to Number")
+
+func (rs *runningStats) syncRawValue() {
+	if !rs.dirty || rs.number == nil {
+		return
+	}
+
+	rs.dirty = false
+
+	err := rs.number.ToCVal(&rs.rawVal)
+	if err != nil {
+		log.Error(ErrFailedConversion)
+		return
+	}
 }
 
 type RunningStatsJSON struct {
@@ -225,6 +243,8 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 	batchErr := utils.GetOrCreateBatchErrorWithQid(rr.qid)
 
 	for i := 0; i < len(toJoinRunningStats); i++ {
+		toJoinRunningStats[i].syncRawValue()
+
 		switch rr.currStats[i].MeasureFunc {
 		case sutils.Sum, sutils.Min, sutils.Max:
 			if rr.currStats[i].ValueColRequest == nil {
@@ -351,19 +371,18 @@ func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e su
 			return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to add measurement to running stats, err: %v", err)
 		}
 
-		err = runningStat.number.ToCVal(&runningStat.rawVal)
-		if err != nil {
-			return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to convert number to CVal, err: %v", err)
-		}
+		runningStat.dirty = true
 
 		return nil
 	}
 
+	(*runningStats)[i].syncRawValue()
 	retVal, err := sutils.Reduce((*runningStats)[i].rawVal, e, rr.currStats[i].MeasureFunc)
 	if err != nil {
 		return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to add measurement to running stats, err: %v", err)
 	} else {
 		(*runningStats)[i].rawVal = retVal
+		(*runningStats)[i].number = nil
 	}
 	return nil
 }
@@ -422,11 +441,13 @@ func ReduceAvg(avgStat1 *structs.AvgStat, avgStat2 *structs.AvgStat) *structs.Av
 }
 
 func (rr *RunningBucketResults) ProcessReduceForEval(runningStats *[]runningStats, e sutils.CValueEnclosure, i int, measureFunc sutils.AggregateFunctions) error {
+	(*runningStats)[i].syncRawValue()
 	retVal, err := ReduceForEval((*runningStats)[i].rawVal, e, measureFunc)
 	if err != nil {
 		return fmt.Errorf("RunningBucketResults.ProcessReduceForEval: failed to add measurement to running stats, err: %v", err)
 	} else {
 		(*runningStats)[i].rawVal = retVal
+		(*runningStats)[i].number = nil
 	}
 	return nil
 }
@@ -470,8 +491,9 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 		return 0, utils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSum:NON_ZERO_FIELDS",
 			fmt.Errorf("need non zero number of fields in expression for eval stats for sum for aggCol: %v", rr.currStats[i].String()))
 	}
-	exists := (*runningStats)[i].rawVal.Dtype != sutils.SS_INVALID
 
+	(*runningStats)[i].syncRawValue()
+	exists := (*runningStats)[i].rawVal.Dtype != sutils.SS_INVALID
 	result, err := agg.PerformEvalAggForSum(rr.currStats[i], 1, exists, (*runningStats)[i].rawVal, fieldToValue)
 	if err != nil {
 		return 0, utils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSum:PerformEvalAggForSum", err)
@@ -491,6 +513,8 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	if numFields == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: Need non zero number of fields in expression for eval stats for avg for aggCol: %v", rr.currStats[i].String())
 	}
+
+	(*runningStats)[i].syncRawValue()
 	exists := (*runningStats)[i].rawVal.Dtype != sutils.SS_INVALID
 
 	curr := rr.currStats[i]
@@ -519,6 +543,8 @@ func (rr *RunningBucketResults) AddEvalResultsForMinMax(runningStats *[]runningS
 	if numFields == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinMax: Need non zero number of fields in expression for eval stats for min/max for aggCol: %v", rr.currStats[i].String())
 	}
+
+	(*runningStats)[i].syncRawValue()
 	exists := (*runningStats)[i].rawVal.Dtype != sutils.SS_INVALID
 
 	result, err := agg.PerformEvalAggForMinOrMax(rr.currStats[i], exists, (*runningStats)[i].rawVal, fieldToValue, isMin)
@@ -538,6 +564,8 @@ func (rr *RunningBucketResults) AddEvalResultsForRange(runningStats *[]runningSt
 	if numFields == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForRange: Need non zero number of fields in expression for eval stats for range for aggCol: %v", rr.currStats[i].String())
 	}
+
+	(*runningStats)[i].syncRawValue()
 	exists := (*runningStats)[i].rawVal.Dtype != sutils.SS_INVALID
 
 	result, err := agg.PerformEvalAggForRange(rr.currStats[i], exists, (*runningStats)[i].rangeStat, fieldToValue)
@@ -573,6 +601,8 @@ func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningSt
 			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCount: there are some errors in the eval function that is inside the count function, err: %v", err)
 		}
 	}
+
+	(*runningStats)[i].syncRawValue()
 	if (*runningStats)[i].rawVal.CVal == nil {
 		(*runningStats)[i].rawVal = sutils.CValueEnclosure{
 			CVal:  int64(0),
@@ -587,6 +617,8 @@ func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningSt
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+
+	(*runningStats)[i].syncRawValue()
 	if (*runningStats)[i].rawVal.CVal == nil {
 		(*runningStats)[i].rawVal = sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_STRING_SET,
@@ -615,6 +647,8 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+
+	(*runningStats)[i].syncRawValue()
 	if (*runningStats)[i].rawVal.CVal == nil {
 		(*runningStats)[i].rawVal = sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_STRING_SLICE,
@@ -650,12 +684,14 @@ func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningSta
 func (rr *RunningBucketResults) GetRunningStatsBucketValues() ([]sutils.CValueEnclosure, uint64) {
 	retVal := make([]sutils.CValueEnclosure, len(rr.runningStats))
 	for i := 0; i < len(rr.runningStats); i++ {
+		rr.runningStats[i].syncRawValue()
 		retVal[i] = rr.runningStats[i].rawVal
 	}
 	return retVal, rr.count
 }
 
 func (rs runningStats) GetRunningStatJSON() RunningStatsJSON {
+	rs.syncRawValue()
 	rsJson := RunningStatsJSON{
 		RawVal:    rs.rawVal.CVal,
 		RangeStat: rs.rangeStat,
@@ -733,6 +769,7 @@ func (rbr *RunningBucketResults) ToSerializedRunningBucketResults() *SerializedR
 }
 
 func (rs *runningStats) ToSerializedRunningStats() *SerializedRunningStats {
+	rs.syncRawValue()
 	return &SerializedRunningStats{
 		RawVal:    rs.rawVal,
 		Hll:       rs.hll,

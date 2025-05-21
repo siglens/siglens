@@ -661,6 +661,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 
 			countIdx := gb.reverseMeasureIndex[idx]
+			runningStats[countIdx].syncRawValue()
 			countVal, err := runningStats[countIdx].rawVal.GetUIntValue()
 			if err != nil {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
@@ -710,6 +711,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 
 			sumIdx := gb.reverseMeasureIndex[idx]
+			runningStats[sumIdx].syncRawValue()
 			sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
 			if err != nil {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
@@ -718,6 +720,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 
 			if usedByTimechart {
 				sumIdx := gb.reverseMeasureIndex[idx]
+				runningStats[sumIdx].syncRawValue()
 				sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
 				if err != nil {
 					currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
@@ -725,6 +728,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 				}
 
 				countIdx := gb.reverseMeasureIndex[idx+1]
+				runningStats[countIdx].syncRawValue()
 				countRawVal, err := runningStats[countIdx].rawVal.GetFloatValue()
 				if err != nil {
 					currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
@@ -769,6 +773,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			incrementIdxBy = 2
 
 			minIdx := gb.reverseMeasureIndex[idx]
+			runningStats[minIdx].syncRawValue()
 			minRawVal, err := runningStats[minIdx].rawVal.GetFloatValue()
 			if err != nil {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
@@ -776,6 +781,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 
 			maxIdx := gb.reverseMeasureIndex[idx+1]
+			runningStats[maxIdx].syncRawValue()
 			maxRawVal, err := runningStats[maxIdx].rawVal.GetFloatValue()
 			if err != nil {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
@@ -794,6 +800,8 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 				batchErr.AddError("GroupByBuckets.AddResultToStatRes:CARDINALITY", fmt.Errorf("zero fields of ValueColRequest for cardinality: %v", mInfoStr))
 				return
 			}
+
+			runningStats[valIdx].syncRawValue()
 			strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
 			if !ok {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
@@ -819,6 +827,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 		}
 
 		valIdx := gb.reverseMeasureIndex[idx]
+		runningStats[valIdx].syncRawValue()
 		strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
 		if !ok {
 			currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
@@ -845,6 +854,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 		}
 		valIdx := gb.reverseMeasureIndex[idx]
+		runningStats[valIdx].syncRawValue()
 		strList, ok := runningStats[valIdx].rawVal.CVal.([]string)
 		if !ok {
 			currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
@@ -866,6 +876,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 		}
 		valIdx := gb.reverseMeasureIndex[idx]
+		runningStats[valIdx].syncRawValue()
 		cTypeVal := runningStats[valIdx].rawVal
 		eVal.CVal = cTypeVal.CVal
 		eVal.Dtype = cTypeVal.Dtype
@@ -873,6 +884,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 		incrementIdxBy = 1
 
 		valIdx := gb.reverseMeasureIndex[idx]
+		runningStats[valIdx].syncRawValue()
 		cTypeVal := runningStats[valIdx].rawVal
 		eVal.CVal = cTypeVal.CVal
 		eVal.Dtype = cTypeVal.Dtype
