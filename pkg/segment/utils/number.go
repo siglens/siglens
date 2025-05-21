@@ -230,3 +230,34 @@ func (n *Number) ReduceFast(other *Number, fun AggregateFunctions) error {
 
 	return nil
 }
+
+func (n *Number) ToCVal(enclosure *CValueEnclosure) error {
+	if enclosure == nil {
+		return fmt.Errorf("enclosure is nil")
+	}
+
+	switch n.ntype() {
+	case invalidType:
+		enclosure.Dtype = SS_INVALID
+		enclosure.CVal = nil
+	case backfillType:
+		enclosure.Dtype = SS_DT_BACKFILL
+		enclosure.CVal = nil
+	case int64Type:
+		i, err := n.Int64()
+		if err != nil {
+			return err
+		}
+		enclosure.CVal = i
+		enclosure.Dtype = SS_DT_SIGNED_NUM
+	case float64Type:
+		f, err := n.Float64()
+		if err != nil {
+			return err
+		}
+		enclosure.CVal = f
+		enclosure.Dtype = SS_DT_FLOAT
+	}
+
+	return nil
+}

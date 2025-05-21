@@ -730,11 +730,11 @@ func (cval *CValueEnclosure) ToNumber(number *Number) error {
 		}
 		number.SetInt64(int64(val))
 	case SS_DT_UNSIGNED_NUM:
-		val, ok := cval.CVal.(int64)
+		val, ok := cval.CVal.(uint64)
 		if !ok {
 			return fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
 		}
-		number.SetInt64(val)
+		number.SetInt64(int64(val))
 	case SS_DT_BACKFILL:
 		number.SetBackfillType()
 		return nil

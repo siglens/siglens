@@ -44,7 +44,9 @@ type SerializedRunningBucketResults struct {
 }
 
 type runningStats struct {
-	rawVal    sutils.CValueEnclosure // raw value
+	rawVal sutils.CValueEnclosure // raw value
+	number *sutils.Number
+
 	hll       *utils.GobbableHll
 	rangeStat *structs.RangeStat
 	avgStat   *structs.AvgStat
@@ -320,6 +322,43 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 }
 
 func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e sutils.CValueEnclosure, i int) error {
+	runningStat := &(*runningStats)[i]
+	aggFunc := rr.currStats[i].MeasureFunc
+	if aggFunc == sutils.Sum || aggFunc == sutils.Count {
+		if runningStat.number == nil {
+			if runningStat.rawVal.Dtype == sutils.SS_INVALID {
+				runningStat.rawVal.Dtype = sutils.SS_DT_BACKFILL
+			}
+
+			runningStat.number = &sutils.Number{}
+			err := runningStat.rawVal.ToNumber(runningStat.number)
+			if err != nil {
+				return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to convert CVal to number, err: %v", err)
+			}
+		}
+
+		other := &sutils.Number{}
+		if e.Dtype == sutils.SS_INVALID {
+			e.Dtype = sutils.SS_DT_BACKFILL
+		}
+		err := e.ToNumber(other)
+		if err != nil {
+			return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to convert CVal to number, err: %v", err)
+		}
+
+		err = runningStat.number.ReduceFast(other, aggFunc)
+		if err != nil {
+			return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to add measurement to running stats, err: %v", err)
+		}
+
+		err = runningStat.number.ToCVal(&runningStat.rawVal)
+		if err != nil {
+			return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to convert number to CVal, err: %v", err)
+		}
+
+		return nil
+	}
+
 	retVal, err := sutils.Reduce((*runningStats)[i].rawVal, e, rr.currStats[i].MeasureFunc)
 	if err != nil {
 		return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to add measurement to running stats, err: %v", err)
