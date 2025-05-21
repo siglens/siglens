@@ -1066,6 +1066,11 @@ body {
     width: 24px;
 }
 
+.menu.nav-lookups .icon-search {
+    background-image: url("../assets/lookups-icon-inactive.svg");
+
+}
+
 .icon-search:hover,
 .menu.nav-search.active .icon-search,
 .menu.nav-search:hover .icon-search {
@@ -1173,7 +1178,7 @@ body {
 .icon-lookups:hover,
 .menu.nav-lookups.active .icon-search,
 .menu.nav-lookups:hover .icon-search {
-    background-image: url("../assets/search-icon-active.svg");
+    background-image: url("../assets/lookups-icon-active.svg");
     height: 19px;
     width: 19px;
 }
@@ -3631,18 +3636,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .nav-alerts,
 .nav-infrastructure {
     position: relative;
-}
-
-/* Specific styling for menu items with active state */
-#app-side-nav .menu .nav-links {
-    display: flex;
-    align-items: center;
-    text-decoration: none !important;
-    width: 100%;
-    min-height: 28px;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-radius: 0 5px 5px 0;
 }
 
 #app-side-nav .menu:hover .link-search,
