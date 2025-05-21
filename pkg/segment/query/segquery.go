@@ -845,7 +845,6 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 		return qsrs, uint64(len(qsrs)), 0, nil
 	}
 
-	finalQsrs := make([]*QuerySegmentRequest, 0)
 	numRawSearch := uint64(0)
 	numDistributed := uint64(0)
 
@@ -855,14 +854,15 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 		return nil, 0, 0, err
 	}
 
-	finalQsrs = append(finalQsrs, unrotatedQSR...)
-	numRawSearch += unrotatedRawCount
-
 	rotatedQSR, rotatedRawCount, err := getAllRotatedSegmentsInAggs(queryInfo, aggs, timeRange, indexNames, qid, sTime, orgid)
 	if err != nil {
 		log.Errorf("getAllSegmentsInAggs: qid=%d, Failed to get all rotated segments: %v", queryInfo.qid, err)
 		return nil, 0, 0, err
 	}
+
+	finalQsrs := make([]*QuerySegmentRequest, 0, len(unrotatedQSR)+len(rotatedQSR))
+	finalQsrs = append(finalQsrs, unrotatedQSR...)
+	numRawSearch += unrotatedRawCount
 
 	if config.IsS3Enabled() {
 		rotatedSegments := getRotatedSegments(rotatedQSR)
@@ -1060,7 +1060,6 @@ func getRotatedSegments(qsrs []*QuerySegmentRequest) map[string]struct{} {
 
 // return sorted slice of querySegmentRequests, count of raw search requests, distributed queries, and count of pqs request
 func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*QuerySegmentRequest, uint64, uint64, uint64, error) {
-	unsortedQsrs := make([]*QuerySegmentRequest, 0)
 	numRawSearch := uint64(0)
 	numDistributed := uint64(0)
 	numPQS := uint64(0)
@@ -1070,14 +1069,15 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*Que
 		return nil, 0, 0, 0, err
 	}
 
-	unsortedQsrs = append(unsortedQsrs, unrotatedQSR...)
-	numRawSearch += unrotatedRawCount
-	numPQS += unrotatedPQSCount
-
 	rotatedQSR, rotatedRawCount, rotatedPQS, err := getAllRotatedSegmentsInQuery(queryInfo, sTime)
 	if err != nil {
 		return nil, 0, 0, 0, err
 	}
+
+	unsortedQsrs := make([]*QuerySegmentRequest, 0, len(unrotatedQSR)+len(rotatedQSR))
+	unsortedQsrs = append(unsortedQsrs, unrotatedQSR...)
+	numRawSearch += unrotatedRawCount
+	numPQS += unrotatedPQSCount
 
 	if config.IsS3Enabled() {
 		rotatedSegments := getRotatedSegments(rotatedQSR)
@@ -1281,7 +1281,12 @@ func ApplyFilterOperatorInternal(allSegFileResults *segresults.SearchResults, al
 func FilterAggSegKeysToQueryResults(qInfo *QueryInformation, allPossibleKeys map[string]map[string]*structs.SegmentByTimeAndColSizes,
 	aggs *structs.QueryAggregators, segType structs.SegType) ([]*QuerySegmentRequest, uint64) {
 
-	allAggSegmentRequests := make([]*QuerySegmentRequest, 0)
+	totalElements := 0
+	for _, segKeys := range allPossibleKeys {
+		totalElements += len(segKeys)
+	}
+
+	allAggSegmentRequests := make([]*QuerySegmentRequest, 0, totalElements)
 	aggSearchCount := uint64(0)
 	for tableName, segKeys := range allPossibleKeys {
 		for segKey, segTimeCs := range segKeys {
@@ -1328,7 +1333,11 @@ func FilterSegKeysToQueryResults(qInfo *QueryInformation, qsrs []*QuerySegmentRe
 }
 
 func ConvertSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleKeys map[string]map[string]*structs.SegmentByTimeAndColSizes) []*QuerySegmentRequest {
-	allSegRequests := make([]*QuerySegmentRequest, 0)
+	totalElements := 0
+	for _, segKeys := range allPossibleKeys {
+		totalElements += len(segKeys)
+	}
+	allSegRequests := make([]*QuerySegmentRequest, 0, totalElements)
 	for tableName, segKeys := range allPossibleKeys {
 		for segKey, segTimeCs := range segKeys {
 			if segTimeCs == nil {
@@ -1353,7 +1362,11 @@ func ConvertSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleKeys map[
 // Returns query segment requests, count of keys to raw search, count of keys in PQS
 func filterUnrotatedSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleKeys map[string]map[string]*structs.SegmentByTimeAndColSizes) ([]*QuerySegmentRequest, uint64, uint64) {
 
-	allSegRequests := make([]*QuerySegmentRequest, 0)
+	totalElements := 0
+	for _, segKeys := range allPossibleKeys {
+		totalElements += len(segKeys)
+	}
+	allSegRequests := make([]*QuerySegmentRequest, 0, totalElements)
 	pqsCount := uint64(0)
 	rawSearchCount := uint64(0)
 	for tableName, segKeys := range allPossibleKeys {
