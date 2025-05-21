@@ -54,8 +54,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const DEFAULT_LOOKBACK_FOR_INSTANT_QUERIES uint32 = 5 * 60 // 5 mins
-
 func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32, time.Duration, usageStats.UsageStatsGranularity, error) {
 	searchText := ""
 	var err error
@@ -182,7 +180,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 	}
 
-	startTime := endTime - DEFAULT_LOOKBACK_FOR_INSTANT_QUERIES
+	startTime := endTime - uint32(structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR.Seconds())
 	log.Infof("qid=%v, ProcessPromqlMetricsSearchRequest: InstantQuery; searchString=[%v] startEpochs=[%v] endEpochs=[%v]", qid, searchText, startTime, endTime)
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {

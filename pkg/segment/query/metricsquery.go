@@ -21,16 +21,19 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/cespare/xxhash"
+	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
+	"github.com/siglens/siglens/pkg/segment/query/metricsevaluator"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/series"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
@@ -587,4 +590,100 @@ func GetTagKeysWithMostSeriesRequest(timeRange *dtu.MetricsTimeRange,
 	}
 
 	return seriesCounts, nil
+}
+
+func getStepValueFromTimeRange(timeRange *dtu.MetricsTimeRange) float64 {
+	step := float64(timeRange.EndEpochSec-timeRange.StartEpochSec) / structs.MAX_POINTS_TO_EVALUATE
+	return math.Max(step, 1)
+}
+
+func getSegmentFilterTimeRange(expr parser.Expr, timeRange dtu.MetricsTimeRange) *dtu.MetricsTimeRange {
+	fmt.Println("expr", expr)
+	offset := structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR
+	parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
+		switch n := node.(type) {
+		case *parser.MatrixSelector:
+			offset += n.Range
+		case *parser.SubqueryExpr:
+			offset += n.Range
+		default:
+			// Do nothing
+		}
+
+		return nil
+	})
+
+	timeRange.StartEpochSec = timeRange.StartEpochSec - uint32(offset.Seconds())
+
+	return &timeRange
+}
+
+func sortSegmentsByStartTime(mSegments map[string][]*structs.MetricsSearchRequest) []*structs.MetricsSearchRequest {
+	mSearchReqs := make([]*structs.MetricsSearchRequest, 0, len(mSegments))
+	for _, mSegs := range mSegments {
+		mSearchReqs = append(mSearchReqs, mSegs...)
+	}
+
+	sort.Slice(mSearchReqs, func(i, j int) bool {
+		return mSearchReqs[i].EarliestEpochSec < mSearchReqs[j].EarliestEpochSec
+	})
+
+	return mSearchReqs
+}
+
+func ExecuteMetricsRangeQuery(qid uint64, orgId int64, query string, timeRange *dtu.MetricsTimeRange, step uint32, querySummary *summary.QuerySummary) (*structs.MetricsPromQLRangeQueryResponse, error) {
+	expr, err := parser.ParseExpr(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query: %v", err)
+	}
+
+	if expr.Type() != parser.ValueTypeVector && expr.Type() != parser.ValueTypeScalar {
+		return nil, fmt.Errorf("qid=%v, query=%v must be a vector or scalar expression, got %v", qid, query, expr.Type())
+	}
+
+	if step == 0 {
+		// step is not set, so we will use the default step
+		step = uint32(getStepValueFromTimeRange(timeRange))
+	}
+
+	segFilterTRange := getSegmentFilterTimeRange(expr, *timeRange)
+
+	/**
+	1. Get sorted Segments based on the Filtered range
+	2. Start from the start time of the range and go to the end time of the range with step increments
+	3. At each eval time, get the start and end time of eval range
+	4. Get the overlapping segments for the eval range
+	5. Load the tag Trees for these segments and find all matching TSIDs
+	5. Get the Blocks to search for the eval range
+	// The below stpes can happen in parallel and per series
+	6. Loop over the blocks and get all the data points per series
+	7. Send them back up to the stack
+	8. Move to the next eval time
+	*/
+
+	// Get the segments for the filtered time range
+	mSegments, err := getAllRequestsWithinTimeRange(segFilterTRange, orgId, querySummary)
+	if err != nil {
+		return nil, fmt.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", segFilterTRange, err)
+	}
+
+	// sort the segments based on the start time of the range
+	mSearchReqs := sortSegmentsByStartTime(mSegments)
+
+	evaluator := metricsevaluator.NewEvaluator(timeRange.StartEpochSec, timeRange.EndEpochSec, step, structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR,
+		querySummary, qid, mSearchReqs)
+
+	seriesMap, err := evaluator.EvalExpr(expr)
+	if err != nil {
+		return nil, fmt.Errorf("qid=%v, ExecuteMetricsRangeQuery: error evaluating query: %v", qid, err)
+	}
+
+	// TODO: convert the seriesMap to PromQL response format.
+
+	return convertToPromQLRangeQueryResponse(seriesMap), nil
+}
+
+func convertToPromQLRangeQueryResponse(seriesMap map[string]*metricsevaluator.SeriesResult) *structs.MetricsPromQLRangeQueryResponse {
+	// TODO: Implement this function
+	return nil
 }
