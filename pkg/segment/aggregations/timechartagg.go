@@ -37,7 +37,8 @@ type scorePair struct {
 }
 
 func GenerateTimeRangeBuckets(timeHistogram *structs.TimeBucket) []uint64 {
-	timeRangeBuckets := make([]uint64, 0)
+	numBuckets := (timeHistogram.EndTime-timeHistogram.StartTime)/timeHistogram.IntervalMillis + 1
+	timeRangeBuckets := make([]uint64, 0, numBuckets)
 	currentTime := timeHistogram.StartTime
 	for currentTime < timeHistogram.EndTime {
 		timeRangeBuckets = append(timeRangeBuckets, currentTime)
