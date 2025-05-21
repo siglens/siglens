@@ -471,6 +471,7 @@ function updateHistogramTheme() {
     HistogramState.currentHistogram.update();
 }
 
+//eslint-disable-next-line no-unused-vars
 function checkAndRestoreHistogramVisibility() {
     if (isHistogramViewActive && isSearchButtonTriggered &&
         !$('#empty-response').is(':visible') && !$('#corner-popup').is(':visible')) {
@@ -491,7 +492,6 @@ $(document).ready(function() {
         if (isActive) {
             $('.histo-container').show();
             if (hasSearchSinceHistogramClosed) {
-                // Show message if a search was performed while histogram was closed
                 $('#histogram-container').html('<div class="info-message">Hit search button to see histogram view</div>');
                 hasSearchSinceHistogramClosed = false; 
             } else if (timechartComplete && HistogramState.currentHistogram) {
