@@ -215,7 +215,7 @@ const NUMBER_FORMAT_TYPES = {
 
 function setupTableFormatOptions() {
     if (Cookies.get('number-format') === undefined) {
-        Cookies.set('number-format', NUMBER_FORMAT_TYPES.PLAIN, { expires: 365 });
+        Cookies.set('number-format', NUMBER_FORMAT_TYPES.COMMA, { expires: 365 });
     }
 
     let numberFormatState = Cookies.get('number-format');
