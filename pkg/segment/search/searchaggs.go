@@ -125,7 +125,7 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 
 	// start off with 256 bytes and caller will resize it and return back the new resized buf
 	aggsKeyWorkingBuf := make([]byte, 256)
-	var timeRangeBuckets []uint64
+	var timeRangeBuckets *aggregations.Range
 	if aggs != nil && aggs.TimeHistogram != nil && aggs.TimeHistogram.Timechart != nil {
 		timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(aggs.TimeHistogram)
 	}
@@ -181,7 +181,7 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 
 func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, numMFuncs int,
 	multiColReader *segread.MultiColSegmentReader, blockNum uint16, recIT *BlockRecordIterator, blockRes *blockresults.BlockResults,
-	qid uint64, aggsKeyWorkingBuf []byte, timeRangeBuckets []uint64, nodeRes *structs.NodeResult) []byte {
+	qid uint64, aggsKeyWorkingBuf []byte, timeRangeBuckets *aggregations.Range, nodeRes *structs.NodeResult) []byte {
 
 	measureResults := make([]sutils.CValueEnclosure, numMFuncs)
 	var retCVal sutils.CValueEnclosure
@@ -260,7 +260,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			if ts < timeHistogram.StartTime || ts > timeHistogram.EndTime {
 				continue
 			}
-			timePoint := aggregations.FindTimeRangeBucket(timeRangeBuckets, ts, timeHistogram.IntervalMillis)
+			timePoint := aggregations.FindTimeRangeBucket(timeRangeBuckets, ts)
 
 			copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], sutils.VALTYPE_ENC_UINT64[:])
 			aggsKeyBufIdx += 1
@@ -1150,7 +1150,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 func doAggs(aggs *structs.QueryAggregators, mcr *segread.MultiColSegmentReader,
 	bss *BlockSearchStatus, recIT *BlockRecordIterator, blkResults *blockresults.BlockResults,
 	isBlkFullyEncosed bool, qid uint64, aggsKeyWorkingBuf []byte,
-	timeRangeBuckets []uint64, nodeRes *structs.NodeResult) []byte {
+	timeRangeBuckets *aggregations.Range, nodeRes *structs.NodeResult) []byte {
 
 	if aggs == nil || aggs.GroupByRequest == nil {
 		return aggsKeyWorkingBuf // nothing to do
