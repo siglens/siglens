@@ -142,6 +142,7 @@ func (n *Number) Reset() {
 	n.bytes[8] = invalidType
 }
 
+//go:inline
 func (n *Number) ntype() numberType {
 	return n.bytes[8]
 }
