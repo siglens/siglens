@@ -319,7 +319,7 @@ function renderHistogram(timechartData) {
     }
 
     if (!timechartData || !Array.isArray(timechartData.measure) || timechartData.measure.length === 0) {
-        histoContainer.html('<div class="info-message">No histogram data available</div>');
+        histoContainer.html('<div class="info-message">Histogram view only available for filter queries. Please modify your query to see histogram data.</div>');
         return;
     }
 

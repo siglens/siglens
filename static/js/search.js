@@ -842,7 +842,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         }
     } else if (isSearchButtonTriggered && isHistogramViewActive && $('.histo-container').is(':visible')) {
         timechartComplete = null;
-        $('#histogram-container').html('<div class="info-message">Histogram data is not available</div>');
+        $('#histogram-container').html('<div class="info-message">Histogram view only available for filter queries. Please modify your query to see histogram data.</div>');
     }
     checkAndRestoreHistogramVisibility();
 
