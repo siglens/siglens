@@ -29,6 +29,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var ErrConvertToNumber = fmt.Errorf("failed to convert CVal to Number")
+var ErrReduceNumbers = fmt.Errorf("failed to reduce Numbers")
+var ErrReduceCVal = fmt.Errorf("failed to reduce CVals")
+
 type RunningBucketResults struct {
 	runningStats        []runningStats               // maps a stat name to running stats
 	currStats           []*structs.MeasureAggregator // measure aggregators in result
@@ -54,8 +58,6 @@ type runningStats struct {
 	avgStat   *structs.AvgStat
 }
 
-var ErrFailedConversion = fmt.Errorf("failed to convert CVal to Number")
-
 func (rs *runningStats) syncRawValue() {
 	if !rs.dirty || rs.number == nil {
 		return
@@ -65,7 +67,7 @@ func (rs *runningStats) syncRawValue() {
 
 	err := rs.number.ToCVal(&rs.rawVal)
 	if err != nil {
-		log.Error(ErrFailedConversion)
+		log.Debug(ErrConvertToNumber)
 		return
 	}
 }
@@ -353,7 +355,7 @@ func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e su
 			runningStat.number = &sutils.Number{}
 			err := runningStat.rawVal.ToNumber(runningStat.number)
 			if err != nil {
-				return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to convert CVal to number, err: %v", err)
+				return ErrConvertToNumber
 			}
 		}
 
@@ -363,12 +365,12 @@ func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e su
 		}
 		err := e.ToNumber(other)
 		if err != nil {
-			return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to convert CVal to number, err: %v", err)
+			return ErrConvertToNumber
 		}
 
 		err = runningStat.number.ReduceFast(other, aggFunc)
 		if err != nil {
-			return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to add measurement to running stats, err: %v", err)
+			return ErrReduceNumbers
 		}
 
 		runningStat.dirty = true
@@ -379,7 +381,7 @@ func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e su
 	(*runningStats)[i].syncRawValue()
 	retVal, err := sutils.Reduce((*runningStats)[i].rawVal, e, rr.currStats[i].MeasureFunc)
 	if err != nil {
-		return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to add measurement to running stats, err: %v", err)
+		return ErrReduceCVal
 	} else {
 		(*runningStats)[i].rawVal = retVal
 		(*runningStats)[i].number = nil
