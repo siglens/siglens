@@ -499,6 +499,7 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 		return 0, utils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSum:PerformEvalAggForSum", err)
 	}
 	(*runningStats)[i].rawVal = result
+	(*runningStats)[i].number = nil
 
 	return numFields - 1, nil
 }
@@ -531,6 +532,7 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  avg,
 	}
+	(*runningStats)[i].number = nil
 
 	return numFields - 1, nil
 }
@@ -552,6 +554,7 @@ func (rr *RunningBucketResults) AddEvalResultsForMinMax(runningStats *[]runningS
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinMax: failed to evaluate ValueColRequest, err: %v", err)
 	}
 	(*runningStats)[i].rawVal = result
+	(*runningStats)[i].number = nil
 
 	return numFields - 1, nil
 }
@@ -576,6 +579,7 @@ func (rr *RunningBucketResults) AddEvalResultsForRange(runningStats *[]runningSt
 		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  result.Max - result.Min,
 	}
+	(*runningStats)[i].number = nil
 
 	return numFields - 1, nil
 }
@@ -611,6 +615,7 @@ func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningSt
 	}
 	if boolResult {
 		(*runningStats)[i].rawVal.CVal = (*runningStats)[i].rawVal.CVal.(int64) + 1
+		(*runningStats)[i].number = nil
 	}
 
 	return len(fieldToValue) - 1, nil
@@ -634,6 +639,7 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 		}
 		strSet[strVal] = struct{}{}
 		(*runningStats)[i].rawVal.CVal = strSet
+		(*runningStats)[i].number = nil
 		return 0, nil
 	}
 
@@ -642,6 +648,7 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
 	(*runningStats)[i].rawVal.CVal = strSet
+	(*runningStats)[i].number = nil
 
 	return len(fieldToValue) - 1, nil
 }
@@ -666,6 +673,7 @@ func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningSta
 		}
 		strList = append(strList, strVal)
 		(*runningStats)[i].rawVal.CVal = strList
+		(*runningStats)[i].number = nil
 		return 0, nil
 	}
 
@@ -677,6 +685,7 @@ func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningSta
 		result = result[:sutils.MAX_SPL_LIST_SIZE]
 	}
 	(*runningStats)[i].rawVal.CVal = result
+	(*runningStats)[i].number = nil
 
 	return len(fieldToValue) - 1, nil
 }
