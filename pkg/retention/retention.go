@@ -29,7 +29,6 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/siglens/siglens/pkg/blob"
-	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
@@ -350,7 +349,10 @@ func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta) {
 
 		// Delete segment files from s3
 		dirPath := segMetaEntry.SegmentKey
-		filesToDelete := fileutils.GetAllFilesInDirectory(path.Dir(dirPath) + "/")
+		filesToDelete, err := blob.GetAllFilesInDirectory(path.Dir(dirPath) + "/")
+		if err != nil {
+			log.Errorf("DeleteSegmentData: Failed to list files in blob directory: %v, error: %v", path.Dir(dirPath), err)
+		}
 		svFileName := ""
 		for _, file := range filesToDelete {
 			if strings.Contains(file, utils.SegmentValidityFname) {
@@ -406,7 +408,10 @@ func DeleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[strin
 
 		// Delete segment files from s3
 		dirPath := metricsSegmentMeta.MSegmentDir
-		filesToDelete := fileutils.GetAllFilesInDirectory(path.Dir(dirPath) + "/")
+		filesToDelete, err := blob.GetAllFilesInDirectory(path.Dir(dirPath) + "/")
+		if err != nil {
+			log.Errorf("DeleteSegmentData: Failed to list files in blob directory: %v, error: %v", path.Dir(dirPath), err)
+		}
 
 		for _, file := range filesToDelete {
 			err := blob.DeleteBlob(file)

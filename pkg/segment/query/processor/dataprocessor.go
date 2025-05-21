@@ -366,30 +366,41 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error) {
 	iqrs := make([]*iqr.IQR, 0, len(dp.streams))
 	streamIndices := make([]int, 0, len(dp.streams))
+	lock := sync.Mutex{}
+	waitGroup := sync.WaitGroup{}
+	var finalErr error
 
 	for i, stream := range dp.streams {
 		if stream.IsExhausted() {
 			continue
 		}
 
-		iqr, err := stream.Fetch()
-		if err != nil && err != io.EOF {
-			return nil, nil, utils.WrapErrorf(err, "DP.fetchFromAllStreamsWithData: failed to fetch from stream %d: %v", i, err)
-		}
-
-		if iqr == nil {
-			if err != io.EOF {
-				return nil, nil, utils.WrapErrorf(err, "DP.fetchFromAllStreamsWithData: stream %d returned nil IQR without EOF", i)
+		waitGroup.Add(1)
+		go func(i int, stream *CachedStream) {
+			defer waitGroup.Done()
+			iqr, err := stream.Fetch()
+			if err != nil && err != io.EOF {
+				finalErr = utils.WrapErrorf(err, "DP.fetchFromAllStreamsWithData: failed to fetch from stream %d: %v", i, err)
+				return
 			}
 
-			continue
-		}
+			if iqr == nil {
+				if err != io.EOF {
+					finalErr = utils.WrapErrorf(err, "DP.fetchFromAllStreamsWithData: stream %d returned nil IQR without EOF", i)
+				}
 
-		iqrs = append(iqrs, iqr)
-		streamIndices = append(streamIndices, i)
+				return
+			}
+
+			lock.Lock()
+			iqrs = append(iqrs, iqr)
+			streamIndices = append(streamIndices, i)
+			lock.Unlock()
+		}(i, stream)
 	}
+	waitGroup.Wait()
 
-	return iqrs, streamIndices, nil
+	return iqrs, streamIndices, finalErr
 }
 
 func sortByTimestampLess(r1, r2 *iqr.Record) bool {

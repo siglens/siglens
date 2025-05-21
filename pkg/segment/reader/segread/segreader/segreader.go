@@ -27,6 +27,7 @@ import (
 
 	"github.com/cespare/xxhash"
 	"github.com/klauspost/compress/zstd"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/memorypool"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -454,7 +455,9 @@ func (sfr *SegmentFileReader) iterateNextRecord() error {
 	nextOff := sfr.currOffset + sfr.currRecLen
 	if nextOff >= sfr.currUncompressedBlockLen {
 		if !sfr.someBlksAbsent {
-			log.Debugf("SegmentFileReader.iterateNextRecord: reached end of block, next Offset: %+v, curr uncompressed blklen: %+v", nextOff, sfr.currUncompressedBlockLen)
+			if config.IsDebugMode() {
+				log.Debugf("SegmentFileReader.iterateNextRecord: reached end of block, next Offset: %+v, curr uncompressed blklen: %+v", nextOff, sfr.currUncompressedBlockLen)
+			}
 		}
 		// we don't log an error, but we are returning err so that, the caller does not
 		// get stuck an loop
@@ -605,7 +608,9 @@ func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
 	}
 
 	if initialBufferPtr != unsafe.SliceData(uncompressed) {
-		log.Debugf("SegmentFileReader.unpackRawCsg: Uncomressed buffer after decoding is different than originally allocated ")
+		if config.IsDebugMode() {
+			log.Debugf("SegmentFileReader.unpackRawCsg: Uncomressed buffer after decoding is different than originally allocated ")
+		}
 		if err := PutBufToPool(sfr.currRawBlockBuffer); sfr.currRawBlockBuffer != nil && err != nil {
 			log.Error(ErrReturnBufferToPool)
 		}
@@ -699,8 +704,10 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]sutils.CValueEncl
 	for recIdx, rn := range orderedRecNums {
 		dwIdx := sfr.deRecToTlv[rn]
 		if int(dwIdx) >= len(sfr.deTlv) {
-			log.Debugf("deToResults: dwIdx: %v was greater than len(sfr.deTlv): %v, cname: %v, csgfname: %v",
-				dwIdx, len(sfr.deTlv), sfr.ColName, sfr.fileName)
+			if config.IsDebugMode() {
+				log.Debugf("deToResults: dwIdx: %v was greater than len(sfr.deTlv): %v, cname: %v, csgfname: %v",
+					dwIdx, len(sfr.deTlv), sfr.ColName, sfr.fileName)
+			}
 			return false
 		}
 		dWord := sfr.deTlv[dwIdx]
@@ -721,7 +728,9 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]sutils.CValueEncl
 		case sutils.VALTYPE_ENC_BACKFILL[0]:
 			results[sfr.ColName][recIdx].Dtype = sutils.SS_DT_BACKFILL
 		default:
-			log.Debugf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool but received %v", dWord[0])
+			if config.IsDebugMode() {
+				log.Debugf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool but received %v", dWord[0])
+			}
 			return false
 		}
 	}
