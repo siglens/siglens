@@ -544,8 +544,13 @@ function handleLogOptionChange(viewType) {
     const columnUpdates = {};
 
     if (viewType === VIEW_TYPES.TABLE) {
-        columnUpdates.cellRenderer = (params) => (params.value === '' || params.value === null || params.value === undefined ? '-' : params.value);
+        columnUpdates.cellRenderer = (params) => {
+            if (params.value === '' || params.value === null || params.value === undefined) {
+                return '-';
+            }
 
+            return typeof params.value === 'number' ? formatNumber(params.value) : params.value;
+        };
         logsColumnDefs.forEach((colDef) => {
             if (colDef.field !== 'timestamp') {
                 colDef.cellRenderer = columnUpdates.cellRenderer;
@@ -609,8 +614,7 @@ function configureLogsColumn(viewType) {
             .forEach(([key, value], index) => {
                 const colSep = index > 0 ? '<span class="col-sep"> | </span>' : '';
 
-                const formattedValue = isSingleLine ? (typeof value === 'object' && value !== null ? JSON.stringify(value) : value) : formatLogsValue(value);
-
+                const formattedValue = typeof value === 'number' ? formatNumber(value) : isSingleLine ? (typeof value === 'object' && value !== null ? JSON.stringify(value) : value) : formatLogsValue(value);
                 logParts.push(`${colSep}<span class="cname-hide-${string2Hex(key)}"><b>${key}</b> ${formattedValue}</span>`);
             });
 

@@ -1203,3 +1203,38 @@ html[data-theme="dark"] .icon-container svg {
 .rotation-neg90 {
     transform: rotate(-90deg);
 }
+
+#format-dropdown {
+    display: none;
+    position: absolute;
+    width: 260px;
+    background: var(--index-drop-down-box-bg-color);
+    border: 1px solid var(--border-color-regular);
+    border-radius: 5px;
+    box-shadow: var(--box-shadow);
+    padding: 8px;
+    z-index: 1;
+    top: 27px;
+    left: 160px;
+}
+
+#format-dropdown input {
+    width: auto;
+}
+
+#format-dropdown label {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: 8px;
+}
+
+#apply-format {
+    float: right;
+}
+
+#format-table svg{
+    height: 14px;
+    stroke-width: 1.5px;
+    stroke: var(--text-color);
+}

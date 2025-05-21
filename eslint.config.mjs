@@ -248,6 +248,7 @@ export default [
                 isSearchButtonTriggered: true,
                 hasSearchSinceHistogramClosed: true,
                 checkAndRestoreHistogramVisibility: true,
+                formatNumber: true,
             },
         },
         rules: {

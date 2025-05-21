@@ -342,6 +342,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                                 <button class="btn show-record-intro-btn below-btn-img"
                                     id="show-record-intro-btn"></button>
+                                <div>
+                                    <button class="btn below-btn-img"
+                                        id="format-table"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#160F29" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-line-icon lucide-pen-line"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg></button>
+                                    <div id="format-dropdown" style="display: none;">
+                                        <div class="format-header mb-2 fw-bold">Number Format</div>
+                                        <label><input type="radio" name="numberFormat" value="plain"> No separators <span class="grey-text">(1234567)</span></label>
+                                        <label><input type="radio" name="numberFormat" value="comma"> Use comma separators <span class="grey-text">(1,234,567)</span></label>
+                                        <button id="apply-format" class="btn btn-primary">Apply</button>
+                                    </div>
+                                </div>
                                 <button class="btn histogram-toggle-btn below-btn-img" id="histogram-toggle-btn">  
                                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color: var(--text-color); width: 12px; height: 12px;">
                                         <path fill="currentColor" d="M32 32C32 23.2 39.2 16 48 16s16 7.2 16 16V464H496c8.8 0 16 7.2 16 16s-7.2 16-16 16H48C39.2 496 32 488.8 32 480V32zM160 160c0-8.8 7.2-16 16-16h32c8.8 0 16 7.2 16 16V400c0 8.8-7.2 16-16 16H176c-8.8 0-16-7.2-16-16V160zM288 96c0-8.8 7.2-16 16-16h32c8.8 0 16 7.2 16 16V400c0 8.8-7.2 16-16 16H304c-8.8 0-16-7.2-16-16V96zM416 224c0-8.8 7.2-16 16-16h32c8.8 0 16 7.2 16 16V400c0 8.8-7.2 16-16 16H432c-8.8 0-16-7.2-16-16V224z"/>
