@@ -461,6 +461,10 @@ function runFilterBtnHandler(evt) {
             initialSearchData = data;
             doCancel(data);
         } else {
+            isSearchButtonTriggered = true;
+            if (!isHistogramViewActive) {
+                hasSearchSinceHistogramClosed = true; 
+            }
             resetDashboard();
             logsRowData = [];
             accumulatedRecords = [];
@@ -470,7 +474,10 @@ function runFilterBtnHandler(evt) {
             data = getSearchFilter(false, false);
             initialSearchData = data;
             $('#pagination-container').hide();
-            doSearch(data);
+            doSearch(data).finally(() => {
+                //eslint-disable-next-line no-undef
+                isSearchButtonTriggered = false; 
+            });
         }
         $('#daterangepicker').hide();
     }

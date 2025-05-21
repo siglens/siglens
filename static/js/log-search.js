@@ -38,6 +38,7 @@ $(document).ready(async () => {
     createTooltip('#log-opt-table-btn', 'Tabular View');
     createTooltip('.avail-fields-btn', 'Select Field to Display');
     createTooltip('#run-filter-btn', 'Run query');
+    createTooltip('#histogram-toggle-btn', 'Histogram View');
 
     function updateTooltip(element) {
         if (element && element._tippy) {
@@ -133,6 +134,8 @@ $(document).ready(async () => {
     $('.theme-btn').on('click', themePickerHandler);
     // eslint-disable-next-line no-undef
     $('.theme-btn').on('click', updateTimeChartTheme);
+    // eslint-disable-next-line no-undef
+    $('.theme-btn').on('click', updateHistogramTheme);
 
     setupEventHandlers();
 
