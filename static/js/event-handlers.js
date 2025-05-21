@@ -471,6 +471,12 @@ function runFilterBtnHandler(evt) {
             lastColumnsOrder = [];
             totalLoadedRecords = 0;
 
+            $('#hits-summary').html(`
+                <div><b>Processing query</b></div>
+                <div>Searching for matching records...</div>
+                <div></div>
+            `);
+            
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;
