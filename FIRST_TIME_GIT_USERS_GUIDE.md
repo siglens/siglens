@@ -1,14 +1,14 @@
 # First Time Github Users Guide
 
 - [First Time Github Users Guide](#first-time-github-users-guide)
-- [\[Github Docs\]](#github-docs)
-- [Fork the repository:](#fork-the-repository)
-- [Clone the repository:](#clone-the-repository)
-- [Make changes and commit them:](#make-changes-and-commit-them)
-- [Push changes to your forked repository:](#push-changes-to-your-forked-repository)
-- [Create a pull request:](#create-a-pull-request)
+- [Github Docs](#github-docs)
+- [Fork the repository](#fork-the-repository)
+- [Clone the repository](#clone-the-repository)
+- [Make changes and commit them](#make-changes-and-commit-them)
+- [Push changes to your forked repository](#push-changes-to-your-forked-repository)
+- [Create a pull request](#create-a-pull-request)
 
- # [Github Docs]
+ # Github Docs
 
  * [Get Started](https://docs.github.com/en/get-started)
  * [Quick Start](https://docs.github.com/en/get-started/quickstart/fork-a-repo)
