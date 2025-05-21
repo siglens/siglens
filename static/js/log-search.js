@@ -256,6 +256,7 @@ function setupTableFormatOptions() {
         });
 }
 
+// eslint-disable-next-line no-unused-vars
 function formatNumber(value) {
     if (typeof value !== 'number') {
         return value;

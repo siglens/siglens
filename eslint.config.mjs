@@ -243,6 +243,7 @@ export default [
                 updateChartTheme: true,
                 updateLineCharts: true,
                 chartSettings: true,
+                formatNumber: true,
             },
         },
         rules: {
