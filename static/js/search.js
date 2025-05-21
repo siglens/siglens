@@ -19,6 +19,13 @@
 //eslint-disable-next-line no-unused-vars
 let lastQType = '';
 let lastColumnsOrder = [];
+//eslint-disable-next-line no-unused-vars
+let timechartComplete= null;
+let isHistogramViewActive= false;
+let isSearchButtonTriggered= false;
+//eslint-disable-next-line no-unused-vars
+let hasSearchSinceHistogramClosed= false;
+
 
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -192,6 +199,7 @@ function doSearch(data) {
             console.timeEnd(timerName);
             const finalResultResponseTime = (new Date().getTime() - startQueryTime).toLocaleString();
             $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
+            isSearchButtonTriggered = false;
         };
 
         socket.addEventListener('error', (event) => {
@@ -427,6 +435,8 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         sFrom = scrollFrom;
     }
 
+    const runTimechartValue = isSearchButtonTriggered && isHistogramViewActive ;
+
     return {
         state: 'query',
         searchText: filterValue,
@@ -437,6 +447,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         queryLanguage: queryLanguage,
         includeNulls: false, // Exclude null values
         fieldsHidden: fieldsHidden,
+        runTimechart: runTimechartValue,
     };
 }
 
@@ -581,6 +592,8 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         sFrom = totalLoadedRecords;
     }
 
+    const runTimechartValue = isSearchButtonTriggered && isHistogramViewActive ;
+
     return {
         state: wsState,
         searchText: filterValue,
@@ -589,6 +602,7 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
+        runTimechart: runTimechartValue ,
     };
 }
 //eslint-disable-next-line no-unused-vars
@@ -812,13 +826,24 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
             }
         } else if (res.qtype === 'logs-query' && accumulatedRecords.length > 0) {
             renderLogsGrid(lastColumnsOrder, accumulatedRecords);
-
             //eslint-disable-next-line no-undef
-            initializeAvailableFieldsSidebar(lastColumnsOrder);
+           initializeAvailableFieldsSidebar(lastColumnsOrder);
         }
-
         timeChart(res.qtype, res.measure, res.isTimechart);
     }
+
+    if (res.timechartComplete) {
+        timechartComplete = res.timechartComplete;
+        if (isHistogramViewActive && $('.histo-container').is(':visible')) {
+            //eslint-disable-next-line no-undef
+            renderHistogram(res.timechartComplete);
+            hasSearchSinceHistogramClosed = false; 
+        }
+    } else if (isSearchButtonTriggered && isHistogramViewActive && $('.histo-container').is(':visible')) {
+        timechartComplete = null;
+        $('#histogram-container').html('<div class="info-message">Histogram data is not available</div>');
+    }
+    checkAndRestoreHistogramVisibility();
 
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
@@ -860,7 +885,8 @@ function processSearchErrorLog(res) {
 }
 
 function processEmptyQueryResults() {
-    $('#views-container, .fields-sidebar, #pagination-container, #logs-result-container,#agg-result-container,#corner-popup, .tab-chart-list').hide();
+    $('#views-container, .fields-sidebar, #pagination-container, #logs-result-container,#agg-result-container,#corner-popup, .tab-chart-list, .histo-container').hide();
+
     $('#save-query-div').children().hide();
     $('#custom-chart-tab').show().css({ height: 'auto' });
     $('.json-popup').hide();
@@ -872,7 +898,8 @@ function processEmptyQueryResults() {
 }
 
 function showErrorResponse(res) {
-    $('#views-container, .fields-sidebar, #pagination-container, #logs-result-container,#agg-result-container,#corner-popup').hide();
+    $('#views-container, .fields-sidebar, #pagination-container, #logs-result-container,#agg-result-container,#corner-popup, .histo-container').hide();
+
     $('#save-query-div').children().hide();
     $('#custom-chart-tab').hide();
     $('.json-popup').hide();
