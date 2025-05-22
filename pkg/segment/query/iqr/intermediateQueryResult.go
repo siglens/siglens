@@ -455,22 +455,44 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]sutils.CValueEnclosure, erro
 		return nil, nil
 	}
 
+	var values []sutils.CValueEnclosure
+	var err error
 	if cname == config.GetTimeStampKey() {
 		// Fast path
-		timestamps := make([]sutils.CValueEnclosure, len(iqr.rrcs))
-		for i, rrc := range iqr.rrcs {
-			if rrc != nil {
-				timestamps[i] = sutils.CValueEnclosure{
-					Dtype: sutils.SS_DT_UNSIGNED_NUM,
-					CVal:  rrc.TimeStamp,
-				}
-			}
-		}
-
-		iqr.knownValues[cname] = timestamps // Cache the result.
-		return timestamps, nil
+		values, err = iqr.readTimestampFromRRCs()
+	} else {
+		values, err = iqr.readNonTimestampColFromRRCs(cname)
+	}
+	if err != nil {
+		return nil, err
 	}
 
+	finalCname := cname
+	// Check if the column was renamed and use the new Cname for the results.
+	if newColName, ok := iqr.renamedColumns[cname]; ok {
+		finalCname = newColName
+	}
+
+	iqr.knownValues[finalCname] = values
+
+	return values, nil
+}
+
+func (iqr *IQR) readTimestampFromRRCs() ([]sutils.CValueEnclosure, error) {
+	timestamps := make([]sutils.CValueEnclosure, len(iqr.rrcs))
+	for i, rrc := range iqr.rrcs {
+		if rrc != nil {
+			timestamps[i] = sutils.CValueEnclosure{
+				Dtype: sutils.SS_DT_UNSIGNED_NUM,
+				CVal:  rrc.TimeStamp,
+			}
+		}
+	}
+
+	return timestamps, nil
+}
+
+func (iqr *IQR) readNonTimestampColFromRRCs(cname string) ([]sutils.CValueEnclosure, error) {
 	// Prepare to call BatchProcess().
 	getBatchKey := func(rrc *sutils.RecordResultContainer) uint32 {
 		if rrc == nil {
@@ -511,14 +533,6 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]sutils.CValueEnclosure, erro
 		return nil, utils.TeeErrorf("IQR.readColumnWithRRCs: expected %v results, got %v",
 			len(iqr.rrcs), len(results))
 	}
-
-	finalCname := cname
-	// Check if the column was renamed and use the new Cname for the results.
-	if newColName, ok := iqr.renamedColumns[cname]; ok {
-		finalCname = newColName
-	}
-
-	iqr.knownValues[finalCname] = results
 
 	return results, nil
 }
