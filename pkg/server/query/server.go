@@ -109,6 +109,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/search/ws", tracing.TraceMiddleware(hs.Recovery(pipeSearchWebsocketHandler())))
 
 	hs.Router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", tracing.TraceMiddleware(hs.Recovery(sampleDatasetBulkHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/sampletraces", tracing.TraceMiddleware(hs.Recovery(sampleTracesHandler())))
 
 	// common routes
 
