@@ -356,6 +356,7 @@ function triggerZoomSearch(startTime, endTime) {
     data.endEpoch = Math.floor(endTime);
     data.runTimechart = true;
 
+    updateDatePickerAndUrl(data.startEpoch, data.endEpoch);
 
     resetDashboard();
     logsRowData = [];
@@ -379,6 +380,15 @@ function triggerZoomSearch(startTime, endTime) {
     initialSearchData = data;
 
     doSearch(data);
+}
+
+function updateDatePickerAndUrl(startEpoch, endEpoch) {
+    datePickerHandler(startEpoch, endEpoch, 'custom');
+    loadCustomDateTimeFromEpoch(startEpoch, endEpoch);
+
+    addQSParm('startEpoch', startEpoch);
+    addQSParm('endEpoch', endEpoch);
+    window.history.pushState({ path: myUrl }, '', myUrl);
 }
 
 function renderHistogram(timechartData) {
