@@ -32,6 +32,23 @@ type Generator interface {
 	GetRawLog() (map[string]interface{}, error)
 }
 
+type SyntheticTraceState struct {
+	TraceIds *[]string
+	SpanIds  *map[string][]string
+}
+
+type TraceFaker struct {
+	Faker *gofakeit.Faker
+	Seed  int64
+}
+
+func InitTraceFaker(seed int64) *TraceFaker {
+	return &TraceFaker{
+		Seed:  seed,
+		Faker: gofakeit.NewUnlocked(seed),
+	}
+}
+
 type DynamicUserGenerator struct {
 	baseBody  map[string]interface{}
 	tNowEpoch uint64

@@ -20,12 +20,18 @@ package sampledataset
 import (
 	"bufio"
 	"bytes"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/siglens/siglens/pkg/config"
 	writer "github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/otlp"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
@@ -66,6 +72,139 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 		actionLines[i] = actionLine
 	}
 	return actionLines
+}
+
+func processSingleTrace(orgId int64, wg *sync.WaitGroup, generateSymmetricTree bool) {
+	defer wg.Done()
+
+	numFailedSpans := 0
+	// numSpans := 0
+	now := utils.GetCurrentTimeInMs()
+	indexName := "traces"
+	shouldFlush := false
+	localIndexMap := make(map[string]string)
+	tsKey := config.GetTimeStampKey()
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+
+	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
+
+	f := InitTraceFaker(0)
+	depth := 7
+	width := 2
+	startTime := time.Now().UnixNano()
+	totalDurationOfTrace := int64(time.Millisecond * 100)
+	endTime := startTime + totalDurationOfTrace
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	traceId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
+	log.Errorf("ProcessSyntheticTraceRequest: %v", traceId)
+	serviceName := f.Faker.Word()
+	spanArray := make([]*map[string]any, 0)
+	levelParent := make(map[int][]string)
+
+	if depth > 0 {
+		parentSpanId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
+		g, _ := generateSpan(traceId, parentSpanId, "", serviceName, f, "", startTime, endTime)
+		spanArray = append(spanArray, g)
+		levelParent[0] = []string{parentSpanId}
+	}
+	for i := 1; i < depth; i++ {
+		for k := range levelParent[i-1] {
+			for j := 0; j < width; j++ {
+				if f.Faker.Rand.Float32() >= 0.9 && !generateSymmetricTree {
+					continue
+				} else {
+					currSpanId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
+					g, _ := generateSpan(traceId, currSpanId, levelParent[i-1][k], serviceName, f, (*spanArray[i-1])["name"].(string), startTime+int64(time.Millisecond*5), endTime-int64(time.Millisecond*10))
+					spanArray = append(spanArray, g)
+					if _, ok := levelParent[i]; !ok {
+						levelParent[i] = []string{currSpanId}
+					} else {
+						levelParent[i] = append(levelParent[i], currSpanId)
+					}
+				}
+			}
+		}
+	}
+
+	for _, spanPtr := range spanArray {
+		if spanPtr != nil {
+			jsonData, err := json.Marshal(spanPtr)
+			if err != nil {
+				log.Errorf("ProcessSyntheticTraceRequest: failed to marshal span %s: %v. Service name: %s", spanPtr, err, jsonData)
+			}
+
+			ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
+			if err != nil {
+				log.Errorf("ProcessSyntheticTraceRequest: failed to get new PLE, jsonData: %v, err: %v", jsonData, err)
+				numFailedSpans++
+			}
+			pleArray = append(pleArray, ple)
+		}
+	}
+
+	err := writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+	if err != nil {
+		log.Errorf("ProcessSyntheticTraceRequest: Failed to ingest traces, err: %v", err)
+		numFailedSpans += len(pleArray)
+	}
+	log.Errorf("ProcessSyntheticTraceRequest: Transaction Complete")
+}
+
+func ProcessSyntheticTraceRequest(ctx *fasthttp.RequestCtx, orgId int64) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, orgId, grpc.INGEST_FUNC_OTLP_TRACES, false)
+		if alreadyHandled {
+			return
+		}
+	}
+
+	var wg sync.WaitGroup
+	numTracesToGenerate := 5000
+
+	for n := 0; n < numTracesToGenerate; n++ {
+		wg.Add(1)
+		go processSingleTrace(orgId, &wg, false)
+	}
+
+	wg.Wait()
+	log.Printf("ProcessSyntheticTraceRequest: All %d trace generations completed.", numTracesToGenerate)
+	otlp.HandleTraceIngestionResponse(ctx, 5000, 0)
+}
+
+func generateSpan(traceId string, spanId string, parentId string, service string, f *TraceFaker, parentName string, parentStartTime int64, parentEndTime int64) (*map[string]any, error) {
+	span := make(map[string]any)
+	span["trace_id"] = traceId
+	span["span_id"] = spanId
+	if parentId != "" {
+		span["parent_span_id"] = parentId
+	} else {
+		span["parent_span_id"] = hex.EncodeToString([]byte(""))
+	}
+	span["service"] = service
+	span["trace_state"] = generateTraceState(2, f)
+	span["name"] = fmt.Sprintf("%s/%s", parentName, f.Faker.Word())
+	span["kind"] = "SPAN_KIND_SERVER"
+	span["start_time"] = parentStartTime
+	span["end_time"] = parentEndTime
+	span["duration"] = span["end_time"].(int64) - span["start_time"].(int64)
+	span["dropped_attributes_count"] = 0
+	span["dropped_events_count"] = 0
+	span["dropped_links_count"] = 0
+	span["status"] = "STATUS_CODE_OK"
+	// TODO ADD COLUMN FOR EACH ATTRIBUTE
+	return &span, nil
+}
+
+func generateTraceState(len int8, f *TraceFaker) string {
+	if len <= 0 {
+		return ""
+	}
+	var parts []string
+	for i := int8(0); i < len; i++ {
+		parts = append(parts, fmt.Sprintf("%s=%s", f.Faker.LoremIpsumWord(), f.Faker.LoremIpsumWord()))
+	}
+	return strings.Join(parts, ",")
 }
 
 func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, orgId int64) {
