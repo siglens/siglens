@@ -344,7 +344,6 @@ function triggerZoomSearch(startTime, endTime, isZoomTriggered = true) {
     data.startEpoch = Math.floor(startTime);
     data.endEpoch = Math.floor(endTime);
     data.runTimechart = true;
-    console.log('Search data:', data);
 
     updateDatePickerAndUrl(data.startEpoch, data.endEpoch);
 
