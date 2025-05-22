@@ -77,8 +77,6 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 func processSingleTrace(orgId int64, wg *sync.WaitGroup, generateSymmetricTree bool) {
 	defer wg.Done()
 
-	numFailedSpans := 0
-	// numSpans := 0
 	now := utils.GetCurrentTimeInMs()
 	indexName := "traces"
 	shouldFlush := false
@@ -137,7 +135,6 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, generateSymmetricTree b
 			ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
 			if err != nil {
 				log.Errorf("ProcessSyntheticTraceRequest: failed to get new PLE, jsonData: %v, err: %v", jsonData, err)
-				numFailedSpans++
 			}
 			pleArray = append(pleArray, ple)
 		}
@@ -146,7 +143,6 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, generateSymmetricTree b
 	err := writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	if err != nil {
 		log.Errorf("ProcessSyntheticTraceRequest: Failed to ingest traces, err: %v", err)
-		numFailedSpans += len(pleArray)
 	}
 	log.Errorf("ProcessSyntheticTraceRequest: Transaction Complete")
 }
