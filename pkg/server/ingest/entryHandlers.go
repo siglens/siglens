@@ -139,6 +139,12 @@ func prometheusPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func otlpIngestSampleTracesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyId(sampledataset.ProcessSyntheticTraceRequest, ctx)
+	}
+}
+
 func otlpIngestTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithMyId(otlp.ProcessTraceIngest, ctx)
