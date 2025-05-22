@@ -53,7 +53,7 @@ type timechartProcessor struct {
 	qid                  uint64
 	searchResults        *segresults.SearchResults
 	bucketKeyWorkingBuf  []byte
-	timeRangeBuckets     []uint64
+	timeRangeBuckets     *aggregations.Range
 	errorData            *errorData
 	hasFinalResult       bool
 	setAsIqrStatsResults bool
@@ -180,7 +180,7 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 			}
 		}
 
-		timePoint := aggregations.FindTimeRangeBucket(p.timeRangeBuckets, ts, p.options.timeBucket.IntervalMillis)
+		timePoint := aggregations.FindTimeRangeBucket(p.timeRangeBuckets, ts)
 
 		copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], sutils.VALTYPE_ENC_UINT64[:])
 		bucketKeyBufIdx += 1

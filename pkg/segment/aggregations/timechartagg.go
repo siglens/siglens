@@ -36,8 +36,24 @@ type scorePair struct {
 	index         int
 }
 
-func GenerateTimeRangeBuckets(timeHistogram *structs.TimeBucket) []uint64 {
-	timeRangeBuckets := make([]uint64, 0)
+type Range struct {
+	start uint64
+	end   uint64 // Exclusive
+	step  uint64
+}
+
+func GenerateTimeRangeBuckets(timeHistogram *structs.TimeBucket) *Range {
+	return &Range{
+		start: timeHistogram.StartTime,
+		end:   timeHistogram.EndTime,
+		step:  timeHistogram.IntervalMillis,
+	}
+}
+
+// TODO: delete this once we have confidence in the new implementation.
+func oldGenerateTimeRangeBuckets(timeHistogram *structs.TimeBucket) []uint64 {
+	numBuckets := (timeHistogram.EndTime-timeHistogram.StartTime)/timeHistogram.IntervalMillis + 1
+	timeRangeBuckets := make([]uint64, 0, numBuckets)
 	currentTime := timeHistogram.StartTime
 	for currentTime < timeHistogram.EndTime {
 		timeRangeBuckets = append(timeRangeBuckets, currentTime)
@@ -53,7 +69,21 @@ func GenerateTimeRangeBuckets(timeHistogram *structs.TimeBucket) []uint64 {
 }
 
 // Find correct time range bucket for timestamp
-func FindTimeRangeBucket(timePoints []uint64, timestamp uint64, intervalMillis uint64) uint64 {
+func FindTimeRangeBucket(r *Range, timestamp uint64) uint64 {
+	if timestamp < r.start {
+		return r.start
+	}
+	if timestamp >= r.end {
+		return r.end - r.step
+	}
+
+	index := ((timestamp - r.start) / r.step)
+
+	return r.start + index*r.step
+}
+
+// TODO: delete this once we have confidence in the new implementation.
+func oldFindTimeRangeBucket(timePoints []uint64, timestamp uint64, intervalMillis uint64) uint64 {
 	index := ((timestamp - timePoints[0]) / intervalMillis)
 	if index >= uint64(len(timePoints)) {
 		index = uint64(len(timePoints) - 1)

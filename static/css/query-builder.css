@@ -750,6 +750,36 @@ div.show-record-popup .ui-dialog-buttonpane button {
     overflow: hidden;
 }
 
+.histo-container {
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    display: none;
+}
+
+#histogram-container {
+    height: 180px;
+    background: var(--black1-to-white0);
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 10px;
+    display: block;
+    position: relative; 
+    overflow: hidden; 
+}
+
+#histogram-toggle-btn.active{
+    background-color: var(--drop-down-btn-bg-hover) !important;
+    border: 1px solid var(--border-btn-color) !important;
+}
+
+.info-message {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-size: 16px;
+    font-style: italic;
+}
+
 .tab-content-size {
     height: 100%;
 }
@@ -1172,4 +1202,39 @@ html[data-theme="dark"] .icon-container svg {
 
 .rotation-neg90 {
     transform: rotate(-90deg);
+}
+
+#format-dropdown {
+    display: none;
+    position: absolute;
+    width: 260px;
+    background: var(--index-drop-down-box-bg-color);
+    border: 1px solid var(--border-color-regular);
+    border-radius: 5px;
+    box-shadow: var(--box-shadow);
+    padding: 8px;
+    z-index: 1;
+    top: 27px;
+    left: 160px;
+}
+
+#format-dropdown input {
+    width: auto;
+}
+
+#format-dropdown label {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: 8px;
+}
+
+#apply-format {
+    float: right;
+}
+
+#format-table svg{
+    height: 14px;
+    stroke-width: 1.5px;
+    stroke: var(--text-color);
 }

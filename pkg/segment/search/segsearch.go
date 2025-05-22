@@ -359,7 +359,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 
 	// start off with 256 bytes and caller will resize it and return back the new resized buf
 	aggsKeyWorkingBuf := make([]byte, 256)
-	var timeRangeBuckets []uint64
+	var timeRangeBuckets *aggregations.Range
 	if aggs != nil && aggs.TimeHistogram != nil && aggs.TimeHistogram.Timechart != nil {
 		timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(aggs.TimeHistogram)
 	}

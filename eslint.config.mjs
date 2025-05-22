@@ -243,6 +243,12 @@ export default [
                 updateChartTheme: true,
                 updateLineCharts: true,
                 chartSettings: true,
+                timechartComplete: true,
+                isHistogramViewActive: true,
+                isSearchButtonTriggered: true,
+                hasSearchSinceHistogramClosed: true,
+                checkAndRestoreHistogramVisibility: true,
+                formatNumber: true,
             },
         },
         rules: {
