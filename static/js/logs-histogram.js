@@ -25,6 +25,8 @@ const HistogramState = {
     isDragging: false,
     isZoomed: false,
     eventListeners: {},
+    originalStartTime: null,
+    originalEndTime: null
 };
 
 const customDragBorderPlugin = {
@@ -348,6 +350,37 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity) {
     };
 }
 
+function triggerZoomSearch(startTime, endTime) {
+    const data = getSearchFilter(true, false); 
+    data.startEpoch = Math.floor(startTime);
+    data.endEpoch = Math.floor(endTime);
+    data.runTimechart = true;
+
+
+    resetDashboard();
+    logsRowData = [];
+    accumulatedRecords = [];
+    lastColumnsOrder = [];
+    totalLoadedRecords = 0;
+
+    $('#hits-summary').html(`
+        <div><b>Processing query</b></div>
+        <div>Searching for matching records...</div>
+        <div></div>
+    `);
+    $('#pagination-container').hide();
+
+    isSearchButtonTriggered = true;
+    if (!isHistogramViewActive) {
+        hasSearchSinceHistogramClosed = true;
+    }
+
+    wsState = 'query';
+    initialSearchData = data;
+
+    doSearch(data);
+}
+
 function renderHistogram(timechartData) {
     const histoContainer = $('#histogram-container');
 
@@ -361,7 +394,7 @@ function renderHistogram(timechartData) {
         return;
     }
 
-    if (!HistogramState.originalData && isSearchButtonTriggered ) {
+    if (!HistogramState.originalData && isSearchButtonTriggered) {
         HistogramState.originalData = JSON.parse(JSON.stringify(timechartData));
     }
 
@@ -511,13 +544,14 @@ function renderHistogram(timechartData) {
 
                             if (min >= HistogramState.originalStartTime && max <= HistogramState.originalEndTime) {
                                 HistogramState.isZoomed = true;
+                                triggerZoomSearch(min, max);
                             }
                         }
                     },
                     limits: {
                         x: {
-                            min: 'original',
-                            max: 'original',
+                            min: HistogramState.originalStartTime,
+                            max: HistogramState.originalEndTime,
                         }
                     }
                 }
@@ -535,30 +569,6 @@ function renderHistogram(timechartData) {
             }
         }
     });
-
-
-    // Add double-click to reset zoom
-    const handleDoubleClick = () => {
-        if (HistogramState.currentHistogram && HistogramState.originalData) {
-            HistogramState.currentGranularity = 'day';
-            HistogramState.isZoomed = false;
-            HistogramState.currentHistogram.resetZoom();
-        }
-    };
-
-    // Remove existing event listeners
-    const eventTypes = ['dblclick'];
-    eventTypes.forEach(eventType => {
-        if (HistogramState.eventListeners[eventType]) {
-            HistogramState.canvas.removeEventListener(eventType, HistogramState.eventListeners[eventType]);
-        }
-    });
-
-    // Add double-click listener
-    HistogramState.canvas.addEventListener('dblclick', handleDoubleClick);
-    HistogramState.eventListeners = {
-        dblclick: handleDoubleClick
-    };
 
     addZoomHelper();
 }
