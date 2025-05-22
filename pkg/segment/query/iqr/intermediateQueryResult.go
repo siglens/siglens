@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
@@ -454,6 +455,22 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]sutils.CValueEnclosure, erro
 		return nil, nil
 	}
 
+	if cname == config.GetTimeStampKey() {
+		// Fast path
+		timestamps := make([]sutils.CValueEnclosure, len(iqr.rrcs))
+		for i, rrc := range iqr.rrcs {
+			if rrc != nil {
+				timestamps[i] = sutils.CValueEnclosure{
+					Dtype: sutils.SS_DT_UNSIGNED_NUM,
+					CVal:  rrc.TimeStamp,
+				}
+			}
+		}
+
+		iqr.knownValues[cname] = timestamps // Cache the result.
+		return timestamps, nil
+	}
+
 	// Prepare to call BatchProcess().
 	getBatchKey := func(rrc *sutils.RecordResultContainer) uint32 {
 		if rrc == nil {
@@ -501,7 +518,6 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]sutils.CValueEnclosure, erro
 		finalCname = newColName
 	}
 
-	// TODO: should we have an option to disable this caching?
 	iqr.knownValues[finalCname] = results
 
 	return results, nil
