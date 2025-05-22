@@ -136,6 +136,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.POST(server_utils.PROMQL_PREFIX+"/api/v1/write", hs.Recovery(prometheusPutMetricsHandler()))
 
 	// OTLP Handlers
+	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/sampletraces", hs.Recovery(otlpIngestSyntheticTracesHandler()))
 	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/traces", hs.Recovery(otlpIngestTracesHandler()))
 	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/logs", hs.Recovery(otlpIngestLogsHandler()))
 	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/metrics", hs.Recovery(otlpIngestMetricsHandler()))
