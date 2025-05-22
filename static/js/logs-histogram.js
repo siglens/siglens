@@ -355,6 +355,7 @@ function triggerZoomSearch(startTime, endTime) {
     data.startEpoch = Math.floor(startTime);
     data.endEpoch = Math.floor(endTime);
     data.runTimechart = true;
+    console.log('Search data:', data);
 
     updateDatePickerAndUrl(data.startEpoch, data.endEpoch);
 
@@ -473,7 +474,8 @@ function renderHistogram(timechartData) {
     }
 
     histoContainer.empty();
-    histoContainer.html('<canvas width="100%" height="100%"></canvas>');
+    histoContainer.html('<canvas width="100%" height="100%"></canvas><div class="resize-handle"></div>');
+    histoContainer.css('height', '180px');//default height
 
     HistogramState.canvas = histoContainer.find('canvas')[0];
     const ctx = HistogramState.canvas.getContext('2d');
@@ -606,13 +608,49 @@ function renderHistogram(timechartData) {
             triggerZoomSearch(HistogramState.originalStartTime, HistogramState.originalEndTime);
         }
     };
-    
+
     if (HistogramState.eventListeners.dblclick) {
         HistogramState.canvas.removeEventListener('dblclick', HistogramState.eventListeners.dblclick);
     }
 
     HistogramState.canvas.addEventListener('dblclick', handleDoubleClick);
     HistogramState.eventListeners.dblclick = handleDoubleClick;
+
+    const resizeHandle = histoContainer.find('.resize-handle')[0];
+    let isResizing = false;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        resizeHandle.classList.add('active');
+        e.preventDefault(); 
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        const container = histoContainer[0];
+        const newHeight = e.clientY - container.getBoundingClientRect().top;
+        const minHeight = 100; 
+        const maxHeight = 600; 
+
+        if (newHeight >= minHeight && newHeight <= maxHeight) {
+            container.style.height = `${newHeight}px`;
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            resizeHandle.classList.remove('active');
+        }
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+        if (HistogramState.currentHistogram) {
+            HistogramState.currentHistogram.resize();
+        }
+    });
+    resizeObserver.observe(histoContainer[0]);
 
     addZoomHelper();
 }

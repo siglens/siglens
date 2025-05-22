@@ -750,14 +750,28 @@ div.show-record-popup .ui-dialog-buttonpane button {
     overflow: hidden;
 }
 
+
 .histo-container {
     margin-bottom: 15px;
     transition: all 0.3s ease;
     display: none;
 }
 
-#histogram-container {
+/* #histogram-container {
     height: 180px;
+    background: var(--black1-to-white0);
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 10px;
+    display: block;
+    position: relative; 
+    overflow: hidden; 
+} */
+
+#histogram-container {
+    height: var(--histogram-height, 180px); /* Default height 180px */
+    min-height: 100px; /* Prevent collapsing too small */
+    max-height: 600px; /* Limit maximum height */
     background: var(--black1-to-white0);
     border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -769,6 +783,22 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 #histogram-container canvas {
     cursor: crosshair !important;
+}
+
+#histogram-container .resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--datatable-header-bg-color);
+    cursor: ns-resize; 
+}
+
+#histogram-container .resize-handle:hover,
+#histogram-container .resize-handle.active {
+    background: #a0a0a0;
+    opacity: 0.7;
 }
 
 #histogram-toggle-btn.active{
