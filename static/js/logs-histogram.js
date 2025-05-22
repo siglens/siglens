@@ -26,7 +26,8 @@ const HistogramState = {
     isZoomed: false,
     eventListeners: {},
     originalStartTime: null,
-    originalEndTime: null
+    originalEndTime: null,
+    currentHeight: null
 };
 
 const customDragBorderPlugin = {
@@ -405,6 +406,14 @@ function renderHistogram(timechartData) {
         return;
     }
 
+    if (!HistogramState.currentHeight) {
+        const currentHeightPx = histoContainer.css('height');
+        const parsedHeight = parseInt(currentHeightPx, 10);
+        if (!isNaN(parsedHeight) && parsedHeight >= 100 && parsedHeight <= 600) {
+            HistogramState.currentHeight = parsedHeight;
+        }
+    }
+
     if (!HistogramState.originalData && isSearchButtonTriggered) {
         HistogramState.originalData = JSON.parse(JSON.stringify(timechartData));
         // Only set original time range if not already set
@@ -475,7 +484,11 @@ function renderHistogram(timechartData) {
 
     histoContainer.empty();
     histoContainer.html('<canvas width="100%" height="100%"></canvas><div class="resize-handle"></div>');
-    histoContainer.css('height', '180px');//default height
+    const targetHeight = HistogramState.currentHeight || 180;
+    histoContainer.css({
+        'height': `${targetHeight}px !important`,
+        '--histogram-height': `${targetHeight}px`
+    });
 
     HistogramState.canvas = histoContainer.find('canvas')[0];
     const ctx = HistogramState.canvas.getContext('2d');
@@ -634,7 +647,9 @@ function renderHistogram(timechartData) {
         const maxHeight = 600; 
 
         if (newHeight >= minHeight && newHeight <= maxHeight) {
-            container.style.height = `${newHeight}px`;
+            container.style.height = `${newHeight}px !important`;
+            container.style.setProperty('--histogram-height', `${newHeight}px`);
+            HistogramState.currentHeight = newHeight;
         }
     });
 
