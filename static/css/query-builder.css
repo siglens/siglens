@@ -757,21 +757,10 @@ div.show-record-popup .ui-dialog-buttonpane button {
     display: none;
 }
 
-/* #histogram-container {
-    height: 180px;
-    background: var(--black1-to-white0);
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    padding: 10px;
-    display: block;
-    position: relative; 
-    overflow: hidden; 
-} */
-
 #histogram-container {
-    height: var(--histogram-height, 180px); /* Default height 180px */
+    height: var(--histogram-height, 180px); 
     min-height: 100px; /* Prevent collapsing too small */
-    max-height: 600px; /* Limit maximum height */
+    max-height: 600px; 
     background: var(--black1-to-white0);
     border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
