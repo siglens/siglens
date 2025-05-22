@@ -406,6 +406,24 @@ function renderHistogram(timechartData) {
 
     if (!HistogramState.originalData && isSearchButtonTriggered) {
         HistogramState.originalData = JSON.parse(JSON.stringify(timechartData));
+        // Only set original time range if not already set
+        if (!HistogramState.originalStartTime || !HistogramState.originalEndTime) {
+            let timestamps = timechartData.measure.map(item => {
+                if (!item.GroupByValues || !item.GroupByValues[0]) {
+                    console.warn('Missing GroupByValues in measure:', item);
+                    return null;
+                }
+                try {
+                    return parseInt(item.GroupByValues[0]);
+                } catch (e) {
+                    console.error('Error parsing timestamp:', item.GroupByValues[0], e);
+                    return null;
+                }
+            }).filter(ts => ts !== null);
+
+            HistogramState.originalStartTime = Math.min(...timestamps);
+            HistogramState.originalEndTime = Math.max(...timestamps);
+        }
     }
 
     let dataToRender = timechartData;
@@ -579,6 +597,22 @@ function renderHistogram(timechartData) {
             }
         }
     });
+
+    const handleDoubleClick = () => {
+        if (HistogramState.currentHistogram && HistogramState.originalData) {
+            HistogramState.currentGranularity = 'day';
+            HistogramState.isZoomed = false;
+            HistogramState.currentHistogram.resetZoom();
+            triggerZoomSearch(HistogramState.originalStartTime, HistogramState.originalEndTime);
+        }
+    };
+    
+    if (HistogramState.eventListeners.dblclick) {
+        HistogramState.canvas.removeEventListener('dblclick', HistogramState.eventListeners.dblclick);
+    }
+
+    HistogramState.canvas.addEventListener('dblclick', handleDoubleClick);
+    HistogramState.eventListeners.dblclick = handleDoubleClick;
 
     addZoomHelper();
 }
