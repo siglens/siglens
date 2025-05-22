@@ -22,6 +22,44 @@ const HistogramState = {
     originalData: null,
     currentGranularity: 'day',
     canvas: null,
+    isDragging: false,
+    isZoomed: false,
+    eventListeners: {},
+};
+
+const customDragBorderPlugin = {
+    id: 'customDragBorder',
+    afterDraw: (chart) => {
+        const zoomPlugin = chart.$zoom;
+        if (!zoomPlugin || !zoomPlugin._active || !zoomPlugin._active.length) {
+            return;
+        }
+
+        const { ctx, chartArea } = chart;
+        const zoomState = zoomPlugin._active[0];
+        const { startX, endX } = zoomState;
+
+        if (startX !== undefined && endX !== undefined) {
+            const leftX = Math.min(startX, endX);
+            const rightX = Math.max(startX, endX);
+            const top = chartArea.top;
+            const bottom = chartArea.bottom;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = 'rgba(0, 0, 255, 0.8)';
+            ctx.lineWidth = 1;
+
+            ctx.moveTo(leftX, top);
+            ctx.lineTo(leftX, bottom);
+            ctx.moveTo(rightX, top);
+            ctx.lineTo(rightX, bottom);
+
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
 };
 
 function determineGranularity(startTime, endTime) {
@@ -379,6 +417,13 @@ function renderHistogram(timechartData) {
     HistogramState.canvas = histoContainer.find('canvas')[0];
     const ctx = HistogramState.canvas.getContext('2d');
 
+    //eslint-disable-next-line no-undef
+    if (typeof ChartZoom !== 'undefined') {
+        //eslint-disable-next-line no-undef
+        Chart.register(ChartZoom);
+        Chart.register(customDragBorderPlugin);
+    }
+
     HistogramState.currentHistogram = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -445,9 +490,97 @@ function renderHistogram(timechartData) {
                         },
                     }
                 },
+                zoom: {
+                    zoom: {
+                        wheel: {
+                            enabled: false,
+                        },
+                        pinch: {
+                            enabled: false,
+                        },
+                        drag: {
+                            enabled: true,
+                            backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                            borderWidth: 0,
+                        },
+                        mode: 'x',
+                        onZoomComplete: ({ chart }) => {
+                            const xScale = chart.scales.x;
+                            const min = xScale.min;
+                            const max = xScale.max;
+
+                            if (min >= HistogramState.originalStartTime && max <= HistogramState.originalEndTime) {
+                                HistogramState.isZoomed = true;
+                            }
+                        }
+                    },
+                    limits: {
+                        x: {
+                            min: 'original',
+                            max: 'original',
+                        }
+                    }
+                }
+            },
+            onHover: function (event, elements, chart) {
+                const canvas = chart.canvas;
+                if (event.native.buttons === 1) {
+                    canvas.style.cursor = 'crosshair';
+                    HistogramState.isDragging = true;
+                } else if (HistogramState.isDragging) {
+                    canvas.style.cursor = 'crosshair';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
             }
         }
     });
+
+
+    // Add double-click to reset zoom
+    const handleDoubleClick = () => {
+        if (HistogramState.currentHistogram && HistogramState.originalData) {
+            HistogramState.currentGranularity = 'day';
+            HistogramState.isZoomed = false;
+            HistogramState.currentHistogram.resetZoom();
+        }
+    };
+
+    // Remove existing event listeners
+    const eventTypes = ['dblclick'];
+    eventTypes.forEach(eventType => {
+        if (HistogramState.eventListeners[eventType]) {
+            HistogramState.canvas.removeEventListener(eventType, HistogramState.eventListeners[eventType]);
+        }
+    });
+
+    // Add double-click listener
+    HistogramState.canvas.addEventListener('dblclick', handleDoubleClick);
+    HistogramState.eventListeners = {
+        dblclick: handleDoubleClick
+    };
+
+    addZoomHelper();
+}
+
+function addZoomHelper() {
+    const helpText = document.createElement('div');
+    helpText.className = 'zoom-helper';
+    helpText.style.cssText = `
+        position: absolute;
+        color: var(--text-color);
+        bottom: 5px;
+        right: 10px;
+        font-size: 10px;
+        opacity: 0.7;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+    `;
+    helpText.textContent = HistogramState.isZoomed
+        ? 'Double-click to reset zoom'
+        : 'Drag to zoom and Double-click to reset zoom';
+
+    $('#histogram-container').append(helpText);
 }
 
 //eslint-disable-next-line no-unused-vars
