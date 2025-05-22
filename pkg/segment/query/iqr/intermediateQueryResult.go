@@ -461,7 +461,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]sutils.CValueEnclosure, erro
 		// Fast path
 		values, err = iqr.readTimestampFromRRCs()
 	} else {
-		values, err = iqr.readNonTimestampColFromRRCs(cname)
+		values, err = iqr.readGenericColFromRRCs(cname)
 	}
 	if err != nil {
 		return nil, err
@@ -492,7 +492,9 @@ func (iqr *IQR) readTimestampFromRRCs() ([]sutils.CValueEnclosure, error) {
 	return timestamps, nil
 }
 
-func (iqr *IQR) readNonTimestampColFromRRCs(cname string) ([]sutils.CValueEnclosure, error) {
+// This works on any column, but if you're reading the timestamp column you
+// should use readTimestampFromRRCs() instead for better performance.
+func (iqr *IQR) readGenericColFromRRCs(cname string) ([]sutils.CValueEnclosure, error) {
 	// Prepare to call BatchProcess().
 	getBatchKey := func(rrc *sutils.RecordResultContainer) uint32 {
 		if rrc == nil {
