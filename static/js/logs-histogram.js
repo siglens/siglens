@@ -19,15 +19,14 @@
 //eslint-disable-next-line no-unused-vars
 const HistogramState = {
     currentHistogram: null,
-    originalData: null,
     currentGranularity: 'day',
-    canvas: null,
     isDragging: false,
-    isZoomed: false,
-    eventListeners: {},
-    originalStartTime: null,
-    originalEndTime: null,
-    currentHeight: null
+    currentStartTime: null,
+    currentEndTime: null,
+    lastSearchStartTime: null,
+    lastSearchEndTime: null,
+    currentHeight: null,
+    isZoomTriggered: false
 };
 
 const customDragBorderPlugin = {
@@ -172,17 +171,6 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity) {
     const daysInRange = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
     const hoursInRange = durationMs / (1000 * 60 * 60);
 
-    const paddingMs = Math.min(
-        {
-            second: 30 * 1000,
-            minute: 5 * 60 * 1000,
-            hour: 30 * 60 * 1000,
-            day: 12 * 60 * 60 * 1000,
-            month: 5 * 24 * 60 * 60 * 1000,
-        }[granularity] || durationMs * 0.05,
-        durationMs * 0.05
-    );
-
     let adjustedStartTime = startTime;
     let adjustedEndTime = endTime;
     if (granularity === 'second') {
@@ -285,8 +273,8 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity) {
     return {
         type: 'time',
         time: timeOptions,
-        min: (granularity === 'second' ? adjustedStartTime : startTime) - paddingMs,
-        max: (granularity === 'second' ? adjustedEndTime : endTime) + paddingMs,
+        min: (granularity === 'second' ? adjustedStartTime : startTime),
+        max: (granularity === 'second' ? adjustedEndTime : endTime),
         title: {
             display: true,
             text: `Timestamp (Interval: ${msToReadable(intervalMs)})`,
@@ -351,7 +339,7 @@ function configureTimeAxis(startTime, endTime, intervalMs, granularity) {
     };
 }
 
-function triggerZoomSearch(startTime, endTime) {
+function triggerZoomSearch(startTime, endTime, isZoomTriggered = true) {
     const data = getSearchFilter(true, false); 
     data.startEpoch = Math.floor(startTime);
     data.endEpoch = Math.floor(endTime);
@@ -378,10 +366,14 @@ function triggerZoomSearch(startTime, endTime) {
         hasSearchSinceHistogramClosed = true;
     }
 
+    HistogramState.isZoomTriggered = isZoomTriggered;
+
     wsState = 'query';
     initialSearchData = data;
 
-    doSearch(data);
+    doSearch(data).finally(() => {
+        HistogramState.isZoomTriggered = false;
+    });
 }
 
 function updateDatePickerAndUrl(startEpoch, endEpoch) {
@@ -406,33 +398,26 @@ function renderHistogram(timechartData) {
         return;
     }
 
-    if (!HistogramState.currentHeight) {
-        const currentHeightPx = histoContainer.css('height');
-        const parsedHeight = parseInt(currentHeightPx, 10);
-        if (!isNaN(parsedHeight) && parsedHeight >= 100 && parsedHeight <= 600) {
-            HistogramState.currentHeight = parsedHeight;
-        }
-    }
+    if (isSearchButtonTriggered) {
+        let timestamps = timechartData.measure.map(item => {
+            if (!item.GroupByValues || !item.GroupByValues[0]) {
+                console.warn('Missing GroupByValues in measure:', item);
+                return null;
+            }
+            try {
+                return parseInt(item.GroupByValues[0]);
+            } catch (e) {
+                console.error('Error parsing timestamp:', item.GroupByValues[0], e);
+                return null;
+            }
+        }).filter(ts => ts !== null);
 
-    if (!HistogramState.originalData && isSearchButtonTriggered) {
-        HistogramState.originalData = JSON.parse(JSON.stringify(timechartData));
-        // Only set original time range if not already set
-        if (!HistogramState.originalStartTime || !HistogramState.originalEndTime) {
-            let timestamps = timechartData.measure.map(item => {
-                if (!item.GroupByValues || !item.GroupByValues[0]) {
-                    console.warn('Missing GroupByValues in measure:', item);
-                    return null;
-                }
-                try {
-                    return parseInt(item.GroupByValues[0]);
-                } catch (e) {
-                    console.error('Error parsing timestamp:', item.GroupByValues[0], e);
-                    return null;
-                }
-            }).filter(ts => ts !== null);
+        HistogramState.currentStartTime = Math.min(...timestamps);
+        HistogramState.currentEndTime = Math.max(...timestamps);
 
-            HistogramState.originalStartTime = Math.min(...timestamps);
-            HistogramState.originalEndTime = Math.max(...timestamps);
+        if (!HistogramState.isZoomTriggered) {
+            HistogramState.lastSearchStartTime = HistogramState.currentStartTime;
+            HistogramState.lastSearchEndTime = HistogramState.currentEndTime;
         }
     }
 
@@ -484,14 +469,9 @@ function renderHistogram(timechartData) {
 
     histoContainer.empty();
     histoContainer.html('<canvas width="100%" height="100%"></canvas><div class="resize-handle"></div>');
-    const targetHeight = HistogramState.currentHeight || 180;
-    histoContainer.css({
-        'height': `${targetHeight}px !important`,
-        '--histogram-height': `${targetHeight}px`
-    });
 
-    HistogramState.canvas = histoContainer.find('canvas')[0];
-    const ctx = HistogramState.canvas.getContext('2d');
+    const canvas = histoContainer.find('canvas')[0];
+    const ctx = canvas.getContext('2d');
 
     //eslint-disable-next-line no-undef
     if (typeof ChartZoom !== 'undefined') {
@@ -585,16 +565,15 @@ function renderHistogram(timechartData) {
                             const min = xScale.min;
                             const max = xScale.max;
 
-                            if (min >= HistogramState.originalStartTime && max <= HistogramState.originalEndTime) {
-                                HistogramState.isZoomed = true;
-                                triggerZoomSearch(min, max);
+                            if (min >= HistogramState.currentStartTime && max <= HistogramState.currentEndTime) {
+                                triggerZoomSearch(min, max, true);
                             }
                         }
                     },
                     limits: {
                         x: {
-                            min: HistogramState.originalStartTime,
-                            max: HistogramState.originalEndTime,
+                            min: HistogramState.lastSearchStartTime,
+                            max: HistogramState.lastSearchEndTime,
                         }
                     }
                 }
@@ -614,58 +593,80 @@ function renderHistogram(timechartData) {
     });
 
     const handleDoubleClick = () => {
-        if (HistogramState.currentHistogram && HistogramState.originalData) {
-            HistogramState.currentGranularity = 'day';
-            HistogramState.isZoomed = false;
-            HistogramState.currentHistogram.resetZoom();
-            triggerZoomSearch(HistogramState.originalStartTime, HistogramState.originalEndTime);
+        if (HistogramState.currentHistogram) {
+            const xScale = HistogramState.currentHistogram.scales.x;
+            const isZoomed = Math.abs(xScale.min - HistogramState.lastSearchStartTime) > 1000 ||
+                            Math.abs(xScale.max - HistogramState.lastSearchEndTime) > 1000;
+            if (isZoomed) {
+                HistogramState.currentHistogram.resetZoom();
+                triggerZoomSearch(HistogramState.lastSearchStartTime, HistogramState.lastSearchEndTime, false);
+                const helper = document.querySelector('.zoom-helper');
+                if (helper) {
+                    helper.textContent = 'Drag to zoom and Double-click to reset zoom';
+                }
+            }
         }
     };
 
-    if (HistogramState.eventListeners.dblclick) {
-        HistogramState.canvas.removeEventListener('dblclick', HistogramState.eventListeners.dblclick);
-    }
-
-    HistogramState.canvas.addEventListener('dblclick', handleDoubleClick);
-    HistogramState.eventListeners.dblclick = handleDoubleClick;
+    canvas.removeEventListener('dblclick', handleDoubleClick);
+    canvas.addEventListener('dblclick', handleDoubleClick);
 
     const resizeHandle = histoContainer.find('.resize-handle')[0];
     let isResizing = false;
 
+    if (!HistogramState.currentHeight) {
+        const currentHeightPx = histoContainer.css('height');
+        const parsedHeight = parseInt(currentHeightPx, 10);
+        const maxHeight = Math.floor(window.innerHeight * 0.5);
+        HistogramState.currentHeight = !isNaN(parsedHeight) && parsedHeight >= 100 && parsedHeight <= maxHeight 
+            ? parsedHeight 
+            : Math.min(180, maxHeight);
+    }
+
+    histoContainer.css({
+        'height': `${HistogramState.currentHeight}px`,
+        '--histogram-height': `${HistogramState.currentHeight}px`
+    });
+
     resizeHandle.addEventListener('mousedown', (e) => {
         isResizing = true;
         resizeHandle.classList.add('active');
-        e.preventDefault(); 
+        e.preventDefault();
     });
 
-    document.addEventListener('mousemove', (e) => {
+    const handleMouseMove = (e) => {
         if (!isResizing) return;
-
+        
         const container = histoContainer[0];
         const newHeight = e.clientY - container.getBoundingClientRect().top;
-        const minHeight = 100; 
-        const maxHeight = 600; 
+        const minHeight = 100;
+        const maxHeight = Math.floor(window.innerHeight * 0.5);
 
         if (newHeight >= minHeight && newHeight <= maxHeight) {
-            container.style.height = `${newHeight}px !important`;
+            container.style.height = `${newHeight}px`;
             container.style.setProperty('--histogram-height', `${newHeight}px`);
             HistogramState.currentHeight = newHeight;
+            
+            if (HistogramState.currentHistogram) {
+                HistogramState.currentHistogram.resize();
+            }
         }
-    });
+    };
 
-    document.addEventListener('mouseup', () => {
+    const handleMouseUp = () => {
         if (isResizing) {
             isResizing = false;
             resizeHandle.classList.remove('active');
         }
-    });
+    };
 
-    const resizeObserver = new ResizeObserver(() => {
-        if (HistogramState.currentHistogram) {
-            HistogramState.currentHistogram.resize();
-        }
-    });
-    resizeObserver.observe(histoContainer[0]);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    HistogramState.cleanupResize = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+    };
 
     addZoomHelper();
 }
@@ -683,9 +684,7 @@ function addZoomHelper() {
         transition: opacity 0.3s ease;
         pointer-events: none;
     `;
-    helpText.textContent = HistogramState.isZoomed
-        ? 'Double-click to reset zoom'
-        : 'Drag to zoom and Double-click to reset zoom';
+    helpText.textContent = 'Drag to zoom and Double-click to reset zoom';
 
     $('#histogram-container').append(helpText);
 }

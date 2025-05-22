@@ -760,7 +760,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
 #histogram-container {
     height: var(--histogram-height, 180px); 
     min-height: 100px; /* Prevent collapsing too small */
-    max-height: 600px; 
+    max-height: 50vh; 
     background: var(--black1-to-white0);
     border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
