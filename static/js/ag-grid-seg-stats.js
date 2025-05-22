@@ -35,7 +35,11 @@ function renderMeasuresGrid(columnOrder, hits) {
         let cellRenderer = (params) => {
             const span = document.createElement('span');
             span.style.whiteSpace = 'pre';
-            span.textContent = params.value;
+            if (typeof params.value === 'number') {
+                span.textContent = formatNumber(params.value);
+            } else {
+                span.textContent = params.value;
+            }
             return span;
         };
         return {

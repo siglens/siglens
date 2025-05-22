@@ -199,6 +199,8 @@ async function toggleAlertTypeUI(type) {
         initializeIndexAutocomplete();
         setIndexDisplayValue(selectedSearchIndex);
 
+        initializeFilterInputEvents();
+
         //Show empty chart initially
         const logsExplorer = document.getElementById('logs-explorer');
         showEmptyChart(logsExplorer);
@@ -418,8 +420,6 @@ async function fillAlertForm(res) {
             $('#custom-code-tab').tabs('option', 'active', 1);
             $('#filter-input').val(queryText);
         }
-
-        initializeFilterInputEvents();
 
         let data = {
             state: wsState,
