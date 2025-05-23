@@ -168,7 +168,7 @@ func ProcessSyntheticTraceRequest(ctx *fasthttp.RequestCtx, orgId int64) {
 	otlp.HandleTraceIngestionResponse(ctx, 5000, 0)
 }
 
-func generateSpan(traceId string, spanId string, parentId string, service string, f *TraceFaker, parentName string, parentStartTime int64, parentEndTime int64) (*map[string]any, error) {
+func generateSpan(traceId string, spanId string, parentId string, service string, f *FakerState, parentName string, parentStartTime int64, parentEndTime int64) (*map[string]any, error) {
 	span := make(map[string]any)
 	span["trace_id"] = traceId
 	span["span_id"] = spanId
@@ -192,7 +192,7 @@ func generateSpan(traceId string, spanId string, parentId string, service string
 	return &span, nil
 }
 
-func generateTraceState(len int8, f *TraceFaker) string {
+func generateTraceState(len int8, f *FakerState) string {
 	if len <= 0 {
 		return ""
 	}

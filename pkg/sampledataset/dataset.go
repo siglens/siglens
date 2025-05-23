@@ -37,13 +37,13 @@ type SyntheticTraceState struct {
 	SpanIds  map[string][]string
 }
 
-type TraceFaker struct {
+type FakerState struct {
 	Faker *gofakeit.Faker
 	Seed  int64
 }
 
-func InitTraceFaker(seed int64) *TraceFaker {
-	return &TraceFaker{
+func InitTraceFaker(seed int64) *FakerState {
+	return &FakerState{
 		Seed:  seed,
 		Faker: gofakeit.NewUnlocked(seed),
 	}
