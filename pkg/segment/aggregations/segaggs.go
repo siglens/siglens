@@ -240,12 +240,73 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		nodeResult.RecsAggregator.MeasureOperations = agg.MeasureOperations
 	case structs.TransactionType:
 		performTransactionCommandRequest(nodeResult, agg, recs, finalCols, numTotalSegments, finishesSegment)
+	case structs.RateCommandType:
+		return performRateCommand(nodeResult, agg.RateCommand, recs)
 	default:
 		return errors.New("performAggOnResult: multiple QueryAggregators is currently only supported for OutputTransformType")
 	}
 
 	return nil
 }
+
+func performRateCommand(nodeResult *structs.NodeResult, rateCmd *structs.RateCommand, recs map[string]map[string]interface{}) (error) {
+    if rateCmd == nil || recs == nil {
+        return fmt.Errorf("performRateCommand: rateCmd or recs is nil")
+    }
+
+    rateField := rateCmd.ByFields[0]
+    timeField := "timestamp" 
+
+    for _, record := range recs {
+        if _, exists := record[rateField]; !exists {
+            return fmt.Errorf("performRateCommand: field %s does not exist in records", rateField)
+        }
+    }
+
+    sortedKeys := make([]string, 0, len(recs))
+    for key := range recs {
+        sortedKeys = append(sortedKeys, key)
+    }
+    sort.Slice(sortedKeys, func(i, j int) bool {
+        return recs[sortedKeys[i]][timeField].(uint64) < recs[sortedKeys[j]][timeField].(uint64)
+    })
+
+    var prevValue float64
+    var prevTimestamp uint64
+    firstRecord := true
+
+    for _, key := range sortedKeys {
+        record := recs[key]
+
+        currentValue, err := dtypeutils.ConvertToFloat(record[rateField], 64)
+        if err != nil {
+            return fmt.Errorf("performRateCommand: failed to convert %s to float: %v", rateField, err)
+        }
+        currentTimestamp := record[timeField].(uint64)
+
+        if firstRecord {
+            firstRecord = false
+            prevValue = currentValue
+            prevTimestamp = currentTimestamp
+            record["rate_"+rateField] = nil 
+            continue
+        }
+
+        timeDiff := float64(currentTimestamp - prevTimestamp)
+        if timeDiff == 0 {
+            record["rate_"+rateField] = nil 
+        } else {
+            rate := (currentValue - prevValue) / timeDiff
+            record["rate_"+rateField] = rate
+        }
+
+        prevValue = currentValue
+        prevTimestamp = currentTimestamp
+    }
+
+    return nil
+}
+
 
 func GetOrderedRecs(recs map[string]map[string]interface{}, recordIndexInFinal map[string]int) ([]string, error) {
 	currentOrder := make([]string, len(recs))

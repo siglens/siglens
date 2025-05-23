@@ -104,6 +104,7 @@ const (
 	TransactionType
 	VectorArithmeticExprType
 	GenerateEventType
+	RateCommandType
 )
 
 type QueryType uint8
@@ -155,6 +156,11 @@ type StatsExpr struct {
 	GroupByRequest    *GroupByRequest
 }
 
+type RateCommand struct {
+	ByFields []string 
+}
+
+
 // Update this function: GetAllColsInAggsIfStatsPresent() to return all columns in the query aggregators if stats are present.
 // This function should return all columns in the query aggregators if stats are present.
 type QueryAggregators struct {
@@ -201,6 +207,8 @@ type QueryAggregators struct {
 	StatisticExpr   *StatisticExpr
 	TransactionExpr *TransactionArguments
 	WhereExpr       *BoolExpr
+	RateCommand *RateCommand 
+
 }
 
 type GenerateEvent struct {
