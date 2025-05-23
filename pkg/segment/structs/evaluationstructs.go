@@ -890,20 +890,27 @@ func (self *BoolExpr) EvaluateWithNull(fieldToValue map[string]sutils.CValueEncl
 			return sutils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating left BoolExpr: %v", err)
 		}
 
-		if left.IsNull() {
-			return left, nil
+		// Short-circuit AND
+		if self.BoolOp == BoolOpAnd && !left.IsNull() && left.CVal == false {
+			return sutils.CValueEnclosure{Dtype: sutils.SS_DT_BOOL, CVal: false}, nil
 		}
 
-		right := sutils.CValueEnclosure{CVal: false}
+		// Short-circuit OR
+		if self.BoolOp == BoolOpOr && !left.IsNull() && left.CVal == true {
+			return sutils.CValueEnclosure{Dtype: sutils.SS_DT_BOOL, CVal: true}, nil
+		}
+
+		right := sutils.CValueEnclosure{Dtype: sutils.SS_DT_BOOL, CVal: false}
 		if self.RightBool != nil {
 			right, err = self.RightBool.EvaluateWithNull(fieldToValue)
 			if err != nil {
 				return sutils.CValueEnclosure{}, fmt.Errorf("BoolExpr.EvaluateWithNull: error evaluating right BoolExpr: %v", err)
 			}
+		}
 
-			if right.IsNull() {
-				return right, nil
-			}
+		// Propagate nulls if either side is null 
+		if left.IsNull() || right.IsNull() {
+			return sutils.CValueEnclosure{Dtype: sutils.SS_DT_BOOL, CVal: nil}, nil
 		}
 
 		boolResult, err := GetBoolResult(left.CVal.(bool), right.CVal.(bool), self.BoolOp)
