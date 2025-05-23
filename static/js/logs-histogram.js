@@ -75,14 +75,74 @@ function getGranularityLabel(granularity) {
 }
 
 function getTimeAxisTitle(granularity, duration) {
-    const interval = granularity === 'second' ? 10 * 1000 :
-                    granularity === 'minute' && duration <= 60 * 60 * 1000 ? 60 * 1000 :
-                    granularity === 'minute' && duration <= 4 * 60 * 60 * 1000 ? 5 * 60 * 1000 :
-                    granularity === 'minute' ? 30 * 60 * 1000 :
-                    granularity === 'hour' ? 60 * 60 * 1000 :
-                    granularity === 'day' ? 24 * 60 * 60 * 1000 :
-                    30 * 24 * 60 * 60 * 1000;
+    const interval = granularity === 'second' ? 10 * 1000 : 
+                    granularity === 'minute' && duration <= 60 * 60 * 1000 ? 60 * 1000 : 
+                    granularity === 'minute' && duration <= 4 * 60 * 60 * 1000 ? 5 * 60 * 1000 : 
+                    granularity === 'minute' ? 30 * 60 * 1000 : 
+                    granularity === 'hour' ? 60 * 60 * 1000 : 
+                    granularity === 'day' ? 24 * 60 * 60 * 1000 : 
+                    30 * 24 * 60 * 60 * 1000; 
     return `Time (Interval- ${getGranularityLabel(interval)})`;
+}
+
+function parseTimestamp(timestamp) {
+    const date = new Date(timestamp);
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return {
+        month: monthNames[date.getMonth()],
+        day: date.getDate(),
+        year: date.getFullYear(),
+        hours: date.getHours(),
+        minutes: ('0' + date.getMinutes()).slice(-2),
+        seconds: ('0' + date.getSeconds()).slice(-2),
+        hour12: date.getHours() % 12 || 12,
+        ampm: date.getHours() >= 12 ? 'PM' : 'AM'
+    };
+}
+
+function formatXTicks(timestamp, granularity, startTime, isFirstTickOfDay, daysInRange) {
+    const { month, day, year, hours, minutes, seconds, hour12, ampm } = parseTimestamp(timestamp);
+
+    const startDate = new Date(startTime);
+    const isNewYear = granularity === 'day' && year !== startDate.getFullYear();
+
+    const showMonthDate = (granularity === 'second' || granularity === 'minute' || granularity === 'hour') && isFirstTickOfDay;
+
+    switch (granularity) {
+        case 'second':
+            if (showMonthDate) {
+                return `${month} ${day}`;
+            }
+            return `${hour12}:${minutes}:${seconds} ${ampm}`;
+        case 'minute':
+            if (showMonthDate) {
+                return `${month} ${day}`;
+            }
+            return `${hour12}:${minutes} ${ampm}`;
+        case 'hour':
+            if (showMonthDate) {
+                return `${month} ${day}`;
+            }
+            if (daysInRange <= 1) {
+                return `${hour12}${ampm}`;
+            } else if (daysInRange <= 4) {
+                if (hours === 6) return '6AM';
+                if (hours === 12) return '12PM';
+                if (hours === 18) return '6PM';
+            } else if (daysInRange <= 15) {
+                if (hours === 12) return '12PM';
+            }
+            return null;
+        case 'day':
+            if (isNewYear) {
+                return `${month} ${day}, ${year}`;
+            }
+            return `${month} ${day}`;
+        case 'month':
+            return `${month} ${year}`;
+        default:
+            return `${month} ${day}`;
+    }
 }
 
 function configureTimeAxis() {
@@ -91,26 +151,36 @@ function configureTimeAxis() {
     const hoursInRange = Math.ceil(duration / (1000 * 60 * 60));
     let granularity, timeFormat, unit, stepSize, maxTicksLimit;
 
-    if (duration <= 15 * 60 * 1000) { // ≤15 minutes
+    if (duration <= 5 * 60 * 1000) { // ≤5 minutes
         granularity = 'second';
         timeFormat = 'HH:mm:ss';
         unit = 'second';
-        maxTicksLimit = 10;
+        stepSize = 10;
+        maxTicksLimit = Math.ceil(duration / (10 * 1000)) + 1;
+    } else if (duration <= 15 * 60 * 1000) { // >5 minutes and ≤15 minutes
+        granularity = 'second';
+        timeFormat = 'HH:mm:ss';
+        unit = 'second';
+        stepSize = 30;
+        maxTicksLimit = Math.ceil(duration / (30 * 1000)) + 1;
     } else if (duration <= 60 * 60 * 1000) { // ≤1 hour
         granularity = 'minute';
         timeFormat = 'HH:mm';
         unit = 'minute';
-        maxTicksLimit = 10;
+        stepSize = 5;
+        maxTicksLimit = Math.ceil(duration / (5 * 60 * 1000)) + 1;
     } else if (duration <= 4 * 60 * 60 * 1000) { // ≤4 hours
         granularity = 'minute';
         timeFormat = 'HH:mm';
         unit = 'minute';
-        maxTicksLimit = 10;
+        stepSize = 15;
+        maxTicksLimit = Math.ceil(duration / (15 * 60 * 1000)) + 1;
     } else if (duration <= 24 * 60 * 60 * 1000) { // ≤1 day
         granularity = 'minute';
         timeFormat = 'HH:mm';
-        unit = 'minute';
-        maxTicksLimit = 10;
+        unit = 'hour';
+        stepSize = 2;
+        maxTicksLimit = Math.ceil(duration / (2 * 60 * 60 * 1000)) + 1;
     } else if (duration <= 7 * 24 * 60 * 60 * 1000) { // ≤7 days
         granularity = 'hour';
         timeFormat = 'HH:mm';
@@ -150,13 +220,11 @@ function configureTimeAxis() {
         }
     }
 
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
     const timeOptions = {
         unit: unit,
         displayFormats: {
-            second: 'HH:mm:ss',
-            minute: 'HH:mm',
+            second: 'h:mm:ss a',
+            minute: 'h:mm a',
             hour: 'h a',
             day: 'MMM d',
             month: 'MMM yyyy'
@@ -171,9 +239,15 @@ function configureTimeAxis() {
     } else if (granularity === 'day') {
         timeOptions.round = 'day';
         timeOptions.offset = true;
+    } else if (granularity === 'second') {
+        timeOptions.round = 'second';
+        timeOptions.stepSize = stepSize;
+        timeOptions.offset = true;
     } else {
         timeOptions.offset = true;
     }
+
+    let lastDay = null; // Track the last day for day change detection
 
     return {
         type: 'time',
@@ -193,68 +267,49 @@ function configureTimeAxis() {
                 const hours = date.getHours();
                 const minutes = date.getMinutes();
                 const seconds = date.getSeconds();
-                const day = date.getDate();
-                const month = monthNames[date.getMonth()];
-                const year = date.getFullYear();
+
+                const currentDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+                const isFirstTickOfDay = lastDay !== null && currentDay !== lastDay;
+                lastDay = currentDay;
 
                 if (granularity === 'second') {
-                    if (hours === 0 && minutes === 0 && seconds == 0 ) {
-                        return `${month} ${day}`;
+                    if ((duration <= 5 * 60 * 1000 && seconds % 10 === 0) || // 10-second intervals
+                        (duration <= 15 * 60 * 1000 && seconds % 30 === 0)) { // 30-second intervals
+                        return formatXTicks(value, 'second', HistogramState.currentStartTime, isFirstTickOfDay, daysInRange);
                     }
-                    return dateFns.format(date, 'h:mm:ss a');
                 } else if (granularity === 'minute') {
-                    if (hours === 0 && minutes === 0) {
-                        return `${month} ${day}`;
+                    if ((duration <= 60 * 60 * 1000 && minutes % 5 === 0) ||
+                        (duration <= 4 * 60 * 60 * 1000 && minutes % 15 === 0) ||
+                        (duration <= 24 * 60 * 60 * 1000 && hours % 2 === 0 && minutes === 0)) {
+                        return formatXTicks(value, 'minute', HistogramState.currentStartTime, isFirstTickOfDay, daysInRange);
                     }
-                    return dateFns.format(date, 'h:mm a');
                 } else if (granularity === 'hour') {
                     if (hoursInRange <= 24) {
-                        const hourIn12 = hours % 12 || 12;
-                        const amPm = hours < 12 ? 'AM' : 'PM';
-                        if (hours === 0) {
-                            return `${month} ${day}`;
-                        }
-                        return `${hourIn12}${amPm}`;
+                        return formatXTicks(value, 'hour', HistogramState.currentStartTime, isFirstTickOfDay, daysInRange);
                     } else if (daysInRange <= 4) {
-                        if (hours === 0) {
-                            return `${month} ${day}`;
-                        } else if (hours === 6) {
-                            return '6AM';
-                        } else if (hours === 12) {
-                            return '12PM';
-                        } else if (hours === 18) {
-                            return '6PM';
+                        if (hours % 6 === 0) {
+                            return formatXTicks(value, 'hour', HistogramState.currentStartTime, isFirstTickOfDay, daysInRange);
                         }
-                        return null;
                     } else if (daysInRange <= 15) {
-                        if (hours === 0) {
-                            return `${month} ${day}`;
-                        } else if (hours === 12) {
-                            return '12PM';
+                        if (hours % 12 === 0) {
+                            return formatXTicks(value, 'hour', HistogramState.currentStartTime, isFirstTickOfDay, daysInRange);
                         }
-                        return null;
                     } else {
-                        if (hours === 0 && day % 2 === 0) {
-                            return `${month} ${day}`;
-                        } else if (hours === 0) {
-                            return `${month} ${day}`;
+                        if (hours === 0) {
+                            return formatXTicks(value, 'hour', HistogramState.currentStartTime, isFirstTickOfDay, daysInRange);
                         }
-                        return null;
                     }
-                } else if (granularity === 'day') {
-                    return `${month} ${day}`;
-                } else if (granularity === 'month') {
-                    return `${month} ${year}`;
+                } else {
+                    return formatXTicks(value, granularity, HistogramState.currentStartTime, isFirstTickOfDay, daysInRange);
                 }
                 return null;
             },
             font: {
                 weight: function(context) {
-                    if (granularity === 'hour') {
-                        const date = new Date(context.tick.value);
-                        if (date.getHours() === 0) {
-                            return 'bold';
-                        }
+                    const date = new Date(context.tick.value);
+                    if ((granularity === 'second' || granularity === 'minute' || granularity === 'hour') &&
+                        date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0) {
+                        return 'bold';
                     }
                     return 'normal';
                 }
@@ -265,22 +320,18 @@ function configureTimeAxis() {
 
 function formatTooltipTimestamp(timestamp) {
     const duration = HistogramState.currentEndTime - HistogramState.currentStartTime;
-    const date = new Date(timestamp);
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = monthNames[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
+    const { month, day, year, hour12, minutes, seconds, ampm } = parseTimestamp(timestamp);
     const base = `${month} ${day}, ${year}`;
 
-    if (duration <= 15 * 60 * 1000) { 
-        return `${base} ${dateFns.format(date, 'h:mm:ss a')}`;
-    } else if (duration <= 24 * 60 * 60 * 1000) { 
-        return `${base} ${dateFns.format(date, 'h:mm a')}`;
-    } else if (duration <= 7 * 24 * 60 * 60 * 1000) { 
-        return `${base} ${dateFns.format(date, 'h:00 a')}`;
-    } else if (duration <= 180 * 24 * 60 * 60 * 1000) { 
+    if (duration <= 15 * 60 * 1000) {
+        return `${base} ${hour12}:${minutes}:${seconds} ${ampm}`;
+    } else if (duration <= 24 * 60 * 60 * 1000) {
+        return `${base} ${hour12}:${minutes} ${ampm}`;
+    } else if (duration <= 7 * 24 * 60 * 60 * 1000) {
+        return `${base} ${hour12}:00 ${ampm}`;
+    } else if (duration <= 180 * 24 * 60 * 60 * 1000) {
         return base;
-    } else { 
+    } else {
         return `${month} ${year}`;
     }
 }
