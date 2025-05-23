@@ -849,9 +849,16 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (
 			return false, err
 		}
 
+		// Short-circuit logic
+		if self.BoolOp == BoolOpAnd && !left {
+			return false, nil
+		}
+		if self.BoolOp == BoolOpOr && left {
+			return true, nil
+		}
+
 		var right bool
 		if self.RightBool != nil {
-			var err error
 			right, err = self.RightBool.Evaluate(fieldToValue)
 			if err != nil {
 				return false, err
@@ -978,28 +985,42 @@ func (self *BoolExpr) EvaluateForInputLookup(fieldToValue map[string]sutils.CVal
 			}
 			return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: left and right ValueExpr have different types")
 		}
-	} else { // IsTerminal is false
+	} else {
 		left, err := self.LeftBool.EvaluateForInputLookup(fieldToValue)
 		if err != nil {
 			return false, err
 		}
 
-		var right bool
-		if self.RightBool != nil {
-			var err error
-			right, err = self.RightBool.EvaluateForInputLookup(fieldToValue)
-			if err != nil {
-				return false, err
-			}
-		}
-
 		switch self.BoolOp {
 		case BoolOpNot:
 			return !left, nil
+
 		case BoolOpAnd:
-			return left && right, nil
+			if !left {
+				return false, nil // short-circuit
+			}
+			if self.RightBool != nil {
+				right, err := self.RightBool.EvaluateForInputLookup(fieldToValue)
+				if err != nil {
+					return false, err
+				}
+				return left && right, nil
+			}
+			return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: missing RightBool for AND")
+
 		case BoolOpOr:
-			return left || right, nil
+			if left {
+				return true, nil // short-circuit
+			}
+			if self.RightBool != nil {
+				right, err := self.RightBool.EvaluateForInputLookup(fieldToValue)
+				if err != nil {
+					return false, err
+				}
+				return left || right, nil
+			}
+			return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: missing RightBool for OR")
+
 		default:
 			return false, fmt.Errorf("BoolExpr.EvaluateForInputLookup: invalid BoolOp: %v", self.BoolOp)
 		}
