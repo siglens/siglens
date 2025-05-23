@@ -363,10 +363,10 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	breadcrumbs := generateBreadcrumbs(item.ParentID, structure)
 
 	dashboardDetails["folder"] = map[string]interface{}{
-		"id":   item.ParentID,
-		"name": structure.Items[item.ParentID].Name,
-		"path": folderPath,
-		"breadcrumbs": breadcrumbs, 
+		"id":          item.ParentID,
+		"name":        structure.Items[item.ParentID].Name,
+		"path":        folderPath,
+		"breadcrumbs": breadcrumbs,
 	}
 
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
