@@ -93,6 +93,8 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 	depth := 7
 	// number of children for each node
 	width := 2
+	numberOfDepPerTrace := 4
+	depCounter := 0
 	// start time for the trace
 	startTime := time.Now().UnixNano()
 	traceDurationRange := []int{100, 500}
@@ -105,10 +107,12 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 	} else {
 		probToDropNode = 0.0
 	}
+	probToAddDep := 0.2
 	endTime := startTime + totalDurationOfTrace
 	startEndTimeVariationInPerc := 0.5
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+
 	traceId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
 	serviceName := f.Faker.Word()
 	spanArray := make([]*map[string]any, 0)
@@ -127,6 +131,7 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 			levelParent[0] = []string{parentSpanId}
 			sts.TraceIds = append(sts.TraceIds, traceId)
 			sts.SpanIds[traceId] = []string{parentSpanId}
+			sts.ServiceName[traceId] = serviceName
 			sts.StartEndTime[parentSpanId] = []int64{startTime, endTime}
 		}
 		for i := 1; i < depth; i++ {
@@ -151,7 +156,18 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 						}
 						sts.SpanIds[traceId] = append(sts.SpanIds[traceId], currSpanId)
 						sts.StartEndTime[currSpanId] = []int64{spanStartTime, spanEndTime}
-						g, _ := generateSpan(traceId, currSpanId, levelParent[i-1][k], serviceName, f, (*spanArray[i-1])["name"].(string), spanStartTime, spanEndTime)
+						lenStsTraceIds := len(sts.TraceIds)
+						targetServiceName := ""
+						if lenStsTraceIds > 1 && depCounter < numberOfDepPerTrace && 1-f.Faker.Rand.Float32() <= float32(probToAddDep) {
+							targetTraceIdx := f.Faker.Number(0, lenStsTraceIds-2)
+							targetTrace := sts.TraceIds[targetTraceIdx]
+							targetServiceName = sts.ServiceName[targetTrace]
+							depCounter++
+						}
+						if len(targetServiceName) == 0 {
+							targetServiceName = serviceName
+						}
+						g, _ := generateSpan(traceId, currSpanId, levelParent[i-1][k], targetServiceName, f, (*spanArray[i-1])["name"].(string), spanStartTime, spanEndTime)
 						spanArray = append(spanArray, g)
 						if _, ok := levelParent[i]; !ok {
 							levelParent[i] = []string{currSpanId}
@@ -183,7 +199,6 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 		if err != nil {
 			log.Errorf("ProcessSyntheticTraceRequest: Failed to ingest traces, err: %v", err)
 		}
-		log.Errorf("ProcessSyntheticTraceRequest: Transaction Complete")
 	}
 }
 
@@ -196,11 +211,12 @@ func ProcessSyntheticTraceRequest(ctx *fasthttp.RequestCtx, orgId int64) {
 	}
 
 	var wg sync.WaitGroup
-	numTracesToGenerate := 5
+	numTracesToGenerate := 100
 	sts := SyntheticTraceState{
 		TraceIds:     make([]string, 0),
 		SpanIds:      make(map[string][]string),
 		StartEndTime: make(map[string][]int64),
+		ServiceName:  make(map[string]string),
 	}
 
 	for n := 0; n < numTracesToGenerate; n++ {
@@ -210,7 +226,7 @@ func ProcessSyntheticTraceRequest(ctx *fasthttp.RequestCtx, orgId int64) {
 
 	wg.Wait()
 	log.Printf("ProcessSyntheticTraceRequest: All %d trace generations completed.", numTracesToGenerate)
-	otlp.HandleTraceIngestionResponse(ctx, 5000, 0)
+	otlp.HandleTraceIngestionResponse(ctx, numTracesToGenerate, 0)
 }
 
 func generateSpan(traceId string, spanId string, parentId string, service string, f *FakerState, parentName string, parentStartTime int64, parentEndTime int64) (*map[string]any, error) {
@@ -225,7 +241,7 @@ func generateSpan(traceId string, spanId string, parentId string, service string
 	span["service"] = service
 	span["trace_state"] = generateTraceState(2, f)
 	span["name"] = fmt.Sprintf("%s/%s", parentName, f.Faker.Word())
-	span["kind"] = "SPAN_KIND_SERVER"
+	span["kind"] = "SPAN_KIND_CLIENT"
 	span["start_time"] = parentStartTime
 	span["end_time"] = parentEndTime
 	span["duration"] = span["end_time"].(int64) - span["start_time"].(int64)

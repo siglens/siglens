@@ -37,6 +37,7 @@ type SyntheticTraceState struct {
 	mux          sync.RWMutex
 	TraceIds     []string
 	SpanIds      map[string][]string
+	ServiceName  map[string]string
 	StartEndTime map[string][]int64
 }
 
