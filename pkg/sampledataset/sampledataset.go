@@ -74,7 +74,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 	return actionLines
 }
 
-func processSingleTrace(orgId int64, wg *sync.WaitGroup, generateSymmetricTree bool) {
+func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceState, generateSymmetricTree bool) {
 	defer wg.Done()
 
 	now := utils.GetCurrentTimeInMs()
@@ -95,7 +95,8 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, generateSymmetricTree b
 	width := 2
 	// start time for the trace
 	startTime := time.Now().UnixNano()
-	totalDurationOfTrace := int64(time.Millisecond * 100)
+	traceDurationRange := []int{100, 500}
+	totalDurationOfTrace := int64(time.Millisecond * time.Duration(f.Faker.Number(traceDurationRange[0], traceDurationRange[1])))
 	var probToDropNode float32
 	// generateSymmetricTree = false -> random nodes will be dropped if generated probability >= 0.9
 	if generateSymmetricTree {
@@ -105,6 +106,7 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, generateSymmetricTree b
 		probToDropNode = 0.0
 	}
 	endTime := startTime + totalDurationOfTrace
+	startEndTimeVariationInPerc := 0.5
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	traceId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
@@ -112,54 +114,77 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, generateSymmetricTree b
 	spanArray := make([]*map[string]any, 0)
 	levelParent := make(map[int][]string)
 
-	if depth > 0 {
-		parentSpanId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
-		g, _ := generateSpan(traceId, parentSpanId, "", serviceName, f, "", startTime, endTime)
-		spanArray = append(spanArray, g)
-		levelParent[0] = []string{parentSpanId}
-	}
-	for i := 1; i < depth; i++ {
-		for k := range levelParent[i-1] {
-			for j := 0; j < width; j++ {
-				if 1-f.Faker.Rand.Float32() <= probToDropNode {
-					continue
-				} else {
-					currSpanId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
-					// TODO: randomise span start and end time within trace time boundary
-					spanStartTime := startTime + int64(time.Millisecond*5)
-					spanEndTime := endTime - int64(time.Millisecond*10)
-					g, _ := generateSpan(traceId, currSpanId, levelParent[i-1][k], serviceName, f, (*spanArray[i-1])["name"].(string), spanStartTime, spanEndTime)
-					spanArray = append(spanArray, g)
-					if _, ok := levelParent[i]; !ok {
-						levelParent[i] = []string{currSpanId}
+	sts.mux.Lock()
+	if _, ok := sts.StartEndTime[traceId]; ok {
+		log.Errorf("ProcessSyntheticTraceRequest: Generated a duplicate traceId. Skipping...")
+		sts.mux.Unlock()
+		return
+	} else {
+		if depth > 0 {
+			parentSpanId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
+			g, _ := generateSpan(traceId, parentSpanId, "", serviceName, f, "", startTime, endTime)
+			spanArray = append(spanArray, g)
+			levelParent[0] = []string{parentSpanId}
+			sts.TraceIds = append(sts.TraceIds, traceId)
+			sts.SpanIds[traceId] = []string{parentSpanId}
+			sts.StartEndTime[parentSpanId] = []int64{startTime, endTime}
+		}
+		for i := 1; i < depth; i++ {
+			for k := range levelParent[i-1] {
+				for j := 0; j < width; j++ {
+					if 1-f.Faker.Rand.Float32() <= probToDropNode {
+						continue
 					} else {
-						levelParent[i] = append(levelParent[i], currSpanId)
+						currSpanId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
+						var spanStartTime int64
+						var spanEndTime int64
+						if i == 1 && j == 0 {
+							spanStartTime = sts.StartEndTime[levelParent[i-1][k]][0]
+							spanEndTime = sts.StartEndTime[levelParent[i-1][k]][1]
+						} else {
+							parentStartTime := sts.StartEndTime[levelParent[i-1][k]][0]
+							parentEndTime := sts.StartEndTime[levelParent[i-1][k]][1]
+							parentDuration := parentEndTime - parentStartTime
+							percParentDuration := float64(parentDuration) * startEndTimeVariationInPerc
+							spanStartTime = parentStartTime + int64(f.Faker.Number(0, int(percParentDuration)))
+							spanEndTime = parentEndTime - int64(f.Faker.Number(0, int(percParentDuration)))
+						}
+						sts.SpanIds[traceId] = append(sts.SpanIds[traceId], currSpanId)
+						sts.StartEndTime[currSpanId] = []int64{spanStartTime, spanEndTime}
+						g, _ := generateSpan(traceId, currSpanId, levelParent[i-1][k], serviceName, f, (*spanArray[i-1])["name"].(string), spanStartTime, spanEndTime)
+						spanArray = append(spanArray, g)
+						if _, ok := levelParent[i]; !ok {
+							levelParent[i] = []string{currSpanId}
+						} else {
+							levelParent[i] = append(levelParent[i], currSpanId)
+						}
 					}
 				}
 			}
 		}
-	}
+		sts.mux.Unlock()
 
-	for _, spanPtr := range spanArray {
-		if spanPtr != nil {
-			jsonData, err := json.Marshal(spanPtr)
-			if err != nil {
-				log.Errorf("ProcessSyntheticTraceRequest: failed to marshal span %s: %v. Service name: %s", spanPtr, err, jsonData)
-			}
+		for _, spanPtr := range spanArray {
+			if spanPtr != nil {
+				jsonData, err := json.Marshal(spanPtr)
+				if err != nil {
+					log.Errorf("ProcessSyntheticTraceRequest: failed to marshal span %s: %v. Service name: %s", spanPtr, err, jsonData)
+				}
 
-			ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
-			if err != nil {
-				log.Errorf("ProcessSyntheticTraceRequest: failed to get new PLE, jsonData: %v, err: %v", jsonData, err)
+				ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
+				if err != nil {
+					log.Errorf("ProcessSyntheticTraceRequest: failed to get new PLE, jsonData: %v, err: %v", jsonData, err)
+				}
+				pleArray = append(pleArray, ple)
 			}
-			pleArray = append(pleArray, ple)
 		}
-	}
 
-	err := writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
-	if err != nil {
-		log.Errorf("ProcessSyntheticTraceRequest: Failed to ingest traces, err: %v", err)
+		err := writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+		if err != nil {
+			log.Errorf("ProcessSyntheticTraceRequest: Failed to ingest traces, err: %v", err)
+		}
+		log.Errorf("ProcessSyntheticTraceRequest: Transaction Complete")
 	}
-	log.Errorf("ProcessSyntheticTraceRequest: Transaction Complete")
 }
 
 func ProcessSyntheticTraceRequest(ctx *fasthttp.RequestCtx, orgId int64) {
@@ -171,11 +196,16 @@ func ProcessSyntheticTraceRequest(ctx *fasthttp.RequestCtx, orgId int64) {
 	}
 
 	var wg sync.WaitGroup
-	numTracesToGenerate := 5000
+	numTracesToGenerate := 5
+	sts := SyntheticTraceState{
+		TraceIds:     make([]string, 0),
+		SpanIds:      make(map[string][]string),
+		StartEndTime: make(map[string][]int64),
+	}
 
 	for n := 0; n < numTracesToGenerate; n++ {
 		wg.Add(1)
-		go processSingleTrace(orgId, &wg, false)
+		go processSingleTrace(orgId, &wg, &sts, false)
 	}
 
 	wg.Wait()

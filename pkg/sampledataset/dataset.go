@@ -20,6 +20,7 @@ package sampledataset
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
@@ -33,8 +34,10 @@ type Generator interface {
 }
 
 type SyntheticTraceState struct {
-	TraceIds []string
-	SpanIds  map[string][]string
+	mux          sync.RWMutex
+	TraceIds     []string
+	SpanIds      map[string][]string
+	StartEndTime map[string][]int64
 }
 
 type FakerState struct {
