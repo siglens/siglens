@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-func TestFindPercentileData(t *testing.T) {
+func TestFindPercentileData_uint64(t *testing.T) {
 	testCases := []struct {
 		arr        []uint64
 		percentile int
@@ -52,6 +52,51 @@ func TestFindPercentileData(t *testing.T) {
 			arr:        []uint64{25, 75, 0, 50, 100},
 			percentile: 25,
 			expected:   25,
+		},
+	}
+
+	precision := 8
+	scale := math.Pow10(precision)
+
+	for _, tc := range testCases {
+		result := FindPercentileData(tc.arr, tc.percentile)
+		result = math.Round(result*scale) / scale
+		if result != tc.expected {
+			t.Errorf("Expected %d percentile to be %f, but got %f", tc.percentile, tc.expected, result)
+		}
+	}
+}
+
+func TestFindPercentileData_float64(t *testing.T) {
+	testCases := []struct {
+		arr        []float64
+		percentile int
+		expected   float64
+	}{
+		{
+			arr:        []float64{9.1, 6.8, 4.7, 7.5, 8.7},
+			percentile: 0,
+			expected:   4.7,
+		},
+		{
+			arr:        []float64{-1.7, -9.5, 9.1, -3.2, -0.9},
+			percentile: 50,
+			expected:   -1.7,
+		},
+		{
+			arr:        []float64{8.8, 1.5, 6.9, 5.4, 9.4, 5.4},
+			percentile: 50,
+			expected:   6.15,
+		},
+		{
+			arr:        []float64{8.8, 1.5, 6.9, 5.4, 9.4, 5.4},
+			percentile: 30,
+			expected:   5.4,
+		},
+		{
+			arr:        []float64{-30.6, -63.4, -75.0, -57.1, 68.5, 38.9},
+			percentile: 61,
+			expected:   -27.125,
 		},
 	}
 
