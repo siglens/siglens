@@ -33,8 +33,8 @@ type Generator interface {
 }
 
 type SyntheticTraceState struct {
-	TraceIds *[]string
-	SpanIds  *map[string][]string
+	TraceIds []string
+	SpanIds  map[string][]string
 }
 
 type TraceFaker struct {
