@@ -784,7 +784,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / RateBlock / AppendBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -5285,6 +5285,22 @@ AppendCmdOptionsList <- first:AppendCmdOption rest:(SPACE AppendCmdOption)* {
     return appendCmdOptions, nil
 }
 
+RateOptions     <- CMD_BY EQUAL (SingleIdentifier / IdentifierList)
+
+IdentifierList  <- LBRACK Ident (COMMA Ident)* RBRACK
+SingleIdentifier<- Ident
+
+RateParens      <- LPAREN ro:RateOptions RPAREN { return ro, nil }
+
+RateBlock       <- PIPE CMD_RATE r:RateParens? {
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.RateCommandType,
+        RateCommand: &structs.RateCommand{
+            ByFields: toStringSlice(captureIdentifiers(r)),
+        },
+    }, nil
+}
+
 // AppendBlock with subsearch handling
 AppendBlock <- PIPE CMD_APPEND options:(AppendCmdOption SPACE?)* subsearch:Subsearch {
     appendOptions := &structs.AppendCmdOptions{
@@ -5365,6 +5381,9 @@ CMD_INPUTLOOKUP <- "inputlookup" SPACE
 EVAL_CONCAT <- SPACE? ("." / "+") SPACE?
 CMD_MVEXPAND <- "mvexpand"
 CMD_APPEND <- "append" SPACE
+CMD_RATE <- "rate"
+CMD_BY <- "by"
+
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
 MAJOR_BREAK <- [[\]<>(){}|!;,'"*\n\r \t&?+] / "%21" / "%26" /
