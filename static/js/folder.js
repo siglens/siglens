@@ -43,7 +43,7 @@ async function loadFolderContents(response) {
     currentFolderParentId = parentBreadcrumb ? parentBreadcrumb.id : 'root-folder';
 
     const breadcrumb = new Breadcrumb();
-    breadcrumb.render(response.breadcrumbs, response.folder.name, false);
+    breadcrumb.render(response.breadcrumbs, response.folder.name, false, false, false, true);
 }
 
 async function showMoveModal() {
