@@ -88,14 +88,26 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, generateSymmetricTree b
 	cnameCacheByteHashToStr := make(map[uint64]string)
 
 	f := InitTraceFaker(0)
+
+	// height of the tree
 	depth := 7
+	// number of children for each node
 	width := 2
+	// start time for the trace
 	startTime := time.Now().UnixNano()
 	totalDurationOfTrace := int64(time.Millisecond * 100)
+	var probToDropNode float32
+	// generateSymmetricTree = false -> random nodes will be dropped if generated probability >= 0.9
+	if generateSymmetricTree {
+		// 90% chance the node won't be dropped but 10% chance the node will be dropped
+		probToDropNode = 0.1
+	} else {
+		probToDropNode = 0.0
+	}
 	endTime := startTime + totalDurationOfTrace
+
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	traceId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
-	log.Errorf("ProcessSyntheticTraceRequest: %v", traceId)
 	serviceName := f.Faker.Word()
 	spanArray := make([]*map[string]any, 0)
 	levelParent := make(map[int][]string)
@@ -109,11 +121,14 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, generateSymmetricTree b
 	for i := 1; i < depth; i++ {
 		for k := range levelParent[i-1] {
 			for j := 0; j < width; j++ {
-				if f.Faker.Rand.Float32() >= 0.9 && !generateSymmetricTree {
+				if 1-f.Faker.Rand.Float32() <= probToDropNode {
 					continue
 				} else {
 					currSpanId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
-					g, _ := generateSpan(traceId, currSpanId, levelParent[i-1][k], serviceName, f, (*spanArray[i-1])["name"].(string), startTime+int64(time.Millisecond*5), endTime-int64(time.Millisecond*10))
+					// TODO: randomise span start and end time within trace time boundary
+					spanStartTime := startTime + int64(time.Millisecond*5)
+					spanEndTime := endTime - int64(time.Millisecond*10)
+					g, _ := generateSpan(traceId, currSpanId, levelParent[i-1][k], serviceName, f, (*spanArray[i-1])["name"].(string), spanStartTime, spanEndTime)
 					spanArray = append(spanArray, g)
 					if _, ok := levelParent[i]; !ok {
 						levelParent[i] = []string{currSpanId}
