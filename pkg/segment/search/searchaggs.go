@@ -959,6 +959,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("segmentStatsWorker: Failed to extract value for cname %+v", cname), log.ErrorLevel, err)
 					continue
 				}
+				stats.AddSegStatsUNIXTime(localStats, cname, latestTs, cValEnc.CVal, true)
 
 				hasValuesFunc, exists := valuesUsage[cname]
 				if !exists {
@@ -1015,7 +1016,6 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 	blockNum uint16, bri *BlockRecordIterator, lStats map[string]*structs.SegStats, bb *bbp.ByteBuffer, qid uint64, latestTs uint64) map[string]bool {
 	retVal := make(map[string]bool)
 	for colName := range mCols {
-		stats.AddSegStatsUNIXTime(lStats, colName, latestTs, true)
 		if colName == "*" {
 			stats.AddSegStatsCount(lStats, colName, uint64(len(filterdRecNums)))
 			continue
@@ -1041,6 +1041,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 		}
 		for _, cMap := range results {
 			for colName, rawVal := range cMap {
+				stats.AddSegStatsUNIXTime(lStats, colName, latestTs, rawVal, true)
 				colUsage, exists := aggColUsage[colName]
 				if !exists {
 					colUsage = sutils.NoEvalUsage

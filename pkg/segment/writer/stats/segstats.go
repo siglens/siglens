@@ -70,14 +70,21 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc)
 }
 
-func AddSegStatsUNIXTime(segstats map[string]*SegStats, cname string, val uint64, updateLatest bool) {
+func AddSegStatsUNIXTime(segstats map[string]*SegStats, cname string, val uint64, rawValue interface{}, updateLatest bool) {
 	var stats *SegStats
 	var ok bool
 	stats, ok = segstats[cname]
 	if !ok {
 		var latestTs uint64 = 0
+		var isNumeric bool = false
+		switch rawValue.(type) {
+		case string:
+			isNumeric = false
+		case int64, float64:
+			isNumeric = true
+		}
 		stats = &SegStats{
-			IsNumeric: true,
+			IsNumeric: isNumeric,
 			Count:     0,
 			NumStats:  GetDefaultNumStats(),
 			LatestTs:  CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: latestTs},
