@@ -287,6 +287,16 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 			return incomingSegStat, nil
 		}
 		return runningSegStat, nil
+	case sutils.LatestTime:
+		res, err := segread.GetSegLatestTs(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+		if runningSegStat == nil {
+			return incomingSegStat, nil
+		}
+		return runningSegStat, nil
 	case sutils.Range:
 		res, err := segread.GetSegRange(runningSegStat, incomingSegStat)
 		if err != nil {
@@ -547,6 +557,15 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues boo
 		case sutils.SS_DT_STRING:
 			bucketHolder.MeasureVal[mfName] = aggVal.CVal
 		case sutils.SS_DT_STRING_SLICE:
+			strVal, err := aggVal.GetString()
+			if err != nil {
+				log.Errorf("GetSegmentStatsResults: failed to convert string slice to string, qid: %v, err: %v", sr.qid, err)
+				bucketHolder.MeasureVal[mfName] = ""
+			} else {
+				bucketHolder.MeasureVal[mfName] = strVal
+			}
+		case sutils.SS_DT_UNSIGNED_NUM:
+			// if uint is returned then the frontend will add commas to it(humanize it?)
 			strVal, err := aggVal.GetString()
 			if err != nil {
 				log.Errorf("GetSegmentStatsResults: failed to convert string slice to string, qid: %v, err: %v", sr.qid, err)

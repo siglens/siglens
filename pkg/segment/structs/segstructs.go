@@ -543,6 +543,7 @@ type SegStats struct {
 	Hll         *utils.GobbableHll
 	NumStats    *NumericStats
 	StringStats *StringStats
+	LatestTs    sutils.CValueEnclosure
 	Records     []*sutils.CValueEnclosure
 }
 
@@ -1461,8 +1462,8 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.Earliest:     {},
 	sutils.EarliestTime: {},
 	sutils.Latest:       {},
-	sutils.LatestTime:   {},
-	sutils.StatsRate:    {},
+	// sutils.LatestTime:   {},
+	sutils.StatsRate: {},
 }
 
 var unsupportedEvalFuncs = map[string]struct{}{

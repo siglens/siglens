@@ -879,6 +879,10 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 
 		sortedMatchedRecs := make([]uint16, recIT.AllRecLen)
 		idx := 0
+		var latestTs uint64
+		if isBlkFullyEncosed {
+			latestTs = blockSummaries[blockStatus.BlockNum].HighTs
+		}
 		for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 			if !recIT.ShouldProcessRecord(i) {
 				continue
@@ -892,13 +896,17 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 				}
 				if !queryRange.CheckInRange(recTs) {
 					continue
+				} else {
+					if latestTs < recTs {
+						latestTs = recTs
+					}
 				}
 			}
 			sortedMatchedRecs[idx] = uint16(i)
 			idx++
 		}
 		sortedMatchedRecs = sortedMatchedRecs[:idx]
-		nonDeCols := applySegmentStatsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, listUsage, blockStatus.BlockNum, recIT, localStats, bb, qid)
+		nonDeCols := applySegmentStatsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, listUsage, blockStatus.BlockNum, recIT, localStats, bb, qid, latestTs)
 
 		timestampKey := config.GetTimeStampKey()
 		timestampColKeyIdx := -1
@@ -986,14 +994,16 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			}
 		}
 	}
+
 	statRes.MergeSegStats(localStats)
 }
 
 // returns all columns that are not dict encoded
 func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filterdRecNums []uint16, mCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool,
-	blockNum uint16, bri *BlockRecordIterator, lStats map[string]*structs.SegStats, bb *bbp.ByteBuffer, qid uint64) map[string]bool {
+	blockNum uint16, bri *BlockRecordIterator, lStats map[string]*structs.SegStats, bb *bbp.ByteBuffer, qid uint64, latestTs uint64) map[string]bool {
 	retVal := make(map[string]bool)
 	for colName := range mCols {
+		stats.AddSegStatsUNIXTime(lStats, colName, latestTs, true)
 		if colName == "*" {
 			stats.AddSegStatsCount(lStats, colName, uint64(len(filterdRecNums)))
 			continue
