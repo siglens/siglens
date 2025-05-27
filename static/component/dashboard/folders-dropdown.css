@@ -77,7 +77,7 @@
     margin-left: 24px;
 }
 
-.launch-dashboard .popupContent .folder-select-btn {
+.folder-select-btn {
     background-color: var(--drop-down-btn-bg-regular) !important;
     width: 100% !important;
     border: 1px solid var(--border-btn-color) !important;

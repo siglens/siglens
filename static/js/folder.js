@@ -21,8 +21,6 @@ let folderId;
 let currentFolderParentId = null;
 let currentFolderContents = null;
 
-let folderNameEditor = null;
-
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
 
@@ -174,7 +172,7 @@ class FolderNameEditor {
 
         this.display.style.display = 'none';
         this.input.style.display = 'block';
-        this.container.classList.add('editing');
+        this.editIcon.style.display = 'none';
 
         setTimeout(() => {
             this.input.focus();
@@ -188,7 +186,7 @@ class FolderNameEditor {
         this.isEditing = false;
         this.input.style.display = 'none';
         this.display.style.display = 'block';
-        this.container.classList.remove('editing');
+        this.editIcon.style.display = 'block';
     }
 
     handleKeydown(e) {
@@ -287,6 +285,6 @@ function initializeFolderNameEditor(folderName, folderId) {
         `
         );
 
-        folderNameEditor = new FolderNameEditor('folderNameEditor', folderId);
+        new FolderNameEditor('folderNameEditor', folderId);
     }
 }

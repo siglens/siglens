@@ -22,7 +22,6 @@ let localPanels = [],
     dbName,
     dbDescr,
     dbId,
-    dbFolder,
     allResultsDisplayed = 0;
 let panelIndex;
 let isFavorite = false;
@@ -472,7 +471,6 @@ async function getDashboardData() {
 
     dbName = dbData.name;
     dbDescr = dbData.description;
-    dbFolder = dbData.folder.name;
     dbRefresh = dbData.refresh;
     isFavorite = dbData.isFavorite;
     if (dbData.panels != undefined) {
@@ -1032,7 +1030,7 @@ function handleDbSettings() {
 
     $('.dbSet-dbName').val(dbName);
     $('.dbSet-dbDescr').val(dbDescr);
-    $('.dbSet-dbFolder').val(dbFolder);
+    initializeFolderDropdown();
 
     if (isDefaultDashboard) {
         $('.dbSet-dbName').prop('readonly', true);
@@ -1135,6 +1133,20 @@ $('#error-ok-btn').click(function () {
     $('.popupOverlay, .popupContent').removeClass('active');
     $('.error-tip').removeClass('active');
 });
+
+function initializeFolderDropdown() {
+    new FolderDropdown('folder-dropdown-container', {
+        showRoot: true,
+        initialFolder: dbData.folder ? {
+            id: dbData.folder.id,
+            name: dbData.folder.id === 'root-folder' ? 'Dashboards' : dbData.folder.name
+        } : null,
+        onSelect: (selectedFolder) => {
+            dbFolder = selectedFolder.name;
+            dbData.folder = selectedFolder;
+        }
+    });
+}
 
 function discardDbSetting() {
     const currentUrl = new URL(window.location.href);
