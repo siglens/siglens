@@ -20,6 +20,7 @@ package blockresults
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/cespare/xxhash"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
@@ -162,6 +163,13 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 		case sutils.Min:
 			isMin := measureFunc == sutils.Min
 			step, err := rr.AddEvalResultsForMinMax(runningStats, measureResults, i, isMin, fieldToValue)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:MinMax", err)
+			}
+			i += step
+		case sutils.LatestTime:
+			isLatestTime := measureFunc == sutils.LatestTime
+			step, err := rr.AddEvalResultsForMinMax(runningStats, measureResults, i, isLatestTime, fieldToValue)
 			if err != nil {
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:MinMax", err)
 			}
@@ -383,7 +391,14 @@ func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e su
 	if err != nil {
 		return ErrReduceCVal
 	} else {
-		(*runningStats)[i].rawVal = retVal
+		// otherwise the frontend adds commas to the epoch time returned by latest_time
+		if aggFunc != sutils.LatestTime {
+			(*runningStats)[i].rawVal = retVal
+		} else {
+			retVal.Dtype = sutils.SS_DT_STRING
+			retVal.CVal = strconv.FormatUint(retVal.CVal.(uint64), 10)
+			(*runningStats)[i].rawVal = retVal
+		}
 		(*runningStats)[i].number = nil
 	}
 	return nil

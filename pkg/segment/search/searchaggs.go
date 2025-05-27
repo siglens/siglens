@@ -335,7 +335,19 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				retCVal.CVal = nil
 			}
 			for _, idx := range indices {
-				measureResults[idx] = retCVal
+				if grpReq.MeasureOperations[idx].MeasureFunc != sutils.LatestTime {
+					measureResults[idx] = retCVal
+				} else {
+					tsCVal := sutils.CValueEnclosure{}
+					tsErr := multiColReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum, qid, true, &tsCVal)
+					if tsErr != nil {
+						nodeRes.StoreGlobalSearchError(fmt.Sprintf("addRecordToAggregations: Failed to extract timestamp value from colKeyIdx %v", colKeyIdx), log.ErrorLevel, tsErr)
+						tsCVal.Dtype = sutils.SS_DT_BACKFILL
+						tsCVal.CVal = nil
+					}
+
+					measureResults[idx] = tsCVal
+				}
 			}
 		}
 		blockRes.AddMeasureResultsToKey(aggsKeyWorkingBuf[:aggsKeyBufIdx], measureResults,
