@@ -5285,11 +5285,10 @@ AppendCmdOptionsList <- first:AppendCmdOption rest:(SPACE AppendCmdOption)* {
     return appendCmdOptions, nil
 }
 
+Ident <- Identifier
 RateOptions     <- CMD_BY EQUAL (SingleIdentifier / IdentifierList)
-
 IdentifierList  <- LBRACK Ident (COMMA Ident)* RBRACK
 SingleIdentifier<- Ident
-
 RateParens      <- LPAREN ro:RateOptions RPAREN { return ro, nil }
 
 RateBlock       <- PIPE CMD_RATE r:RateParens? {

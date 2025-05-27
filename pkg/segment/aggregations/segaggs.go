@@ -249,64 +249,78 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	return nil
 }
 
-func performRateCommand(nodeResult *structs.NodeResult, rateCmd *structs.RateCommand, recs map[string]map[string]interface{}) (error) {
-    if rateCmd == nil || recs == nil {
-        return fmt.Errorf("performRateCommand: rateCmd or recs is nil")
-    }
+func performRateCommand(nodeResult *structs.NodeResult, rateCmd *structs.RateCommand, recs map[string]map[string]interface{}) error {
+	if rateCmd == nil || recs == nil {
+		return fmt.Errorf("performRateCommand: rateCmd or recs is nil")
+	}
 
-    rateField := rateCmd.ByFields[0]
-    timeField := "timestamp" 
+	if len(rateCmd.ByFields) == 0 {
+		return fmt.Errorf("performRateCommand: ByFields cannot be empty")
+	}
 
-    for _, record := range recs {
-        if _, exists := record[rateField]; !exists {
-            return fmt.Errorf("performRateCommand: field %s does not exist in records", rateField)
-        }
-    }
+	timeField := "timestamp"
+	valueField := rateCmd.ByFields[len(rateCmd.ByFields)-1]
+	groupByFields := rateCmd.ByFields[:len(rateCmd.ByFields)-1] // assuming last field is the value field
 
-    sortedKeys := make([]string, 0, len(recs))
-    for key := range recs {
-        sortedKeys = append(sortedKeys, key)
-    }
-    sort.Slice(sortedKeys, func(i, j int) bool {
-        return recs[sortedKeys[i]][timeField].(uint64) < recs[sortedKeys[j]][timeField].(uint64)
-    })
+	groups := make(map[string][]string)
+	for key, record := range recs {
+		groupKey := ""
+		for _, field := range groupByFields {
+			val, ok := record[field]
+			if !ok {
+				return fmt.Errorf("performRateCommand: group field %s missing in record %s", field, key)
+			}
+			groupKey += fmt.Sprintf("%v|", val)
+		}
+		groups[groupKey] = append(groups[groupKey], key)
+	}
 
-    var prevValue float64
-    var prevTimestamp uint64
-    firstRecord := true
+	for _, keys := range groups {
+		sort.Slice(keys, func(i, j int) bool {
+			return recs[keys[i]][timeField].(uint64) < recs[keys[j]][timeField].(uint64)
+		})
 
-    for _, key := range sortedKeys {
-        record := recs[key]
+		var prevValue float64
+		var prevTimestamp uint64
+		firstRecord := true
 
-        currentValue, err := dtypeutils.ConvertToFloat(record[rateField], 64)
-        if err != nil {
-            return fmt.Errorf("performRateCommand: failed to convert %s to float: %v", rateField, err)
-        }
-        currentTimestamp := record[timeField].(uint64)
+		for _, key := range keys {
+			record := recs[key]
 
-        if firstRecord {
-            firstRecord = false
-            prevValue = currentValue
-            prevTimestamp = currentTimestamp
-            record["rate_"+rateField] = nil 
-            continue
-        }
+			currentValue, err := dtypeutils.ConvertToFloat(record[valueField], 64)
+			if err != nil {
+				record["rate_"+valueField] = nil
+				continue
+			}
+			currentTimestamp, ok := record[timeField].(uint64)
+			if !ok {
+				record["rate_"+valueField] = nil
+				continue
+			}
 
-        timeDiff := float64(currentTimestamp - prevTimestamp)
-        if timeDiff == 0 {
-            record["rate_"+rateField] = nil 
-        } else {
-            rate := (currentValue - prevValue) / timeDiff
-            record["rate_"+rateField] = rate
-        }
+			if firstRecord {
+				firstRecord = false
+				prevValue = currentValue
+				prevTimestamp = currentTimestamp
+				record["rate_"+valueField] = nil
+				continue
+			}
 
-        prevValue = currentValue
-        prevTimestamp = currentTimestamp
-    }
+			timeDiff := float64(currentTimestamp - prevTimestamp)
+			if timeDiff == 0 || currentValue < prevValue {
+				record["rate_"+valueField] = nil
+			} else {
+				rate := (currentValue - prevValue) / timeDiff
+				record["rate_"+valueField] = rate
+			}
 
-    return nil
+			prevValue = currentValue
+			prevTimestamp = currentTimestamp
+		}
+	}
+
+	return nil
 }
-
 
 func GetOrderedRecs(recs map[string]map[string]interface{}, recordIndexInFinal map[string]int) ([]string, error) {
 	currentOrder := make([]string, len(recs))
