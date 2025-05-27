@@ -386,6 +386,74 @@ function updateDatePickerAndUrl(startEpoch, endEpoch) {
     window.history.pushState({ path: myUrl }, '', myUrl);
 }
 
+function setupDoubleClickListener(canvas) {
+    const handleDoubleClick = () => {
+        if (HistogramState.currentHistogram) {
+            const xScale = HistogramState.currentHistogram.scales.x;
+            const isZoomed = Math.abs(xScale.min - HistogramState.lastSearchStartTime) > 1000 ||
+                            Math.abs(xScale.max - HistogramState.lastSearchEndTime) > 1000;
+            if (isZoomed) {
+                HistogramState.isResetting = true;
+                HistogramState.currentHistogram.resetZoom();
+                triggerZoomSearch(HistogramState.lastSearchStartTime, HistogramState.lastSearchEndTime, false);
+                HistogramState.isResetting = false;
+                const helper = document.querySelector('.zoom-helper');
+                if (helper) {
+                    helper.textContent = 'Drag to zoom and Double-click to reset zoom';
+                }
+            }
+        }
+    };
+
+    canvas.removeEventListener('dblclick', handleDoubleClick);
+    canvas.addEventListener('dblclick', handleDoubleClick);
+}
+
+function setupResizeListeners(histoContainer) {
+    const resizeHandle = histoContainer.find('.resize-handle')[0];
+    let isResizing = false;
+
+    const handleMouseMove = (e) => {
+        if (!isResizing) return;
+        
+        const container = histoContainer[0];
+        const newHeight = e.clientY - container.getBoundingClientRect().top;
+        const minHeight = 100;
+        const maxHeight = Math.floor(window.innerHeight * 0.5);
+
+        if (newHeight >= minHeight && newHeight <= maxHeight) {
+            container.style.height = `${newHeight}px`;
+            container.style.setProperty('--histogram-height', `${newHeight}px`);
+            HistogramState.currentHeight = newHeight;
+            
+            if (HistogramState.currentHistogram) {
+                HistogramState.currentHistogram.resize();
+            }
+        }
+    };
+
+    const handleMouseUp = () => {
+        if (isResizing) {
+            isResizing = false;
+            resizeHandle.classList.remove('active');
+        }
+    };
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        resizeHandle.classList.add('active');
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    HistogramState.cleanupResize = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+    };
+}
+
 function renderHistogram(timechartData) {
     const histoContainer = $('#histogram-container');
 
@@ -566,29 +634,7 @@ function renderHistogram(timechartData) {
         }
     });
 
-    const handleDoubleClick = () => {
-        if (HistogramState.currentHistogram) {
-            const xScale = HistogramState.currentHistogram.scales.x;
-            const isZoomed = Math.abs(xScale.min - HistogramState.lastSearchStartTime) > 1000 ||
-                            Math.abs(xScale.max - HistogramState.lastSearchEndTime) > 1000;
-            if (isZoomed) {
-                HistogramState.isResetting = true;
-                HistogramState.currentHistogram.resetZoom();
-                triggerZoomSearch(HistogramState.lastSearchStartTime, HistogramState.lastSearchEndTime, false);
-                HistogramState.isResetting = false;
-                const helper = document.querySelector('.zoom-helper');
-                if (helper) {
-                    helper.textContent = 'Drag to zoom and Double-click to reset zoom';
-                }
-            }
-        }
-    };
 
-    canvas.removeEventListener('dblclick', handleDoubleClick);
-    canvas.addEventListener('dblclick', handleDoubleClick);
-
-    const resizeHandle = histoContainer.find('.resize-handle')[0];
-    let isResizing = false;
 
     if (!HistogramState.currentHeight) {
         const currentHeightPx = histoContainer.css('height');
@@ -604,46 +650,8 @@ function renderHistogram(timechartData) {
         '--histogram-height': `${HistogramState.currentHeight}px`
     });
 
-    resizeHandle.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        resizeHandle.classList.add('active');
-        e.preventDefault();
-    });
-
-    const handleMouseMove = (e) => {
-        if (!isResizing) return;
-        
-        const container = histoContainer[0];
-        const newHeight = e.clientY - container.getBoundingClientRect().top;
-        const minHeight = 100;
-        const maxHeight = Math.floor(window.innerHeight * 0.5);
-
-        if (newHeight >= minHeight && newHeight <= maxHeight) {
-            container.style.height = `${newHeight}px`;
-            container.style.setProperty('--histogram-height', `${newHeight}px`);
-            HistogramState.currentHeight = newHeight;
-            
-            if (HistogramState.currentHistogram) {
-                HistogramState.currentHistogram.resize();
-            }
-        }
-    };
-
-    const handleMouseUp = () => {
-        if (isResizing) {
-            isResizing = false;
-            resizeHandle.classList.remove('active');
-        }
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    HistogramState.cleanupResize = () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-    };
-
+    setupDoubleClickListener(canvas);
+    setupResizeListeners(histoContainer);
     addZoomHelper();
 }
 
