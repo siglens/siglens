@@ -27,7 +27,6 @@ import (
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -210,7 +209,7 @@ func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 				return true, nil
 			}
 
-			return false, toputils.TeeErrorf("filterOpOnDataType: invalid string operator: %v", fop)
+			return false, utils.TeeErrorf("filterOpOnDataType: invalid string operator: %v", fop)
 		}
 
 		if rec[0] != VALTYPE_ENC_SMALL_STRING[0] {
@@ -230,11 +229,11 @@ func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 				return true, nil
 			}
 
-			return false, toputils.TeeErrorf("filterOpOnDataType: invalid bool operator: %v", fop)
+			return false, utils.TeeErrorf("filterOpOnDataType: invalid bool operator: %v", fop)
 		}
 
 		if rec[0] != VALTYPE_ENC_BOOL[0] {
-			return false, toputils.TeeErrorf("filterOpOnDataType: expected bool encoding; got %v", rec[0])
+			return false, utils.TeeErrorf("filterOpOnDataType: expected bool encoding; got %v", rec[0])
 		}
 
 		return fopOnBool(rec, qValDte, fop)
@@ -292,7 +291,7 @@ func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 
 	const sOff int = 3
 	if len(rec) < sOff {
-		return false, toputils.TeeErrorf("fopOnString: invalid rec: %v", rec)
+		return false, utils.TeeErrorf("fopOnString: invalid rec: %v", rec)
 	}
 
 	switch fop {
@@ -318,7 +317,7 @@ func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 		}
 		return !utils.PerformBytesEqualityCheck(isCaseInsensitive, rec[sOff:], qValDte.StringValBytes), nil
 	default:
-		return false, toputils.TeeErrorf("fopOnString: invalid operator: %v", fop)
+		return false, utils.TeeErrorf("fopOnString: invalid operator: %v", fop)
 	}
 }
 
@@ -330,7 +329,7 @@ func fopOnBool(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator) (bool, e
 	case NotEquals:
 		return rec[1] != qValDte.BoolVal, nil
 	default:
-		return false, toputils.TeeErrorf("fopOnBool: invalid operator: %v", fop)
+		return false, utils.TeeErrorf("fopOnBool: invalid operator: %v", fop)
 	}
 }
 

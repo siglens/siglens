@@ -25,7 +25,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -52,7 +52,7 @@ type BlockSearchStatus struct {
 
 type BlockRecordIterator struct {
 	firstSearch bool // bool if first iterator
-	op          utils.LogicalOperator
+	op          sutils.LogicalOperator
 	AllRecords  *pqmr.PQMatchResults // allrecords in block
 	AllRecLen   uint16
 }
@@ -67,7 +67,8 @@ func init() {
 // Inits blocks & records to search based on input blkSum and tRange.
 // We will generously raw search all records in a block with a HighTS and LowTs inside tRange
 // It is up to the caller to call .Close()
-func InitBlocksToSearch(searchReq *structs.SegmentSearchRequest, blkSum []*structs.BlockSummary, allSearchResults *segresults.SearchResults, tRange *dtu.TimeRange) *SegmentSearchStatus {
+func InitBlocksToSearch(searchReq *structs.SegmentSearchRequest, blkSum []*structs.BlockSummary,
+	allSearchResults *segresults.SearchResults, tRange *dtu.TimeRange) *SegmentSearchStatus {
 
 	allBlocks := make(map[uint16]*BlockSearchStatus, len(blkSum))
 
@@ -95,9 +96,10 @@ func InitBlocksToSearch(searchReq *structs.SegmentSearchRequest, blkSum []*struc
 					passedRecs.AddMatchedRecord(j)
 				}
 			} else {
-				for j := uint(bSum.RecCount); j < PQMR_INITIAL_SIZE; j++ {
-					passedRecs.ClearBit(j)
-				}
+				// Clear the bits from RecCount to PQMR_INITIAL_SIZE. Above, we
+				// cloned the bits from pqmrAllMatchedConst, which are all set
+				// to 1. So we can flip them to 0.
+				passedRecs.FlipRange(uint(bSum.RecCount), PQMR_INITIAL_SIZE)
 			}
 
 			allBlocks[currBlk] = &BlockSearchStatus{
@@ -143,7 +145,7 @@ func (sss *SegmentSearchStatus) Close() {
 // if op == And return allMatchedRecords
 // if op == Exclusion return allMatchedRecords
 // if this is the first call, then return allMatchedRecords regardless (will be time filtered)
-func (sss *SegmentSearchStatus) GetRecordIteratorForBlock(op utils.LogicalOperator, blkNum uint16) (*BlockRecordIterator, error) {
+func (sss *SegmentSearchStatus) GetRecordIteratorForBlock(op sutils.LogicalOperator, blkNum uint16) (*BlockRecordIterator, error) {
 
 	blkStatus, ok := sss.AllBlockStatus[blkNum]
 	if !ok {
@@ -154,7 +156,7 @@ func (sss *SegmentSearchStatus) GetRecordIteratorForBlock(op utils.LogicalOperat
 	return blkStatus.GetRecordIteratorForBlock(op)
 }
 
-func (sss *SegmentSearchStatus) updateMatchedRecords(blkNum uint16, matchedRecs *pqmr.PQMatchResults, op utils.LogicalOperator) error {
+func (sss *SegmentSearchStatus) updateMatchedRecords(blkNum uint16, matchedRecs *pqmr.PQMatchResults, op sutils.LogicalOperator) error {
 
 	blkStatus, ok := sss.AllBlockStatus[blkNum]
 	if !ok {
@@ -162,11 +164,11 @@ func (sss *SegmentSearchStatus) updateMatchedRecords(blkNum uint16, matchedRecs 
 		return errors.New("block does not exist in sss.allBlockStatus")
 	}
 	switch op {
-	case utils.And:
+	case sutils.And:
 		// new blkRecs.allMatchedRecords ==  intersection of matchedRecs and blkRecs.allMatchedRecords
 		// for elements removed from blkRecs.allMatchedRecords, add to blkRecs.allUnmatchedRecords
 		blkStatus.intersectMatchedRecords(matchedRecs)
-	case utils.Or:
+	case sutils.Or:
 		// add all new recordNums to  sss.allBlockStatus.allMatchedRecords
 		// for newly added recordNums, remove it from sss.allBlockStatus.allUnmatchedRecords
 		if blkStatus.firstSearch {
@@ -174,7 +176,7 @@ func (sss *SegmentSearchStatus) updateMatchedRecords(blkNum uint16, matchedRecs 
 		} else {
 			blkStatus.unionMatchedRecords(matchedRecs)
 		}
-	case utils.Exclusion:
+	case sutils.Exclusion:
 		// remove all recIdx from blkRecs.allMatchedRecords that exist in matchedRecs
 		// for removed elements from blkRecs.allMatchedRecords, add to blkRecs.allUnmatchedRecord
 		blkStatus.excludeMatchedRecords(matchedRecs)
@@ -217,7 +219,7 @@ func (bss *BlockSearchStatus) excludeMatchedRecords(matchedRecs *pqmr.PQMatchRes
 	bss.blockLock.Unlock()
 }
 
-func (bss *BlockSearchStatus) GetRecordIteratorForBlock(op utils.LogicalOperator) (*BlockRecordIterator, error) {
+func (bss *BlockSearchStatus) GetRecordIteratorForBlock(op sutils.LogicalOperator) (*BlockRecordIterator, error) {
 	return &BlockRecordIterator{
 		firstSearch: bss.firstSearch,
 		op:          op,
@@ -227,7 +229,7 @@ func (bss *BlockSearchStatus) GetRecordIteratorForBlock(op utils.LogicalOperator
 }
 
 // returns a copy of the block iterator. This should be called in during time range filtering to avoid PQMR backfilling time filtered records
-func (bss *BlockSearchStatus) GetRecordIteratorCopyForBlock(op utils.LogicalOperator) (*BlockRecordIterator, error) {
+func (bss *BlockSearchStatus) GetRecordIteratorCopyForBlock(op sutils.LogicalOperator) (*BlockRecordIterator, error) {
 	return &BlockRecordIterator{
 		firstSearch: bss.firstSearch,
 		op:          op,
@@ -240,11 +242,11 @@ func (bss *BlockRecordIterator) ShouldProcessRecord(idx uint) bool {
 	if idx >= uint(bss.AllRecLen) {
 		return false
 	}
-	if bss.firstSearch || bss.op == utils.And || bss.op == utils.Exclusion {
+	if bss.firstSearch || bss.op == sutils.And || bss.op == sutils.Exclusion {
 		if bss.AllRecords.DoesRecordMatch(idx) {
 			return true
 		}
-	} else if bss.op == utils.Or {
+	} else if bss.op == sutils.Or {
 		if !bss.AllRecords.DoesRecordMatch(idx) {
 			return true
 		}
@@ -302,7 +304,7 @@ func (sss *SegmentSearchStatus) getTotalCountsFastPath() uint64 {
 func InitIteratorFromPQMR(pqmr *pqmr.PQMatchResults, nRecs uint) *BlockRecordIterator {
 	return &BlockRecordIterator{
 		firstSearch: true,
-		op:          utils.And,
+		op:          sutils.And,
 		AllRecords:  pqmr,
 		AllRecLen:   uint16(nRecs),
 	}

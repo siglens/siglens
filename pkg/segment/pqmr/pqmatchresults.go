@@ -25,7 +25,7 @@ import (
 	"sync"
 
 	"github.com/bits-and-blooms/bitset"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -65,6 +65,10 @@ func (pqmr *PQMatchResults) DoesRecordMatch(recNum uint) bool {
 
 func (pqmr *PQMatchResults) ClearBit(recNum uint) {
 	pqmr.b.Clear(recNum)
+}
+
+func (pqmr *PQMatchResults) FlipRange(start, end uint) {
+	pqmr.b.FlipRange(start, end)
 }
 
 func (pqmr *PQMatchResults) ResetAll() {
@@ -237,7 +241,7 @@ func ReadPqmr(fname *string) (*SegmentPQMRResults, error) {
 
 	res := make(map[uint16]*PQMatchResults)
 	// todo pass the pre-alloced bsBlk so that we can reuse it, divide by 8 because one record takes 1 bit
-	bsBlk := make([]byte, segutils.WIP_NUM_RECS/8)
+	bsBlk := make([]byte, sutils.WIP_NUM_RECS/8)
 
 	fd, err := os.OpenFile(*fname, os.O_RDONLY, 0644)
 	if err != nil {
@@ -246,8 +250,8 @@ func ReadPqmr(fname *string) (*SegmentPQMRResults, error) {
 	}
 	defer fd.Close()
 
-	bbBlkNum := make([]byte, segutils.LEN_BLKNUM_CMI_SIZE) // blkNum (2)
-	bbBlkSize := make([]byte, segutils.LEN_PQMR_BLK_SIZE)
+	bbBlkNum := make([]byte, sutils.LEN_BLKNUM_CMI_SIZE) // blkNum (2)
+	bbBlkSize := make([]byte, sutils.LEN_PQMR_BLK_SIZE)
 	offset := int64(0)
 	var blkNum, bsSize uint16
 
@@ -260,7 +264,7 @@ func ReadPqmr(fname *string) (*SegmentPQMRResults, error) {
 			}
 			break
 		}
-		offset += segutils.LEN_BLKNUM_CMI_SIZE
+		offset += sutils.LEN_BLKNUM_CMI_SIZE
 		blkNum = utils.BytesToUint16LittleEndian(bbBlkNum[:])
 
 		_, err = fd.ReadAt(bbBlkSize, offset)
@@ -271,7 +275,7 @@ func ReadPqmr(fname *string) (*SegmentPQMRResults, error) {
 			}
 			break
 		}
-		offset += segutils.LEN_PQMR_BLK_SIZE
+		offset += sutils.LEN_PQMR_BLK_SIZE
 		bsSize = utils.BytesToUint16LittleEndian(bbBlkSize[:])
 
 		bsBlk = utils.ResizeSlice(bsBlk, int(bsSize))

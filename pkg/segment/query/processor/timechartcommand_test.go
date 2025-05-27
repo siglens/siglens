@@ -26,38 +26,38 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-func getTestInput(timeNow uint64) map[string][]utils.CValueEnclosure {
+func getTestInput(timeNow uint64) map[string][]sutils.CValueEnclosure {
 	minute := uint64(time.Minute.Milliseconds())
 	secondsIncrement := uint64(10 * time.Second.Milliseconds()) // 10 seconds
 
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]sutils.CValueEnclosure{
 		"timestamp": {
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: timeNow},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + secondsIncrement)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + 2*secondsIncrement)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + minute)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + minute + secondsIncrement)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + 2*minute)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: timeNow},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + secondsIncrement)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + 2*secondsIncrement)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + minute)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + minute + secondsIncrement)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: (timeNow + 2*minute)},
 		},
 		"measurecol": {
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+			{Dtype: sutils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
 		},
 		"groupbycol": {
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: sutils.SS_DT_STRING, CVal: "b"},
 		},
 	}
 
@@ -75,7 +75,7 @@ func getTimechartProcessor(startTime uint64) *timechartProcessor {
 		MeasureOperations: []*structs.MeasureAggregator{
 			{
 				MeasureCol:  "measurecol",
-				MeasureFunc: utils.Sum,
+				MeasureFunc: sutils.Sum,
 				StrEnc:      "sum_measurecol",
 			},
 		},
@@ -122,15 +122,16 @@ func Test_TimechartProcessor_NoByField(t *testing.T) {
 	assert.NotNil(t, iqr1)
 
 	resultValues, err := iqr1.ReadAllColumns()
+	t.Logf("resultValues: %+v", resultValues)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(resultValues["timestamp"]))
 	assert.Equal(t, 3, len(resultValues["sum_measurecol"]))
 	assert.Equal(t, startTime, resultValues["timestamp"][0].CVal)
 	assert.Equal(t, startTime+uint64(time.Minute.Milliseconds()), resultValues["timestamp"][1].CVal)
 	assert.Equal(t, startTime+2*uint64(time.Minute.Milliseconds()), resultValues["timestamp"][2].CVal)
-	assert.Equal(t, uint64(6), resultValues["sum_measurecol"][0].CVal)
-	assert.Equal(t, uint64(9), resultValues["sum_measurecol"][1].CVal)
-	assert.Equal(t, uint64(6), resultValues["sum_measurecol"][2].CVal)
+	assert.Equal(t, int64(6), resultValues["sum_measurecol"][0].CVal)
+	assert.Equal(t, int64(9), resultValues["sum_measurecol"][1].CVal)
+	assert.Equal(t, int64(6), resultValues["sum_measurecol"][2].CVal)
 }
 
 func Test_TimechartProcessor_WithByField(t *testing.T) {
@@ -164,15 +165,15 @@ func Test_TimechartProcessor_WithByField(t *testing.T) {
 	assert.Equal(t, startTime+uint64(time.Minute.Milliseconds()), resultValues["timestamp"][1].CVal)
 	assert.Equal(t, startTime+2*uint64(time.Minute.Milliseconds()), resultValues["timestamp"][2].CVal)
 
-	assert.Equal(t, uint64(4), resultValues["sum_measurecol: a"][0].CVal)
+	assert.Equal(t, int64(4), resultValues["sum_measurecol: a"][0].CVal)
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: a"][1].CVal)
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: a"][2].CVal)
 
-	assert.Equal(t, uint64(2), resultValues["sum_measurecol: b"][0].CVal)
+	assert.Equal(t, int64(2), resultValues["sum_measurecol: b"][0].CVal)
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: b"][1].CVal)
-	assert.Equal(t, uint64(6), resultValues["sum_measurecol: b"][2].CVal)
+	assert.Equal(t, int64(6), resultValues["sum_measurecol: b"][2].CVal)
 
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: c"][0].CVal)
-	assert.Equal(t, uint64(9), resultValues["sum_measurecol: c"][1].CVal)
+	assert.Equal(t, int64(9), resultValues["sum_measurecol: c"][1].CVal)
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: c"][2].CVal)
 }

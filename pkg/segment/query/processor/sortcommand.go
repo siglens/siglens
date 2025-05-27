@@ -25,7 +25,7 @@ import (
 	dtypeutils "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -140,11 +140,11 @@ func compareString(a, b string) compare {
 	return GREATER
 }
 
-func getRank(CValEnc *segutils.CValueEnclosure, op string) dTypeRank {
+func getRank(CValEnc *sutils.CValueEnclosure, op string) dTypeRank {
 	switch CValEnc.Dtype {
-	case segutils.SS_DT_BACKFILL, segutils.SS_INVALID:
+	case sutils.SS_DT_BACKFILL, sutils.SS_INVALID:
 		return RANK_OTHER
-	case segutils.SS_DT_SIGNED_NUM, segutils.SS_DT_UNSIGNED_NUM, segutils.SS_DT_FLOAT:
+	case sutils.SS_DT_SIGNED_NUM, sutils.SS_DT_UNSIGNED_NUM, sutils.SS_DT_FLOAT:
 		switch op {
 		case "num", "auto", "":
 			return RANK_NUMERIC
@@ -153,7 +153,7 @@ func getRank(CValEnc *segutils.CValueEnclosure, op string) dTypeRank {
 		default:
 			return RANK_NUMERIC
 		}
-	case segutils.SS_DT_STRING:
+	case sutils.SS_DT_STRING:
 		switch op {
 		case "num", "auto", "":
 			strVal := CValEnc.CVal.(string)
@@ -180,7 +180,7 @@ func getRank(CValEnc *segutils.CValueEnclosure, op string) dTypeRank {
 }
 
 // Returns A comparison B
-func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool, op string) compare {
+func compareValues(valueA, valueB *sutils.CValueEnclosure, asc bool, op string) compare {
 	var result compare
 	rankA := getRank(valueA, op)
 	rankB := getRank(valueB, op)

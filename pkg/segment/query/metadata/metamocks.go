@@ -29,7 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -177,8 +177,8 @@ func writeMockBlockBloom(file string, blockBlooms []*bloom.BloomFilter) {
 			return
 		}
 
-		bytesWritten += segutils.LEN_BLKNUM_CMI_SIZE // for blkNum
-		bytesWritten += 1                            // reserve for CMI type
+		bytesWritten += sutils.LEN_BLKNUM_CMI_SIZE // for blkNum
+		bytesWritten += 1                          // reserve for CMI type
 
 		if _, err = bffd.Write(utils.Uint32ToBytesLittleEndian(uint32(bytesWritten))); err != nil {
 			log.Errorf("writeMockBlockBloom: bloomsize write failed fname=%v, err=%v", file, err)
@@ -192,7 +192,7 @@ func writeMockBlockBloom(file string, blockBlooms []*bloom.BloomFilter) {
 		}
 
 		// write CMI type
-		if _, err = bffd.Write(segutils.CMI_BLOOM_INDEX); err != nil {
+		if _, err = bffd.Write(sutils.CMI_BLOOM_INDEX); err != nil {
 			log.Errorf("writeMockBlockBloom: CMI Type write failed fname=%v, err=%v", file, err)
 			return
 		}

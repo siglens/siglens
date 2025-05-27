@@ -36,7 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -202,7 +202,7 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 
 	queryStruct, ok := res.(ast.QueryStruct)
 	if !ok {
-		return nil, nil, []string{}, toputils.TeeErrorf("qid=%d, parsePipeSearch: expected QueryStruct, got %T", qid, res)
+		return nil, nil, []string{}, utils.TeeErrorf("qid=%d, parsePipeSearch: expected QueryStruct, got %T", qid, res)
 	}
 
 	searchNode := queryStruct.SearchFilter
@@ -224,15 +224,9 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		return boolNode, nil, queryStruct.IndexNames, nil
 	}
 
-	pipeCommands, err := searchPipeCommandsToASTnode(aggs, qid)
-	if err != nil {
-		log.Errorf("qid=%d, parsePipeSearch: searchPipeCommandsToASTnode error: %v", qid, err)
-		return nil, nil, []string{}, err
-	}
+	updatePositionForGenEvents(aggs)
 
-	updatePositionForGenEvents(pipeCommands)
-
-	return boolNode, pipeCommands, queryStruct.IndexNames, nil
+	return boolNode, aggs, queryStruct.IndexNames, nil
 }
 
 func optimizeQuery(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {
@@ -432,271 +426,6 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, forceCa
 		return errors.New("SearchQueryToASTnode: node type not supported")
 	}
 	return err
-}
-
-func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggregators, error) {
-	if config.IsNewQueryPipelineEnabled() {
-		return node, nil
-	}
-	var err error
-	var pipeCommands *QueryAggregators
-	//todo return array of queryaggs
-	if node == nil {
-		log.Errorf("qid=%d, searchPipeCommandsToASTnode: search pipe command node can not be nil %v", qid, node)
-		return nil, errors.New("searchPipeCommandsToASTnode: search pipe command node is nil ")
-	}
-	switch node.PipeCommandType {
-	case GenerateEventType:
-		pipeCommands, err = parseGenerateCmd(node.GenerateEvent, qid)
-		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseGenerateCmd error: %v", qid, err)
-			return nil, err
-		}
-	case OutputTransformType:
-		pipeCommands, err = parseColumnsCmd(node.OutputTransforms, qid)
-		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseColumnsCmd error: %v", qid, err)
-			return nil, err
-		}
-	case MeasureAggsType:
-		pipeCommands, err = parseSegLevelStats(node.MeasureOperations, qid)
-		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseSegLevelStats error: %v", qid, err)
-			return nil, err
-		}
-	case GroupByType:
-		pipeCommands, err = parseGroupBySegLevelStats(node.GroupByRequest, node.BucketLimit, qid)
-		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseGroupBySegLevelStats error: %v", qid, err)
-			return nil, err
-		}
-		pipeCommands.TimeHistogram = node.TimeHistogram
-	case TransactionType:
-		pipeCommands, err = parseTransactionRequest(node.TransactionArguments, qid)
-		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseTransactionRequest error: %v", qid, err)
-			return nil, err
-		}
-	case VectorArithmeticExprType:
-		pipeCommands = &structs.QueryAggregators{
-			EarlyExit:            true,
-			PipeCommandType:      VectorArithmeticExprType,
-			VectorArithmeticExpr: node.VectorArithmeticExpr,
-		}
-	default:
-		log.Errorf("searchPipeCommandsToASTnode: node type %d not supported", node.PipeCommandType)
-		return nil, errors.New("searchPipeCommandsToASTnode: node type not supported")
-	}
-	pipeCommands.StatsOptions = node.StatsOptions
-	pipeCommands.StreamStatsOptions = node.StreamStatsOptions
-	if node.Next != nil {
-		pipeCommands.Next, err = searchPipeCommandsToASTnode(node.Next, qid)
-
-		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode: failed to parse child node: %v", qid, node.Next)
-			return nil, err
-		}
-	}
-
-	return pipeCommands, nil
-}
-
-func parseGroupBySegLevelStats(node *structs.GroupByRequest, bucketLimit int, qid uint64) (*QueryAggregators, error) {
-	aggNode := &QueryAggregators{}
-	aggNode.PipeCommandType = GroupByType
-	aggNode.GroupByRequest = &structs.GroupByRequest{}
-	aggNode.GroupByRequest.MeasureOperations = make([]*structs.MeasureAggregator, 0)
-	aggNode.BucketLimit = bucketLimit
-	for _, parsedMeasureAgg := range node.MeasureOperations {
-		var tempMeasureAgg = &MeasureAggregator{}
-		tempMeasureAgg.MeasureCol = parsedMeasureAgg.MeasureCol
-		tempMeasureAgg.MeasureFunc = parsedMeasureAgg.MeasureFunc
-		tempMeasureAgg.ValueColRequest = parsedMeasureAgg.ValueColRequest
-		tempMeasureAgg.StrEnc = parsedMeasureAgg.StrEnc
-		tempMeasureAgg.Param = parsedMeasureAgg.Param
-		aggNode.GroupByRequest.MeasureOperations = append(aggNode.GroupByRequest.MeasureOperations, tempMeasureAgg)
-	}
-	if node.GroupByColumns != nil {
-		aggNode.GroupByRequest.GroupByColumns = node.GroupByColumns
-	}
-	aggNode.EarlyExit = false
-	return aggNode, nil
-}
-
-func parseSegLevelStats(node []*structs.MeasureAggregator, qid uint64) (*QueryAggregators, error) {
-	aggNode := &QueryAggregators{}
-	aggNode.PipeCommandType = MeasureAggsType
-	aggNode.MeasureOperations = make([]*structs.MeasureAggregator, 0)
-	for _, parsedMeasureAgg := range node {
-		var tempMeasureAgg = &MeasureAggregator{}
-		tempMeasureAgg.MeasureCol = parsedMeasureAgg.MeasureCol
-		tempMeasureAgg.MeasureFunc = parsedMeasureAgg.MeasureFunc
-		tempMeasureAgg.ValueColRequest = parsedMeasureAgg.ValueColRequest
-		tempMeasureAgg.StrEnc = parsedMeasureAgg.StrEnc
-		tempMeasureAgg.Param = parsedMeasureAgg.Param
-		aggNode.MeasureOperations = append(aggNode.MeasureOperations, tempMeasureAgg)
-	}
-	return aggNode, nil
-}
-
-func parseGenerateCmd(node *structs.GenerateEvent, qid uint64) (*QueryAggregators, error) {
-	aggNode := &QueryAggregators{}
-	aggNode.PipeCommandType = GenerateEventType
-	aggNode.GenerateEvent = &GenerateEvent{}
-	if node == nil {
-		return aggNode, nil
-	}
-	if node.GenTimes != nil {
-		aggNode.GenerateEvent.GenTimes = node.GenTimes
-	}
-	if node.InputLookup != nil {
-		aggNode.GenerateEvent.InputLookup = node.InputLookup
-	}
-
-	return aggNode, nil
-}
-
-func parseTransactionRequest(node *structs.TransactionArguments, qid uint64) (*QueryAggregators, error) {
-	aggNode := &QueryAggregators{}
-	aggNode.PipeCommandType = TransactionType
-	aggNode.TransactionArguments = &TransactionArguments{}
-	aggNode.TransactionArguments.Fields = node.Fields
-	aggNode.TransactionArguments.StartsWith = node.StartsWith
-	aggNode.TransactionArguments.EndsWith = node.EndsWith
-
-	if node.StartsWith != nil {
-		if node.StartsWith.SearchNode != nil {
-			boolNode := &ASTNode{}
-			err := SearchQueryToASTnode(node.StartsWith.SearchNode.(*ast.Node), boolNode, qid, true)
-			if err != nil {
-				log.Errorf("qid=%d, parseTransactionRequest: SearchQueryToASTnode error for StartsWith, err: %v", qid, err)
-				return nil, err
-			}
-			aggNode.TransactionArguments.StartsWith.SearchNode = boolNode
-		}
-	}
-
-	if node.EndsWith != nil {
-		if node.EndsWith.SearchNode != nil {
-			boolNode := &ASTNode{}
-			err := SearchQueryToASTnode(node.EndsWith.SearchNode.(*ast.Node), boolNode, qid, true)
-			if err != nil {
-				log.Errorf("qid=%d, parseTransactionRequest: SearchQueryToASTnode error for EndsWith, err: %v", qid, err)
-				return nil, err
-			}
-			aggNode.TransactionArguments.EndsWith.SearchNode = boolNode
-		}
-	}
-	aggNode.EarlyExit = false
-	return aggNode, nil
-}
-
-func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregators, error) {
-	aggNode := &QueryAggregators{}
-	aggNode.PipeCommandType = OutputTransformType
-	aggNode.OutputTransforms = &OutputTransforms{}
-	if node == nil {
-		return aggNode, nil
-	}
-	if node.OutputColumns != nil {
-		if node.OutputColumns.IncludeColumns != nil {
-			aggNode.OutputTransforms.OutputColumns = &ColumnsRequest{}
-			aggNode.OutputTransforms.OutputColumns.IncludeColumns = append(aggNode.OutputTransforms.OutputColumns.IncludeColumns, node.OutputColumns.IncludeColumns...)
-		}
-		if node.OutputColumns.ExcludeColumns != nil {
-			aggNode.OutputTransforms.OutputColumns = &ColumnsRequest{}
-			aggNode.OutputTransforms.OutputColumns.ExcludeColumns = append(aggNode.OutputTransforms.OutputColumns.ExcludeColumns, node.OutputColumns.ExcludeColumns...)
-		}
-		if node.OutputColumns.RenameColumns != nil {
-			if aggNode.OutputTransforms.OutputColumns == nil {
-				aggNode.OutputTransforms.OutputColumns = &ColumnsRequest{}
-			}
-			aggNode.OutputTransforms.OutputColumns.RenameColumns = make(map[string]string)
-			for k, v := range node.OutputColumns.RenameColumns {
-				aggNode.OutputTransforms.OutputColumns.RenameColumns[k] = v
-			}
-		}
-		if node.OutputColumns.RenameAggregationColumns != nil {
-			if aggNode.OutputTransforms.OutputColumns == nil {
-				aggNode.OutputTransforms.OutputColumns = &ColumnsRequest{}
-			}
-			aggNode.OutputTransforms.OutputColumns.RenameAggregationColumns = make(map[string]string)
-			for k, v := range node.OutputColumns.RenameAggregationColumns {
-				aggNode.OutputTransforms.OutputColumns.RenameAggregationColumns[k] = v
-			}
-		}
-		if node.OutputColumns.IncludeValues != nil {
-			if aggNode.OutputTransforms.OutputColumns == nil {
-				aggNode.OutputTransforms.OutputColumns = &ColumnsRequest{}
-			}
-			aggNode.OutputTransforms.OutputColumns.IncludeValues = node.OutputColumns.IncludeValues
-		}
-	}
-	if node.LetColumns != nil {
-		aggNode.OutputTransforms.LetColumns = &LetColumnsRequest{}
-		aggNode.OutputTransforms.LetColumns.NewColName = node.LetColumns.NewColName
-
-		if node.LetColumns.SingleColRequest != nil {
-			aggNode.OutputTransforms.LetColumns.SingleColRequest = &SingleColLetRequest{}
-			aggNode.OutputTransforms.LetColumns.SingleColRequest.CName = node.LetColumns.SingleColRequest.CName
-			aggNode.OutputTransforms.LetColumns.SingleColRequest.Oper = node.LetColumns.SingleColRequest.Oper
-			aggNode.OutputTransforms.LetColumns.SingleColRequest.Value = node.LetColumns.SingleColRequest.Value
-		}
-		if node.LetColumns.MultiColsRequest != nil {
-			aggNode.OutputTransforms.LetColumns.MultiColsRequest = &MultiColLetRequest{}
-			aggNode.OutputTransforms.LetColumns.MultiColsRequest.LeftCName = node.LetColumns.MultiColsRequest.LeftCName
-			aggNode.OutputTransforms.LetColumns.MultiColsRequest.Oper = node.LetColumns.MultiColsRequest.Oper
-			aggNode.OutputTransforms.LetColumns.MultiColsRequest.RightCName = node.LetColumns.MultiColsRequest.RightCName
-		}
-		if node.LetColumns.ValueColRequest != nil {
-			aggNode.OutputTransforms.LetColumns.ValueColRequest = node.LetColumns.ValueColRequest
-		}
-		if node.LetColumns.RexColRequest != nil {
-			aggNode.OutputTransforms.LetColumns.RexColRequest = node.LetColumns.RexColRequest
-		}
-		if node.LetColumns.StatisticColRequest != nil {
-			aggNode.OutputTransforms.LetColumns.StatisticColRequest = node.LetColumns.StatisticColRequest
-		}
-		if node.LetColumns.RenameColRequest != nil {
-			aggNode.OutputTransforms.LetColumns.RenameColRequest = node.LetColumns.RenameColRequest
-		}
-		if node.LetColumns.DedupColRequest != nil {
-			aggNode.OutputTransforms.LetColumns.DedupColRequest = node.LetColumns.DedupColRequest
-		}
-		if node.LetColumns.SortColRequest != nil {
-			aggNode.OutputTransforms.LetColumns.SortColRequest = node.LetColumns.SortColRequest
-		}
-		if node.LetColumns.MultiValueColRequest != nil {
-			aggNode.OutputTransforms.LetColumns.MultiValueColRequest = node.LetColumns.MultiValueColRequest
-		}
-		if node.LetColumns.FormatResults != nil {
-			aggNode.OutputTransforms.LetColumns.FormatResults = node.LetColumns.FormatResults
-		}
-		if node.LetColumns.EventCountRequest != nil {
-			aggNode.OutputTransforms.LetColumns.EventCountRequest = node.LetColumns.EventCountRequest
-		}
-		if node.LetColumns.BinRequest != nil {
-			aggNode.OutputTransforms.LetColumns.BinRequest = node.LetColumns.BinRequest
-		}
-		if node.LetColumns.FillNullRequest != nil {
-			aggNode.OutputTransforms.LetColumns.FillNullRequest = node.LetColumns.FillNullRequest
-		}
-		if node.LetColumns.AppendRequest != nil {
-			aggNode.OutputTransforms.LetColumns.AppendRequest = node.LetColumns.AppendRequest
-		}
-	}
-	if node.FilterRows != nil {
-		aggNode.OutputTransforms.FilterRows = node.FilterRows
-	}
-
-	aggNode.OutputTransforms.HeadRequest = node.HeadRequest
-	aggNode.OutputTransforms.TailRequest = node.TailRequest
-
-	if aggNode.OutputTransforms.HeadRequest != nil && aggNode.OutputTransforms.HeadRequest.BoolExpr == nil && aggNode.OutputTransforms.HeadRequest.MaxRows != 0 {
-		aggNode.Limit = int(aggNode.OutputTransforms.HeadRequest.MaxRows)
-	}
-
-	return aggNode, nil
 }
 
 func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64, forceCaseSensitive bool) error {

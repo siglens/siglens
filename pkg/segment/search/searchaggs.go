@@ -32,10 +32,10 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/stats"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	bbp "github.com/valyala/bytebufferpool"
 
 	log "github.com/sirupsen/logrus"
@@ -125,7 +125,7 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 
 	// start off with 256 bytes and caller will resize it and return back the new resized buf
 	aggsKeyWorkingBuf := make([]byte, 256)
-	var timeRangeBuckets []uint64
+	var timeRangeBuckets *aggregations.Range
 	if aggs != nil && aggs.TimeHistogram != nil && aggs.TimeHistogram.Timechart != nil {
 		timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(aggs.TimeHistogram)
 	}
@@ -134,7 +134,7 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 		if !blockStatus.hasAnyMatched {
 			continue
 		}
-		recIT, err := blockStatus.GetRecordIteratorCopyForBlock(utils.And)
+		recIT, err := blockStatus.GetRecordIteratorCopyForBlock(sutils.And)
 		if err != nil {
 			log.Errorf("qid=%d, applyAggregationsToSingleBlock: failed to initialize record iterator for block %+v. Err: %v",
 				qid, blockStatus.BlockNum, err)
@@ -160,9 +160,8 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 			addedTimeHt = true
 		}
 
-		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed,
-			blockSummaries[blockStatus.BlockNum].LowTs,
-			blockSummaries[blockStatus.BlockNum].HighTs, addedTimeHt) {
+		blockSum := blockSummaries[blockStatus.BlockNum]
+		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blockSum.LowTs, blockSum.HighTs) {
 			iterRecsAddRrc(recIT, multiReader, blockStatus, queryRange, aggs, aggsHasTimeHt,
 				addedTimeHt, blkResults, queryMetrics, allSearchResults, searchReq, qid, nodeRes)
 		} else {
@@ -182,10 +181,10 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 
 func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, numMFuncs int,
 	multiColReader *segread.MultiColSegmentReader, blockNum uint16, recIT *BlockRecordIterator, blockRes *blockresults.BlockResults,
-	qid uint64, aggsKeyWorkingBuf []byte, timeRangeBuckets []uint64, nodeRes *structs.NodeResult) []byte {
+	qid uint64, aggsKeyWorkingBuf []byte, timeRangeBuckets *aggregations.Range, nodeRes *structs.NodeResult) []byte {
 
-	measureResults := make([]utils.CValueEnclosure, numMFuncs)
-	var retCVal utils.CValueEnclosure
+	measureResults := make([]sutils.CValueEnclosure, numMFuncs)
+	var retCVal sutils.CValueEnclosure
 
 	usedByTimechart := (timeHistogram != nil && timeHistogram.Timechart != nil)
 	hasLimitOption := false
@@ -236,7 +235,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 	}
 
 	groupByCache := make(map[string][]string)
-	unsetRecord := make(map[string]utils.CValueEnclosure) // Make this once instead of each iteration.
+	unsetRecord := make(map[string]sutils.CValueEnclosure) // Make this once instead of each iteration.
 
 	for recNum := uint16(0); recNum < recIT.AllRecLen; recNum++ {
 		if !recIT.ShouldProcessRecord(uint(recNum)) {
@@ -251,16 +250,21 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			ts, err := multiColReader.GetTimeStampForRecord(blockNum, recNum, qid)
 			if err != nil {
 				nodeRes.StoreGlobalSearchError("addRecordToAggregations: Failed to extract timestamp from record", log.ErrorLevel, err)
+
+				if err == segread.ErrNilTimeReader {
+					// We'll keep getting this error if we try other records.
+					break
+				}
 				continue
 			}
 			if ts < timeHistogram.StartTime || ts > timeHistogram.EndTime {
 				continue
 			}
-			timePoint := aggregations.FindTimeRangeBucket(timeRangeBuckets, ts, timeHistogram.IntervalMillis)
+			timePoint := aggregations.FindTimeRangeBucket(timeRangeBuckets, ts)
 
-			copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], utils.VALTYPE_ENC_UINT64[:])
+			copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], sutils.VALTYPE_ENC_UINT64[:])
 			aggsKeyBufIdx += 1
-			toputils.Uint64ToBytesLittleEndianInplace(timePoint, aggsKeyWorkingBuf[aggsKeyBufIdx:])
+			utils.Uint64ToBytesLittleEndianInplace(timePoint, aggsKeyWorkingBuf[aggsKeyBufIdx:])
 			aggsKeyBufIdx += 8
 
 			// Get timechart's group by col val, each different val will be a bucket inside each time range bucket
@@ -270,10 +274,10 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				if err != nil {
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("addRecordToAggregations: Failed to get key for column %v", byField), log.ErrorLevel, err)
 				} else {
-					rawValStr := toputils.UnsafeByteSliceToString(rawVal) // Zero copy, if we get a cache hit.
+					rawValStr := utils.UnsafeByteSliceToString(rawVal) // Zero copy, if we get a cache hit.
 					strs, exists := groupByCache[rawValStr]
 					if !exists {
-						strs, err = utils.ConvertGroupByKey(rawVal)
+						strs, err = sutils.ConvertGroupByKey(rawVal)
 						if err != nil {
 							nodeRes.StoreGlobalSearchError("addRecordToAggregations: failed to extract raw key", log.ErrorLevel, err)
 						} else {
@@ -304,15 +308,15 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 
 			// resize the working buf if we cannot accomodate the max value of any
 			// column's record
-			if len(aggsKeyWorkingBuf) < len(groupbyColKeyIndices)*utils.MAX_RECORD_SIZE {
-				aggsKeyWorkingBuf = toputils.ResizeSlice(aggsKeyWorkingBuf,
-					len(groupbyColKeyIndices)*utils.MAX_RECORD_SIZE)
+			if len(aggsKeyWorkingBuf) < len(groupbyColKeyIndices)*sutils.MAX_RECORD_SIZE {
+				aggsKeyWorkingBuf = utils.ResizeSlice(aggsKeyWorkingBuf,
+					len(groupbyColKeyIndices)*sutils.MAX_RECORD_SIZE)
 			}
 			for _, colKeyIndex := range groupbyColKeyIndices {
 				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recNum, qid, false)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("addRecordToAggregations: Failed to get key for column %v", colKeyIndex), log.ErrorLevel, err)
-					copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], utils.VALTYPE_ENC_BACKFILL)
+					copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], sutils.VALTYPE_ENC_BACKFILL)
 					aggsKeyBufIdx += 1
 				} else {
 					copy(aggsKeyWorkingBuf[aggsKeyBufIdx:], rawVal)
@@ -327,7 +331,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			if err != nil {
 				nodeRes.StoreGlobalSearchError(fmt.Sprintf("addRecordToAggregations: Failed to extract measure value from colKeyIdx %v", colKeyIdx), log.ErrorLevel, err)
 
-				retCVal.Dtype = utils.SS_DT_BACKFILL
+				retCVal.Dtype = sutils.SS_DT_BACKFILL
 				retCVal.CVal = nil
 			}
 			for _, idx := range indices {
@@ -382,14 +386,14 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 	if nodeResult.RecsAggregator.GroupByRequest != nil && nodeResult.RecsAggregator.GroupByRequest.MeasureOperations != nil {
 		for _, mOp := range nodeResult.RecsAggregator.GroupByRequest.MeasureOperations {
-			if mOp.MeasureFunc == utils.Count {
+			if mOp.MeasureFunc == sutils.Count {
 				internalMops = append(internalMops, mOp)
 			}
 		}
 	}
 
-	unsetRecord := make(map[string]utils.CValueEnclosure)
-	measureResults := make([]utils.CValueEnclosure, len(internalMops))
+	unsetRecord := make(map[string]sutils.CValueEnclosure)
+	measureResults := make([]sutils.CValueEnclosure, len(internalMops))
 
 	if nodeResult.RecsAggsColumnKeysMap == nil {
 		nodeResult.RecsAggsColumnKeysMap = make(map[string][]interface{})
@@ -413,33 +417,33 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 		var currKey bytes.Buffer
 		currKey.Write(byteKey)
 
-		keyStr := toputils.UnsafeByteSliceToString(currKey.Bytes())
+		keyStr := utils.UnsafeByteSliceToString(currKey.Bytes())
 
 		if _, exists := nodeResult.RecsAggsColumnKeysMap[keyStr]; !exists {
 			nodeResult.RecsAggsColumnKeysMap[keyStr] = append(colKeyValues, recInden)
 		}
 
 		for cname, indices := range measureInfo {
-			var cVal utils.CValueEnclosure
+			var cVal sutils.CValueEnclosure
 			value, exists := record[cname]
 			if !exists {
 				log.Errorf("qid=%d, PerformGroupByRequestAggsOnRecs: failed to find column %s in record", qid, cname)
-				cVal = utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL}
+				cVal = sutils.CValueEnclosure{Dtype: sutils.SS_DT_BACKFILL}
 			} else {
-				dval, err := utils.CreateDtypeEnclosure(value, qid)
-				if dval.Dtype == utils.SS_DT_STRING {
+				dval, err := sutils.CreateDtypeEnclosure(value, qid)
+				if dval.Dtype == sutils.SS_DT_STRING {
 					floatFieldVal, _ := dtu.ConvertToFloat(value, 64)
 					if err == nil {
 						value = floatFieldVal
-						dval.Dtype = utils.SS_DT_FLOAT
+						dval.Dtype = sutils.SS_DT_FLOAT
 					}
 				}
 
 				if err != nil {
 					log.Errorf("qid=%d, PerformGroupByRequestAggsOnRecs: failed to create Dtype Value from rec: %v", qid, err)
-					cVal = utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL}
+					cVal = sutils.CValueEnclosure{Dtype: sutils.SS_DT_BACKFILL}
 				} else {
-					cVal = utils.CValueEnclosure{Dtype: dval.Dtype, CVal: value}
+					cVal = sutils.CValueEnclosure{Dtype: dval.Dtype, CVal: value}
 				}
 			}
 
@@ -502,10 +506,10 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 				finalCols[mOp.String()] = true
 			}
 
-			if mOp.MeasureFunc == utils.Count {
+			if mOp.MeasureFunc == sutils.Count {
 				recs[recInden][mOp.String()] = bucketCount
 			} else {
-				if mOp.OverrodeMeasureAgg != nil && mOp.OverrodeMeasureAgg.MeasureFunc == utils.Avg {
+				if mOp.OverrodeMeasureAgg != nil && mOp.OverrodeMeasureAgg.MeasureFunc == sutils.Avg {
 					floatVal, err := dtu.ConvertToFloat(bucketValues[i].CVal, 64)
 					if err != nil {
 						log.Errorf("PerformGroupByRequestAggsOnRecs: failed to convert to float: %v", err)
@@ -563,7 +567,7 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 		sstMap := make(map[string]*structs.SegStats, 0)
 
 		for _, mOp := range nodeResult.RecsAggregator.MeasureOperations {
-			dtypeVal, err := utils.CreateDtypeEnclosure(record[mOp.MeasureCol], qid)
+			dtypeVal, err := sutils.CreateDtypeEnclosure(record[mOp.MeasureCol], qid)
 			if err != nil {
 				log.Errorf("PerformMeasureAggsOnRecs: failed to create Dtype Value from rec: %v", err)
 				continue
@@ -576,20 +580,20 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			}
 
 			// Convert to float if necessary and perform numeric aggregation.
-			if utils.IsNumTypeAgg(mOp.MeasureFunc) {
+			if sutils.IsNumTypeAgg(mOp.MeasureFunc) {
 				if !dtypeVal.IsNumeric() {
 					floatVal, err := dtu.ConvertToFloat(record[mOp.MeasureCol], 64)
 					if err != nil {
 						log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
 						continue
 					}
-					dtypeVal = &utils.DtypeEnclosure{Dtype: utils.SS_DT_FLOAT, FloatVal: floatVal}
+					dtypeVal = &sutils.DtypeEnclosure{Dtype: sutils.SS_DT_FLOAT, FloatVal: floatVal}
 					segStat.IsNumeric = true
 				}
 
 				// Populate numeric stats if dtypeVal holds a numeric type now.
 				if dtypeVal.IsNumeric() {
-					nTypeEnclosure := &utils.NumTypeEnclosure{
+					nTypeEnclosure := &sutils.NumTypeEnclosure{
 						Ntype:    dtypeVal.Dtype,
 						IntgrVal: int64(dtypeVal.FloatVal),
 						FloatVal: dtypeVal.FloatVal,
@@ -598,14 +602,14 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 						Sum: *nTypeEnclosure,
 					}
 				}
-			} else if mOp.MeasureFunc != utils.Count {
+			} else if mOp.MeasureFunc != sutils.Count {
 				// Handle string stats aggregation.
 				stringStat := &structs.StringStats{
 					StrSet:  make(map[string]struct{}),
 					StrList: make([]string, 0),
 				}
 
-				if dtypeVal.Dtype == utils.SS_DT_STRING_SLICE {
+				if dtypeVal.Dtype == sutils.SS_DT_STRING_SLICE {
 					stringStat.StrList = dtypeVal.StringSliceVal
 				} else {
 					stringStat.StrList = append(stringStat.StrList, dtypeVal.StringVal)
@@ -659,23 +663,23 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 		for colName, value := range searchResults.GetSegmentStatsMeasureResults() {
 			finalCols[colName] = true
 			switch value.Dtype {
-			case utils.SS_DT_FLOAT:
+			case sutils.SS_DT_FLOAT:
 				value.CVal = humanize.CommafWithDigits(value.CVal.(float64), 3)
-			case utils.SS_DT_STRING_SLICE:
+			case sutils.SS_DT_STRING_SLICE:
 				strVal, err := value.GetString()
 				if err != nil {
 					log.Errorf("PerformMeasureAggsOnRecs: failed to obtain string representation of slice %v: %v", value, err)
-					value.Dtype = utils.SS_INVALID
+					value.Dtype = sutils.SS_INVALID
 				} else {
 					value.CVal = strVal
 				}
-			case utils.SS_DT_SIGNED_NUM:
+			case sutils.SS_DT_SIGNED_NUM:
 				value.CVal = humanize.Comma(value.CVal.(int64))
 			default:
 				log.Errorf("PerformMeasureAggsOnRecs: Unexpected type %v ", value.Dtype)
-				value.Dtype = utils.SS_INVALID
+				value.Dtype = sutils.SS_INVALID
 			}
-			if value.Dtype != utils.SS_INVALID {
+			if value.Dtype != sutils.SS_INVALID {
 				finalSegment[colName] = value.CVal
 			} else {
 				finalSegment[colName] = ""
@@ -698,7 +702,7 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 }
 
 // returns all columns in aggs and the timestamp column
-func GetAggColsAndTimestamp(aggs *structs.QueryAggregators) (map[string]bool, map[string]utils.AggColUsageMode, map[string]bool) {
+func GetAggColsAndTimestamp(aggs *structs.QueryAggregators) (map[string]bool, map[string]sutils.AggColUsageMode, map[string]bool) {
 	aggCols := make(map[string]bool)
 	timestampKey := config.GetTimeStampKey()
 	aggCols[timestampKey] = true
@@ -707,7 +711,7 @@ func GetAggColsAndTimestamp(aggs *structs.QueryAggregators) (map[string]bool, ma
 	}
 
 	// Determine if current col used by eval statements
-	aggColUsage := make(map[string]utils.AggColUsageMode)
+	aggColUsage := make(map[string]sutils.AggColUsageMode)
 	// Determine if current col used by agg values() func
 	valuesUsage := make(map[string]bool)
 	listUsage := make(map[string]bool)
@@ -837,9 +841,9 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 }
 
 // returns all columns (+timestamp) in the measure operations
-func GetSegStatsMeasureCols(ops []*structs.MeasureAggregator) (map[string]bool, map[string]utils.AggColUsageMode, map[string]bool, map[string]bool) {
+func GetSegStatsMeasureCols(ops []*structs.MeasureAggregator) (map[string]bool, map[string]sutils.AggColUsageMode, map[string]bool, map[string]bool) {
 	// Determine if current col used by eval statements
-	aggColUsage := make(map[string]utils.AggColUsageMode)
+	aggColUsage := make(map[string]sutils.AggColUsageMode)
 	// Determine if current col used by agg values() func
 	valuesUsage := make(map[string]bool)
 	listUsage := make(map[string]bool)
@@ -852,7 +856,7 @@ func GetSegStatsMeasureCols(ops []*structs.MeasureAggregator) (map[string]bool, 
 	return aggCols, aggColUsage, valuesUsage, listUsage
 }
 
-func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool,
+func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool,
 	multiReader *segread.MultiColSegmentReader, blockChan chan *BlockSearchStatus, searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary,
 	queryRange *dtu.TimeRange, wg *sync.WaitGroup, queryMetrics *structs.QueryProcessingMetrics, qid uint64, nodeRes *structs.NodeResult) {
 
@@ -860,13 +864,13 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 	bb := bbp.Get()
 	defer bbp.Put(bb)
 
-	var cValEnc utils.CValueEnclosure
+	var cValEnc sutils.CValueEnclosure
 
 	localStats := make(map[string]*structs.SegStats)
 	for blockStatus := range blockChan {
 		isBlkFullyEncosed := queryRange.AreTimesFullyEnclosed(blockSummaries[blockStatus.BlockNum].LowTs,
 			blockSummaries[blockStatus.BlockNum].HighTs)
-		recIT, err := blockStatus.GetRecordIteratorForBlock(utils.And)
+		recIT, err := blockStatus.GetRecordIteratorForBlock(sutils.And)
 		if err != nil {
 			log.Errorf("qid=%d, segmentStatsWorker: failed to initialize record iterator for block %+v. Err: %v",
 				qid, blockStatus.BlockNum, err)
@@ -945,11 +949,11 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 				if !exists {
 					hasListFunc = false
 				}
-				if cValEnc.Dtype == utils.SS_DT_BACKFILL {
+				if cValEnc.Dtype == sutils.SS_DT_BACKFILL {
 					continue
 				}
 
-				if cValEnc.Dtype == utils.SS_DT_STRING {
+				if cValEnc.Dtype == sutils.SS_DT_STRING {
 					str, err := cValEnc.GetString()
 					if err != nil {
 						log.Errorf("qid=%d, segmentStatsWorker failed to extract value for string although type check passed %+v. Err: %v", qid, cname, err)
@@ -959,15 +963,15 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 				} else {
 					var floatVal float64
 					var intVal int64
-					var valueType utils.SS_IntUintFloatTypes
+					var valueType sutils.SS_IntUintFloatTypes
 					var numStr string
 					var err error
 					if cValEnc.IsFloat() {
-						valueType = utils.SS_FLOAT64
+						valueType = sutils.SS_FLOAT64
 						floatVal, err = cValEnc.GetFloatValue()
 						numStr = fmt.Sprintf("%v", floatVal)
 					} else {
-						valueType = utils.SS_INT64
+						valueType = sutils.SS_INT64
 						intVal, err = cValEnc.GetIntValue()
 						numStr = fmt.Sprintf("%v", intVal)
 					}
@@ -986,7 +990,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 }
 
 // returns all columns that are not dict encoded
-func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filterdRecNums []uint16, mCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool,
+func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filterdRecNums []uint16, mCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool,
 	blockNum uint16, bri *BlockRecordIterator, lStats map[string]*structs.SegStats, bb *bbp.ByteBuffer, qid uint64) map[string]bool {
 	retVal := make(map[string]bool)
 	for colName := range mCols {
@@ -1017,18 +1021,18 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 			for colName, rawVal := range cMap {
 				colUsage, exists := aggColUsage[colName]
 				if !exists {
-					colUsage = utils.NoEvalUsage
+					colUsage = sutils.NoEvalUsage
 				}
 				// If current col will be used by eval funcs, we should store the raw data and process it
-				if colUsage == utils.WithEvalUsage || colUsage == utils.BothUsage {
-					e := utils.CValueEnclosure{}
+				if colUsage == sutils.WithEvalUsage || colUsage == sutils.BothUsage {
+					e := sutils.CValueEnclosure{}
 					err := e.ConvertValue(rawVal)
 					if err != nil {
 						log.Errorf("applySegmentStatsUsingDictEncoding: %v", err)
 						continue
 					}
 
-					if e.Dtype != utils.SS_DT_STRING {
+					if e.Dtype != sutils.SS_DT_STRING {
 						retVal[colName] = true
 						continue
 					}
@@ -1039,7 +1043,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 						stats = &structs.SegStats{
 							IsNumeric: false,
 							Count:     0,
-							Records:   make([]*utils.CValueEnclosure, 0),
+							Records:   make([]*sutils.CValueEnclosure, 0),
 						}
 						stats.CreateNewHll()
 
@@ -1048,7 +1052,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 					stats.Records = append(stats.Records, &e)
 
 					// Current col only used by eval statements
-					if colUsage == utils.WithEvalUsage {
+					if colUsage == sutils.WithEvalUsage {
 						continue
 					}
 				}
@@ -1069,9 +1073,9 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 				case string:
 					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc, hasListFunc)
 				case int64:
-					stats.AddSegStatsNums(lStats, colName, utils.SS_INT64, val, 0, 0, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(lStats, colName, sutils.SS_INT64, val, 0, 0, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
 				case float64:
-					stats.AddSegStatsNums(lStats, colName, utils.SS_FLOAT64, 0, 0, val, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(lStats, colName, sutils.SS_FLOAT64, 0, 0, val, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
 				default:
 					// This means the column is not dict encoded. So add it to the return value
 					retVal[colName] = true
@@ -1089,12 +1093,10 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 	queryMetrics *structs.QueryProcessingMetrics, allSearchResults *segresults.SearchResults,
 	searchReq *structs.SegmentSearchRequest, qid uint64, nodeRes *structs.NodeResult) {
 
-	var aggsSortColKeyIdx int
 	colsToReadIndices := make(map[int]struct{})
 	if aggs != nil && aggs.Sort != nil {
 		colKeyIdx, ok := mcr.GetColKeyIndex(aggs.Sort.ColName)
 		if ok {
-			aggsSortColKeyIdx = colKeyIdx
 			colsToReadIndices[colKeyIdx] = struct{}{}
 		}
 	}
@@ -1126,37 +1128,18 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		}
 		numRecsMatched++
 
-		if config.IsNewQueryPipelineEnabled() {
-			rrc := &utils.RecordResultContainer{
-				SegKeyInfo: utils.SegKeyInfo{
-					SegKeyEnc: segKeyEnc,
-					IsRemote:  false,
-				},
-				BlockNum:         blockStatus.BlockNum,
-				RecordNum:        recNumUint16,
-				VirtualTableName: searchReq.VirtualTableName,
-				TimeStamp:        recTs,
-			}
-			blkResults.Add(rrc)
-		} else { // TODO: delete this else block when we migrate to new query pipeline
-			if blkResults.ShouldAddMore() {
-				sortVal, invalidCol := extractSortVals(aggs, mcr, blockStatus.BlockNum, recNumUint16, recTs, qid, aggsSortColKeyIdx, nodeRes)
-				if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
-					rrc := &utils.RecordResultContainer{
-						SegKeyInfo: utils.SegKeyInfo{
-							SegKeyEnc: segKeyEnc,
-							IsRemote:  false,
-						},
-						BlockNum:         blockStatus.BlockNum,
-						RecordNum:        recNumUint16,
-						SortColumnValue:  sortVal,
-						VirtualTableName: searchReq.VirtualTableName,
-						TimeStamp:        recTs,
-					}
-					blkResults.Add(rrc)
-				}
-			}
+		rrc := &sutils.RecordResultContainer{
+			SegKeyInfo: sutils.SegKeyInfo{
+				SegKeyEnc: segKeyEnc,
+				IsRemote:  false,
+			},
+			BlockNum:         blockStatus.BlockNum,
+			RecordNum:        recNumUint16,
+			VirtualTableName: searchReq.VirtualTableName,
+			TimeStamp:        recTs,
 		}
+		blkResults.Add(rrc)
+
 	}
 	if numRecsMatched > 0 {
 		blkResults.AddMatchedCount(uint64(numRecsMatched))
@@ -1167,7 +1150,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 func doAggs(aggs *structs.QueryAggregators, mcr *segread.MultiColSegmentReader,
 	bss *BlockSearchStatus, recIT *BlockRecordIterator, blkResults *blockresults.BlockResults,
 	isBlkFullyEncosed bool, qid uint64, aggsKeyWorkingBuf []byte,
-	timeRangeBuckets []uint64, nodeRes *structs.NodeResult) []byte {
+	timeRangeBuckets *aggregations.Range, nodeRes *structs.NodeResult) []byte {
 
 	if aggs == nil || aggs.GroupByRequest == nil {
 		return aggsKeyWorkingBuf // nothing to do

@@ -293,6 +293,7 @@ $("#cancel-loading").on("click", cancelDownload);
       resizable: false,
       width: 460,
       modal: true,
+      title: 'Download Traces',
       position: {
         my: "center",
         at: "center",
@@ -300,14 +301,14 @@ $("#cancel-loading").on("click", cancelDownload);
       },
       buttons: {
         Cancel: {
-          class: "cancelqButton",
+          class: "cancelqButton btn btn-secondary",
           text: "Cancel",
           click: function () {
             dialog.dialog("close");
           },
         },
         Save: {
-          class: "saveqButton",
+          class: "saveqButton btn btn-primary",
           text: "Save",
           click: download,
         },
@@ -316,6 +317,9 @@ $("#cancel-loading").on("click", cancelDownload);
         form[0].reset();
         allFields.removeClass("ui-state-error");
       },
+      create: function () {
+        $(this).parent().find('.ui-dialog-titlebar').show().addClass('border-bottom p-4');
+    },
     });
     form = dialog.find("form").on("submit", function (event) {
       event.preventDefault();

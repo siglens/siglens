@@ -69,6 +69,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/echarts.min.js"></script>
     <script src="./js/lib/chart.umd.min.js?cb={{ AppVersion }}"></script>
     <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="./js/lib/ace.js"></script>
+    <script src="./js/lib/mode-json.js"></script>    
+    <script src="./js/lib/worker-json.js"></script>    
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -188,8 +191,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <button type="button" id="delete-btn-panel" class="btn btn-secondary">Delete</button>
             </div>
         </div>
-        <div id="app-footer">2024 &copy; SigLens</div>
-
         <div id="add-widget-options">
             <ul class="editPanelMenu">
                 <div class="d-flex justify-content-between w-100 align-items-baseline">
@@ -207,6 +208,63 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <li>Metrics Panel</li>
                 </div>
             </ul>
+        </div>
+
+        <!-- Dashboard-Settings -->
+        <div class="dbSet-container" id="dashboard" style="display: none;">
+            <div class="dbSet-navBar border-bottom d-flex justify-content-between">
+                <div class="section-buttons">
+                    <div class="section-button active dbSet-general">General</div>
+                    <div class="section-button dbSet-jsonModel">JSON Model</div>
+                </div>
+                <div class="d-flex">
+                    <button class="panEdit-btn btn-secondary" id="dbSet-discard" title="Discard Changes">Back to dashboard</button>
+                    <button class="btn btn-primary" id="dbSet-save" title="Save Changes">Save dashboard</button>
+                </div>
+            </div>
+            <div class="dbSet-body">
+                <div class="dbSet-right">
+                    <div class="dbSet-generalHTML">
+                        <div class="dbSet-inputContainer" id="dbSet-nameContainer">
+                            <label for="dbSet-dbName">Name</label>
+                            <input type="text" class="dbSet-dbName" placeholder="Name">
+                        </div>
+                        <!-- PopupOverlay elements -->
+                        <div class="popupOverlay"></div>
+                        <div class="popupContent" id="error-message-popup">
+                            <h3 class="header">Error</h3>
+                            <p id="error-message"></p>
+                            <div id="buttons-popupContent">
+                                <button type="button" id="error-ok-btn" class="btn btn-secondary">OK</button>
+                            </div>
+                        </div>
+    
+                        <div class="dbSet-inputContainer" id="dbSet-descrContainer">
+                            <label for="dbSet-dbDescr">Description</label>
+                            <textarea class="dbSet-dbDescr" id="dbSet-dbDescr" placeholder="Description"></textarea>
+                        </div>
+    
+                        <div class="dbSet-inputContainer" id="dbSet-descrContainer">
+                            <label for="dbSet-dbFolder">Folder</label>
+                            <input class="dbSet-dbFolder" id="dbSet-dbFolder" readonly></input>
+                        </div>
+                        <div class="dbSet-saveBtnContainer">
+                        </div>
+                    </div>
+                    <div class="dbSet-jsonModelHTML">
+                        <span class="caption">
+                            The JSON model below is the data structure that defines the dashboard. This includes dashboard settings, panel settings, layout, queries, and so on.
+                        </span>
+                        <div class="d-flex gap-3 justify-content-end">
+                            <button class="panEdit-btn btn btn-primary" id="dbSet-save-json" title="Save Changes">Save JSON Changes</button>
+                            <button id="copy-json-btn" class="copy-json-btn btn btn-primary">Copy JSON</button>
+                        </div>
+                        <div class="dbSet-textareaContainer">
+                            <div id="json-editor" class="json-editor-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <div class="panelEditor-container" style="z-index: 3;">
@@ -495,7 +553,196 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
                         </div>
-                        <div class="section-content graph-customization px-0">
+                        <div class="section section-content" id="logs-vis-format-options">
+                            <div class="accordion-item">
+                                <div class="accordion-header" data-section="x-axis">
+                                    <div class="accordion-title">X-Axis</div>
+                                </div>
+                                <div class="accordion-content content-section" id="x-axis-section">
+                                    <div class="form-row">
+                                        <div class="form-label">Title</div>
+                                        <div class="form-input">
+                                            <input type="text" name="x-axis-title" placeholder="Enter X-Axis title">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Label Rotation</div>
+                                        <div class="form-input">
+                                            <div class="rotation-options">
+                                                <button class="rotation-btn active" data-rotation="0">
+                                                    <span class="rotation-icon rotation-0">abc</span>
+                                                </button>
+                                                <button class="rotation-btn" data-rotation="45">
+                                                    <span class="rotation-icon rotation-neg45">abc</span>
+                                                </button>
+                                                <button class="rotation-btn" data-rotation="90">
+                                                    <span class="rotation-icon rotation-neg90">abc</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Y-Axis Accordion Item -->
+                            <div class="accordion-item">
+                                <div class="accordion-header" data-section="y-axis">
+                                    <div class="accordion-title">Y-Axis</div>
+                                </div>
+                                <div class="accordion-content content-section" id="y-axis-section">
+                                    <div class="form-row">
+                                        <div class="form-label">Title</div>
+                                        <div class="form-input">
+                                            <input type="text" name="y-axis-title" placeholder="Enter Y-Axis title">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Interval</div>
+                                        <div class="form-input">
+                                            <input type="text" name="y-axis-interval" value="200">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Min Value</div>
+                                        <div class="form-input">
+                                            <input type="text" name="y-axis-min" placeholder="optional">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Max Value</div>
+                                        <div class="form-input">
+                                            <input type="text" name="y-axis-max" value="1000">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Number Abbreviations</div>
+                                        <div class="form-input">
+                                            <div class="button-group">
+                                                <button class="group-btn active">Off</button>
+                                                <button class="group-btn">On</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Chart Overlay Accordion Item -->
+                            <div class="accordion-item">
+                                <div class="accordion-header" data-section="chart-overlay">
+                                    <div class="accordion-title">Chart Overlay</div>
+                                </div>
+                                <div class="accordion-content content-section" id="chart-overlay-section">
+                                    <div class="form-row">
+                                        <div class="form-label">Metrics for Secondary Axis</div>
+                                        <div class="form-input">
+                                            <div class="tags-input-container">
+                                                <div class="selected-tags" id="selectedTags"></div>
+                    
+                                                <div class="tag-dropdown-container">
+                                                    <button class="add-con btn" id="addTagBtn">+</button>
+                                                    <div class="tag-dropdown" id="tagDropdown">
+                                                        <div class="tag-dropdown-content" id="tagDropdownContent">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">View as Axis</div>
+                                        <div class="form-input">
+                                            <div class="button-group">
+                                                <button class="group-btn">On</button>
+                                                <button class="group-btn active">Off</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Title</div>
+                                        <div class="form-input">
+                                            <input type="text" name="overlay-title" placeholder="Enter Secondary Y-Axis title">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Interval</div>
+                                        <div class="form-input">
+                                            <input type="text" name="overlay-interval" value="200">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Min Value</div>
+                                        <div class="form-input">
+                                            <input type="text" name="overlay-min" placeholder="optional">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Max Value</div>
+                                        <div class="form-input">
+                                            <input type="text" name="overlay-max" value="1000">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Number Abbreviations</div>
+                                        <div class="form-input">
+                                            <div class="button-group">
+                                                <button class="group-btn active">Off</button>
+                                                <button class="group-btn">On</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Legend Accordion Item -->
+                            <div class="accordion-item">
+                                <div class="accordion-header" data-section="legend">
+                                    <div class="accordion-title">Legend</div>
+                                </div>
+                                <div class="accordion-content content-section" id="legend-section">
+                                    <div class="form-row">
+                                        <div class="form-label">Show Legend</div>
+                                        <div class="form-input">
+                                            <div class="button-group">
+                                                <button class="group-btn active">Yes</button>
+                                                <button class="group-btn">No</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                    
+                                    <div class="form-row">
+                                        <div class="form-label">Position</div>
+                                        <div class="form-input">
+                                            <div class="dropdown legends-position" style="width: 120px;">
+                                                <button class="btn dropdown-toggle btn-grey w-100" type="button"
+                                                    data-toggle="dropdown" aria-haspopup="true"
+                                                    aria-expanded="false" data-bs-toggle="dropdown">
+                                                    <span>Top</span>
+                                                    <i class="dropdown-arrow"></i>
+                                                </button>
+                                                <div class="dropdown-menu box-shadow legends-position-options">
+                                                    <li>Left</li>
+                                                    <li>Right</li>
+                                                    <li class="active">Top</li>
+                                                    <li>Bottom</li>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="section-content graph-customization">
                             <div>
                                 <div class="dropDownTitle dropDown-unit active">
                                     <span>Unit</span>
@@ -703,69 +950,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
         </div>
     </div>
-    <div class="dbSet-container">
-        <div class="dbSet-navBar">
-            <div class="d-flex align-items-center">
-                <span class="dbSet-goToDB" title="Go back">&#8592</span>
-                <span class="dbSet-name">DBName</span>
-            </div>
-            <div>
-                <button class="panEdit-btn" id="dbSet-discard" title="Discard Changes">Discard</button>
-                <button class="panEdit-btn" id="dbSet-save" title="Save Changes">Save</button>
-            </div>
-        </div>
-        <div class="dbSet-body">
-            <div class="dbSet-left">
-                <div class="dbSet-nav">
-                    <span class="dbSet-heading">Settings</span>
-                </div>
-                <div class="dbSet-options">
-                    <span class="dbSet-general">General</span>
-                    <span class="dbSet-jsonModel">JSON Model</span>
-                </div>
-            </div>
-            <div class="dbSet-right">
-                <div class="dbSet-generalHTML">
-                    <div class="dbSet-inputContainer" id="dbSet-nameContainer">
-                        <label for="dbSet-dbName">Name</label>
-                        <input type="text" class="dbSet-dbName" placeholder="Name">
-                    </div>
-                    <!-- PopupOverlay elements -->
-                    <div class="popupOverlay"></div>
-                    <div class="popupContent" id="error-message-popup">
-                        <h3 class="header">Error</h3>
-                        <p id="error-message"></p>
-                        <div id="buttons-popupContent">
-                            <button type="button" id="error-ok-btn">OK</button>
-                        </div>
-                    </div>
-
-                    <div class="dbSet-inputContainer" id="dbSet-descrContainer">
-                        <label for="dbSet-dbDescr">Description</label>
-                        <textarea class="dbSet-dbDescr" id="dbSet-dbDescr" placeholder="Description"></textarea>
-                    </div>
-
-                    <div class="dbSet-inputContainer" id="dbSet-descrContainer">
-                        <label for="dbSet-dbFolder">Folder</label>
-                        <input class="dbSet-dbFolder" id="dbSet-dbFolder" readonly></input>
-                    </div>
-                    <div class="dbSet-saveBtnContainer">
-                    </div>
-                </div>
-                <div class="dbSet-jsonModelHTML">
-                    <span class="dbSet-jsonModelTitle">
-                        JSON Model
-                    </span>
-                    <button class="panEdit-btn" id="dbSet-edit-json" title="Edit JSON">Edit JSON</button>
-                    <button class="panEdit-btn" id="dbSet-save-json" title="Save Changes">Save JSON</button>
-                    <div class="dbSet-textareaContainer">
-                        <textarea class="dbSet-jsonModelData" placeholder="{'field 1':'value 1',\n 'field 2': 'value 2'}" disabled></textarea>
-                        <div class="copy" title="Copy"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
     <div class="mypopupOverlay" style="z-index: 3;">
     </div>
         <div class="mypopupContent" id="error-popup">
@@ -793,6 +977,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./component/dashboard/breadcrum.js?cb={{ AppVersion }}"></script>
     <script src="./js/metrics-explorer.js?cb={{ AppVersion }}"></script>
     <script src="./js/query-builder.js?cb={{ AppVersion }}"></script>
+    <script src="./js/logs-visualization.js?cb={{ AppVersion }}"></script>
     
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

@@ -29,8 +29,7 @@ import (
 	"github.com/nethruster/go-fraction"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
@@ -48,7 +47,7 @@ type Series struct {
 	grpID     *bytebufferpool.ByteBuffer
 
 	// If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
-	convertedDownsampleAggFn utils.AggregateFunctions
+	convertedDownsampleAggFn sutils.AggregateFunctions
 	aggregationConstant      float64
 }
 
@@ -58,7 +57,7 @@ type DownsampleSeries struct {
 	sorted bool
 
 	// original Downsampler Aggregator which comes in with metricsQuery
-	downsampleAggFn     utils.AggregateFunctions
+	downsampleAggFn     sutils.AggregateFunctions
 	aggregationConstant float64
 	runningEntries      []RunningEntry
 	grpID               *bytebufferpool.ByteBuffer
@@ -89,8 +88,8 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 	ds := mQuery.Downsampler
 	downsampleAggFn := mQuery.Downsampler.Aggregator.AggregatorFunction
 	convertedDownsampleAggFn := mQuery.Downsampler.Aggregator.AggregatorFunction
-	if downsampleAggFn == utils.Avg {
-		convertedDownsampleAggFn = utils.Sum
+	if downsampleAggFn == sutils.Avg {
+		convertedDownsampleAggFn = sutils.Sum
 	}
 	aggregationConstant := mQuery.FirstAggregator.FuncConstant
 
@@ -276,9 +275,9 @@ func ApplyFunction(seriesId string, ts map[uint32]float64, function structs.Func
 
 func ApplyLabelFunction(seriesId string, labelFunction *structs.LabelFunctionExpr) (string, error) {
 	switch labelFunction.FunctionType {
-	case segutils.LabelJoin:
+	case sutils.LabelJoin:
 		return seriesId, fmt.Errorf("ApplyLabelFunction: label_join is not supported")
-	case segutils.LabelReplace:
+	case sutils.LabelReplace:
 		return applyLabelReplace(seriesId, labelFunction)
 	}
 
@@ -346,84 +345,84 @@ func applyLabelReplace(seriesId string, labelFunction *structs.LabelFunctionExpr
 func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
 	var err error
 	switch function.MathFunction {
-	case segutils.Abs:
+	case sutils.Abs:
 		evaluate(ts, math.Abs)
-	case segutils.Sqrt:
+	case sutils.Sqrt:
 		applyFuncToNonNegativeValues(ts, math.Sqrt)
-	case segutils.Ceil:
+	case sutils.Ceil:
 		evaluate(ts, math.Ceil)
-	case segutils.Floor:
+	case sutils.Floor:
 		evaluate(ts, math.Floor)
-	case segutils.Round:
+	case sutils.Round:
 		if len(function.ValueList) > 0 && len(function.ValueList[0]) > 0 {
 			err = evaluateRoundWithPrecision(ts, function.ValueList[0])
 		} else {
 			evaluate(ts, math.Round)
 		}
-	case segutils.Exp:
+	case sutils.Exp:
 		evaluate(ts, math.Exp)
-	case segutils.Ln:
+	case sutils.Ln:
 		applyFuncToNonNegativeValues(ts, math.Log)
-	case segutils.Log2:
+	case sutils.Log2:
 		applyFuncToNonNegativeValues(ts, math.Log2)
-	case segutils.Log10:
+	case sutils.Log10:
 		applyFuncToNonNegativeValues(ts, math.Log10)
-	case segutils.Sgn:
+	case sutils.Sgn:
 		evaluate(ts, calculateSgn)
-	case segutils.Deg:
+	case sutils.Deg:
 		evaluate(ts, func(val float64) float64 {
 			return val * 180 / math.Pi
 		})
-	case segutils.Rad:
+	case sutils.Rad:
 		evaluate(ts, func(val float64) float64 {
 			return val * math.Pi / 180
 		})
 
-	case segutils.Acos:
+	case sutils.Acos:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val < -1 || val > 1 {
 				return val, fmt.Errorf("evaluateWithErr: acos evaluate values in the range [-1,1], but got input value: %v", val)
 			}
 			return math.Acos(val), nil
 		})
-	case segutils.Acosh:
+	case sutils.Acosh:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val < 1 {
 				return val, fmt.Errorf("evaluateWithErr: acosh evaluate values in the range [1,+Inf], but got input value: %v", val)
 			}
 			return math.Acosh(val), nil
 		})
-	case segutils.Asin:
+	case sutils.Asin:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val < -1 || val > 1 {
 				return val, fmt.Errorf("evaluateWithErr: asin evaluate values in the range [-1,1], but got input value: %v", val)
 			}
 			return math.Asin(val), nil
 		})
-	case segutils.Asinh:
+	case sutils.Asinh:
 		evaluate(ts, math.Asinh)
-	case segutils.Atan:
+	case sutils.Atan:
 		evaluate(ts, math.Atan)
-	case segutils.Atanh:
+	case sutils.Atanh:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val <= -1 || val >= 1 {
 				return val, fmt.Errorf("evaluateWithErr: atanh evaluate values in the range [-1,1], but got input value: %v", val)
 			}
 			return math.Atanh(val), nil
 		})
-	case segutils.Cos:
+	case sutils.Cos:
 		evaluate(ts, math.Cos)
-	case segutils.Cosh:
+	case sutils.Cosh:
 		evaluate(ts, math.Cosh)
-	case segutils.Sin:
+	case sutils.Sin:
 		evaluate(ts, math.Sin)
-	case segutils.Sinh:
+	case sutils.Sinh:
 		evaluate(ts, math.Sinh)
-	case segutils.Tan:
+	case sutils.Tan:
 		evaluate(ts, math.Tan)
-	case segutils.Tanh:
+	case sutils.Tanh:
 		evaluate(ts, math.Tanh)
-	case segutils.Clamp:
+	case sutils.Clamp:
 		if len(function.ValueList) != 2 {
 			return ts, fmt.Errorf("ApplyMathFunction: clamp has incorrect parameters: %v", function.ValueList)
 		}
@@ -436,7 +435,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 			return make(map[uint32]float64), nil
 		}
 		evaluateClamp(ts, minVal, maxVal)
-	case segutils.Clamp_Max:
+	case sutils.Clamp_Max:
 		if len(function.ValueList) != 1 {
 			return ts, fmt.Errorf("ApplyMathFunction: clamp_max has incorrect parameters: %v", function.ValueList)
 		}
@@ -445,7 +444,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 			return ts, fmt.Errorf("ApplyMathFunction: clamp_max has incorrect parameters: %v", function.ValueList)
 		}
 		evaluateClamp(ts, -1.7976931348623157e+308, maxVal)
-	case segutils.Clamp_Min:
+	case sutils.Clamp_Min:
 		if len(function.ValueList) != 1 {
 			return ts, fmt.Errorf("ApplyMathFunction: clamp_min has incorrect parameters: %v", function.ValueList)
 		}
@@ -454,7 +453,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 			return ts, fmt.Errorf("ApplyMathFunction: clamp_min has incorrect parameters: %v", function.ValueList)
 		}
 		evaluateClamp(ts, minVal, math.MaxFloat64)
-	case segutils.Timestamp:
+	case sutils.Timestamp:
 		for timestamp := range ts {
 			ts[timestamp] = float64(timestamp)
 		}
@@ -499,7 +498,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 
 	// ts is a time series mapping timestamps to values
 	switch function.RangeFunction {
-	case segutils.Derivative:
+	case sutils.Derivative:
 		// Use those points which within the time window to calculate the derivative
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
@@ -519,7 +518,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		// derivtives at edges do not exist
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
-	case segutils.Predict_Linear:
+	case sutils.Predict_Linear:
 		if len(function.ValueList) != 1 {
 			return ts, fmt.Errorf("ApplyRangeFunction: predict_linear has incorrect parameters: %v", function.ValueList)
 		}
@@ -549,9 +548,9 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		}
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
-	case segutils.Rate:
+	case sutils.Rate:
 		return evaluateRate(sortedTimeSeries, ts, timeRange, function)
-	case segutils.IRate:
+	case sutils.IRate:
 		// Calculate the instant rate (per-second rate) for each timestamp, based on the last two data points within the timewindow
 		// If the previous point is outside the time window, we still need to use it to calculate the current point's rate, unless its value is greater than the value of the current point
 		var dx, dt float64
@@ -580,10 +579,10 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		// Rate at edge does not exist.
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
-	case segutils.Increase:
+	case sutils.Increase:
 		// Increase is extrapolated to cover the full time range as specified in the range vector selector. (increse = avg rate * timewindow)
 		return evaluateRate(sortedTimeSeries, ts, timeRange, function)
-	case segutils.Delta:
+	case sutils.Delta:
 		// Calculates the difference between the first and last value of each time series element within the timewindow
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
@@ -601,7 +600,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		// Delta at left edge does not exist.
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
-	case segutils.IDelta:
+	case sutils.IDelta:
 		// Calculates the instant delta for each timestamp, based on the last two data points within the time window
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeDff := sortedTimeSeries[i].downsampledTime - sortedTimeSeries[i-1].downsampledTime
@@ -614,7 +613,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		// IDelta at left edge does not exist.
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
-	case segutils.Changes:
+	case sutils.Changes:
 		// Calculates the number of times its value has changed within the provided time window
 		prefixSum := make([]float64, len(sortedTimeSeries))
 		prefixSum[0] = 0
@@ -641,7 +640,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Resets:
+	case sutils.Resets:
 		// Any decrease in the value between two consecutive float samples is interpreted as a counter reset.
 		prefixSum := make([]float64, len(sortedTimeSeries))
 		prefixSum[0] = 0
@@ -669,24 +668,24 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Avg_Over_Time, segutils.Min_Over_Time, segutils.Max_Over_Time, segutils.Sum_Over_Time, segutils.Count_Over_Time, segutils.Last_Over_Time:
+	case sutils.Avg_Over_Time, sutils.Min_Over_Time, sutils.Max_Over_Time, sutils.Sum_Over_Time, sutils.Count_Over_Time, sutils.Last_Over_Time:
 		return evaluateAggregationOverTime(sortedTimeSeries, ts, function, timeRange)
-	case segutils.Stdvar_Over_Time:
+	case sutils.Stdvar_Over_Time:
 		return evaluateStandardVariance(sortedTimeSeries, ts, timeWindow), nil
-	case segutils.Stddev_Over_Time:
+	case sutils.Stddev_Over_Time:
 		ts = evaluateStandardVariance(sortedTimeSeries, ts, timeWindow)
 		for key, val := range ts {
 			ts[key] = math.Sqrt(val)
 		}
 		return ts, nil
-	case segutils.Mad_Over_Time:
+	case sutils.Mad_Over_Time:
 		return evaluateMADOverTime(sortedTimeSeries, ts, timeWindow), nil
-	case segutils.Present_Over_Time:
+	case sutils.Present_Over_Time:
 		for key := range ts {
 			ts[key] = 1
 		}
 		return ts, nil
-	case segutils.Quantile_Over_Time:
+	case sutils.Quantile_Over_Time:
 		if len(function.ValueList) != 1 {
 			return ts, fmt.Errorf("ApplyMathFunction: quantile_over_time has incorrect parameters: %v", function.ValueList)
 		}
@@ -738,7 +737,7 @@ func evaluateAggregationOverTime(sortedTimeSeries []Entry, ts map[uint32]float64
 
 	var prefixSum []float64
 
-	if function.RangeFunction == segutils.Sum_Over_Time || function.RangeFunction == segutils.Avg_Over_Time {
+	if function.RangeFunction == sutils.Sum_Over_Time || function.RangeFunction == sutils.Avg_Over_Time {
 		prefixSum = make([]float64, len(sortedTimeSeries)+1)
 		prefixSum[1] = sortedTimeSeries[0].dpVal
 		for i := 1; i < len(sortedTimeSeries); i++ {
@@ -770,25 +769,25 @@ func evaluateAggregationOverTime(sortedTimeSeries []Entry, ts map[uint32]float64
 		}
 
 		switch function.RangeFunction {
-		case segutils.Count_Over_Time:
+		case sutils.Count_Over_Time:
 			ts[nextEvaluationTime] = float64(lastIndex - preIndex + 1)
-		case segutils.Sum_Over_Time:
+		case sutils.Sum_Over_Time:
 			ts[nextEvaluationTime] = prefixSum[lastIndex+1] - prefixSum[preIndex]
-		case segutils.Avg_Over_Time:
+		case sutils.Avg_Over_Time:
 			ts[nextEvaluationTime] = (prefixSum[lastIndex+1] - prefixSum[preIndex]) / float64(lastIndex-preIndex+1)
-		case segutils.Min_Over_Time:
+		case sutils.Min_Over_Time:
 			min := math.MaxFloat64
 			for j := preIndex; j <= lastIndex; j++ {
 				min = math.Min(min, sortedTimeSeries[j].dpVal)
 			}
 			ts[nextEvaluationTime] = min
-		case segutils.Max_Over_Time:
+		case sutils.Max_Over_Time:
 			max := -math.MaxFloat64
 			for j := preIndex; j <= lastIndex; j++ {
 				max = math.Max(max, sortedTimeSeries[j].dpVal)
 			}
 			ts[nextEvaluationTime] = max
-		case segutils.Last_Over_Time:
+		case sutils.Last_Over_Time:
 			// the most recent point value in the specified interval
 			ts[nextEvaluationTime] = sortedTimeSeries[lastIndex].dpVal
 		default:
@@ -872,32 +871,32 @@ func (dss *DownsampleSeries) sortEntries() {
 	dss.sorted = true
 }
 
-func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant float64) (float64, error) {
+func reduceEntries(entries []Entry, fn sutils.AggregateFunctions, fnConstant float64) (float64, error) {
 	var ret float64
 	switch fn {
-	case utils.Sum:
+	case sutils.Sum:
 		for i := range entries {
 			ret += entries[i].dpVal
 		}
-	case utils.BottomK:
+	case sutils.BottomK:
 		fallthrough
-	case utils.Min:
+	case sutils.Min:
 		for i := range entries {
 			if i == 0 || entries[i].dpVal < ret {
 				ret = entries[i].dpVal
 			}
 		}
-	case utils.TopK:
+	case sutils.TopK:
 		fallthrough
-	case utils.Max:
+	case sutils.Max:
 		for i := range entries {
 			if i == 0 || entries[i].dpVal > ret {
 				ret = entries[i].dpVal
 			}
 		}
-	case utils.Count:
+	case sutils.Count:
 		// Count is to calculate the number of time series, we do not care about the entry value
-	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
+	case sutils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
 		entriesCopy := make([]Entry, len(entries))
@@ -920,15 +919,15 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 		} else {
 			ret = entriesCopy[int(index)].dpVal
 		}
-	case utils.Stddev:
+	case sutils.Stddev:
 		fallthrough
-	case utils.Stdvar:
+	case sutils.Stdvar:
 		sum := 0.0
 		for i := range entries {
 			sum += entries[i].dpVal
 		}
 		ret = sum / float64(len(entries))
-	case utils.Group:
+	case sutils.Group:
 		ret = 1
 	default:
 		err := fmt.Errorf("reduceEntries: unsupported AggregateFunction: %v", fn)
@@ -939,35 +938,35 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 	return ret, nil
 }
 
-func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, fnConstant float64) (float64, error) {
+func reduceRunningEntries(entries []RunningEntry, fn sutils.AggregateFunctions, fnConstant float64) (float64, error) {
 	var ret float64
 	switch fn {
-	case utils.Avg:
+	case sutils.Avg:
 		count := uint64(0)
 		for i := range entries {
 			ret += entries[i].runningVal
 			count += entries[i].runningCount
 		}
 		ret = ret / float64(count)
-	case utils.Sum:
+	case sutils.Sum:
 		for i := range entries {
 			ret += entries[i].runningVal
 		}
-	case utils.Min:
+	case sutils.Min:
 		for i := range entries {
 			if i == 0 || entries[i].runningVal < ret {
 				ret = entries[i].runningVal
 			}
 		}
-	case utils.Max:
+	case sutils.Max:
 		for i := range entries {
 			if i == 0 || entries[i].runningVal > ret {
 				ret = entries[i].runningVal
 			}
 		}
-	case utils.Count:
+	case sutils.Count:
 		// Count is to calculate the number of time series, we do not care about the entry value
-	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
+	case sutils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
 		entriesCopy := make([]RunningEntry, len(entries))
@@ -991,7 +990,7 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 		} else {
 			log.Errorf("reduceRunningEntries: invalid index: %v, len(entriesCopy): %v", index, len(entriesCopy))
 		}
-	case utils.Group:
+	case sutils.Group:
 		ret = 1
 	default:
 		err := fmt.Errorf("reduceRunningEntries: unsupported AggregateFunction: %v", fn)
@@ -1022,35 +1021,35 @@ func evaluateTimeFunc(allDPs map[uint32]float64, timeFunc timeFunc) {
 
 func ApplyTimeFunction(allDPs map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
 	switch function.TimeFunction {
-	case segutils.Hour:
+	case sutils.Hour:
 		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Hour())
 		})
-	case segutils.Minute:
+	case sutils.Minute:
 		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Minute())
 		})
-	case segutils.Month:
+	case sutils.Month:
 		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Month())
 		})
-	case segutils.Year:
+	case sutils.Year:
 		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Year())
 		})
-	case segutils.DayOfMonth:
+	case sutils.DayOfMonth:
 		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Day())
 		})
-	case segutils.DayOfWeek:
+	case sutils.DayOfWeek:
 		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Weekday())
 		})
-	case segutils.DayOfYear:
+	case sutils.DayOfYear:
 		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.YearDay())
 		})
-	case segutils.DaysInMonth:
+	case sutils.DaysInMonth:
 		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(time.Date(t.Year(), t.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day())
 		})
@@ -1166,9 +1165,9 @@ func evaluateRate(sortedTimeSeries []Entry, ts map[uint32]float64, timeRange *dt
 	var isRate bool
 
 	switch function.RangeFunction {
-	case segutils.Rate:
+	case sutils.Rate:
 		isRate = true
-	case segutils.Increase:
+	case sutils.Increase:
 		isRate = false
 	default:
 		return ts, fmt.Errorf("evaluateRate: unsupported function type %v", function.RangeFunction)

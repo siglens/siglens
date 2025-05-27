@@ -25,7 +25,7 @@ const VIEW_TYPES = {
 
 //eslint-disable-next-line no-unused-vars
 function setupEventHandlers() {
-    $('#filter-input').on('keydown', filterInputHandler);
+    $('#filter-input').off('keydown').on('keydown', filterInputHandler);
 
     $('#run-filter-btn').off('click').on('click', runFilterBtnHandler);
     $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
@@ -274,7 +274,7 @@ function updateDashboardDateRange(startTimestamp, endTimestamp) {
     // if user is on edit panel screen
     if (currentPanel) {
         if (currentPanel.queryData) {
-            if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
+            if (currentPanel.queryType === 'metrics') {
                 if (currentPanel.queryData) {
                     currentPanel.queryData.start = startDateStr;
                     currentPanel.queryData.end = endDateStr;
@@ -304,7 +304,7 @@ function updateDashboardDateRange(startTimestamp, endTimestamp) {
         localPanels.forEach((panel) => {
             delete panel.queryRes;
             if (panel.queryData) {
-                if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
+                if (panel.queryType === 'metrics') {
                     if (panel.queryData) {
                         panel.queryData.start = startDateStr;
                         panel.queryData.end = endDateStr;
@@ -461,11 +461,22 @@ function runFilterBtnHandler(evt) {
             initialSearchData = data;
             doCancel(data);
         } else {
+            isSearchButtonTriggered = true;
+            if (!isHistogramViewActive) {
+                hasSearchSinceHistogramClosed = true;
+            }
             resetDashboard();
             logsRowData = [];
             accumulatedRecords = [];
             lastColumnsOrder = [];
             totalLoadedRecords = 0;
+
+            $('#hits-summary').html(`
+                <div><b>Processing query</b></div>
+                <div>Searching for matching records...</div>
+                <div></div>
+            `);
+            
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;
@@ -478,23 +489,8 @@ function runFilterBtnHandler(evt) {
 
 function filterInputHandler(evt) {
     if (!evt.shiftKey && evt.keyCode === 13) {
-        const currentUrl = window.location.href;
-        const url = new URL(currentUrl);
-        const pathOnly = url.pathname;
-
-        const isIndexPage = pathOnly === '/' || pathOnly === '' || pathOnly.endsWith('index.html');
-
-        if (isIndexPage) {
-            evt.preventDefault();
-            resetDashboard();
-            logsRowData = [];
-            accumulatedRecords = [];
-            lastColumnsOrder = [];
-            totalLoadedRecords = 0;
-            data = getSearchFilter(false, false);
-            initialSearchData = data;
-            doSearch(data);
-        }
+        evt.preventDefault();
+        runFilterBtnHandler(evt);
     }
 }
 
@@ -548,8 +544,13 @@ function handleLogOptionChange(viewType) {
     const columnUpdates = {};
 
     if (viewType === VIEW_TYPES.TABLE) {
-        columnUpdates.cellRenderer = (params) => (params.value === '' || params.value === null || params.value === undefined ? '-' : params.value);
+        columnUpdates.cellRenderer = (params) => {
+            if (params.value === '' || params.value === null || params.value === undefined) {
+                return '-';
+            }
 
+            return typeof params.value === 'number' ? formatNumber(params.value) : params.value;
+        };
         logsColumnDefs.forEach((colDef) => {
             if (colDef.field !== 'timestamp') {
                 colDef.cellRenderer = columnUpdates.cellRenderer;
@@ -613,8 +614,7 @@ function configureLogsColumn(viewType) {
             .forEach(([key, value], index) => {
                 const colSep = index > 0 ? '<span class="col-sep"> | </span>' : '';
 
-                const formattedValue = isSingleLine ? (typeof value === 'object' && value !== null ? JSON.stringify(value) : value) : formatLogsValue(value);
-
+                const formattedValue = typeof value === 'number' ? formatNumber(value) : isSingleLine ? (typeof value === 'object' && value !== null ? JSON.stringify(value) : value) : formatLogsValue(value);
                 logParts.push(`${colSep}<span class="cname-hide-${string2Hex(key)}"><b>${key}</b> ${formattedValue}</span>`);
             });
 

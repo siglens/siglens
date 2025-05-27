@@ -24,7 +24,7 @@ import (
 
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -200,7 +200,7 @@ func getHashForSearchInfo(si *structs.SearchInfo) uint64 {
 	return xxhash.Sum64String(val)
 }
 
-func getHashForDtypeEnclosure(dte *utils.DtypeEnclosure) uint64 {
+func getHashForDtypeEnclosure(dte *sutils.DtypeEnclosure) uint64 {
 
 	if dte == nil {
 		return 0
@@ -208,15 +208,15 @@ func getHashForDtypeEnclosure(dte *utils.DtypeEnclosure) uint64 {
 
 	var val string
 	switch dte.Dtype {
-	case utils.SS_DT_BOOL:
+	case sutils.SS_DT_BOOL:
 		val = fmt.Sprintf("%v:%v", dte.Dtype, dte.BoolVal)
-	case utils.SS_DT_STRING:
+	case sutils.SS_DT_STRING:
 		val = fmt.Sprintf("%v:%v", dte.Dtype, dte.StringVal)
-	case utils.SS_DT_UNSIGNED_NUM:
+	case sutils.SS_DT_UNSIGNED_NUM:
 		val = fmt.Sprintf("%v:%v", dte.Dtype, dte.UnsignedVal)
-	case utils.SS_DT_SIGNED_NUM:
+	case sutils.SS_DT_SIGNED_NUM:
 		val = fmt.Sprintf("%v:%v", dte.Dtype, dte.SignedVal)
-	case utils.SS_DT_FLOAT:
+	case sutils.SS_DT_FLOAT:
 		val = fmt.Sprintf("%v:%v", dte.Dtype, dte.FloatVal)
 	default:
 		log.Errorf("getHashForDtypeEnclosure: unsupported dtype: %v", dte.Dtype)

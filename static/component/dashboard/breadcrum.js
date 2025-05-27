@@ -22,11 +22,25 @@ class Breadcrumb {
         this.container = $(`#${containerId}`);
     }
 
-    render(breadcrumbs = [], currentName = '', showFavorite = false, isFavorite = false) {
+    render(breadcrumbs = [], currentName = '', showFavorite = false, isFavorite = false, isSettingsMode = false, isFolder = false) {
         this.container.empty();
 
-        // Filter out root and current folder
-        const filteredBreadcrumbs = breadcrumbs?.filter((crumb) => crumb.id !== 'root-folder' && crumb.name !== 'Root' && crumb.name !== currentName) || [];
+        let filteredBreadcrumbs;
+
+        if (isFolder) {
+            filteredBreadcrumbs =
+                breadcrumbs?.filter((crumb, index) => {
+                    if (crumb.id === 'root-folder' || crumb.name === 'Root') {
+                        return false;
+                    }
+                    if (index === breadcrumbs.length - 1) {
+                        return false;
+                    }
+                    return true;
+                }) || [];
+        } else {
+            filteredBreadcrumbs = breadcrumbs?.filter((crumb) => crumb.id !== 'root-folder' && crumb.name !== 'Root') || [];
+        }
 
         // Add "All Dashboards" item
         this.addBreadcrumbItem('All Dashboards', '../dashboards-home.html');
@@ -48,10 +62,17 @@ class Breadcrumb {
 
         // Add current dashboard name (active)
         if (currentName) {
-            this.addNonClickableItem(currentName);
+            if (isSettingsMode) {
+                this.addBreadcrumbItem(currentName, `?id=${dbId}`);
+                this.addSeparator();
+                this.addNonClickableItem('Settings');
+            } else {
+                this.addNonClickableItem(currentName);
+            }
         }
 
-        if (showFavorite) {
+        // Check if a favorite button already exists before adding a new one
+        if (showFavorite && $('.sl-breadcrumb-container').find('#favbutton').length === 0) {
             const favButton = $('<button>')
                 .addClass('star-icon' + (isFavorite ? ' favorited' : ''))
                 .attr('id', 'favbutton')
@@ -87,6 +108,6 @@ class Breadcrumb {
     }
 
     onFavoriteClick(callback) {
-        $('.sl-breadcrumb-container').on('click', '#favbutton', callback);
+        $('.sl-breadcrumb-container').off('click', '#favbutton').on('click', '#favbutton', callback);
     }
 }

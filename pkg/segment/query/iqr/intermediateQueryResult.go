@@ -27,19 +27,20 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
-var backfillCVal = &utils.CValueEnclosure{
+var backfillCVal = &sutils.CValueEnclosure{
 	CVal:  nil,
-	Dtype: utils.SS_DT_BACKFILL,
+	Dtype: sutils.SS_DT_BACKFILL,
 }
 
 type iqrMode int
@@ -76,12 +77,12 @@ type IQR struct {
 
 	// Used if and only if the mode is withRRCs.
 	reader           *IQRReader
-	rrcs             []*utils.RecordResultContainer
+	rrcs             []*sutils.RecordResultContainer
 	encodingToSegKey map[uint32]string
 
 	// Used in both modes.
 	qid            uint64
-	knownValues    map[string][]utils.CValueEnclosure // column name -> value for every row
+	knownValues    map[string][]sutils.CValueEnclosure // column name -> value for every row
 	deletedColumns map[string]struct{}
 	renamedColumns map[string]string // old name -> new name
 	columnIndex    map[string]int
@@ -97,10 +98,10 @@ type IQR struct {
 // Update the iqr.GobEncode() and iqr.GobDecode() functions if you add new fields.
 type SerializableIQR struct {
 	Mode             iqrMode
-	RRCs             []*utils.RecordResultContainer
+	RRCs             []*sutils.RecordResultContainer
 	EncodingToSegKey map[uint32]string
 	Qid              uint64
-	KnownValues      map[string][]utils.CValueEnclosure
+	KnownValues      map[string][]sutils.CValueEnclosure
 	DeletedColumns   map[string]struct{}
 	RenamedColumns   map[string]string
 	ColumnIndex      map[string]int
@@ -114,9 +115,9 @@ func NewIQR(qid uint64) *IQR {
 		mode:             notSet,
 		qid:              qid,
 		reader:           NewIQRReader(&record.RRCsReader{}),
-		rrcs:             make([]*utils.RecordResultContainer, 0),
+		rrcs:             make([]*sutils.RecordResultContainer, 0),
 		encodingToSegKey: make(map[uint32]string),
-		knownValues:      make(map[string][]utils.CValueEnclosure),
+		knownValues:      make(map[string][]sutils.CValueEnclosure),
 		deletedColumns:   make(map[string]struct{}),
 		renamedColumns:   make(map[string]string),
 		groupbyColumns:   make([]string, 0),
@@ -156,7 +157,7 @@ func (iqr *IQR) validate() error {
 	if rrcsLen == 0 {
 		err := validateKnownValues(iqr.knownValues)
 		if err != nil {
-			return toputils.TeeErrorf("IQR.AppendKnownValues: error validating known values: %v", err)
+			return utils.TeeErrorf("IQR.AppendKnownValues: error validating known values: %v", err)
 		}
 		return nil
 	}
@@ -173,7 +174,7 @@ func (iqr *IQR) validate() error {
 	return nil
 }
 
-func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[uint32]string) error {
+func (iqr *IQR) AppendRRCs(rrcs []*sutils.RecordResultContainer, segEncToKey map[uint32]string) error {
 
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AppendRRCs: validation failed: %v", err)
@@ -202,7 +203,7 @@ func (iqr *IQR) AppendRRCs(rrcs []*utils.RecordResultContainer, segEncToKey map[
 	return nil
 }
 
-func validateKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
+func validateKnownValues(knownValues map[string][]sutils.CValueEnclosure) error {
 	numRecords := 0
 	for col, values := range knownValues {
 		if numRecords == 0 {
@@ -215,7 +216,7 @@ func validateKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
 	return nil
 }
 
-func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure) error {
+func (iqr *IQR) AppendKnownValues(knownValues map[string][]sutils.CValueEnclosure) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AppendKnownValues: validation failed: %v", err)
 		return err
@@ -230,17 +231,17 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]utils.CValueEnclosure
 	if numExistingRecords == 0 {
 		err := validateKnownValues(knownValues)
 		if err != nil {
-			return toputils.TeeErrorf("IQR.AppendKnownValues: error validating known values: %v", err)
+			return utils.TeeErrorf("IQR.AppendKnownValues: error validating known values: %v", err)
 		}
 	}
 
 	for cname, values := range knownValues {
 		if _, ok := iqr.deletedColumns[cname]; ok {
-			return toputils.TeeErrorf("IQR.AppendKnownValues: column %s is deleted", cname)
+			return utils.TeeErrorf("IQR.AppendKnownValues: column %s is deleted", cname)
 		}
 
 		if numExistingRecords != 0 && len(values) != numExistingRecords {
-			return toputils.TeeErrorf("IQR.AppendKnownValues: expected %v records, but got %v for column %v",
+			return utils.TeeErrorf("IQR.AppendKnownValues: expected %v records, but got %v for column %v",
 				numExistingRecords, len(values), cname)
 		}
 
@@ -277,18 +278,18 @@ func (iqr *IQR) mergeEncodings(segEncToKey map[uint32]string) error {
 	// Verify the new encodings don't conflict with the existing ones.
 	for encoding, newSegKey := range segEncToKey {
 		if existingSegKey, ok := iqr.encodingToSegKey[encoding]; ok && existingSegKey != newSegKey {
-			return toputils.TeeErrorf("IQR.mergeEncodings: same encoding used for %v and %v",
+			return utils.TeeErrorf("IQR.mergeEncodings: same encoding used for %v and %v",
 				newSegKey, existingSegKey)
 		}
 	}
 
 	// Add the new encodings to the existing ones.
-	iqr.encodingToSegKey = toputils.MergeMaps(iqr.encodingToSegKey, segEncToKey)
+	iqr.encodingToSegKey = utils.MergeMaps(iqr.encodingToSegKey, segEncToKey)
 
 	return nil
 }
 
-func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
+func (iqr *IQR) ReadAllColumns() (map[string][]sutils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
 		return nil, fmt.Errorf("IQR.ReadAllColumns: validation failed: %v", err)
 	}
@@ -307,7 +308,7 @@ func (iqr *IQR) ReadAllColumns() (map[string][]utils.CValueEnclosure, error) {
 }
 
 // If the column doesn't exist, `nil, nil` is returned.
-func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
+func (iqr *IQR) ReadColumn(cname string) ([]sutils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
 		return nil, fmt.Errorf("IQR.ReadColumn: validation failed: %v", err)
 	}
@@ -316,7 +317,7 @@ func (iqr *IQR) ReadColumn(cname string) ([]utils.CValueEnclosure, error) {
 }
 
 // Since this is an internal function, don't validate() the IQR.
-func (iqr *IQR) readColumnInternal(cname string) ([]utils.CValueEnclosure, error) {
+func (iqr *IQR) readColumnInternal(cname string) ([]sutils.CValueEnclosure, error) {
 	if iqr.mode == notSet {
 		return nil, fmt.Errorf("IQR.readColumnInternal: mode not set")
 	}
@@ -351,32 +352,32 @@ func (iqr *IQR) readColumnInternal(cname string) ([]utils.CValueEnclosure, error
 }
 
 // This function returns backfilled columns if they do not exist in the IQR.
-func (iqr *IQR) ReadColumnsWithBackfill(cnames []string) (map[string][]utils.CValueEnclosure, error) {
+func (iqr *IQR) ReadColumnsWithBackfill(cnames []string) (map[string][]sutils.CValueEnclosure, error) {
 	if err := iqr.validate(); err != nil {
-		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: validation failed: %v", err)
+		return nil, utils.TeeErrorf("IQR.ReadColumnsWithBackfill: validation failed: %v", err)
 	}
 
 	if iqr.mode == notSet {
-		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: mode not set")
+		return nil, utils.TeeErrorf("IQR.ReadColumnsWithBackfill: mode not set")
 	}
 
 	allColumns, err := iqr.getColumnsInternal()
 	if err != nil {
-		return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: error getting all columns: %v", err)
+		return nil, utils.TeeErrorf("IQR.ReadColumnsWithBackfill: error getting all columns: %v", err)
 	}
 
-	result := make(map[string][]utils.CValueEnclosure)
+	result := make(map[string][]sutils.CValueEnclosure)
 	for _, cname := range cnames {
-		var values []utils.CValueEnclosure
+		var values []sutils.CValueEnclosure
 		if _, exist := allColumns[cname]; !exist {
-			values = make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+			values = make([]sutils.CValueEnclosure, iqr.NumberOfRecords())
 			for i := range values {
 				values[i] = *backfillCVal
 			}
 		} else {
 			values, err = iqr.ReadColumn(cname)
 			if err != nil {
-				return nil, toputils.TeeErrorf("IQR.ReadColumnsWithBackfill: cannot get values for cname: %s; err: %v", cname, err)
+				return nil, utils.TeeErrorf("IQR.ReadColumnsWithBackfill: cannot get values for cname: %s; err: %v", cname, err)
 			}
 		}
 
@@ -386,16 +387,16 @@ func (iqr *IQR) ReadColumnsWithBackfill(cnames []string) (map[string][]utils.CVa
 	return result, nil
 }
 
-func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, error) {
+func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]sutils.CValueEnclosure, error) {
 	// Prepare to call BatchProcessToMap().
-	getBatchKey := func(rrc *utils.RecordResultContainer) uint32 {
+	getBatchKey := func(rrc *sutils.RecordResultContainer) uint32 {
 		if rrc == nil {
 			return NIL_RRC_SEGKEY
 		}
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
-	batchKeyLess := toputils.NewUnsetOption[func(uint32, uint32) bool]()
-	batchOperation := func(rrcs []*utils.RecordResultContainer) map[string][]utils.CValueEnclosure {
+	batchKeyLess := utils.NewUnsetOption[func(uint32, uint32) bool]()
+	batchOperation := func(rrcs []*sutils.RecordResultContainer) map[string][]sutils.CValueEnclosure {
 		if len(rrcs) == 0 {
 			return nil
 		}
@@ -420,12 +421,12 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 		return colToValues
 	}
 
-	results := toputils.BatchProcessToMap(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	results := utils.BatchProcessToMap(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
 
 	for _, values := range results {
 		if len(values) != len(iqr.rrcs) {
 			// This will happen if we got an error in the batch operation.
-			return nil, toputils.TeeErrorf("IQR.readAllColumnsWithRRCs: expected %v results, got %v",
+			return nil, utils.TeeErrorf("IQR.readAllColumnsWithRRCs: expected %v results, got %v",
 				len(iqr.rrcs), len(values))
 		}
 	}
@@ -449,50 +450,21 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 }
 
 // If the column doesn't exist, `nil, nil` is returned.
-func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error) {
+func (iqr *IQR) readColumnWithRRCs(cname string) ([]sutils.CValueEnclosure, error) {
 	if _, ok := iqr.deletedColumns[cname]; ok {
 		return nil, nil
 	}
 
-	// Prepare to call BatchProcess().
-	getBatchKey := func(rrc *utils.RecordResultContainer) uint32 {
-		if rrc == nil {
-			return NIL_RRC_SEGKEY
-		}
-		return rrc.SegKeyInfo.SegKeyEnc
+	var values []sutils.CValueEnclosure
+	var err error
+	if cname == config.GetTimeStampKey() {
+		// Fast path
+		values, err = iqr.readTimestampFromRRCs()
+	} else {
+		values, err = iqr.readGenericColFromRRCs(cname)
 	}
-	batchKeyLess := toputils.NewUnsetOption[func(uint32, uint32) bool]()
-	batchOperation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
-		if len(rrcs) == 0 || rrcs[0] == nil {
-			return nil, nil
-		}
-
-		segKey, ok := iqr.encodingToSegKey[rrcs[0].SegKeyInfo.SegKeyEnc]
-		if !ok {
-			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
-		}
-
-		values, err := iqr.reader.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
-		if err != nil {
-			if os.IsNotExist(toputils.FullUnwrapError(err)) {
-				// The column doesn't exist.
-				return nil, nil
-			}
-			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
-		}
-
-		return values, nil
-	}
-
-	results, err := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation, 1)
 	if err != nil {
-		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error in batch operation: %v", err)
-	}
-
-	if len(results) != len(iqr.rrcs) {
-		// This will happen if we got an error in the batch operation.
-		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: expected %v results, got %v",
-			len(iqr.rrcs), len(results))
+		return nil, err
 	}
 
 	finalCname := cname
@@ -501,8 +473,68 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 		finalCname = newColName
 	}
 
-	// TODO: should we have an option to disable this caching?
-	iqr.knownValues[finalCname] = results
+	iqr.knownValues[finalCname] = values
+
+	return values, nil
+}
+
+func (iqr *IQR) readTimestampFromRRCs() ([]sutils.CValueEnclosure, error) {
+	timestamps := make([]sutils.CValueEnclosure, len(iqr.rrcs))
+	for i, rrc := range iqr.rrcs {
+		if rrc != nil {
+			timestamps[i] = sutils.CValueEnclosure{
+				Dtype: sutils.SS_DT_UNSIGNED_NUM,
+				CVal:  rrc.TimeStamp,
+			}
+		}
+	}
+
+	return timestamps, nil
+}
+
+// This works on any column, but if you're reading the timestamp column you
+// should use readTimestampFromRRCs() instead for better performance.
+func (iqr *IQR) readGenericColFromRRCs(cname string) ([]sutils.CValueEnclosure, error) {
+	// Prepare to call BatchProcess().
+	getBatchKey := func(rrc *sutils.RecordResultContainer) uint32 {
+		if rrc == nil {
+			return NIL_RRC_SEGKEY
+		}
+		return rrc.SegKeyInfo.SegKeyEnc
+	}
+	batchKeyLess := utils.NewUnsetOption[func(uint32, uint32) bool]()
+	batchOperation := func(rrcs []*sutils.RecordResultContainer) ([]sutils.CValueEnclosure, error) {
+		if len(rrcs) == 0 || rrcs[0] == nil {
+			return nil, nil
+		}
+
+		segKey, ok := iqr.encodingToSegKey[rrcs[0].SegKeyInfo.SegKeyEnc]
+		if !ok {
+			return nil, utils.TeeErrorf("IQR.readColumnWithRRCs: unknown encoding %v", rrcs[0].SegKeyInfo.SegKeyEnc)
+		}
+
+		values, err := iqr.reader.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
+		if err != nil {
+			if os.IsNotExist(utils.FullUnwrapError(err)) {
+				// The column doesn't exist.
+				return nil, nil
+			}
+			return nil, utils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
+		}
+
+		return values, nil
+	}
+
+	results, err := utils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation, 1)
+	if err != nil {
+		return nil, utils.TeeErrorf("IQR.readColumnWithRRCs: error in batch operation: %v", err)
+	}
+
+	if len(results) != len(iqr.rrcs) {
+		// This will happen if we got an error in the batch operation.
+		return nil, utils.TeeErrorf("IQR.readColumnWithRRCs: expected %v results, got %v",
+			len(iqr.rrcs), len(results))
+	}
 
 	return results, nil
 }
@@ -524,7 +556,7 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	if iqr.mode == withRRCs && other.mode == withoutRRCs {
 		if iqr.qid != other.qid {
-			return toputils.TeeErrorf("IQR.Append: inconsistent qids (%v and %v)", iqr.qid, other.qid)
+			return utils.TeeErrorf("IQR.Append: inconsistent qids (%v and %v)", iqr.qid, other.qid)
 		}
 		newIQR, err := other.getRRCIQR()
 		if err != nil {
@@ -556,7 +588,7 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	for cname, values := range other.knownValues {
 		if _, ok := iqr.knownValues[cname]; !ok {
-			var readValues []utils.CValueEnclosure
+			var readValues []sutils.CValueEnclosure
 			if iqr.mode == withRRCs {
 				readValues, err = iqr.readColumnInternal(cname)
 				if err != nil {
@@ -565,7 +597,7 @@ func (iqr *IQR) Append(other *IQR) error {
 				}
 			}
 
-			iqr.knownValues[cname] = make([]utils.CValueEnclosure, numInitialRecords+len(values))
+			iqr.knownValues[cname] = make([]sutils.CValueEnclosure, numInitialRecords+len(values))
 
 			if readValues == nil {
 				// This column is new.
@@ -584,7 +616,7 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	for cname, values := range iqr.knownValues {
 		if _, ok := other.knownValues[cname]; !ok {
-			var readValues []utils.CValueEnclosure
+			var readValues []sutils.CValueEnclosure
 			if other.mode == withRRCs {
 				readValues, err = other.readColumnInternal(cname)
 				if err != nil {
@@ -594,7 +626,7 @@ func (iqr *IQR) Append(other *IQR) error {
 			}
 
 			if readValues == nil {
-				iqr.knownValues[cname] = toputils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
+				iqr.knownValues[cname] = utils.ResizeSliceWithDefault(values, numFinalRecords, *backfillCVal)
 			} else {
 				iqr.knownValues[cname] = append(iqr.knownValues[cname], readValues...)
 			}
@@ -629,7 +661,7 @@ func (iqr *IQR) GetSegKeyToVirtualTableMapFromRRCs() map[string]string {
 
 func (iqr *IQR) GetColumns() (map[string]struct{}, error) {
 	if err := iqr.validate(); err != nil {
-		return nil, toputils.TeeErrorf("IQR.GetColumns: validation failed: %v", err)
+		return nil, utils.TeeErrorf("IQR.GetColumns: validation failed: %v", err)
 	}
 
 	return iqr.getColumnsInternal()
@@ -643,7 +675,7 @@ func (iqr *IQR) getColumnsInternal() (map[string]struct{}, error) {
 	vTable := ""
 
 	for segEnc, segkey := range iqr.encodingToSegKey {
-		columns, err := iqr.reader.getColumnsForSegKey(segkey, vTable, utils.T_SegEncoding(segEnc))
+		columns, err := iqr.reader.getColumnsForSegKey(segkey, vTable, sutils.T_SegEncoding(segEnc))
 		if err != nil {
 			log.Errorf("qid=%v, IQR.getColumnsInternal: error getting columns for segKey %v: %v and Virtual Table name: %v",
 				iqr.qid, segkey, vTable, err)
@@ -684,14 +716,14 @@ func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool, lim
 	}
 
 	if less == nil {
-		return toputils.TeeErrorf("qid=%v, IQR.Sort: the less function is nil", iqr.qid)
+		return utils.TeeErrorf("qid=%v, IQR.Sort: the less function is nil", iqr.qid)
 	}
 
 	if iqr.mode == notSet {
 		return nil
 	}
 
-	sortColumnValues := make([][]utils.CValueEnclosure, len(sortColumns))
+	sortColumnValues := make([][]sutils.CValueEnclosure, len(sortColumns))
 	for i, cname := range sortColumns {
 		var err error
 		sortColumnValues[i], err = iqr.ReadColumn(cname)
@@ -709,7 +741,7 @@ func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool, lim
 	// want to keep a lot, sort in place to save memory.
 	threshold := 1000 // TODO: tune this
 	if limit <= threshold {
-		records = toputils.GetTopN(limit, records, less)
+		records = utils.GetTopN(limit, records, less)
 	} else {
 		sort.Slice(records, func(i, j int) bool {
 			return less(records[i], records[j])
@@ -717,7 +749,7 @@ func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool, lim
 	}
 
 	if iqr.mode == withRRCs {
-		newRRCs := make([]*utils.RecordResultContainer, iqr.NumberOfRecords())
+		newRRCs := make([]*sutils.RecordResultContainer, iqr.NumberOfRecords())
 		for i, record := range records {
 			newRRCs[i] = iqr.rrcs[record.Index]
 		}
@@ -726,7 +758,7 @@ func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool, lim
 	}
 
 	for cname, values := range iqr.knownValues {
-		newValues := make([]utils.CValueEnclosure, iqr.NumberOfRecords())
+		newValues := make([]sutils.CValueEnclosure, iqr.NumberOfRecords())
 		for i, record := range records {
 			newValues[i] = values[record.Index]
 		}
@@ -770,7 +802,7 @@ func MergeAndDiscardAfter(iqr1, iqr2 *IQR, less func(*Record, *Record) bool, lim
 	case 1:
 		leftover = iqr1
 	default:
-		return nil, toputils.TeeErrorf("MergeAndDiscardAfter: unexpected value for firstExhausted: %v",
+		return nil, utils.TeeErrorf("MergeAndDiscardAfter: unexpected value for firstExhausted: %v",
 			firstExhausted)
 	}
 
@@ -797,11 +829,11 @@ func MergeAndDiscardAfter(iqr1, iqr2 *IQR, less func(*Record, *Record) bool, lim
 // Each input IQR must already be sorted according to the given less function.
 func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error) {
 	if len(iqrs) == 0 {
-		return nil, 0, toputils.TeeErrorf("MergeIQRs: no IQRs to merge")
+		return nil, 0, utils.TeeErrorf("MergeIQRs: no IQRs to merge")
 	}
 
 	if less == nil {
-		return nil, 0, toputils.TeeErrorf("MergeIQRs: the less function is nil")
+		return nil, 0, utils.TeeErrorf("MergeIQRs: the less function is nil")
 	}
 
 	iqr, err := mergeMetadata(iqrs, true)
@@ -820,7 +852,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		return iqr, -1, io.EOF
 	}
 
-	originalKnownColumns := toputils.GetKeysOfMap(iqr.knownValues)
+	originalKnownColumns := utils.GetKeysOfMap(iqr.knownValues)
 
 	for idx, iqrToCheck := range iqrs {
 		if iqrToCheck.NumberOfRecords() == 0 {
@@ -836,7 +868,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 	}
 
 	for {
-		iqrIndex := toputils.IndexOfMin(nextRecords, less)
+		iqrIndex := utils.IndexOfMin(nextRecords, less)
 		numRecordsTaken[iqrIndex]++
 		record := nextRecords[iqrIndex]
 
@@ -849,7 +881,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 			value, err := record.ReadColumn(cname)
 			if err != nil {
 				value.CVal = nil
-				value.Dtype = utils.SS_DT_BACKFILL
+				value.Dtype = sutils.SS_DT_BACKFILL
 			}
 
 			iqr.knownValues[cname] = append(iqr.knownValues[cname], *value)
@@ -895,11 +927,11 @@ func mergeMetadata(iqrs []*IQR, allocateForAllRecords bool) (*IQR, error) {
 	}
 
 	if result.mode == withRRCs {
-		result.rrcs = make([]*utils.RecordResultContainer, 0, numRecords)
+		result.rrcs = make([]*sutils.RecordResultContainer, 0, numRecords)
 	}
 
 	for cname := range iqrs[0].knownValues {
-		result.knownValues[cname] = make([]utils.CValueEnclosure, 0, numRecords)
+		result.knownValues[cname] = make([]sutils.CValueEnclosure, 0, numRecords)
 	}
 
 	for _, iqrToMerge := range iqrs {
@@ -927,7 +959,7 @@ func mergeMetadata(iqrs []*IQR, allocateForAllRecords bool) (*IQR, error) {
 
 		for cname := range iqr.knownValues {
 			if _, ok := result.knownValues[cname]; !ok {
-				result.knownValues[cname] = make([]utils.CValueEnclosure, 0, numRecords)
+				result.knownValues[cname] = make([]sutils.CValueEnclosure, 0, numRecords)
 			}
 		}
 
@@ -951,13 +983,13 @@ func mergeMetadata(iqrs []*IQR, allocateForAllRecords bool) (*IQR, error) {
 				iqr.qid, iqr.renamedColumns, result.renamedColumns)
 		}
 
-		iqr.groupbyColumns = toputils.NormalizeSlice(iqr.groupbyColumns)
+		iqr.groupbyColumns = utils.NormalizeSlice(iqr.groupbyColumns)
 		if !reflect.DeepEqual(iqr.groupbyColumns, result.groupbyColumns) {
 			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent groupby columns (%v and %v)",
 				iqr.qid, iqr.groupbyColumns, result.groupbyColumns)
 		}
 
-		iqr.measureColumns = toputils.NormalizeSlice(iqr.measureColumns)
+		iqr.measureColumns = utils.NormalizeSlice(iqr.measureColumns)
 		if !reflect.DeepEqual(iqr.measureColumns, result.measureColumns) {
 			return nil, fmt.Errorf("qid=%v, mergeMetadata: inconsistent measure columns (%v and %v)",
 				iqr.qid, iqr.measureColumns, result.measureColumns)
@@ -1080,7 +1112,7 @@ func (iqr *IQR) getRRCIQR() (*IQR, error) {
 		break
 	}
 	newIQR := NewIQR(iqr.qid)
-	err := newIQR.AppendRRCs(make([]*utils.RecordResultContainer, valuesLen), nil)
+	err := newIQR.AppendRRCs(make([]*sutils.RecordResultContainer, valuesLen), nil)
 	if err != nil {
 		return nil, fmt.Errorf("IQR.getRRCIQR: error appending RRCs: %v", err)
 	}
@@ -1092,7 +1124,7 @@ func (iqr *IQR) getRRCIQR() (*IQR, error) {
 	return newIQR, nil
 }
 
-func (iqr *IQR) GetRRCs() []*utils.RecordResultContainer {
+func (iqr *IQR) GetRRCs() []*sutils.RecordResultContainer {
 	if iqr == nil {
 		return nil
 	}
@@ -1181,9 +1213,9 @@ func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
 	}
 
 	if iqr.mode == withRRCs {
-		newRRCs, err := toputils.RemoveSortedIndices(iqr.rrcs, rowsToDiscard)
+		newRRCs, err := utils.RemoveSortedIndices(iqr.rrcs, rowsToDiscard)
 		if err != nil {
-			return toputils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for RRCs: %v",
+			return utils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for RRCs: %v",
 				iqr.qid, err)
 		}
 
@@ -1191,9 +1223,9 @@ func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
 	}
 
 	for cname, values := range iqr.knownValues {
-		newValues, err := toputils.RemoveSortedIndices(values, rowsToDiscard)
+		newValues, err := utils.RemoveSortedIndices(values, rowsToDiscard)
 		if err != nil {
-			return toputils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for column %v: %v",
+			return utils.TeeErrorf("qid=%v, IQR.DiscardRows: error discarding rows for column %v: %v",
 				iqr.qid, cname, err)
 		}
 
@@ -1214,11 +1246,11 @@ func (iqr *IQR) ReverseRecords() error {
 	}
 
 	if iqr.mode == withRRCs {
-		toputils.ReverseSlice(iqr.rrcs)
+		utils.ReverseSlice(iqr.rrcs)
 	}
 
 	for _, values := range iqr.knownValues {
-		toputils.ReverseSlice(values)
+		utils.ReverseSlice(values)
 	}
 
 	return nil
@@ -1289,7 +1321,7 @@ func (iqr *IQR) GetColumnsOrder(allCnames []string) []string {
 	}
 
 	// Sort the value of indexes to get the order for each group.
-	allIndexes := toputils.GetKeysOfMap(indexToCols)
+	allIndexes := utils.GetKeysOfMap(indexToCols)
 	sort.Ints(allIndexes)
 
 	// Since multiple columns can have same index we will sort them lexicographically within each group.
@@ -1315,7 +1347,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool, isLogsQuery
 		return nil, err
 	}
 
-	var records map[string][]utils.CValueEnclosure
+	var records map[string][]sutils.CValueEnclosure
 	var err error
 	switch iqr.mode {
 	case notSet:
@@ -1332,7 +1364,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool, isLogsQuery
 		return nil, fmt.Errorf("IQR.AsResult: unexpected mode %v", iqr.mode)
 	}
 
-	cValRecords := toputils.TransposeMapOfSlices(records)
+	cValRecords := utils.TransposeMapOfSlices(records)
 	recordsAsAny := make([]map[string]interface{}, 0)
 	nonEmptyColumns := make(map[string]struct{})
 	for _, record := range cValRecords {
@@ -1360,7 +1392,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool, isLogsQuery
 			allCNames = append(allCNames, col)
 		}
 	} else {
-		allCNames = toputils.GetKeysOfMap(records)
+		allCNames = utils.GetKeysOfMap(records)
 	}
 
 	var response *structs.PipeSearchResponseOuter
@@ -1368,7 +1400,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool, isLogsQuery
 	case structs.RRCCmd:
 		response = &structs.PipeSearchResponseOuter{
 			Hits: structs.PipeSearchResponse{
-				TotalMatched: toputils.HitsCount{
+				TotalMatched: utils.HitsCount{
 					Value:    uint64(len(recordsAsAny)),
 					Relation: "eq",
 				},
@@ -1385,7 +1417,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool, isLogsQuery
 
 		bucketHolderArr, aggGroupByCols, measureFuncs, bucketCount, err := iqr.getFinalStatsResults()
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, IQR.AsResult: error getting final result for GroupBy: %v", iqr.qid, err)
+			return nil, utils.TeeErrorf("qid=%v, IQR.AsResult: error getting final result for GroupBy: %v", iqr.qid, err)
 		}
 
 		response = &structs.PipeSearchResponseOuter{
@@ -1468,16 +1500,16 @@ func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 		delete(iqr.knownValues, col)
 	}
 
-	knownValues := make(map[string][]utils.CValueEnclosure)
+	knownValues := make(map[string][]sutils.CValueEnclosure)
 
 	for _, aggGroupByCol := range aggGroupByCols {
-		knownValues[aggGroupByCol] = make([]utils.CValueEnclosure, bucketCount)
+		knownValues[aggGroupByCol] = make([]sutils.CValueEnclosure, bucketCount)
 	}
 	for _, measureFunction := range measureFuncs {
-		knownValues[measureFunction] = make([]utils.CValueEnclosure, bucketCount)
+		knownValues[measureFunction] = make([]sutils.CValueEnclosure, bucketCount)
 	}
 
-	conversionErrors := make([]string, utils.MAX_SIMILAR_ERRORS_TO_LOG)
+	conversionErrors := make([]string, sutils.MAX_SIMILAR_ERRORS_TO_LOG)
 	errIndex := 0
 
 	for i, bucketHolder := range bucketHolderArr {
@@ -1493,7 +1525,7 @@ func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 				value = int64(0)
 			}
 			err := knownValues[measureFunc][i].ConvertValue(value)
-			if err != nil && errIndex < utils.MAX_SIMILAR_ERRORS_TO_LOG {
+			if err != nil && errIndex < sutils.MAX_SIMILAR_ERRORS_TO_LOG {
 				conversionErrors[errIndex] = fmt.Sprintf("BucketHolderIndex=%v, measureFunc=%v, ColumnValue=%v. Error=%v", i, measureFunc, value, err)
 				errIndex++
 			}
@@ -1527,11 +1559,11 @@ func (iqr *IQR) CreateGroupByStatsResults(searchResults *segresults.SearchResult
 
 	iqr.statsResults.aggregationResult = searchResults.GetBucketResults()
 
-	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(utils.QUERY_MAX_BUCKETS))
+	bucketHolderArr, measureFuncs, aggGroupByCols, _, bucketCount := searchResults.GetGroupyByBuckets(int(sutils.QUERY_MAX_BUCKETS))
 
 	err := iqr.CreateStatsResults(bucketHolderArr, measureFuncs, aggGroupByCols, bucketCount)
 	if err != nil {
-		return toputils.TeeErrorf("qid=%v, iqr.CreateGroupByStatsResults: cannot create stats results; err=%v", iqr.qid, err)
+		return utils.TeeErrorf("qid=%v, iqr.CreateGroupByStatsResults: cannot create stats results; err=%v", iqr.qid, err)
 	}
 
 	return nil
@@ -1550,14 +1582,14 @@ func (iqr *IQR) CreateSegmentStatsResults(searchResults *segresults.SearchResult
 
 	err := searchResults.UpdateSegmentStats(segStatsMap, measureAggs)
 	if err != nil {
-		return toputils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot update segment stats; err=%v", iqr.GetQID(), err)
+		return utils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot update segment stats; err=%v", iqr.GetQID(), err)
 	}
 
 	aggMeasureRes, aggMeasureFunctions, groupByCols, _, bucketCount := searchResults.GetSegmentStatsResults(0, false)
 
 	err = iqr.CreateStatsResults(aggMeasureRes, aggMeasureFunctions, groupByCols, bucketCount)
 	if err != nil {
-		return toputils.TeeErrorf("qid=%v, iqr.CreateSegmentStatsResults: cannot create stats results; err=%v", iqr.GetQID(), err)
+		return utils.TeeErrorf("qid=%v, iqr.CreateSegmentStatsResults: cannot create stats results; err=%v", iqr.GetQID(), err)
 	}
 
 	return nil
@@ -1623,7 +1655,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 		// If we send the data in string formatting values,
 		// then we can remove IGroupByValues from BucketHolder
 		bucketHolderArr[i] = &structs.BucketHolder{
-			IGroupByValues: make([]utils.CValueEnclosure, groupByColLen),
+			IGroupByValues: make([]sutils.CValueEnclosure, groupByColLen),
 			GroupByValues:  make([]string, groupByColLen),
 			MeasureVal:     make(map[string]interface{}),
 		}
@@ -1640,7 +1672,7 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 		}
 		if groupByColLen == 0 {
 			bucketHolderArr[i].GroupByValues = []string{"*"}
-			bucketHolderArr[i].IGroupByValues = []utils.CValueEnclosure{{CVal: "*", Dtype: utils.SS_DT_STRING}}
+			bucketHolderArr[i].IGroupByValues = []sutils.CValueEnclosure{{CVal: "*", Dtype: sutils.SS_DT_STRING}}
 		}
 
 		for _, measureFunc := range measureColumns {
@@ -1707,12 +1739,12 @@ func (iqr *IQR) GetBucketCount(qType structs.QueryType) int {
 }
 
 func registerIQRGobTypes() {
-	gob.Register(map[string][]utils.CValueEnclosure{})
+	gob.Register(map[string][]sutils.CValueEnclosure{})
 	gob.Register(map[string]struct{}{})
 	gob.Register(map[string]string{})
-	gob.Register([]*utils.RecordResultContainer{})
-	gob.Register(utils.CValueEnclosure{})
-	gob.Register(utils.SegKeyInfo{})
+	gob.Register([]*sutils.RecordResultContainer{})
+	gob.Register(sutils.CValueEnclosure{})
+	gob.Register(sutils.SegKeyInfo{})
 	gob.Register(&SerializedIQRStatsResults{})
 	gob.Register(&structs.QueryAggregators{})
 	gob.Register(structs.QueryType(0))

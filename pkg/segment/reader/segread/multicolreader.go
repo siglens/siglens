@@ -30,12 +30,15 @@ import (
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
+
+var ErrNilTimeReader = errors.New("uninitialized time reader")
+var ErrReadBlock = errors.New("failed to read and validate block")
 
 /*
 Defines holder struct and functions to construct & manage SegmentFileReaders
@@ -130,7 +133,7 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File,
 			continue
 		}
 
-		colRecSize := utils.INCONSISTENT_CVAL_SIZE
+		colRecSize := sutils.INCONSISTENT_CVAL_SIZE
 		if allColumnsRecSize != nil {
 			if recSize, ok := allColumnsRecSize[colName]; ok {
 				colRecSize = recSize
@@ -232,7 +235,7 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool,
 				err := fmt.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for column %s."+
 					" Error: %w. Also failed to open rotated file %s with error: %v",
 					qid, fName, colName, err, rotatedFName, rotatedErr)
-				if len(sharedReader.columnErrorMap) < utils.MAX_SIMILAR_ERRORS_TO_LOG {
+				if len(sharedReader.columnErrorMap) < sutils.MAX_SIMILAR_ERRORS_TO_LOG {
 					sharedReader.columnErrorMap[colName] = err
 				}
 				nodeRes.StoreGlobalSearchError("Error Initializing SharedMultiColumnReaders", log.ErrorLevel, err)
@@ -289,14 +292,14 @@ func (scr *SharedMultiColReaders) GetColumnsErrorsMap() map[string]error {
 
 func (mcsr *MultiColSegmentReader) GetTimeStampForRecord(blockNum uint16, recordNum uint16, qid uint64) (uint64, error) {
 	if mcsr.timeReader == nil {
-		return 0, fmt.Errorf("qid=%v, MultiColSegmentReader.GetTimeStampForRecord: Tried to get timestamp using a multi reader without an initialized timeReader, blockNum: %v recordNum: %v", qid, blockNum, recordNum)
+		return 0, ErrNilTimeReader
 	}
 	return mcsr.timeReader.GetTimeStampForRecord(blockNum, recordNum, qid)
 }
 
 func (mcsr *MultiColSegmentReader) GetAllTimeStampsForBlock(blockNum uint16) ([]uint64, error) {
 	if mcsr.timeReader == nil {
-		return nil, errors.New("MultiColSegmentReader.GetAllTimeStampsForBlock: uninitialized timerange reader")
+		return nil, ErrNilTimeReader
 	}
 	return mcsr.timeReader.GetAllTimeStampsForBlock(blockNum)
 }
@@ -309,14 +312,16 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 			return nil, err
 		}
 		retVal := make([]byte, 9)
-		copy(retVal[0:], utils.VALTYPE_ENC_UINT64[:])
-		toputils.Uint64ToBytesLittleEndianInplace(ts, retVal[1:])
+		copy(retVal[0:], sutils.VALTYPE_ENC_UINT64[:])
+		utils.Uint64ToBytesLittleEndianInplace(ts, retVal[1:])
 		return retVal, nil
 	}
 
 	if colKeyIndex == -1 || colKeyIndex >= mcsr.maxColIdx {
 		// Debug to avoid log flood for when the column does not exist
-		log.Debugf("MultiColSegmentReader.ReadRawRecordFromColumnFile: failed to find colKeyIndex %v in multi col reader. All cols: %+v", colKeyIndex, mcsr.allColsReverseIndex)
+		if config.IsDebugMode() {
+			log.Debugf("MultiColSegmentReader.ReadRawRecordFromColumnFile: failed to find colKeyIndex %v in multi col reader. All cols: %+v", colKeyIndex, mcsr.allColsReverseIndex)
+		}
 		return nil, nil
 	}
 
@@ -325,14 +330,14 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 
 // Reads the request value and converts it to a *utils.CValueEnclosure
 func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, blockNum uint16,
-	recordNum uint16, qid uint64, isTsCol bool, retCVal *utils.CValueEnclosure,
+	recordNum uint16, qid uint64, isTsCol bool, retCVal *sutils.CValueEnclosure,
 ) error {
 	if isTsCol {
 		ts, err := mcsr.GetTimeStampForRecord(blockNum, recordNum, qid)
 		if err != nil {
 			return err
 		}
-		retCVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+		retCVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 		retCVal.CVal = ts
 
 		return nil
@@ -340,7 +345,7 @@ func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, b
 
 	rawVal, err := mcsr.ReadRawRecordFromColumnFile(colKeyIndex, blockNum, recordNum, qid, isTsCol)
 	if err != nil {
-		retCVal.Dtype = utils.SS_DT_BACKFILL
+		retCVal.Dtype = sutils.SS_DT_BACKFILL
 		retCVal.CVal = nil
 
 		return err
@@ -390,7 +395,9 @@ func (mcsr *MultiColSegmentReader) IsBlkDictEncoded(cname string,
 	keyIndex, ok := mcsr.allColsReverseIndex[cname]
 	if !ok {
 		// Debug to avoid log flood for when the column does not exist
-		log.Debugf("MultiColSegmentReader.IsBlkDictEncoded: failed to find column %s in multi col reader. All cols: %+v", cname, mcsr.allColsReverseIndex)
+		if config.IsDebugMode() {
+			log.Debugf("MultiColSegmentReader.IsBlkDictEncoded: failed to find column %s in multi col reader. All cols: %+v", cname, mcsr.allColsReverseIndex)
+		}
 		return false, errors.New("column not found in MultipleColumnSegmentReader")
 	}
 
@@ -420,7 +427,7 @@ func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFileOldPipeline(results
 	return mcsr.allFileReaders[keyIndex].GetDictEncCvalsFromColFileOldPipeline(results, blockNum, orderedRecNums)
 }
 
-func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[string][]utils.CValueEnclosure,
+func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[string][]sutils.CValueEnclosure,
 	col string, blockNum uint16, orderedRecNums []uint16, qid uint64,
 ) bool {
 	keyIndex, ok := mcsr.allColsReverseIndex[col]
@@ -444,8 +451,8 @@ func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(match *struct
 	return ApplySearchToMatchFilterDictCsg(fileReader, match, bsh, isCaseInsensitive)
 }
 
-func (mcsr *MultiColSegmentReader) ApplySearchToExpressionFilterDictCsg(qValDte *utils.DtypeEnclosure,
-	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper,
+func (mcsr *MultiColSegmentReader) ApplySearchToExpressionFilterDictCsg(qValDte *sutils.DtypeEnclosure,
+	fop sutils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper,
 	cname string, isCaseInsensitive bool,
 ) (bool, error) {
 	keyIndex, ok := mcsr.allColsReverseIndex[cname]
@@ -475,7 +482,7 @@ func (mcsr *MultiColSegmentReader) ValidateAndReadBlock(colsIndexMap map[int]str
 
 		err := mcsr.allFileReaders[keyIndex].ValidateAndReadBlock(blockNum)
 		if err != nil {
-			return fmt.Errorf("MultiColSegmentReader.ValidateAndReadBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
+			return ErrReadBlock
 		}
 	}
 

@@ -32,7 +32,7 @@ const timestampCol = "timestamp"
 
 type queryValidator interface {
 	Copy() queryValidator
-	HandleLog(map[string]interface{}, uint64) error
+	HandleLog(map[string]interface{}, uint64, bool) error
 	GetQuery() (string, uint64, uint64) // Query, start epoch, end epoch.
 	SetTimeRange(startEpoch uint64, endEpoch uint64)
 	MatchesResult(jsonResult []byte) error
@@ -40,6 +40,7 @@ type queryValidator interface {
 	Info() string
 	WithAllowAllStartTimes() queryValidator
 	AllowsAllStartTimes() bool
+	ServerMightHaveDuplicates() bool
 }
 
 type filter interface {
@@ -184,6 +185,10 @@ type basicValidator struct {
 	// validation should be less strict because the system may have preexisting
 	// data that this validator doesn't know about.
 	allowAllStartTimes bool
+
+	// If true, this query matched some logs which the server might have
+	// duplicates of, so query validation should be less strict.
+	serverMightHaveDuplicates bool
 }
 
 func (b *basicValidator) SetTimeRange(startEpoch uint64, endEpoch uint64) {
@@ -197,6 +202,10 @@ func (b *basicValidator) PastEndTime(timestamp uint64) bool {
 
 func (b *basicValidator) AllowsAllStartTimes() bool {
 	return b.allowAllStartTimes
+}
+
+func (b *basicValidator) ServerMightHaveDuplicates() bool {
+	return b.serverMightHaveDuplicates
 }
 
 type filterQueryValidator struct {
@@ -295,13 +304,17 @@ func (f *filterQueryValidator) Info() string {
 }
 
 // Note: this assumes successive calls to this are for logs with increasing timestamps.
-func (f *filterQueryValidator) HandleLog(log map[string]interface{}, recTs uint64) error {
+func (f *filterQueryValidator) HandleLog(log map[string]interface{}, recTs uint64, didRetry bool) error {
 	if !withinTimeRange(f.startEpoch, f.endEpoch, recTs) {
 		return nil
 	}
 
 	if !f.filter.Matches(log) {
 		return nil
+	}
+
+	if didRetry {
+		f.serverMightHaveDuplicates = true
 	}
 
 	if f.allowAllStartTimes {
@@ -613,7 +626,7 @@ func (c *countQueryValidator) WithAllowAllStartTimes() queryValidator {
 	return c
 }
 
-func (c *countQueryValidator) HandleLog(log map[string]interface{}, recTs uint64) error {
+func (c *countQueryValidator) HandleLog(log map[string]interface{}, recTs uint64, didRetry bool) error {
 	if !withinTimeRange(c.startEpoch, c.endEpoch, recTs) {
 		return nil
 	}
@@ -621,6 +634,8 @@ func (c *countQueryValidator) HandleLog(log map[string]interface{}, recTs uint64
 	if !c.filter.Matches(log) {
 		return nil
 	}
+
+	c.serverMightHaveDuplicates = true
 
 	c.lock.Lock()
 	defer c.lock.Unlock()

@@ -29,7 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/metadata/metautils"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -101,9 +101,9 @@ func RebalanceUnrotatedMetadata(totalAvailableSize uint64) uint64 {
 
 	atomic.StoreUint64(&TotalUnrotatedMetadataSizeBytes, finalSize)
 	log.Infof("RebalanceUnrotatedMetadata: Unrotated data was allocated %v MB. Removed %+v MB of unrotated metadata after rebalance",
-		segutils.ConvertUintBytesToMB(totalAvailableSize), segutils.ConvertUintBytesToMB(removedSize))
+		sutils.ConvertUintBytesToMB(totalAvailableSize), sutils.ConvertUintBytesToMB(removedSize))
 	log.Infof("RebalanceUnrotatedMetadata: Final Unrotated metadata in memory size: %v MB",
-		segutils.ConvertUintBytesToMB(TotalUnrotatedMetadataSizeBytes))
+		sutils.ConvertUintBytesToMB(TotalUnrotatedMetadataSizeBytes))
 	return finalSize
 }
 
@@ -296,13 +296,13 @@ func (usi *UnrotatedSegmentInfo) addMicroIndicesToUnrotatedInfo(blkNum uint16, c
 		if _, ok := usi.unrotatedBlockCmis[blkNum][colName]; !ok {
 			usi.unrotatedBlockCmis[blkNum][colName] = &structs.CmiContainer{}
 		}
-		usi.unrotatedBlockCmis[blkNum][colName].CmiType = segutils.CMI_BLOOM_INDEX[0]
+		usi.unrotatedBlockCmis[blkNum][colName].CmiType = sutils.CMI_BLOOM_INDEX[0]
 		usi.unrotatedBlockCmis[blkNum][colName].Bf = colBloom.Bf.Copy()
 	}
 	for colName, colRange := range columnRangeIndices {
 		if _, ok := usi.unrotatedBlockCmis[blkNum][colName]; !ok {
 			usi.unrotatedBlockCmis[blkNum][colName] = &structs.CmiContainer{}
-			usi.unrotatedBlockCmis[blkNum][colName].CmiType = segutils.CMI_RANGE_INDEX[0]
+			usi.unrotatedBlockCmis[blkNum][colName].CmiType = sutils.CMI_RANGE_INDEX[0]
 		}
 		newRange := colRange.copyRangeIndex()
 		usi.unrotatedBlockCmis[blkNum][colName].Ranges = newRange.Ranges
@@ -336,8 +336,8 @@ func (ri *RangeIndex) copyRangeIndex() *RangeIndex {
 // does CMI check on unrotated segment info for inputted request. Assumes UnrotatedInfoLock has been acquired
 // returns the final blocks to search, total unrotated blocks, num filtered blocks, and errors if any
 func (usi *UnrotatedSegmentInfo) DoCMICheckForUnrotated(currQuery *structs.SearchQuery, tRange *dtu.TimeRange,
-	blkTracker *structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp segutils.LogicalOperator, rangeFilter map[string]string,
-	rangeOp segutils.FilterOperator, isRange bool, wildcardValue bool,
+	blkTracker *structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp sutils.LogicalOperator, rangeFilter map[string]string,
+	rangeOp sutils.FilterOperator, isRange bool, wildcardValue bool,
 	qid uint64, dualCaseCheckEnabled bool) (map[uint16]map[string]bool, uint64, uint64, error) {
 
 	timeFilteredBlocks := metautils.FilterBlocksByTime(usi.blockSummaries, blkTracker, tRange)
@@ -367,7 +367,7 @@ func (usi *UnrotatedSegmentInfo) DoCMICheckForUnrotated(currQuery *structs.Searc
 }
 
 func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint16]map[string]bool,
-	rangeFilter map[string]string, rangeOp segutils.FilterOperator,
+	rangeFilter map[string]string, rangeOp sutils.FilterOperator,
 	colsToCheck map[string]bool, qid uint64) error {
 
 	if !usi.isCmiLoaded {
@@ -386,7 +386,7 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 		for col := range colsToCheck {
 			cmi, ok := currInfo[col]
 			if !ok || cmi == nil || cmi.Ranges == nil {
-				if rangeOp == segutils.NotEquals {
+				if rangeOp == sutils.NotEquals {
 					timeFilteredBlocks[blkNum][col] = true
 					matchedBlockRange = true
 				}
@@ -407,7 +407,7 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 }
 
 func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint16]map[string]bool,
-	bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp segutils.LogicalOperator,
+	bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp sutils.LogicalOperator,
 	colsToCheck map[string]bool, qid uint64, dualCaseCheckEnabled bool) error {
 
 	if !usi.isCmiLoaded {
@@ -448,21 +448,21 @@ func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint
 					timeFilteredBlocks[blkNum][col] = true
 				}
 			}
-			if !atLeastOneFound && bloomOp == segutils.And {
+			if !atLeastOneFound && bloomOp == sutils.And {
 				matchedNeedleInBlock = false
 				break
-			} else if atLeastOneFound && bloomOp == segutils.Or {
+			} else if atLeastOneFound && bloomOp == sutils.Or {
 				allEntriesMissing = false
 				matchedNeedleInBlock = true
 				break
-			} else if !atLeastOneFound && bloomOp == segutils.Or {
+			} else if !atLeastOneFound && bloomOp == sutils.Or {
 				allEntriesMissing = true
 				matchedNeedleInBlock = false
 			}
 		}
 
 		// Or only early exits when it sees true. If all entries are false, we need to handle it here
-		if bloomOp == segutils.Or && allEntriesMissing && !matchedNeedleInBlock {
+		if bloomOp == sutils.Or && allEntriesMissing && !matchedNeedleInBlock {
 			matchedNeedleInBlock = false
 		}
 

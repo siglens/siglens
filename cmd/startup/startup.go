@@ -353,7 +353,9 @@ func ShutdownSiglensServer(gotSigusr1 bool) {
 	alertsHandler.Disconnect()
 	writer.WaitForSortedIndexToComplete()
 
-	queriesContextCancelFn()
+	if queriesContextCancelFn != nil {
+		queriesContextCancelFn()
+	}
 
 	if hook := hooks.GlobalHooks.ShutdownSiglensExtrasHook; hook != nil {
 		hook()

@@ -22,11 +22,10 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -58,7 +57,7 @@ type SerializedTimeBuckets struct {
 
 type BlockResults struct {
 	SortedResults      *SortResults
-	UnsortedResults    []*utils.RecordResultContainer
+	UnsortedResults    []*sutils.RecordResultContainer
 	TimeAggregation    *TimeBuckets
 	GroupByAggregation *GroupByBuckets
 	aggs               *structs.QueryAggregators
@@ -68,7 +67,7 @@ type BlockResults struct {
 	nextUnsortedIdx uint64 // next index to put result in
 	sortResults     bool
 	sizeLimit       uint64
-	batchErr        *toputils.BatchError
+	batchErr        *utils.BatchError
 }
 
 // json exportable and mergeable results for query
@@ -120,14 +119,14 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 		blockRes.sortResults = true
 		blockRes.SortedResults = sortedRes
 	} else {
-		initialSize := min(count, utils.MAX_RECS_PER_WIP)
+		initialSize := min(count, sutils.MAX_RECS_PER_WIP)
 		blockRes.sortResults = false
-		blockRes.UnsortedResults = make([]*utils.RecordResultContainer, initialSize)
+		blockRes.UnsortedResults = make([]*sutils.RecordResultContainer, initialSize)
 		blockRes.nextUnsortedIdx = 0
 	}
 	blockRes.sizeLimit = count
 	blockRes.MatchedCount = 0
-	blockRes.batchErr = toputils.GetOrCreateBatchErrorWithQid(qid)
+	blockRes.batchErr = utils.GetOrCreateBatchErrorWithQid(qid)
 	return blockRes, nil
 }
 
@@ -141,10 +140,10 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 	idx := 0
 	for _, m := range req.MeasureOperations {
 		measureColStr := m.MeasureCol
-		var mFunc utils.AggregateFunctions
+		var mFunc sutils.AggregateFunctions
 		var overrodeMeasureAgg *structs.MeasureAggregator
 		switch m.MeasureFunc {
-		case utils.Sum, utils.Max, utils.Min, utils.List:
+		case sutils.Sum, sutils.Max, sutils.Min, sutils.List:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, m.MeasureFunc, &allReverseIndex, colToIdx, idx)
 				if err != nil {
@@ -155,9 +154,9 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 			} else {
 				mFunc = m.MeasureFunc
 			}
-		case utils.Range:
+		case sutils.Range:
 			if m.ValueColRequest != nil {
-				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, utils.Range, &allReverseIndex, colToIdx, idx)
+				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, sutils.Range, &allReverseIndex, colToIdx, idx)
 				if err != nil {
 					log.Errorf("convertRequestToInternalStats: Error while setting up measure agg for range, err: %v", err)
 				}
@@ -171,7 +170,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 				idx = curId
 				continue
 			}
-		case utils.Count:
+		case sutils.Count:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.AddMeasureAggInRunningStatsForCount(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
 				if err != nil {
@@ -187,9 +186,9 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 				allReverseIndex = append(allReverseIndex, -1)
 			}
 			continue
-		case utils.Avg:
+		case sutils.Avg:
 			if m.ValueColRequest != nil {
-				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, utils.Avg, &allReverseIndex, colToIdx, idx)
+				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, sutils.Avg, &allReverseIndex, colToIdx, idx)
 				if err != nil {
 					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for avg, err: %v", err)
 				}
@@ -201,12 +200,12 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 					idx += 2
 					continue
 				}
-				mFunc = utils.Sum
+				mFunc = sutils.Sum
 				overrodeMeasureAgg = m
 			}
-		case utils.Cardinality:
+		case sutils.Cardinality:
 			fallthrough
-		case utils.Values:
+		case sutils.Values:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.AddMeasureAggInRunningStatsForValuesOrCardinality(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
 				if err != nil {
@@ -244,14 +243,14 @@ Returns:
   - bool if this record was added
   - string for any remote records that were removed
 */
-func (b *BlockResults) Add(rrc *utils.RecordResultContainer) (bool, string) {
+func (b *BlockResults) Add(rrc *sutils.RecordResultContainer) (bool, string) {
 	if b.sortResults {
 		return b.SortedResults.Add(rrc)
 	}
 
 	if b.nextUnsortedIdx < b.sizeLimit {
 		var err error
-		b.UnsortedResults, err = toputils.GrowSliceInChunks(b.UnsortedResults, int(b.nextUnsortedIdx+1), utils.MAX_RECS_PER_WIP)
+		b.UnsortedResults, err = utils.GrowSliceInChunks(b.UnsortedResults, int(b.nextUnsortedIdx+1), sutils.MAX_RECS_PER_WIP)
 		if err != nil {
 			log.Errorf("BlockResults.Add: Error while growing slice, err: %v", err)
 			return false, ""
@@ -303,7 +302,7 @@ func (b *BlockResults) MergeRemoteBuckets(grpBuckets *GroupByBucketsJSON, timeBu
 }
 
 // if sort is enabled, will call heap.Pop on the underlying results
-func (b *BlockResults) GetResults() []*utils.RecordResultContainer {
+func (b *BlockResults) GetResults() []*sutils.RecordResultContainer {
 	if b.sortResults {
 		return b.SortedResults.GetSortedResults()
 	} else {
@@ -312,11 +311,11 @@ func (b *BlockResults) GetResults() []*utils.RecordResultContainer {
 }
 
 // if sort is enabled, will call heap.Pop on the underlying results
-func (b *BlockResults) GetResultsCopy() []*utils.RecordResultContainer {
+func (b *BlockResults) GetResultsCopy() []*sutils.RecordResultContainer {
 	if b.sortResults {
 		return b.SortedResults.GetSortedResultsCopy()
 	} else {
-		res := make([]*utils.RecordResultContainer, b.nextUnsortedIdx)
+		res := make([]*sutils.RecordResultContainer, b.nextUnsortedIdx)
 		copy(res, b.UnsortedResults[:b.nextUnsortedIdx])
 		return res
 	}
@@ -357,25 +356,20 @@ func (b *BlockResults) WillValueBeAdded(valToAdd float64) bool {
 	}
 }
 
-// return true if:
-// 1.   if block not fuly enclosed
-// 2  if time-HT but we did not use the rollup info to add time-HT
-// 3.   if sort present and low/high ts can be added
-// 4.   if rrcs left to be filled
 func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncosed bool,
-	lowTs uint64, highTs uint64, addedTimeHt bool) bool {
+	lowTs uint64, highTs uint64) bool {
 
-	// case 1
 	if !isBlkFullyEncosed {
+		// We only want some records.
 		return true
 	}
 
-	if aggsHasTimeHt && !addedTimeHt {
-		return true // case 2
+	if aggsHasTimeHt {
+		return false
 	}
 
-	// case 3
 	if b.aggs != nil && b.aggs.Sort != nil {
+		// Check if some records will be added.
 		if b.aggs.Sort.Ascending {
 			return b.WillValueBeAdded(float64(lowTs))
 		} else {
@@ -383,18 +377,17 @@ func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncose
 		}
 	}
 
-	// case 4
+	// Check if there's space to add more records.
 	return b.nextUnsortedIdx < b.sizeLimit
-
 }
 
-func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []utils.CValueEnclosure,
-	groupByColVal string, usedByTimechart bool, qid uint64, unsetRecord map[string]utils.CValueEnclosure) {
+func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []sutils.CValueEnclosure,
+	groupByColVal string, usedByTimechart bool, qid uint64, unsetRecord map[string]sutils.CValueEnclosure) {
 
 	if b.GroupByAggregation == nil {
 		return
 	}
-	bKey := toputils.UnsafeByteSliceToString(currKey)
+	bKey := utils.UnsafeByteSliceToString(currKey)
 	bucketIdx, ok := b.GroupByAggregation.StringBucketIdx[bKey]
 
 	var bucket *RunningBucketResults
@@ -409,19 +402,19 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []u
 		// so that the caller may free up the backing space for this currKey/bKey
 		keyCopy := make([]byte, len(bKey))
 		copy(keyCopy, bKey)
-		b.GroupByAggregation.StringBucketIdx[toputils.UnsafeByteSliceToString(keyCopy)] = nBuckets
+		b.GroupByAggregation.StringBucketIdx[utils.UnsafeByteSliceToString(keyCopy)] = nBuckets
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
 
 	if usedByTimechart {
 		var gRunningStats []runningStats
-		_, exists := bucket.groupedRunningStats[groupByColVal]
+		var exists bool
+		gRunningStats, exists = bucket.groupedRunningStats[groupByColVal]
 		if !exists {
 			gRunningStats = initRunningStats(b.GroupByAggregation.internalMeasureFns)
 			bucket.groupedRunningStats[groupByColVal] = gRunningStats
 		}
-		gRunningStats = bucket.groupedRunningStats[groupByColVal]
 		bucket.AddMeasureResults(&gRunningStats, measureResults, qid, 1, true, b.batchErr, unsetRecord)
 	} else {
 		bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, 1, false, b.batchErr, unsetRecord)
@@ -430,8 +423,8 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []u
 }
 
 func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKey string,
-	measureResults []utils.CValueEnclosure, qid uint64, cnt uint64,
-	unsetRecord map[string]utils.CValueEnclosure) {
+	measureResults []sutils.CValueEnclosure, qid uint64, cnt uint64,
+	unsetRecord map[string]sutils.CValueEnclosure) {
 
 	if b.GroupByAggregation == nil {
 		return
@@ -529,7 +522,7 @@ func (b *BlockResults) GetGroupByBuckets() *structs.AggregationResult {
 // If the current GroupByBuckets are used by timechart, and timechart has a limit option, there are two different methods to add results at this point. This is because the limit option has two different ways of calculating scores, and we only return the top or bottom N results, with the remaining ones merged and placed into the 'other' col
 // 1. Single Agg: The score is based on the sum of the values in the aggregation. It requires two iterations. In the first iteration, sum up scores for each groupVal
 // 2. Multiple Aggs: The score is based on the frequency of each value of <field>. It only requires one iteration because we already have the frep for groupVal before the iteration begins
-func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest, timechart *structs.TimechartExpr, batchErr *toputils.BatchError) *structs.AggregationResult {
+func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest, timechart *structs.TimechartExpr, batchErr *utils.BatchError) *structs.AggregationResult {
 
 	tmLimitResult := &structs.TMLimitResult{
 		GroupValScoreMap: aggregations.InitialScoreMap(timechart, gb.GroupByColValCnt),
@@ -540,7 +533,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 	if isRankBySum {
 		for _, idx := range gb.StringBucketIdx {
 			bucket := gb.AllRunningBuckets[idx]
-			currRes := make(map[string]utils.CValueEnclosure)
+			currRes := make(map[string]sutils.CValueEnclosure)
 			// Add results for group by cols inside the time range bucket
 			if len(bucket.groupedRunningStats) > 0 {
 				for groupByColVal, gRunningStats := range bucket.groupedRunningStats {
@@ -557,15 +550,15 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap, req.MeasureOperations, batchErr)
 	for key, idx := range gb.StringBucketIdx {
 		bucket := gb.AllRunningBuckets[idx]
-		currRes := make(map[string]utils.CValueEnclosure)
+		currRes := make(map[string]sutils.CValueEnclosure)
 
 		// Add results for group by cols inside the time range bucket
 		if len(bucket.groupedRunningStats) > 0 {
 			// Every measure operator needs to check whether the current groupByColVal is within the limit
 			// If it's not, its col name should be displayed as [aggOp: otherstr]
-			otherCValArr := make([]*utils.CValueEnclosure, len(req.MeasureOperations))
+			otherCValArr := make([]*sutils.CValueEnclosure, len(req.MeasureOperations))
 			for i := 0; i < len(req.MeasureOperations); i++ {
-				otherCValArr[i] = &utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				otherCValArr[i] = &sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 			}
 
 			tmLimitResult.OtherCValArr = otherCValArr
@@ -588,20 +581,10 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 		var bucketKey interface{}
 		var err error
 
-		newQueryPipeline := config.IsNewQueryPipelineEnabled()
-
-		if newQueryPipeline {
-			bucketKey, err = utils.ConvertGroupByKeyFromBytes([]byte(key))
-		} else {
-			bucketKey, err = utils.ConvertGroupByKey([]byte(key))
-		}
+		bucketKey, err = sutils.ConvertGroupByKeyFromBytes([]byte(key))
 
 		if err != nil {
 			batchErr.AddError("GroupByBuckets.ConvertToAggregationResult:CONVERT_GROUP_BY_KEY", fmt.Errorf("failed to convert group by key: %v, err: %v", key, err))
-		}
-
-		if !newQueryPipeline && len(bucketKey.([]string)) == 1 {
-			bucketKey = bucketKey.([]string)[0]
 		}
 
 		results[bucketNum] = &structs.BucketResult{
@@ -620,8 +603,8 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 	}
 }
 
-func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket *RunningBucketResults, runningStats []runningStats, currRes map[string]utils.CValueEnclosure,
-	groupByColVal string, timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, batchErr *toputils.BatchError) {
+func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket *RunningBucketResults, runningStats []runningStats, currRes map[string]sutils.CValueEnclosure,
+	groupByColVal string, timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, batchErr *utils.BatchError) {
 	// Some aggregate functions require multiple measure funcs or raw field values to calculate the result. For example, range() needs both max() and min(), and aggregates with eval statements may require multiple raw field values
 	// Therefore, it is essential to assign a value to 'idx' appropriately to skip the intermediate results generated during the computation from runningStats bucket
 	idx := 0
@@ -638,9 +621,9 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			}
 		}
 
-		var hllToMerge *toputils.GobbableHll
+		var hllToMerge *utils.GobbableHll
 		var strSetToMerge map[string]struct{}
-		var eVal utils.CValueEnclosure
+		var eVal sutils.CValueEnclosure
 
 		gb.updateEValFromRunningBuckets(mInfo, runningStats, usedByTimechart, mInfoStr, currRes, bucket, &idx, &eVal, &hllToMerge, &strSetToMerge, batchErr)
 
@@ -652,8 +635,8 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 }
 
 func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAggregator, runningStats []runningStats, usedByTimechart bool, mInfoStr string,
-	currRes map[string]utils.CValueEnclosure, bucket *RunningBucketResults, idxPtr *int, eVal *utils.CValueEnclosure, hllToMerge **toputils.GobbableHll,
-	strSetToMerge *map[string]struct{}, batchErr *toputils.BatchError) {
+	currRes map[string]sutils.CValueEnclosure, bucket *RunningBucketResults, idxPtr *int, eVal *sutils.CValueEnclosure, hllToMerge **utils.GobbableHll,
+	strSetToMerge *map[string]struct{}, batchErr *utils.BatchError) {
 	if hllToMerge == nil || strSetToMerge == nil {
 		// This should never happen
 		log.Errorf("GroupByBuckets.AddResultToStatRes: hllToMerge or strSetToMerge is nil. hllToMerge: %v, strSetToMerge: %v", hllToMerge, strSetToMerge)
@@ -669,7 +652,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 	idx := *idxPtr
 
 	switch mInfo.MeasureFunc {
-	case utils.Count:
+	case sutils.Count:
 		incrementIdxBy = 1
 		if mInfo.ValueColRequest != nil || usedByTimechart {
 			if !usedByTimechart && len(mInfo.ValueColRequest.GetFields()) == 0 {
@@ -678,20 +661,21 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 
 			countIdx := gb.reverseMeasureIndex[idx]
+			runningStats[countIdx].syncRawValue()
 			countVal, err := runningStats[countIdx].rawVal.GetUIntValue()
 			if err != nil {
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
 			}
 
 			eVal.CVal = countVal
-			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 		} else {
 
 			eVal.CVal = bucket.count
-			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 		}
-	case utils.Avg:
+	case sutils.Avg:
 		var avg float64
 		if mInfo.ValueColRequest != nil {
 			incrementIdxBy = 1
@@ -710,12 +694,12 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 					avg = sumVal / float64(countVal)
 				}
 			} else {
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
 			}
 
 			eVal.CVal = avg
-			eVal.Dtype = utils.SS_DT_FLOAT
+			eVal.Dtype = sutils.SS_DT_FLOAT
 		} else {
 			if usedByTimechart {
 				// If used by timechart, we need to calculate the average by dividing the sum of the values by the count of the values
@@ -727,29 +711,32 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 
 			sumIdx := gb.reverseMeasureIndex[idx]
+			runningStats[sumIdx].syncRawValue()
 			sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
 			if err != nil {
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
 			}
 
 			if usedByTimechart {
 				sumIdx := gb.reverseMeasureIndex[idx]
+				runningStats[sumIdx].syncRawValue()
 				sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
 				if err != nil {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 					return
 				}
 
 				countIdx := gb.reverseMeasureIndex[idx+1]
+				runningStats[countIdx].syncRawValue()
 				countRawVal, err := runningStats[countIdx].rawVal.GetFloatValue()
 				if err != nil {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 					return
 				}
 
 				eVal.CVal = sumRawVal / countRawVal
-				eVal.Dtype = utils.SS_DT_FLOAT
+				eVal.Dtype = sutils.SS_DT_FLOAT
 			} else {
 				if bucket.count == 0 {
 					avg = 0
@@ -758,10 +745,10 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 				}
 
 				eVal.CVal = avg
-				eVal.Dtype = utils.SS_DT_FLOAT
+				eVal.Dtype = sutils.SS_DT_FLOAT
 			}
 		}
-	case utils.Range:
+	case sutils.Range:
 		if mInfo.ValueColRequest != nil {
 			incrementIdxBy = 1
 
@@ -776,33 +763,35 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 				maxVal := runningStats[valIdx].rangeStat.Max
 				rangeVal = maxVal - minVal
 			} else {
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
 			}
 
 			eVal.CVal = rangeVal
-			eVal.Dtype = utils.SS_DT_FLOAT
+			eVal.Dtype = sutils.SS_DT_FLOAT
 		} else {
 			incrementIdxBy = 2
 
 			minIdx := gb.reverseMeasureIndex[idx]
+			runningStats[minIdx].syncRawValue()
 			minRawVal, err := runningStats[minIdx].rawVal.GetFloatValue()
 			if err != nil {
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
 			}
 
 			maxIdx := gb.reverseMeasureIndex[idx+1]
+			runningStats[maxIdx].syncRawValue()
 			maxRawVal, err := runningStats[maxIdx].rawVal.GetFloatValue()
 			if err != nil {
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
 			}
 
 			eVal.CVal = maxRawVal - minRawVal
-			eVal.Dtype = utils.SS_DT_FLOAT
+			eVal.Dtype = sutils.SS_DT_FLOAT
 		}
-	case utils.Cardinality:
+	case sutils.Cardinality:
 		incrementIdxBy = 1
 
 		valIdx := gb.reverseMeasureIndex[idx]
@@ -811,21 +800,23 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 				batchErr.AddError("GroupByBuckets.AddResultToStatRes:CARDINALITY", fmt.Errorf("zero fields of ValueColRequest for cardinality: %v", mInfoStr))
 				return
 			}
+
+			runningStats[valIdx].syncRawValue()
 			strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
 			if !ok {
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
 			}
 			eVal.CVal = uint64(len(strSet))
-			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 		} else {
 			finalVal := runningStats[valIdx].hll.Cardinality()
 			eVal.CVal = finalVal
-			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 
 			*hllToMerge = runningStats[valIdx].hll
 		}
-	case utils.Values:
+	case sutils.Values:
 		incrementIdxBy = 1
 
 		if mInfo.ValueColRequest != nil {
@@ -836,9 +827,10 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 		}
 
 		valIdx := gb.reverseMeasureIndex[idx]
+		runningStats[valIdx].syncRawValue()
 		strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
 		if !ok {
-			currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+			currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 			return
 		}
 		*strSetToMerge = strSet
@@ -850,9 +842,9 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 
 		sort.Strings(uniqueStrings)
 
-		eVal.Dtype = utils.SS_DT_STRING_SLICE
+		eVal.Dtype = sutils.SS_DT_STRING_SLICE
 		eVal.CVal = uniqueStrings
-	case utils.List:
+	case sutils.List:
 		incrementIdxBy = 1
 
 		if mInfo.ValueColRequest != nil {
@@ -862,18 +854,19 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 		}
 		valIdx := gb.reverseMeasureIndex[idx]
+		runningStats[valIdx].syncRawValue()
 		strList, ok := runningStats[valIdx].rawVal.CVal.([]string)
 		if !ok {
-			currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+			currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 			return
 		}
-		if len(strList) > utils.MAX_SPL_LIST_SIZE {
-			strList = strList[:utils.MAX_SPL_LIST_SIZE]
+		if len(strList) > sutils.MAX_SPL_LIST_SIZE {
+			strList = strList[:sutils.MAX_SPL_LIST_SIZE]
 		}
 
-		eVal.Dtype = utils.SS_DT_STRING_SLICE
+		eVal.Dtype = sutils.SS_DT_STRING_SLICE
 		eVal.CVal = strList
-	case utils.Sum, utils.Max, utils.Min:
+	case sutils.Sum, sutils.Max, sutils.Min:
 		incrementIdxBy = 1
 
 		if mInfo.ValueColRequest != nil {
@@ -883,6 +876,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 		}
 		valIdx := gb.reverseMeasureIndex[idx]
+		runningStats[valIdx].syncRawValue()
 		cTypeVal := runningStats[valIdx].rawVal
 		eVal.CVal = cTypeVal.CVal
 		eVal.Dtype = cTypeVal.Dtype
@@ -890,6 +884,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 		incrementIdxBy = 1
 
 		valIdx := gb.reverseMeasureIndex[idx]
+		runningStats[valIdx].syncRawValue()
 		cTypeVal := runningStats[valIdx].rawVal
 		eVal.CVal = cTypeVal.CVal
 		eVal.Dtype = cTypeVal.Dtype
@@ -1013,7 +1008,7 @@ func (rb *RunningBucketResultsJSON) Convert() (*RunningBucketResults, error) {
 	for _, rs := range rb.RunningStats {
 		runningStat, err := rs.GetRunningStats()
 		if err != nil {
-			return nil, toputils.TeeErrorf("RunningBucketResultsJSON.Convert: Error while converting running stats, err: %v", err)
+			return nil, utils.TeeErrorf("RunningBucketResultsJSON.Convert: Error while converting running stats, err: %v", err)
 		}
 		currRunningStats = append(currRunningStats, runningStat)
 	}

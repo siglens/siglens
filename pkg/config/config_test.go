@@ -25,7 +25,7 @@ import (
 
 	"github.com/pbnjay/memory"
 	"github.com/siglens/siglens/pkg/config/common"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -126,8 +126,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				QueryHostname:               "abc:123",
 				PProfEnabled:                "false",
 				PProfEnabledConverted:       false,
-				PQSEnabled:                  "false",
-				PQSEnabledConverted:         false,
+				PQSEnabled:                  "true",
+				PQSEnabledConverted:         true,
 				AnalyticsEnabled:            "false",
 				AnalyticsEnabledConverted:   false,
 				AgileAggsEnabled:            "false",
@@ -236,8 +236,8 @@ func Test_ExtractConfigData(t *testing.T) {
 				QueryHostname:               "localhost:9000",
 				PProfEnabled:                "true",
 				PProfEnabledConverted:       true,
-				PQSEnabled:                  "false",
-				PQSEnabledConverted:         false,
+				PQSEnabled:                  "true",
+				PQSEnabledConverted:         true,
 				DualCaseCheck:               "true",
 				DualCaseCheckConverted:      true,
 				AnalyticsEnabled:            "true",
@@ -360,8 +360,8 @@ a: b
 				QueryHostname:               "localhost:5122",
 				PProfEnabled:                "true",
 				PProfEnabledConverted:       true,
-				PQSEnabled:                  "false",
-				PQSEnabledConverted:         false,
+				PQSEnabled:                  "true",
+				PQSEnabledConverted:         true,
 				SafeServerStart:             false,
 				AnalyticsEnabled:            "true",
 				AnalyticsEnabledConverted:   true,
@@ -401,7 +401,7 @@ a: b
 			assert.Error(t, err)
 			continue
 		}
-		if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
+		if sutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
 			assert.Equal(t, uint64(50), actualConfig.MemoryConfig.MaxUsagePercent)
 			// If memory is less than 8GB, config by default returns 50% as the threshold
 			// For testing purpose resetting it to 80%

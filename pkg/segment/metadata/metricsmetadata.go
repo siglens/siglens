@@ -28,8 +28,8 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -129,11 +129,11 @@ func (mm *allMetricsSegmentMetadata) rebalanceMetricsSsm(ssmSizeBytes uint64) {
 	inMemSize, inMemSearchMetaCount, newloaded := mm.loadSsmUntilIndex(searchIndex)
 
 	log.Infof("rebalanceMetricsSsm SSM, inMem: %+v SSM, allocated: %+v MB, evicted: %v, newloaded: %v, took: %vms",
-		inMemSearchMetaCount, utils.ConvertUintBytesToMB(inMemSize),
+		inMemSearchMetaCount, sutils.ConvertUintBytesToMB(inMemSize),
 		evicted, newloaded, int(time.Since(sTime).Milliseconds()))
 
 	GlobalSegStoreSummary.SetInMemoryMetricsSearchmetadataCount(uint64(inMemSearchMetaCount))
-	GlobalSegStoreSummary.SetInMemoryMetricsSsmSizeMB(utils.ConvertUintBytesToMB(inMemSize))
+	GlobalSegStoreSummary.SetInMemoryMetricsSsmSizeMB(sutils.ConvertUintBytesToMB(inMemSize))
 }
 
 /*
@@ -266,7 +266,7 @@ func ReadMetricNames(filePath string) (map[string]bool, error) {
 	metricNames := make(map[string]bool)
 
 	for i := 0; i < len(buf); {
-		metricNameLen := int(toputils.BytesToUint16LittleEndian(buf[i : i+2]))
+		metricNameLen := int(utils.BytesToUint16LittleEndian(buf[i : i+2]))
 		i += 2
 		metricName := string(buf[i : i+metricNameLen])
 		i += metricNameLen

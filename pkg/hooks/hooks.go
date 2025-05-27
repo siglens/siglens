@@ -24,7 +24,7 @@ import (
 	"github.com/fasthttp/router"
 	commonconfig "github.com/siglens/siglens/pkg/config/common"
 	"github.com/siglens/siglens/pkg/grpc"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/valyala/fasthttp"
 )
@@ -86,6 +86,7 @@ type Hooks struct {
 	UploadIngestNodeExtrasHook          func() (bool, error)
 	UploadQueryNodeExtrasHook           func() (bool, error)
 	DeleteBlobExtrasHook                func(filepath string) (bool, error)
+	GetAllFilesInDirectoryHook          func(dirPath string) ([]string, error)
 	DownloadAllIngestNodesDirExtrasHook func() (bool, error)
 	DownloadAllQueryNodesDirExtrasHook  func() (bool, error)
 	DownloadSegmentBlobExtrasHook       func(filename string) (bool, error)
@@ -129,7 +130,7 @@ type Hooks struct {
 
 	// Handling ingestion
 	BeforeHandlingBulkRequest func(ctx *fasthttp.RequestCtx, myid int64) (bool, uint64)
-	AfterWritingToSegment     func(rid uint64, segstore interface{}, record []byte, ts uint64, signalType segutils.SIGNAL_TYPE) error
+	AfterWritingToSegment     func(rid uint64, segstore interface{}, record []byte, ts uint64, signalType sutils.SIGNAL_TYPE) error
 	AfterHandlingBulkRequest  func(ctx *fasthttp.RequestCtx, rid uint64) bool
 	RotateSegment             func(segstore interface{}, streamId string, forceRotate bool) (bool, error)
 	AfterSegmentRotation      func(segmeta interface{}) error

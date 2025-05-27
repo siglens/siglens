@@ -18,15 +18,16 @@
 package segread
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 )
+
+var ErrNilRegex = fmt.Errorf("got nil regex")
 
 /*
 parameters:
@@ -51,7 +52,7 @@ func ApplySearchToMatchFilterDictCsg(sfr *segreader.SegmentFileReader, match *st
 	if match.MatchType == structs.MATCH_PHRASE {
 		compiledRegex, err = match.GetRegexp()
 		if err != nil {
-			return false, fmt.Errorf("ApplySearchToMatchFilterDictCsg: error getting match regex: %v", err)
+			return false, ErrNilRegex
 		}
 	}
 
@@ -81,18 +82,18 @@ returns:
 	bool: if there is a match
 	err
 */
-func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qValDte *utils.DtypeEnclosure,
-	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper, isCaseInsensitive bool) (bool, error) {
+func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qValDte *sutils.DtypeEnclosure,
+	fop sutils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper, isCaseInsensitive bool) (bool, error) {
 
 	if qValDte == nil {
 		return false, nil
 	}
 
 	if isRegexSearch && qValDte.GetRegexp() == nil {
-		return false, errors.New("ApplySearchToExpressionFilterDictCsg: qValDte had nil regexp compilation")
+		return false, ErrNilRegex
 	}
 
-	dte := &utils.DtypeEnclosure{}
+	dte := &sutils.DtypeEnclosure{}
 	for dwordIdx, dWord := range sfr.GetDeTlv() {
 		matched, err := writer.ApplySearchToExpressionFilterSimpleCsg(qValDte, fop, dWord, isRegexSearch, dte, isCaseInsensitive)
 		if err != nil {

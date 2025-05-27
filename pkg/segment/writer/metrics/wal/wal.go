@@ -14,11 +14,10 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 
 	"github.com/klauspost/compress/zstd"
-	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -64,7 +63,7 @@ func NewWAL(filePath string, encoder walAppender) (*Wal, error) {
 		return nil, err
 	}
 
-	_, err = fd.Write(segutils.VERSION_WALFILE)
+	_, err = fd.Write(sutils.VERSION_WALFILE)
 	if err != nil {
 		log.Infof("NewDataPointWal: Could not write version byte to file %v. Err %v", filePath, err)
 		return nil, err
@@ -148,7 +147,7 @@ func (w *Wal) truncate() error {
 		return err
 	}
 
-	_, err = w.fd.Write(segutils.VERSION_WALFILE)
+	_, err = w.fd.Write(sutils.VERSION_WALFILE)
 	if err != nil {
 		log.Errorf("Wal.truncate: failed to write WAL version: %v", err)
 		return err
@@ -271,7 +270,7 @@ func openAndValidateWALFile(filePath string) (*os.File, error) {
 		return nil, err
 	}
 
-	if versionBuf[0] != segutils.VERSION_WALFILE[0] {
+	if versionBuf[0] != sutils.VERSION_WALFILE[0] {
 		log.Errorf("openAndValidateWALFile: Unexpected WAL file version: %+v", versionBuf[0])
 		return nil, fmt.Errorf("unexpected WAL file version: %+v", versionBuf[0])
 	}
@@ -305,7 +304,7 @@ func (it *DPWalIterator) Next() (*WalDatapoint, error) {
 		return nil, err
 	}
 
-	it.readBuf = toputils.ResizeSlice(it.readBuf, int(blockSize-Uint32Size)) // remove checksum length and read the actual data block
+	it.readBuf = utils.ResizeSlice(it.readBuf, int(blockSize-Uint32Size)) // remove checksum length and read the actual data block
 	_, err = io.ReadFull(it.fd, it.readBuf)
 	if err != nil {
 		log.Errorf("WalIterator Next: failed to read block data of size %d from file %s: %v", blockSize, it.fd.Name(), err)
@@ -337,7 +336,7 @@ func (it *DPWalIterator) Close() error {
 }
 
 func (it *DPWalIterator) decodeWALBlock(blockBuf *bytes.Reader) error {
-	it.readBlockBuf = toputils.ResizeSlice(it.readBlockBuf, blockBuf.Len())
+	it.readBlockBuf = utils.ResizeSlice(it.readBlockBuf, blockBuf.Len())
 	_, err := blockBuf.Read(it.readBlockBuf)
 
 	if err != nil {
@@ -361,7 +360,7 @@ func (it *DPWalIterator) decodeWALBlock(blockBuf *bytes.Reader) error {
 		return err
 	}
 
-	it.readDps = toputils.ResizeSlice(it.readDps, int(N))
+	it.readDps = utils.ResizeSlice(it.readDps, int(N))
 
 	for i := 0; i < int(N); i++ {
 		err := binary.Read(rawReader, binary.LittleEndian, &it.readDps[i].Timestamp)
@@ -500,7 +499,7 @@ func (it *MNameWalIterator) Next() (*string, error) {
 		return nil, err
 	}
 
-	it.readBuf = toputils.ResizeSlice(it.readBuf, int(blockSize-Uint32Size)) // remove checksum length and read the actual data block
+	it.readBuf = utils.ResizeSlice(it.readBuf, int(blockSize-Uint32Size)) // remove checksum length and read the actual data block
 	_, err = io.ReadFull(it.fd, it.readBuf)
 	if err != nil {
 		log.Errorf("MNameWalIterator Next: failed to read block data of size %d: %v", blockSize, err)
