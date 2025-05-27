@@ -160,7 +160,6 @@ type RateCommand struct {
 	ByFields []string 
 }
 
-
 // Update this function: GetAllColsInAggsIfStatsPresent() to return all columns in the query aggregators if stats are present.
 // This function should return all columns in the query aggregators if stats are present.
 type QueryAggregators struct {
