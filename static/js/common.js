@@ -626,9 +626,9 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
 //eslint-disable-next-line no-unused-vars
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
     function setDateTimeInputs(epochTime, dateId, timeId) {
-        let dateVal = new Date(epochTime);
-        let dateString = dateVal.toISOString().split('T')[0];
-        let timeString = dateVal.toTimeString().substring(0, 5);
+        let momentDate = moment(epochTime);
+        let dateString = momentDate.format('YYYY-MM-DD');
+        let timeString = momentDate.format('HH:mm');
 
         $(`#${dateId}, .panelEditor-container #${dateId}`).val(dateString).addClass('active');
         $(`#${timeId}, .panelEditor-container #${timeId}`).val(timeString).addClass('active');
