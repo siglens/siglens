@@ -320,7 +320,12 @@ function configureTimeAxis() {
 
 function formatTooltipTimestamp(timestamp) {
     const duration = HistogramState.currentEndTime - HistogramState.currentStartTime;
-    const { month, day, year, hour12, minutes, seconds, ampm } = parseTimestamp(timestamp);
+    let adjustedTimestamp = timestamp;
+    if (duration > 180 * 24 * 60 * 60 * 1000) {
+        const date = new Date(timestamp);
+        adjustedTimestamp = new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0).getTime();
+    }
+    const { month, day, year, hour12, minutes, seconds, ampm } = parseTimestamp(adjustedTimestamp);
     const base = `${month} ${day}, ${year}`;
 
     if (duration <= 15 * 60 * 1000) {
