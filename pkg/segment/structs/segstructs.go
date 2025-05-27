@@ -157,7 +157,7 @@ type StatsExpr struct {
 }
 
 type RateCommand struct {
-	ByFields []string 
+	ByFields []string
 }
 
 // Update this function: GetAllColsInAggsIfStatsPresent() to return all columns in the query aggregators if stats are present.
@@ -206,8 +206,7 @@ type QueryAggregators struct {
 	StatisticExpr   *StatisticExpr
 	TransactionExpr *TransactionArguments
 	WhereExpr       *BoolExpr
-	RateCommand *RateCommand 
-
+	RateCommand     *RateCommand
 }
 
 type GenerateEvent struct {
