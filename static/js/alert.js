@@ -591,8 +591,9 @@ function alertChart(res) {
 
     // Handle both aggs-query and segstats-query
     if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
-        if (handleErrors(res, logsExplorer) || !res.measure || res.measure.length === 0) {
-            showEmptyChart(logsExplorer);
+        if (res.errors || !res.measure || res.measure.length === 0) {
+            const errorMsg = res.errors ? res.errors[0] : 'No data available';
+            showEmptyChart(logsExplorer, errorMsg);
             return;
         }
         let hits = res.measure;
@@ -839,15 +840,26 @@ function prepareLogsChartData(res, hits) {
 
 function handleErrors(res, logsExplorer) {
     if (res.errors) {
-        const errorMsg = document.createElement('div');
-        errorMsg.textContent = res.errors[0];
-        logsExplorer.appendChild(errorMsg);
+        const errorMsg = res.errors[0];
+        showEmptyChart(logsExplorer, errorMsg);
         return true;
     }
     return false;
 }
 
-function showEmptyChart(logsExplorer) {
+function showEmptyChart(logsExplorer, errorMessage = null) {
+    logsExplorer.innerHTML = '';
+    if (errorMessage) {
+        const errorMsg = document.createElement('div');
+        errorMsg.textContent = errorMessage;
+        errorMsg.style.color = '#666';
+        errorMsg.style.textAlign = 'center';
+        errorMsg.style.padding = '20px';
+        errorMsg.style.fontSize = '16px';
+        errorMsg.style.fontStyle = 'italic';
+        logsExplorer.appendChild(errorMsg);
+        return;
+    }
     const canvas = document.createElement('canvas');
     canvas.style.width = '100%';
     canvas.style.height = '400px';
