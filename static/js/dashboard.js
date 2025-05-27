@@ -161,6 +161,7 @@ function saveJsonChanges() {
                     refresh: dbRefresh,
                     isFavorite: isFavorite,
                     panelFlag: `{{ .PanelFlag }}`,
+                    folder: dbData.folder,
                 },
             }),
         })
@@ -234,6 +235,7 @@ async function updateDashboard() {
                 refresh: dbRefresh,
                 panelFlag: `{{ .PanelFlag }}`,
                 isFavorite: isFavorite,
+                folder: dbData.folder,
             },
         }),
     })
@@ -463,7 +465,8 @@ async function getDashboardData() {
         dbData.name,
         true, // Show favorite button for dashboard
         dbData.isFavorite,
-        mode === 'settings'
+        mode === 'settings',
+        false
     );
     breadcrumb.onFavoriteClick(() => toggleFavorite(dbId));
 
@@ -1025,7 +1028,7 @@ function handleDbSettings() {
     window.history.pushState({}, '', currentUrl);
 
     const breadcrumb = new Breadcrumb();
-    breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, true);
+    breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, true, false);
 
     $('.dbSet-dbName').val(dbName);
     $('.dbSet-dbDescr').val(dbDescr);
@@ -1139,7 +1142,7 @@ function discardDbSetting() {
     window.history.pushState({}, '', currentUrl);
 
     const breadcrumb = new Breadcrumb();
-    breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, false);
+    breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, false, false);
 
     if (editPanelFlag) {
         $('.panelEditor-container').css('display', 'flex');

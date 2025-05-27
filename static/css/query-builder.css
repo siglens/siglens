@@ -750,6 +750,59 @@ div.show-record-popup .ui-dialog-buttonpane button {
     overflow: hidden;
 }
 
+
+.histo-container {
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    display: none;
+}
+
+#histogram-container {
+    height: var(--histogram-height, 180px); 
+    min-height: 100px; /* Prevent collapsing too small */
+    max-height: 50vh; 
+    background: var(--black1-to-white0);
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 10px;
+    display: block;
+    position: relative; 
+    overflow: hidden; 
+}
+
+#histogram-container canvas {
+    cursor: crosshair !important;
+}
+
+#histogram-container .resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--datatable-header-bg-color);
+    cursor: ns-resize; 
+}
+
+#histogram-container .resize-handle:hover,
+#histogram-container .resize-handle.active {
+    background: #a0a0a0;
+    opacity: 0.7;
+}
+
+#histogram-toggle-btn.active{
+    background-color: var(--drop-down-btn-bg-hover) !important;
+    border: 1px solid var(--border-btn-color) !important;
+}
+
+.info-message {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-size: 16px;
+    font-style: italic;
+}
+
 .tab-content-size {
     height: 100%;
 }
@@ -1172,4 +1225,39 @@ html[data-theme="dark"] .icon-container svg {
 
 .rotation-neg90 {
     transform: rotate(-90deg);
+}
+
+#format-dropdown {
+    display: none;
+    position: absolute;
+    width: 260px;
+    background: var(--index-drop-down-box-bg-color);
+    border: 1px solid var(--border-color-regular);
+    border-radius: 5px;
+    box-shadow: var(--box-shadow);
+    padding: 8px;
+    z-index: 1;
+    top: 27px;
+    left: 160px;
+}
+
+#format-dropdown input {
+    width: auto;
+}
+
+#format-dropdown label {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: 8px;
+}
+
+#apply-format {
+    float: right;
+}
+
+#format-table svg{
+    height: 14px;
+    stroke-width: 1.5px;
+    stroke: var(--text-color);
 }

@@ -38,6 +38,10 @@ $(document).ready(async () => {
     createTooltip('#log-opt-table-btn', 'Tabular View');
     createTooltip('.avail-fields-btn', 'Select Field to Display');
     createTooltip('#run-filter-btn', 'Run query');
+    createTooltip('#histogram-toggle-btn', 'Histogram View');
+    createTooltip('#format-table', 'Format Table');
+
+    setupTableFormatOptions();
 
     function updateTooltip(element) {
         if (element && element._tippy) {
@@ -133,6 +137,8 @@ $(document).ready(async () => {
     $('.theme-btn').on('click', themePickerHandler);
     // eslint-disable-next-line no-undef
     $('.theme-btn').on('click', updateTimeChartTheme);
+    // eslint-disable-next-line no-undef
+    $('.theme-btn').on('click', updateHistogramTheme);
 
     setupEventHandlers();
 
@@ -201,3 +207,71 @@ $(document).ready(async () => {
 
     initializeFilterInputEvents();
 });
+
+const NUMBER_FORMAT_TYPES = {
+    COMMA: 'comma',
+    PLAIN: 'plain',
+};
+
+function setupTableFormatOptions() {
+    if (Cookies.get('number-format') === undefined) {
+        Cookies.set('number-format', NUMBER_FORMAT_TYPES.COMMA, { expires: 365 });
+    }
+
+    let numberFormatState = Cookies.get('number-format');
+
+    $(`input[name="numberFormat"][value="${numberFormatState}"]`).prop('checked', true);
+    $('#format-table')
+        .off('click')
+        .on('click', function (e) {
+            var dropdown = $('#format-dropdown');
+            dropdown.toggle();
+            e.stopPropagation();
+        });
+
+    $('input[name="numberFormat"]')
+        .off('change')
+        .on('change', function () {
+            numberFormatState = $(this).val();
+        });
+
+    $('#apply-format')
+        .off('click')
+        .on('click', function () {
+            Cookies.set('number-format', numberFormatState, { expires: 365 });
+            $('#format-dropdown').hide();
+
+            if (gridOptions && gridOptions.api) {
+                gridOptions.api.refreshCells({ force: true });
+            }
+
+            if (aggGridOptions && aggGridOptions.api) {
+                aggGridOptions.api.refreshCells({ force: true });
+            }
+        });
+
+    $(document)
+        .off('click.formatDropdown')
+        .on('click.formatDropdown', function (e) {
+            if (!$(e.target).closest('#format-dropdown, #format-table').length) {
+                $('#format-dropdown').hide();
+            }
+        });
+}
+
+// eslint-disable-next-line no-unused-vars
+function formatNumber(value) {
+    if (typeof value !== 'number') {
+        return value;
+    }
+
+    const useCommas = Cookies.get('number-format') !== 'plain';
+
+    if (useCommas) {
+        const parts = value.toString().split('.');
+        const wholeFormatted = parseInt(parts[0], 10).toLocaleString('en-US');
+        return parts.length > 1 ? `${wholeFormatted}.${parts[1]}` : wholeFormatted;
+    } else {
+        return value.toString();
+    }
+}

@@ -39,7 +39,7 @@ Our experience servicing 10,000+ engineers with Observability tools taught us a 
 - Grafana Loki has slow query performance 🐌🐌
 
 
-Armed with decades of experience in monitoring domain, we set out to build a observability DB from the ground up, uniquely suited for logs, metrics and traces with **`zero`** external dependencies. A **`single binary`** that you can run on your laptop and process **`8 TB/day`**.  
+Armed with decades of experience in monitoring domain, we set out to build a observability DB from the ground up, uniquely suited for logs, metrics and traces with <b>zero</b> external dependencies. A <b>single binary</b> that you can run on your laptop and process <b>8 TB/day</b>.  
 <br /><br />
 
 
@@ -55,13 +55,13 @@ Armed with decades of experience in monitoring domain, we set out to build a obs
 # Differentiators
 
 ### SigLens v/s Splunk,Elastic,Loki  
-Check out this <a href="https://www.siglens.com/blog/petabyte-of-observability-data.html" target="_blank">blog</a> where SigLens ingested data at 1 PB/day rate for 24 hours on a mere `32 EC2 instances` compared to `3000 EC2 instances` required for Splunk, Elastic, Grafana Loki
+Check out this <a href="https://www.siglens.com/blog/petabyte-of-observability-data.html" target="_blank">blog</a> where SigLens ingested data at 1 PB/day rate for 24 hours on a mere <b>32 EC2 instances</b> compared to <b>3000 EC2 instances</b> required for Splunk, Elastic, Grafana Loki
 
 ### SigLens v/s Elasticsearch 
-Check out this <a href="https://www.siglens.com/blog/siglens-1025x-faster-than-elasticsearch" target="_blank">blog</a> where SigLens is **`1025x`** Faster than Elasticsearch 🚀🚀
+Check out this <a href="https://www.siglens.com/blog/siglens-1025x-faster-than-elasticsearch" target="_blank">blog</a> where SigLens is <b>1025x</b> Faster than Elasticsearch 🚀🚀
 
 ### SigLens v/s ClickHouse 
-Check out this <a href="https://www.siglens.com/blog/siglens-54x-faster-than-clickhouse.html" target="_blank">blog</a> where SigLens is **`54x`** Faster than ClickHouse 🚀🚀
+Check out this <a href="https://www.siglens.com/blog/siglens-54x-faster-than-clickhouse.html" target="_blank">blog</a> where SigLens is <b>54x</b> Faster than ClickHouse 🚀🚀
 
 
 <br />

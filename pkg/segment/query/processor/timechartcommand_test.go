@@ -122,15 +122,16 @@ func Test_TimechartProcessor_NoByField(t *testing.T) {
 	assert.NotNil(t, iqr1)
 
 	resultValues, err := iqr1.ReadAllColumns()
+	t.Logf("resultValues: %+v", resultValues)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(resultValues["timestamp"]))
 	assert.Equal(t, 3, len(resultValues["sum_measurecol"]))
 	assert.Equal(t, startTime, resultValues["timestamp"][0].CVal)
 	assert.Equal(t, startTime+uint64(time.Minute.Milliseconds()), resultValues["timestamp"][1].CVal)
 	assert.Equal(t, startTime+2*uint64(time.Minute.Milliseconds()), resultValues["timestamp"][2].CVal)
-	assert.Equal(t, uint64(6), resultValues["sum_measurecol"][0].CVal)
-	assert.Equal(t, uint64(9), resultValues["sum_measurecol"][1].CVal)
-	assert.Equal(t, uint64(6), resultValues["sum_measurecol"][2].CVal)
+	assert.Equal(t, int64(6), resultValues["sum_measurecol"][0].CVal)
+	assert.Equal(t, int64(9), resultValues["sum_measurecol"][1].CVal)
+	assert.Equal(t, int64(6), resultValues["sum_measurecol"][2].CVal)
 }
 
 func Test_TimechartProcessor_WithByField(t *testing.T) {
@@ -164,15 +165,15 @@ func Test_TimechartProcessor_WithByField(t *testing.T) {
 	assert.Equal(t, startTime+uint64(time.Minute.Milliseconds()), resultValues["timestamp"][1].CVal)
 	assert.Equal(t, startTime+2*uint64(time.Minute.Milliseconds()), resultValues["timestamp"][2].CVal)
 
-	assert.Equal(t, uint64(4), resultValues["sum_measurecol: a"][0].CVal)
+	assert.Equal(t, int64(4), resultValues["sum_measurecol: a"][0].CVal)
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: a"][1].CVal)
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: a"][2].CVal)
 
-	assert.Equal(t, uint64(2), resultValues["sum_measurecol: b"][0].CVal)
+	assert.Equal(t, int64(2), resultValues["sum_measurecol: b"][0].CVal)
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: b"][1].CVal)
-	assert.Equal(t, uint64(6), resultValues["sum_measurecol: b"][2].CVal)
+	assert.Equal(t, int64(6), resultValues["sum_measurecol: b"][2].CVal)
 
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: c"][0].CVal)
-	assert.Equal(t, uint64(9), resultValues["sum_measurecol: c"][1].CVal)
+	assert.Equal(t, int64(9), resultValues["sum_measurecol: c"][1].CVal)
 	assert.Equal(t, int64(0), resultValues["sum_measurecol: c"][2].CVal)
 }
