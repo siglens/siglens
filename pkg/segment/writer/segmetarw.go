@@ -896,6 +896,61 @@ func GetIndexSizeStats(indexName string, orgId int64) (*utils.IndexStats, error)
 	return stats, err
 }
 
+func GetIndexSizeStatsForAllOrgs(indexName string) (*utils.IndexStats, error) {
+	allSegMetas := ReadGlobalSegmetas()
+	stats := &utils.IndexStats{}
+
+	type result struct {
+		stats *SegmentSizeStats
+		err   error
+	}
+
+	ch := make(chan result, len(allSegMetas))
+	var wg sync.WaitGroup
+
+	for _, meta := range allSegMetas {
+		if meta.VirtualTableName != indexName {
+			continue
+		}
+
+		wg.Add(1)
+		go func(segmentKey string, numBlocks uint16) {
+			defer wg.Done()
+			segStats, err := calculateSegmentSizes(segmentKey)
+			if err == nil {
+				segStats.NumBlocks = int64(numBlocks)
+			}
+			ch <- result{segStats, err}
+		}(meta.SegmentKey, meta.NumBlocks)
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	var err error
+	for res := range ch {
+		if res.err != nil {
+			err = res.err
+			// continue with the rest of segkey stats
+			continue
+		}
+		stats.TotalCmiSize += res.stats.TotalCmiSize
+		stats.TotalCsgSize += res.stats.TotalCsgSize
+		stats.NumIndexFiles += res.stats.NumIndexFiles
+		stats.NumBlocks += res.stats.NumBlocks
+	}
+
+	unrotatedStats := getUnrotatedSegmentStatsForAllOrgs(indexName)
+	stats.TotalCmiSize += unrotatedStats.TotalCmiSize
+	stats.TotalCsgSize += unrotatedStats.TotalCsgSize
+	stats.NumIndexFiles += unrotatedStats.NumIndexFiles
+	stats.NumBlocks += unrotatedStats.NumBlocks
+
+	return stats, err
+}
+
 func getUnrotatedSegmentStats(indexName string, orgId int64) *SegmentSizeStats {
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
@@ -904,6 +959,24 @@ func getUnrotatedSegmentStats(indexName string, orgId int64) *SegmentSizeStats {
 	for _, usi := range AllUnrotatedSegmentInfo {
 		if usi.TableName == indexName &&
 			(usi.orgid == orgId || orgId == siglensID) {
+			if usi.cmiSize > 0 {
+				stats.TotalCmiSize += usi.cmiSize
+				stats.NumIndexFiles += len(usi.allColumns)
+			}
+			stats.NumIndexFiles += len(usi.allColumns)
+			stats.NumBlocks += int64(len(usi.blockSummaries))
+		}
+	}
+	return stats
+}
+
+func getUnrotatedSegmentStatsForAllOrgs(indexName string) *SegmentSizeStats {
+	UnrotatedInfoLock.RLock()
+	defer UnrotatedInfoLock.RUnlock()
+
+	stats := &SegmentSizeStats{}
+	for _, usi := range AllUnrotatedSegmentInfo {
+		if usi.TableName == indexName {
 			if usi.cmiSize > 0 {
 				stats.TotalCmiSize += usi.cmiSize
 				stats.NumIndexFiles += len(usi.allColumns)

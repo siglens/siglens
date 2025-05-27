@@ -983,6 +983,24 @@ func GetUnrotatedVTableCounts(vtable string, orgid int64) (uint64, int, uint64, 
 	return bytesCount, recCount, onDiskBytesCount, allColumnsMap
 }
 
+func GetUnrotatedVTableCountsForAllOrgs(vtable string) (uint64, int, uint64, map[string]struct{}) {
+	bytesCount := uint64(0)
+	onDiskBytesCount := uint64(0)
+	recCount := 0
+	allColumnsMap := make(map[string]struct{})
+	allSegStoresLock.RLock()
+	defer allSegStoresLock.RUnlock()
+	for _, segstore := range allSegStores {
+		if segstore.VirtualTableName == vtable {
+			bytesCount += segstore.BytesReceivedCount
+			recCount += segstore.RecordCount
+			onDiskBytesCount += segstore.OnDiskBytes
+			utils.AddMapKeysToSet(allColumnsMap, segstore.AllSeenColumnSizes)
+		}
+	}
+	return bytesCount, recCount, onDiskBytesCount, allColumnsMap
+}
+
 func GetUnrotatedVTableTimestamps(orgid int64) map[string]struct{ Earliest, Latest uint64 } {
 	result := make(map[string]struct{ Earliest, Latest uint64 })
 
