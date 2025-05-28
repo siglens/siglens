@@ -23,9 +23,14 @@ import (
 	"sort"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/exp/constraints"
 )
 
-func FindPercentileData(arr []uint64, percentile int) float64 {
+type Number interface {
+	constraints.Integer | constraints.Float
+}
+
+func FindPercentileData[T Number](arr []T, percentile int) float64 {
 	if len(arr) == 0 {
 		log.Error("FindPercentileData: no duration exists")
 		return 0
@@ -50,14 +55,14 @@ func FindPercentileData(arr []uint64, percentile int) float64 {
 }
 
 // https://rcoh.me/posts/linear-time-median-finding/
-func quickSelect(arr []uint64, k int, rand *rand.Rand) uint64 {
+func quickSelect[T Number](arr []T, k int, rand *rand.Rand) T {
 	if len(arr) == 1 {
 		return arr[0]
 	}
 
 	pivot := pickPivot(arr, rand)
 
-	var lows, highs, pivots []uint64
+	var lows, highs, pivots []T
 	for _, el := range arr {
 		switch {
 		case el < pivot:
@@ -78,20 +83,20 @@ func quickSelect(arr []uint64, k int, rand *rand.Rand) uint64 {
 	}
 }
 
-func pickPivot(arr []uint64, rand *rand.Rand) uint64 {
+func pickPivot[T Number](arr []T, rand *rand.Rand) T {
 	if len(arr) < 5 {
 		return nLogNMedian(arr)
 	}
 
 	chunks := chunked(arr, 5)
-	var fullChunks [][]uint64
+	var fullChunks [][]T
 	for _, chunk := range chunks {
 		if len(chunk) == 5 {
 			fullChunks = append(fullChunks, chunk)
 		}
 	}
 
-	var sortedGroups [][]uint64
+	var sortedGroups [][]T
 	for _, chunk := range fullChunks {
 		sort.Slice(chunk, func(i, j int) bool {
 			return chunk[i] < chunk[j]
@@ -99,7 +104,7 @@ func pickPivot(arr []uint64, rand *rand.Rand) uint64 {
 		sortedGroups = append(sortedGroups, chunk)
 	}
 
-	medians := make([]uint64, len(sortedGroups))
+	medians := make([]T, len(sortedGroups))
 	for i, group := range sortedGroups {
 		medians[i] = group[2]
 	}
@@ -107,7 +112,7 @@ func pickPivot(arr []uint64, rand *rand.Rand) uint64 {
 	return QuickSelectMedian(medians, rand)
 }
 
-func nLogNMedian(arr []uint64) uint64 {
+func nLogNMedian[T Number](arr []T) T {
 
 	sort.Slice(arr, func(i, j int) bool {
 		return arr[i] < arr[j]
@@ -119,7 +124,7 @@ func nLogNMedian(arr []uint64) uint64 {
 	}
 }
 
-func QuickSelectMedian(arr []uint64, rand *rand.Rand) uint64 {
+func QuickSelectMedian[T Number](arr []T, rand *rand.Rand) T {
 	n := len(arr)
 	if n%2 == 1 {
 		return quickSelect(arr, n/2, rand)
@@ -128,9 +133,9 @@ func QuickSelectMedian(arr []uint64, rand *rand.Rand) uint64 {
 	}
 }
 
-func chunked(arr []uint64, chunkSize int) [][]uint64 {
+func chunked[T Number](arr []T, chunkSize int) [][]T {
 	numChunks := (len(arr) + chunkSize - 1) / chunkSize
-	result := make([][]uint64, numChunks)
+	result := make([][]T, numChunks)
 
 	for i := 0; i < numChunks; i++ {
 		start := i * chunkSize

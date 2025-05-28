@@ -1461,24 +1461,14 @@ func getPQMR(blocks []*block) (*pqmr.SegmentPQMRResults, error) {
 		return nil, nil
 	}
 
-	// Each block should have come from the same PQMR.
-	firstPQMR, ok := blocks[0].parentPQMR.Get()
-	if !ok {
-		return nil, utils.TeeErrorf("getPQMR: first block has no PQMR")
-	}
-
+	finalPQMR := pqmr.InitSegmentPQMResults()
 	for _, block := range blocks {
 		pqmr, ok := block.parentPQMR.Get()
 		if !ok {
 			return nil, utils.TeeErrorf("getPQMR: block has no PQMR")
-		} else if pqmr != firstPQMR {
-			return nil, utils.TeeErrorf("getPQMR: blocks are from different PQMRs")
 		}
-	}
 
-	finalPQMR := pqmr.InitSegmentPQMResults()
-	for _, block := range blocks {
-		blockResults, ok := firstPQMR.GetBlockResults(block.BlkNum)
+		blockResults, ok := pqmr.GetBlockResults(block.BlkNum)
 		if !ok {
 			return nil, utils.TeeErrorf("getPQMR: block %v not found", block.BlkNum)
 		}
