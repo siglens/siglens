@@ -230,7 +230,7 @@ class FolderNameEditor {
             showToast('Folder name updated successfully.', 'success');
         } catch (error) {
             console.error('Failed to save folder name:', error);
-            showToast(`Failed to save folder name: ${error}`, 'error');
+            showToast(`Failed to save folder name: ${error.responseJSON.message}`, 'error');
             this.input.focus();
         }
     }
