@@ -273,12 +273,12 @@ func refreshFolderMetadata(id string, dashboardDetails map[string]interface{}, m
 
 	// Check if already up-to-date
 	if folderData, ok := dashboardDetails["folder"].(map[string]interface{}); ok {
-	   if storedPath, ok := folderData["path"].(string); ok && storedPath == currentPath {
-		   return nil
-	   }
+		if storedPath, ok := folderData["path"].(string); ok && storedPath == currentPath {
+			return nil
+		}
 	}
-	
-	folderPath := currentPath 
+
+	folderPath := currentPath
 
 	breadcrumbs := generateBreadcrumbs(folderID, structure)
 
