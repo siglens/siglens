@@ -108,6 +108,7 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 	probToAddDep := 0.2
 	endTime := startTime + totalDurationOfTrace
 	startEndTimeVariationInPerc := 0.5
+	numberOfAttrPerSpan := 4
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 
@@ -124,7 +125,7 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 	} else {
 		if depth > 0 {
 			parentSpanId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
-			g, _ := generateSpan(traceId, parentSpanId, "", serviceName, f, "", startTime, endTime)
+			g, _ := generateSpan(traceId, parentSpanId, "", serviceName, f, "", startTime, endTime, numberOfAttrPerSpan)
 			spanArray = append(spanArray, g)
 			levelParent[0] = []string{parentSpanId}
 			sts.TraceIds = append(sts.TraceIds, traceId)
@@ -165,7 +166,7 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 						if len(targetServiceName) == 0 {
 							targetServiceName = serviceName
 						}
-						g, _ := generateSpan(traceId, currSpanId, levelParent[i-1][k], targetServiceName, f, (*spanArray[i-1])["name"].(string), spanStartTime, spanEndTime)
+						g, _ := generateSpan(traceId, currSpanId, levelParent[i-1][k], targetServiceName, f, (*spanArray[i-1])["name"].(string), spanStartTime, spanEndTime, numberOfAttrPerSpan)
 						spanArray = append(spanArray, g)
 						if _, ok := levelParent[i]; !ok {
 							levelParent[i] = []string{currSpanId}
@@ -227,15 +228,11 @@ func ProcessSyntheticTraceRequest(ctx *fasthttp.RequestCtx, orgId int64) {
 	otlp.HandleTraceIngestionResponse(ctx, numTracesToGenerate, 0)
 }
 
-func generateSpan(traceId string, spanId string, parentId string, service string, f *FakerState, parentName string, parentStartTime int64, parentEndTime int64) (*map[string]any, error) {
+func generateSpan(traceId string, spanId string, parentId string, service string, f *FakerState, parentName string, parentStartTime int64, parentEndTime int64, numberOfAttributes int) (*map[string]any, error) {
 	span := make(map[string]any)
 	span["trace_id"] = traceId
 	span["span_id"] = spanId
-	if parentId != "" {
-		span["parent_span_id"] = parentId
-	} else {
-		span["parent_span_id"] = ""
-	}
+	span["parent_span_id"] = parentId
 	span["service"] = service
 	span["trace_state"] = generateTraceState(2, f)
 	span["name"] = fmt.Sprintf("%s/%s", parentName, f.Faker.Word())
@@ -247,7 +244,9 @@ func generateSpan(traceId string, spanId string, parentId string, service string
 	span["dropped_events_count"] = 0
 	span["dropped_links_count"] = 0
 	span["status"] = "STATUS_CODE_OK"
-	// TODO ADD COLUMN FOR EACH ATTRIBUTE
+	for i := 0; i < numberOfAttributes; i++ {
+		span[f.Faker.LoremIpsumWord()] = f.Faker.LoremIpsumWord()
+	}
 	return &span, nil
 }
 
