@@ -1,50 +1,74 @@
 {
     "queryText": "city=Boston | eval temp_value = http_status%2 | stats count, sum(latitude) BY gender, temp_value",
     "expectedResult": {
-         "totalMatched": {
-             "value": 4,
-             "relation": "eq"
-         },
-         "qtype": "logs-query",
-         "uniqueKeyCols": ["gender", "temp_value"],
-         "records": [
-            {
-                "count(*)": 17136,
-                "gender": "female",
-                "sum(latitude)": 3301.980434000057,
-                "temp_value": 1
-            },
-            {
-                "count(*)": 84948,
-                "gender": "male",
-                "sum(latitude)": -5650.098439000034,
-                "temp_value": 0
-            },
-            {
-                "count(*)": 85404,
-                "gender": "female",
-                "sum(latitude)": -6152.309617000125,
-                "temp_value": 0
-            },
-            {
-                "count(*)": 17106,
-                "gender": "male",
-                "sum(latitude)": 19979.46791800002,
-                "temp_value": 1
-            }
-        ],
-         "allColumns": [
-            "count(*)",
-            "gender",
-            "temp_value",
-            "sum(latitude)"
-        ],
-         "columnsOrder": [
-            "count(*)",
-            "gender",
-            "sum(latitude)",
-            "temp_value"
-        ]
-     }
- }
+      "bucketCount": 4,
+      "can_scroll_more": false,
+      "groupByCols": ["gender", "temp_value"],
+      "hits": {
+        "records": null,
+        "totalMatched": null
+      },
+      "isTimechart": false,
+      "measure": [
+        {
+          "GroupByValues": ["female", "1"],
+          "IGroupByValues": [
+            {"CVal": "female", "Dtype": 5},
+            {"CVal": 1, "Dtype": 2}
+          ],
+          "MeasureVal": {
+            "count(*)": 17136,
+            "sum(latitude)": 3301.980434000057
+          }
+        },
+        {
+          "GroupByValues": ["male", "0"],
+          "IGroupByValues": [
+            {"CVal": "male", "Dtype": 5},
+            {"CVal": 0, "Dtype": 2}
+          ],
+          "MeasureVal": {
+            "count(*)": 84948,
+            "sum(latitude)": -5650.098439000034
+          }
+        },
+        {
+          "GroupByValues": ["female", "0"],
+          "IGroupByValues": [
+            {"CVal": "female", "Dtype": 5},
+            {"CVal": 0, "Dtype": 2}
+          ],
+          "MeasureVal": {
+            "count(*)": 85404,
+            "sum(latitude)": -6152.309617000125
+          }
+        },
+        {
+          "GroupByValues": ["male", "1"],
+          "IGroupByValues": [
+            {"CVal": "male", "Dtype": 5},
+            {"CVal": 1, "Dtype": 2}
+          ],
+          "MeasureVal": {
+            "count(*)": 17106,
+            "sum(latitude)": 19979.46791800002
+          }
+        }
+      ],
+      "measureFunctions": ["count(*)", "sum(latitude)"],
+      "percent_complete": 99.98326079678607,
+      "qid": 6,
+      "qtype": "aggs-query",
+      "sortByTimestampAtDefault": false,
+      "state": "COMPLETE",
+      "totalMatched": {
+        "relation": "eq",
+        "value": 0
+      },
+      "total_events_searched": 20000000,
+      "total_possible_events": 20000000,
+      "total_rrc_count": 0
+    }
+
+}
  

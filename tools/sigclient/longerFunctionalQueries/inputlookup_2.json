@@ -1,40 +1,50 @@
 {
     "queryText": "| inputlookup start=1 max=6 test_lookup.csv where Test > 0 AND Department != \"Sales\" | stats sum(Salary) as sum, avg(PerformanceScore) as avg, min(EmployeeID), max(Salary), values(Department), dc(Test) as dc, count as cnt",
     "expectedResult": {
-        "totalMatched": {
-            "value": 1,
-            "relation": "eq"
-        },
-        "qtype": "logs-query",
-        "records": [
+        "bucketCount": 1,
+        "can_scroll_more": false,
+        "isTimechart": false,
+        "measure": [
             {
-                "avg": 4.125,
-                "cnt": 4,
-                "dc": 4,
-                "max(Salary)": 92000,
-                "min(EmployeeID)": 1002,
-                "sum": 308000,
-                "values(Department)": "[Engineering Finance Marketing Product]"
+                "GroupByValues": ["*"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "*",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "avg": 4.125,
+                    "cnt": 4,
+                    "dc": 4,
+                    "max(Salary)": 92000,
+                    "min(EmployeeID)": 1002,
+                    "sum": 308000,
+                    "values(Department)": "[Engineering Finance Marketing Product]"
+
+                }
             }
         ],
-        "allColumns": [
+        "measureFunctions": [
+            "min(EmployeeID)",
             "max(Salary)",
             "values(Department)",
-            "cnt",
             "sum",
+            "cnt",
             "avg",
-            "dc",
-            "min(EmployeeID)"
+            "dc"
         ],
-        "columnsOrder": [
-            "avg",
-            "cnt",
-            "dc",
-            "max(Salary)",
-            "min(EmployeeID)",
-            "sum",
-            "values(Department)"
-        ]
+        "qid": 37,
+        "qtype": "segstats-query",
+        "state": "COMPLETE",
+        "totalMatched": {
+            "relation": "eq",
+            "value": 0
+        },
+        "total_events_searched": 0,
+        "total_rrc_count": 0
     }
- }
+
+
+}
  
