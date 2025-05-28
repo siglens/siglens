@@ -1142,7 +1142,6 @@ function initializeFolderDropdown() {
             name: dbData.folder.id === 'root-folder' ? 'Dashboards' : dbData.folder.name
         } : null,
         onSelect: (selectedFolder) => {
-            dbFolder = selectedFolder.name;
             dbData.folder = selectedFolder;
         }
     });
