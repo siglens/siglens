@@ -20,7 +20,6 @@ package sampledataset
 import (
 	"bufio"
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -100,10 +99,9 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 	traceDurationRange := []int{100, 500}
 	totalDurationOfTrace := int64(time.Millisecond * time.Duration(f.Faker.Number(traceDurationRange[0], traceDurationRange[1])))
 	var probToDropNode float32
-	// generateSymmetricTree = false -> random nodes will be dropped if generated probability >= 0.9
-	if generateSymmetricTree {
-		// 90% chance the node won't be dropped but 10% chance the node will be dropped
-		probToDropNode = 0.1
+	// generateSymmetricTree = false -> random nodes will be dropped if generated probability <= probToDropNode
+	if !generateSymmetricTree {
+		probToDropNode = 0.5
 	} else {
 		probToDropNode = 0.0
 	}
@@ -137,7 +135,7 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 		for i := 1; i < depth; i++ {
 			for k := range levelParent[i-1] {
 				for j := 0; j < width; j++ {
-					if 1-f.Faker.Rand.Float32() <= probToDropNode {
+					if f.Faker.Rand.Float32() <= probToDropNode {
 						continue
 					} else {
 						currSpanId := strings.ReplaceAll(f.Faker.HexUint32(), "0x", "")
@@ -225,7 +223,7 @@ func ProcessSyntheticTraceRequest(ctx *fasthttp.RequestCtx, orgId int64) {
 	}
 
 	wg.Wait()
-	log.Printf("ProcessSyntheticTraceRequest: All %d trace generations completed.", numTracesToGenerate)
+	log.Debugf("ProcessSyntheticTraceRequest: All %d trace generations completed.", numTracesToGenerate)
 	otlp.HandleTraceIngestionResponse(ctx, numTracesToGenerate, 0)
 }
 
@@ -236,7 +234,7 @@ func generateSpan(traceId string, spanId string, parentId string, service string
 	if parentId != "" {
 		span["parent_span_id"] = parentId
 	} else {
-		span["parent_span_id"] = hex.EncodeToString([]byte(""))
+		span["parent_span_id"] = ""
 	}
 	span["service"] = service
 	span["trace_state"] = generateTraceState(2, f)
