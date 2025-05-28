@@ -429,12 +429,16 @@ async function fillAlertForm(res) {
             indexName: index,
             queryLanguage: 'Splunk QL',
         };
-
-        fetchLogsPanelData(data, -1).then((res) => {
-            alertChart(res);
-        });
+        fetchLogsPanelData(data, -1)
+            .then((res) => {
+                alertChart(res);
+            })
+            .catch((error) => {
+                const errorText = error.responseJSON?.error || error.statusText || 'Failed to fetch logs data';
+                alertChart({}, errorText); 
+            });
     }
-    // Alert Type: Metrics
+    // Alert Type: Metrics 
     else if (res.alert_type === 2) {
         let metricsQueryParams;
         if (isFromMetrics) {
@@ -512,9 +516,14 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
         indexName: selectedSearchIndex,
         queryLanguage: queryLanguage,
     };
-    fetchLogsPanelData(data, -1).then((res) => {
-        alertChart(res);
-    });
+    fetchLogsPanelData(data, -1)
+        .then((res) => {
+            alertChart(res);
+        })
+        .catch((error) => {
+            const errorText = error.responseJSON?.error || error.statusText || 'Failed to fetch logs data';
+            alertChart({}, errorText);
+        });
 }
 
 function handleFormValidationTooltip(alertType) {
@@ -579,10 +588,30 @@ function handleFormValidationTooltip(alertType) {
     });
 }
 
-function alertChart(res) {
+function handleErrors(errorMessage, logsExplorer) {
+    const errorMsg = document.createElement('div');
+    errorMsg.className = 'error-message';
+    errorMsg.style.color = '#666'; 
+    errorMsg.style.textAlign = 'center';
+    errorMsg.style.padding = '20px';
+    errorMsg.style.fontSize = '16px';
+    errorMsg.style.fontStyle = 'Italic';
+    errorMsg.textContent = errorMessage || 'An unknown error occurred';
+    logsExplorer.innerHTML = ''; 
+    logsExplorer.appendChild(errorMsg);
+    return true;
+}
+
+function alertChart(res, errorMessage = null) {
     const logsExplorer = document.getElementById('logs-explorer');
     logsExplorer.style.display = 'flex';
     logsExplorer.innerHTML = '';
+
+    if (errorMessage || res.error || res.errors) {
+        const errorText = errorMessage || res.error || res.errors?.[0] || 'An unknown error occurred';
+        handleErrors(errorText, logsExplorer);
+        return;
+    }
 
     if (res.qtype === 'logs-query') {
         showEmptyChart(logsExplorer);
@@ -591,9 +620,8 @@ function alertChart(res) {
 
     // Handle both aggs-query and segstats-query
     if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
-        if (res.errors || !res.measure || res.measure.length === 0) {
-            const errorMsg = res.errors ? res.errors[0] : 'No data available';
-            showEmptyChart(logsExplorer, errorMsg);
+        if (!res.measure || res.measure.length === 0) {
+            showEmptyChart(logsExplorer);
             return;
         }
         let hits = res.measure;
@@ -838,28 +866,7 @@ function prepareLogsChartData(res, hits) {
     return { labels, datasets };
 }
 
-function handleErrors(res, logsExplorer) {
-    if (res.errors) {
-        const errorMsg = res.errors[0];
-        showEmptyChart(logsExplorer, errorMsg);
-        return true;
-    }
-    return false;
-}
-
-function showEmptyChart(logsExplorer, errorMessage = null) {
-    logsExplorer.innerHTML = '';
-    if (errorMessage) {
-        const errorMsg = document.createElement('div');
-        errorMsg.textContent = errorMessage;
-        errorMsg.style.color = '#666';
-        errorMsg.style.textAlign = 'center';
-        errorMsg.style.padding = '20px';
-        errorMsg.style.fontSize = '16px';
-        errorMsg.style.fontStyle = 'italic';
-        logsExplorer.appendChild(errorMsg);
-        return;
-    }
+function showEmptyChart(logsExplorer) {
     const canvas = document.createElement('canvas');
     canvas.style.width = '100%';
     canvas.style.height = '400px';

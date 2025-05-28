@@ -262,6 +262,10 @@ function fetchLogsPanelData(data, panelId) {
         crossDomain: true,
         dataType: 'json',
         data: JSON.stringify(data),
+    }).catch((error) => {
+        const errorWithResponse = new Error(error.responseJSON?.error || error.statusText || 'Failed to fetch logs data');
+        errorWithResponse.jqXHR = error; 
+        throw errorWithResponse; 
     });
 }
 
