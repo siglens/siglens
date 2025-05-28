@@ -254,7 +254,74 @@ func getDashboard(id string, myid int64) (map[string]interface{}, error) {
 		return nil, err
 	}
 
+	if err := refreshFolderMetadata(id, detailDashboardInfo, myid); err != nil {
+		log.Warnf("getDashboard: Failed to refresh folder metadata for dashboard %s: %v", id, err)
+	}
+
 	return detailDashboardInfo, nil
+}
+
+func refreshFolderMetadata(id string, dashboardDetails map[string]interface{}, myid int64) error {
+	if isDefaultDashboard(id) {
+		return nil
+	}
+
+	structure, err := readFolderStructure(myid)
+	if err != nil {
+		return err
+	}
+
+	dashboardItem, exists := structure.Items[id]
+	if !exists {
+		return nil
+	}
+
+	folderID := dashboardItem.ParentID
+	currentFolder, exists := structure.Items[folderID]
+	if !exists {
+		return nil
+	}
+
+	if folderData, ok := dashboardDetails["folder"].(map[string]interface{}); ok {
+		if storedName, ok := folderData["name"].(string); ok && storedName == currentFolder.Name {
+			return nil
+		}
+	}
+
+	folderPath := ""
+	if folderID != rootFolderID {
+		currentID := folderID
+		folderNames := []string{}
+
+		for currentID != "" && currentID != rootFolderID {
+			if item, exists := structure.Items[currentID]; exists {
+				folderNames = append([]string{item.Name}, folderNames...)
+				currentID = item.ParentID
+			} else {
+				break
+			}
+		}
+		if len(folderNames) > 0 {
+			folderPath = strings.Join(folderNames, "/")
+		}
+	}
+
+	breadcrumbs := generateBreadcrumbs(folderID, structure)
+
+	dashboardDetails["folder"] = map[string]interface{}{
+		"id":          folderID,
+		"name":        currentFolder.Name,
+		"path":        folderPath,
+		"breadcrumbs": breadcrumbs,
+	}
+
+	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
+	detailsData, err := json.MarshalIndent(dashboardDetails, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(dashboardDetailsFname, detailsData, 0644)
 }
 
 func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, myid int64) error {
