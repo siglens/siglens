@@ -197,13 +197,19 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 	subsearchers[1].sortIndexState.forceNormalSearch = true
 	subsearchers[1].segEncToKeyBaseValue += uint32(len(sortIndexQSRs))
 
+	streams := make([]*CachedStream, 0, len(subsearchers))
+	for _, searcher := range subsearchers {
+		streams = append(streams, NewCachedStream(searcher))
+	}
+	merger := NewPassThroughDPWithStreams(streams)
+
+	// Set the less() function for the merger. We'll make a SortDP so we can
+	// easily get the correct less() function from the sort expression, but we
+	// won't really use the SortDP for sorting, since we know each input stream
+	// is already sorted.
 	sortExpr := searcher.sortExpr.ShallowCopy()
 	sortExpr.Limit = math.MaxInt64
-	merger := NewSortDP(sortExpr) // TODO: use a mergeDP, since each stream is already sorted.
-	for _, searcher := range subsearchers {
-		merger.streams = append(merger.streams, NewCachedStream(searcher))
-	}
-	merger.SetMergeSettingsBasedOnStream(merger)
+	merger.SetMergeSettingsBasedOnStream(NewSortDP(sortExpr))
 
 	return &subsearch{
 		subsearchers: subsearchers,
