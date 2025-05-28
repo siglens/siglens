@@ -164,7 +164,6 @@ func ReadQueryStats(orgid int64) error {
 }
 
 func GetBaseStatsDir(orgid int64) string {
-
 	var sb strings.Builder
 	timeNow := uint64(time.Now().UnixNano()) / uint64(time.Millisecond)
 	sb.WriteString(config.GetDataPath() + "ingestnodes/" + config.GetHostID() + "/usageStats/")
@@ -180,7 +179,6 @@ func GetBaseStatsDir(orgid int64) string {
 }
 
 func getBaseQueryStatsDir(orgid int64) string {
-
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath() + "querynodes/" + config.GetHostID() + "/")
 	if orgid != 0 {
@@ -388,9 +386,11 @@ func FlushStatsToFile(orgid int64) error {
 			traceSpanCountAsString := strconv.FormatUint(ustats[orgid].TraceSpanCount, 10)
 			activeSeriesCountAsString := strconv.FormatUint(ustats[orgid].ActiveSeriesCount, 10)
 
-			record = []string{bytesAsString, logLinesAsString, metricCountAsString, epochAsString,
+			record = []string{
+				bytesAsString, logLinesAsString, metricCountAsString, epochAsString,
 				logsBytesAsString, metricsBytesAsString, traceBytesAsString,
-				traceSpanCountAsString, activeSeriesCountAsString}
+				traceSpanCountAsString, activeSeriesCountAsString,
+			}
 
 			records = append(records, record)
 			err = w.WriteAll(records)
@@ -486,8 +486,31 @@ func UpdateQueryStats(queryCount uint64, respTime float64, orgid int64) {
 	qs.mu.Unlock()
 }
 
-func readUsageStats(startEpoch, endEpoch time.Time, orgid int64) ([]*ReadStats, error) {
+func UpdateQueryStatsForAllOrgs(queryCount uint64, respTime float64) {
+	// TODO
+	// 1. Get All Orgs
+	// 	mu.Lock()
+	// if _, ok := QueryStatsMap[orgid]; !ok {
+	// QueryStatsMap[orgid] = &QueryStats{
+	// QueryCount:                0,
+	// TotalRespTimeSinceRestart: 0,
+	// TotalRespTimeSinceInstall: 0,
+	// ActiveQueryCount:          0,
+	// }
+	// }
+	// mu.Unlock()
+	// else
+	for _, qs := range QueryStatsMap {
+		atomic.AddUint64(&qs.QueryCount, queryCount)
+		atomic.AddUint64(&qs.QueriesSinceInstall, queryCount)
+		qs.mu.Lock()
+		qs.TotalRespTimeSinceRestart += respTime
+		qs.TotalRespTimeSinceInstall += respTime
+		qs.mu.Unlock()
+	}
+}
 
+func readUsageStats(startEpoch, endEpoch time.Time, orgid int64) ([]*ReadStats, error) {
 	allStatsMap := make([]*ReadStats, 0)
 
 	statsFnames := getBaseStatsDirs(startEpoch, endEpoch, orgid)
@@ -534,7 +557,6 @@ func readUsageStats(startEpoch, endEpoch time.Time, orgid int64) ([]*ReadStats, 
 
 // Calculate total bytesCount,linesCount and return hourly / daily / minute count
 func GetUsageStats(startTs int64, endTs int64, granularity UsageStatsGranularity, orgid int64) (map[string]*ReadStats, error) {
-
 	endEpoch := time.Unix(endTs, 0)
 	startEpoch := time.Unix(startTs, 0)
 	startTOD := (startEpoch.UnixMilli() / sutils.MS_IN_DAY) * sutils.MS_IN_DAY
@@ -800,7 +822,6 @@ func CalculateIntervalForStatsByMinute(timerangeMinutes uint32) (uint32, error) 
 }
 
 func GetActiveSeriesCounts(pastXhours uint64, orgid int64) ([]uint64, error) {
-
 	endEpoch := time.Now()
 	startEpoch := endEpoch.Add(-(time.Duration(pastXhours) * time.Hour))
 

@@ -175,7 +175,7 @@ func setNumMetricNames() {
 		StartEpochSec: 0,
 		EndEpochSec:   uint32(time.Now().Unix()),
 	}
-	names, err := query.GetAllMetricNamesOverTheTimeRange(allPreviousTime, 0)
+	names, err := query.GetAllMetricNamesOverTheTimeRangeForAllOrgs(allPreviousTime)
 	if err != nil {
 		log.Errorf("setNumMetricNames: failed to get all metric names: %v", err)
 		return
@@ -189,10 +189,9 @@ func setNumKeysAndValues() {
 		StartEpochSec: 0,
 		EndEpochSec:   uint32(time.Now().Unix()),
 	}
-	myid := int64(0)
 	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
-	defer querySummary.LogMetricsQuerySummary(myid)
-	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(allPreviousTime, myid, querySummary)
+	defer querySummary.LogMetricsQuerySummaryForAllOrgs()
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(allPreviousTime, querySummary)
 	if err != nil {
 		log.Errorf("setNumKeysAndValues: failed to get tags trees: %v", err)
 		return
