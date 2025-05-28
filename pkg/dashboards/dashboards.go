@@ -145,24 +145,7 @@ func createDashboard(req *CreateDashboardRequest, myid int64) (map[string]string
 
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + newId + ".json"
 
-	folderPath := ""
-	if req.ParentID != rootFolderID {
-		currentID := req.ParentID
-		folderNames := []string{}
-
-		// Build folder path
-		for currentID != "" && currentID != rootFolderID {
-			if item, exists := structure.Items[currentID]; exists {
-				folderNames = append([]string{item.Name}, folderNames...)
-				currentID = item.ParentID
-			} else {
-				break
-			}
-		}
-		if len(folderNames) > 0 {
-			folderPath = strings.Join(folderNames, "/")
-		}
-	}
+	folderPath := buildFolderPath(req.ParentID, structure)
 
 	breadcrumbs := generateBreadcrumbs(req.ParentID, structure)
 
@@ -268,43 +251,34 @@ func refreshFolderMetadata(id string, dashboardDetails map[string]interface{}, m
 
 	structure, err := readFolderStructure(myid)
 	if err != nil {
+		log.Errorf("refreshFolderMetadata: failed to read structure: %v", err)
 		return err
 	}
 
 	dashboardItem, exists := structure.Items[id]
 	if !exists {
+		log.Warnf("refreshFolderMetadata: dashboard %s not found in structure", id)
 		return nil
 	}
 
 	folderID := dashboardItem.ParentID
 	currentFolder, exists := structure.Items[folderID]
+
 	if !exists {
+		log.Warnf("refreshFolderMetadata: folder %s not found", folderID)
 		return nil
 	}
 
+	currentPath := buildFolderPath(folderID, structure)
+
+	// Check if already up-to-date
 	if folderData, ok := dashboardDetails["folder"].(map[string]interface{}); ok {
-		if storedName, ok := folderData["name"].(string); ok && storedName == currentFolder.Name {
-			return nil
-		}
+	   if storedPath, ok := folderData["path"].(string); ok && storedPath == currentPath {
+		   return nil
+	   }
 	}
-
-	folderPath := ""
-	if folderID != rootFolderID {
-		currentID := folderID
-		folderNames := []string{}
-
-		for currentID != "" && currentID != rootFolderID {
-			if item, exists := structure.Items[currentID]; exists {
-				folderNames = append([]string{item.Name}, folderNames...)
-				currentID = item.ParentID
-			} else {
-				break
-			}
-		}
-		if len(folderNames) > 0 {
-			folderPath = strings.Join(folderNames, "/")
-		}
-	}
+	
+	folderPath := currentPath 
 
 	breadcrumbs := generateBreadcrumbs(folderID, structure)
 
@@ -325,7 +299,6 @@ func refreshFolderMetadata(id string, dashboardDetails map[string]interface{}, m
 }
 
 func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, myid int64) error {
-
 	if isDefaultDashboard(id) {
 		return errors.New("updateDashboard: cannot update default dashboard")
 	}
@@ -409,23 +382,7 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	}
 
 	// Get folder path for metadata
-	folderPath := ""
-	if item.ParentID != rootFolderID {
-		currentID := item.ParentID
-		folderNames := []string{}
-
-		for currentID != "" && currentID != rootFolderID {
-			if folderItem, exists := structure.Items[currentID]; exists {
-				folderNames = append([]string{folderItem.Name}, folderNames...)
-				currentID = folderItem.ParentID
-			} else {
-				break
-			}
-		}
-		if len(folderNames) > 0 {
-			folderPath = strings.Join(folderNames, "/")
-		}
-	}
+	folderPath := buildFolderPath(item.ParentID, structure)
 
 	breadcrumbs := generateBreadcrumbs(item.ParentID, structure)
 
@@ -525,6 +482,26 @@ func parseUpdateDashboardRequest(readJSON map[string]interface{}) (string, strin
 	}
 
 	return dId, dName, details, nil
+}
+
+func buildFolderPath(folderID string, structure *FolderStructure) string {
+	if folderID == rootFolderID {
+		return ""
+	}
+
+	var folderNames []string
+	currentID := folderID
+
+	for currentID != "" && currentID != rootFolderID {
+		if item, exists := structure.Items[currentID]; exists {
+			folderNames = append([]string{item.Name}, folderNames...)
+			currentID = item.ParentID
+		} else {
+			break
+		}
+	}
+
+	return strings.Join(folderNames, "/")
 }
 
 func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
