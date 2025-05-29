@@ -66,6 +66,10 @@ func (dp *DataProcessor) DoesInputOrderMatter() bool {
 	return dp.inputOrderMatters
 }
 
+func (dp *DataProcessor) IgnoresInputOrder() bool {
+	return false // TODO
+}
+
 func (dp *DataProcessor) IsPermutingCmd() bool {
 	return dp.isPermutingCmd
 }

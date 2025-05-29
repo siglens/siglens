@@ -118,6 +118,24 @@ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	return sortExpr
 }
 
+func CanParallelSearch(dataProcessors []*DataProcessor) (bool, int) {
+	canSplit := false
+	for i, dp := range dataProcessors {
+		if dp.DoesInputOrderMatter() {
+			return false, 0
+		}
+
+		if dp.IgnoresInputOrder() {
+			canSplit = true
+		}
+
+		if dp.IsBottleneckCmd() {
+			return canSplit, i
+		}
+	}
+	return false, 0
+}
+
 func canUseSortIndex(queryAgg *structs.QueryAggregators, sorterAgg *structs.QueryAggregators) bool {
 	queryCols := make(map[string]struct{})
 	createdCols := make(map[string]struct{})
@@ -186,7 +204,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstProcessorAgg; curAgg != nil; curAgg = curAgg.Next {
-		dataProcessor := asDataProcessor(curAgg, queryInfo)
+		dataProcessor := AsDataProcessor(curAgg, queryInfo)
 		if dataProcessor == nil {
 			break
 		}
@@ -296,7 +314,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	}, nil
 }
 
-func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
+func AsDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
 	if queryAgg == nil {
 		return nil
 	}
