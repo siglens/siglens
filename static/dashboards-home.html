@@ -84,14 +84,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         placeholder="Search for dashboards and folders">
                 </div>
             </div>
-            <div class="mt-2 d-flex align-items-center justify-content-end">
-                <div class="filter-controls">
-                    <label class="starred-filter">
-                        <input type="checkbox" id="starred-filter" class="checkbox">
-                        <span>Starred</span>
-                    </label>
+            <div class="my-2 d-flex align-items-center justify-content-between">
+                <div>
+                    <button class="btn btn-grey" id="bulk-delete-btn">Delete</button>
                 </div>
-                <div id="sort-container"></div>
+                <div class="d-flex align-items-center">
+                    <div class="filter-controls">
+                        <label class="starred-filter">
+                            <input type="checkbox" id="starred-filter" class="checkbox">
+                            <span>Starred</span>
+                        </label>
+                    </div>
+                    <div id="sort-container"></div>
+                </div>
             </div>
             <div id="dashboard-grid-container">
                 <div id="dashboard-grid" class="ag-theme-mycustomtheme">

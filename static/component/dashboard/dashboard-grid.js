@@ -34,10 +34,14 @@ class DashboardGrid {
             enableCellTextSelection: true,
             suppressScrollOnNewData: true,
             suppressAnimationFrame: true,
+            rowSelection: 'multiple',
+            rowMultiSelectWithClick: true,
+            suppressRowDeselection: false,
             getRowId: (params) => params.data.rowId,
             localeText: {
                 noRowsToShow: "This folder doesn't have any dashboards/folders yet ",
             },
+            onSelectionChanged: () => this.handleSelectionChange(),
         };
 
         this.init();
@@ -49,6 +53,12 @@ class DashboardGrid {
 
     getListViewColumnDefs() {
         return [
+            {
+                checkboxSelection: true,
+                headerCheckboxSelection: true,
+                maxWidth: 50,
+                pinned: 'left',
+            },
             {
                 headerName: 'Name',
                 field: 'name',
@@ -81,6 +91,12 @@ class DashboardGrid {
     getTreeViewColumnDefs() {
         return [
             {
+                checkboxSelection: true,
+                headerCheckboxSelection: true,
+                maxWidth: 50,
+                pinned: 'left',
+            },
+            {
                 headerName: 'Name',
                 field: 'name',
                 cellRenderer: (params) => this.nameColumnRenderer(params, true),
@@ -95,7 +111,7 @@ class DashboardGrid {
                     }
 
                     const div = document.createElement('div');
-                    div.id = 'dashboard-grid-btn';
+                    div.className = 'dashboard-grid-btn';
 
                     if (params.data.isDefault) {
                         div.innerHTML = `
@@ -338,13 +354,9 @@ class DashboardGrid {
     async handleDelete(data) {
         try {
             if (data.type === 'folder') {
-                const contents = await getFolderContents(data.uniqId);
-                const counts = countFolderContents(contents);
-                if (counts.total) {
-                    $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
-                } else {
-                    $('.content-count').text(`1 item: 1 folder`);
-                }
+                const countData = await getFolderCount(data.uniqId);
+                const message = getCountMessage(countData.total + 1, countData.folders + 1, countData.dashboards);
+                $('.content-count').text(message);
             } else {
                 $('.content-count').text('1 item: 1 dashboard');
             }
@@ -417,5 +429,128 @@ class DashboardGrid {
         } catch (error) {
             showToast('Failed to get item contents. Please try again.', 'error');
         }
+    }
+
+    async handleBulkDelete() {
+        const selectedNodes = this.gridOptions.api.getSelectedNodes();
+        const selectedData = selectedNodes.map((node) => node.data);
+    
+        let totalCount = 1;
+        let folderCount = 0;
+        let dashboardCount = 0;
+    
+        for (const item of selectedData) {
+            if (item.type === 'folder') {
+                const countData = await getFolderCount(item.uniqId);
+                if (countData && countData.total > 0) {
+                    totalCount += countData.total;
+                    folderCount += countData.folders + 1; // +1 for the folder itself
+                    dashboardCount += countData.dashboards;
+                } else {
+                    folderCount += 1; // Just the empty folder itself
+                }
+            } else {
+                dashboardCount += 1;
+            }
+        }
+    
+        totalCount = folderCount + dashboardCount;
+    
+        const message = getCountMessage(totalCount, folderCount, dashboardCount);
+        $('.content-count').text(message);
+        $('.popupOverlay, #delete-folder-modal').addClass('active');
+    
+        $('.confirm-input')
+            .val('')
+            .off('input')
+            .on('input', function () {
+                $('.delete-btn').prop('disabled', $(this).val() !== 'Delete');
+            });
+    
+        $('.delete-btn')
+            .prop('disabled', true)
+            .off('click')
+            .on('click', async () => {
+                if ($('.confirm-input').val() === 'Delete') {
+                    try {
+                        // Get all visible rows before deletion
+                        const currentData = this.gridOptions.api.getModel().rowsToDisplay.map((row) => row.data);
+                        
+                        // Get all nested child IDs
+                        const getAllChildIds = (parentId) => {
+                            const children = currentData.filter((row) => row.parentFolderId === parentId);
+                            let ids = children.map((child) => child.rowId);
+    
+                            // Recursively get children of folders
+                            children.forEach((child) => {
+                                if (child.type === 'folder') {
+                                    ids = [...ids, ...getAllChildIds(child.uniqId)];
+                                }
+                            });
+    
+                            return ids;
+                        };
+    
+                        // Collect all IDs to remove (selected items + their nested children)
+                        let allIdsToRemove = [];
+                        
+                        for (const item of selectedData) {
+                            // Add the selected item itself
+                            allIdsToRemove.push(item.rowId);
+                            
+                            // If it's a folder, add all its nested children
+                            if (item.type === 'folder') {
+                                const childIds = getAllChildIds(item.uniqId);
+                                allIdsToRemove = [...allIdsToRemove, ...childIds];
+                            }
+                            
+                            // Delete from backend
+                            if (item.type === 'folder') {
+                                await deleteFolder(item.uniqId);
+                            } else {
+                                await deleteDashboard(item.uniqId);
+                            }
+                        }
+    
+                        allIdsToRemove = [...new Set(allIdsToRemove)];
+    
+                        this.gridOptions.api.applyTransaction({
+                            remove: allIdsToRemove.map((id) => ({ rowId: id })),
+                        });
+    
+                        $('.popupOverlay, #delete-folder-modal').removeClass('active');
+                        this.clearSelection();
+                    } catch (error) {
+                        console.error('Error deleting items:', error);
+                        alert('Failed to delete some items. Please try again.');
+                    }
+                }
+            });
+            
+        $('.cancel-btn').click(function () {
+            $('.popupOverlay, .popupContent').removeClass('active');
+            $('.confirm-input').val('');
+        });
+    }
+
+    handleSelectionChange() {
+        const selectedNodes = this.gridOptions.api.getSelectedNodes();
+        const selectedCount = selectedNodes.length;
+
+        if (selectedCount > 0) {
+            $('#bulk-delete-btn').show().text(`Delete (${selectedCount})`);
+            $('.filter-controls, #sort-container').hide();
+
+            $('#bulk-delete-btn')
+                .off('click')
+                .on('click', () => this.handleBulkDelete());
+        } else {
+            $('#bulk-delete-btn').hide();
+            $('.filter-controls, #sort-container').show();
+        }
+    }
+
+    clearSelection() {
+        this.gridOptions.api.deselectAll();
     }
 }

@@ -181,23 +181,22 @@ function initializeDashboardPage() {
 }
 
 // eslint-disable-next-line no-unused-vars
-function countFolderContents(res) {
-    const counts = {
-        total: 0,
-        folders: 0,
-        dashboards: 0,
-    };
-
-    res.items.forEach((item) => {
-        counts.total++;
-        if (item.type === 'folder') {
-            counts.folders++;
-        } else {
-            counts.dashboards++;
-        }
-    });
-
-    return counts;
+function getCountMessage(totalCount, folderCount, dashboardCount) {
+    const itemText = totalCount === 1 ? 'item' : 'items';
+    
+    if (folderCount > 0 && dashboardCount > 0) {
+        const folderText = folderCount === 1 ? 'folder' : 'folders';
+        const dashboardText = dashboardCount === 1 ? 'dashboard' : 'dashboards';
+        return `${totalCount} ${itemText}: ${folderCount} ${folderText}, ${dashboardCount} ${dashboardText}`;
+    } else if (folderCount > 0) {
+        // Only folders
+        const folderText = folderCount === 1 ? 'folder' : 'folders';
+        return `${totalCount} ${itemText}: ${folderCount} ${folderText}`;
+    } else {
+        // Only dashboards
+        const dashboardText = dashboardCount === 1 ? 'dashboard' : 'dashboards';
+        return `${totalCount} ${itemText}: ${dashboardCount} ${dashboardText}`;
+    }
 }
 
 // eslint-disable-next-line no-unused-vars
