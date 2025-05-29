@@ -3563,6 +3563,22 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: var(--index-drop-down-item-hover-bg-color);
 }
 
+.folder-name-display {
+    font-size: 16px;
+    font-weight: 500;
+    word-break: break-word;
+}
+
+.folder-name-input {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.folder-edit-icon {
+    cursor: pointer;
+    margin-left: 10px;
+}
+
 .content-count {
     font-weight: bold;
 }
