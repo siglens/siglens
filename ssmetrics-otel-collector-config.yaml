@@ -14,12 +14,12 @@ processors:
   batch:
 
 exporters:
-  logging:
-    loglevel: debug
+  debug:
+    verbosity: detailed
   prometheusremotewrite:
-    endpoint: 'http://siglens:8081/promql/api/v1/write'
+    endpoint: 'http://localhost:8081/promql/api/v1/write'
   otlphttp: # Add an OTLP exporter to send traces to SigLens
-    endpoint: 'http://siglens:8081/otlp' # SigLens trace endpoint
+    endpoint: 'http://localhost:8081/otlp' # SigLens trace endpoint
     tls:
       insecure: true # Use this only if the connection does not use TLS
 
