@@ -84,6 +84,7 @@ variable_col_tests/var_top.json
 variable_col_tests/var_rare.json
 variable_col_tests/var_rare_top.json
 variable_col_tests/var_stats_top.json
+variable_col_tests/var_eval_stats_where.json
 
 ## Queries not working for multi-index
 # transaction.json
