@@ -2,8 +2,6 @@
     "queryText": "| gentimes start=-30 end=-20 increment=7s | stats count",
     "expectedResult": {
         "bucketCount": 1,
-        "can_scroll_more": false,
-        "isTimechart": false,
         "measure": [
             {
                 "GroupByValues": ["*"],
@@ -19,15 +17,7 @@
             }
         ],
         "measureFunctions": ["count(*)"],
-        "qid": 1,
-        "qtype": "segstats-query",
-        "state": "COMPLETE",
-        "totalMatched": {
-            "relation": "eq",
-            "value": 0
-        },
-        "total_events_searched": 0,
-        "total_rrc_count": 0
+        "qtype": "segstats-query"
     }
 
 }

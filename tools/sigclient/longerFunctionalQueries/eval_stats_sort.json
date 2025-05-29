@@ -2,13 +2,7 @@
     "queryText": "_index=ind-0 | search  city=boston group=\"group 0\" user_agent=Mozilla*Windows* http_status=200 latency!=0 hobby!=\"Acting\" AND hobby!=\"Walking\" AND hobby!=\"*k.ing*\" AND hobby!=\"*gg*\"| eval hobby_http = hobby+\"@\"+http_method | stats count as cnt by hobby_http | sort -cnt | where cnt > 1 | sort hobby_http",
     "expectedResult":{
         "bucketCount": 19,
-        "can_scroll_more": false,
         "groupByCols": ["hobby_http"],
-        "hits": {
-            "records": null,
-            "totalMatched": null
-        },
-        "isTimechart": false,
         "measure": [
             {
                 "GroupByValues": ["Air sports@PATCH"],
@@ -240,18 +234,7 @@
             }
         ],
         "measureFunctions": ["cnt"],
-        "percent_complete": 100,
-        "qid": 1,
-        "qtype": "aggs-query",
-        "sortByTimestampAtDefault": false,
-        "state": "COMPLETE",
-        "totalMatched": {
-            "relation": "eq",
-            "value": 0
-        },
-        "total_events_searched": 2000000,
-        "total_possible_events": 2000000,
-        "total_rrc_count": 0
+        "qtype": "aggs-query"
     }
 }
   

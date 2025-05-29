@@ -2,8 +2,6 @@
     "queryText": "| inputlookup start=1 max=6 test_lookup.csv where Test > 0 AND Department != \"Sales\" | stats sum(Salary) as sum, avg(PerformanceScore) as avg, min(EmployeeID), max(Salary), values(Department), dc(Test) as dc, count as cnt",
     "expectedResult": {
         "bucketCount": 1,
-        "can_scroll_more": false,
-        "isTimechart": false,
         "measure": [
             {
                 "GroupByValues": ["*"],
@@ -34,15 +32,7 @@
             "avg",
             "dc"
         ],
-        "qid": 37,
-        "qtype": "segstats-query",
-        "state": "COMPLETE",
-        "totalMatched": {
-            "relation": "eq",
-            "value": 0
-        },
-        "total_events_searched": 0,
-        "total_rrc_count": 0
+        "qtype": "segstats-query"
     }
 
 

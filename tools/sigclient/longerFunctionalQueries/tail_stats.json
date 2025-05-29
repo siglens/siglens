@@ -2,12 +2,6 @@
     "queryText": "* | tail 30000 | stats count, sum(latency) as sum, avg(latency) as avg_latency",
     "expectedResult": {
         "bucketCount": 1,
-        "can_scroll_more": false,
-        "hits": {
-            "records": null,
-            "totalMatched": null
-        },
-        "isTimechart": false,
         "measure": [
             {
                 "GroupByValues": ["*"],
@@ -25,17 +19,6 @@
             }
         ],
         "measureFunctions": ["avg_latency", "sum", "count(*)"],
-        "percent_complete": 100,
-        "qid": 12,
-        "qtype": "segstats-query",
-        "sortByTimestampAtDefault": false,
-        "state": "COMPLETE",
-        "totalMatched": {
-            "relation": "eq",
-            "value": 0
-        },
-        "total_events_searched": 20000000,
-        "total_possible_events": 20000000,
-        "total_rrc_count": 0
+        "qtype": "segstats-query"
     }
 }

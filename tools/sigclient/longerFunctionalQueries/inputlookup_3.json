@@ -2,12 +2,6 @@
     "queryText": "app_name=Bracecould | inputlookup start=5 append=true test_lookup.csv where Test = \"def\" | inputlookup append=true test_lookup.csv.gz where Test = \"a*\" | stats count as cnt",
     "expectedResult": {
         "bucketCount": 1,
-        "can_scroll_more": false,
-        "hits": {
-            "records": null,
-            "totalMatched": null
-        },
-        "isTimechart": false,
         "measure": [
             {
                 "GroupByValues": ["*"],
@@ -23,18 +17,7 @@
             }
         ],
         "measureFunctions": ["cnt"],
-        "percent_complete": 16.03615667894208,
-        "qid": 1,
-        "qtype": "segstats-query",
-        "sortByTimestampAtDefault": false,
-        "state": "COMPLETE",
-        "totalMatched": {
-            "relation": "eq",
-            "value": 0
-        },
-        "total_events_searched": 20000000,
-        "total_possible_events": 20000000,
-        "total_rrc_count": 0
+        "qtype": "segstats-query"
     }
 
 

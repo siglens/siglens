@@ -2,8 +2,6 @@
     "queryText": "| gentimes start=12/01/2021:16:11:56 end=12/05/2021:12:00:01 increment=3m | stats count",
     "expectedResult": {
         "bucketCount": 1,
-        "can_scroll_more": false,
-        "isTimechart": false,
         "measure": [
             {
                 "GroupByValues": ["*"],
@@ -19,15 +17,8 @@
             }
         ],
         "measureFunctions": ["count(*)"],
-        "qid": 27,
-        "qtype": "segstats-query",
-        "state": "COMPLETE",
-        "totalMatched": {
-            "relation": "eq",
-            "value": 0
-        },
-        "total_events_searched": 0,
-        "total_rrc_count": 0
+        "qtype": "segstats-query"
+
     }
 
 }

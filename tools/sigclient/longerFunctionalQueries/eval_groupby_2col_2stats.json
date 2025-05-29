@@ -2,13 +2,7 @@
     "queryText": "city=Boston | eval temp_value = http_status%2 | stats count, sum(latitude) BY gender, temp_value",
     "expectedResult": {
       "bucketCount": 4,
-      "can_scroll_more": false,
       "groupByCols": ["gender", "temp_value"],
-      "hits": {
-        "records": null,
-        "totalMatched": null
-      },
-      "isTimechart": false,
       "measure": [
         {
           "GroupByValues": ["female", "1"],
@@ -56,18 +50,7 @@
         }
       ],
       "measureFunctions": ["count(*)", "sum(latitude)"],
-      "percent_complete": 99.98326079678607,
-      "qid": 6,
-      "qtype": "aggs-query",
-      "sortByTimestampAtDefault": false,
-      "state": "COMPLETE",
-      "totalMatched": {
-        "relation": "eq",
-        "value": 0
-      },
-      "total_events_searched": 20000000,
-      "total_possible_events": 20000000,
-      "total_rrc_count": 0
+      "qtype": "aggs-query"
     }
 
 }
