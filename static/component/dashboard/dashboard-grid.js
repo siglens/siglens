@@ -482,31 +482,60 @@ class DashboardGrid {
             showToast('Failed to get item contents. Please try again.', 'error');
         }
     }
-
     async handleBulkDelete() {
         const selectedNodes = this.gridOptions.api.getSelectedNodes();
         const selectedData = selectedNodes.map((node) => node.data);
 
-        let totalCount = 1;
+        // Filter out indeterminate folders AND child folders of selected parents
+        const actuallySelectedItems = selectedData.filter((item) => {
+            if (item.type === 'folder') {
+                const selectionState = this.getFolderSelectionState(item.uniqId);
+                if (selectionState !== 'all') return false;
+
+                // Check if this folder is a child of another selected folder
+                const isChildOfSelectedFolder = selectedData.some((otherItem) => {
+                    if (otherItem.type === 'folder' && otherItem.uniqId !== item.uniqId) {
+                        const otherSelectionState = this.getFolderSelectionState(otherItem.uniqId);
+                        if (otherSelectionState === 'all') {
+                            return this.isChildOf(item.uniqId, otherItem.uniqId);
+                        }
+                    }
+                    return false;
+                });
+
+                return !isChildOfSelectedFolder;
+            }
+            return true; // Always include dashboards for now, filter later
+        });
+
+        // Get list of fully selected folder IDs to avoid double counting their children
+        const fullySelectedFolderIds = actuallySelectedItems.filter((item) => item.type === 'folder').map((item) => item.uniqId);
+
         let folderCount = 0;
         let dashboardCount = 0;
 
-        for (const item of selectedData) {
+        for (const item of actuallySelectedItems) {
             if (item.type === 'folder') {
                 const countData = await getFolderCount(item.uniqId);
                 if (countData && countData.total > 0) {
-                    totalCount += countData.total;
                     folderCount += countData.folders + 1;
                     dashboardCount += countData.dashboards;
                 } else {
                     folderCount += 1;
                 }
             } else {
-                dashboardCount += 1;
+                // Only count dashboards that are NOT children of fully selected folders
+                const isChildOfSelectedFolder = fullySelectedFolderIds.some((folderId) => {
+                    return this.isChildOf(item.uniqId, folderId);
+                });
+
+                if (!isChildOfSelectedFolder) {
+                    dashboardCount += 1;
+                }
             }
         }
 
-        totalCount = folderCount + dashboardCount;
+        const totalCount = folderCount + dashboardCount;
 
         const message = getCountMessage(totalCount, folderCount, dashboardCount);
         $('.content-count').text(message);
@@ -541,6 +570,7 @@ class DashboardGrid {
                             return ids;
                         };
 
+                        // Collect all IDs to remove from UI (selected items + their nested children)
                         let allIdsToRemove = [];
 
                         for (const item of selectedData) {
@@ -550,11 +580,23 @@ class DashboardGrid {
                                 const childIds = getAllChildIds(item.uniqId);
                                 allIdsToRemove = [...allIdsToRemove, ...childIds];
                             }
+                        }
 
-                            if (item.type === 'folder') {
-                                await deleteFolder(item.uniqId);
-                            } else {
-                                await deleteDashboard(item.uniqId);
+                        // Only delete items that aren't children of other selected folders
+                        for (const item of selectedData) {
+                            const isChildOfSelectedFolder = selectedData.some((otherItem) => {
+                                if (otherItem.type === 'folder' && otherItem.uniqId !== item.uniqId) {
+                                    return this.isChildOf(item.uniqId, otherItem.uniqId);
+                                }
+                                return false;
+                            });
+
+                            if (!isChildOfSelectedFolder) {
+                                if (item.type === 'folder') {
+                                    await deleteFolder(item.uniqId);
+                                } else {
+                                    await deleteDashboard(item.uniqId);
+                                }
                             }
                         }
 
@@ -620,7 +662,7 @@ class DashboardGrid {
         }, 50);
 
         if (selectedCount > 0) {
-            $('#bulk-delete-btn').show().text(`Delete (${selectedCount})`);
+            $('#bulk-delete-btn').show().text(`Delete`);
             $('.filter-controls, #sort-container').hide();
 
             $('#bulk-delete-btn')
@@ -726,5 +768,23 @@ class DashboardGrid {
 
     clearSelection() {
         this.gridOptions.api.deselectAll();
+    }
+
+    isChildOf(childId, parentFolderId) {
+        const allNodes = [];
+        this.gridOptions.api.forEachNode((node) => allNodes.push(node));
+
+        const childNode = allNodes.find((node) => node.data.uniqId === childId);
+        if (!childNode) return false;
+
+        let currentParentId = childNode.data.parentFolderId;
+        while (currentParentId) {
+            if (currentParentId === parentFolderId) return true;
+
+            const parentNode = allNodes.find((node) => node.data.uniqId === currentParentId);
+            currentParentId = parentNode?.data.parentFolderId;
+        }
+
+        return false;
     }
 }
