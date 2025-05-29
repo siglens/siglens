@@ -218,7 +218,7 @@ class DashboardGrid {
         }
 
         const indentLevel = this.getIndentLevel(params.data);
-        const indentPadding = indentLevel * 20;
+        const indentPadding = indentLevel * 14;
 
         if (params.data.type === 'folder') {
             const folderDiv = document.createElement('div');
@@ -268,7 +268,7 @@ class DashboardGrid {
         div.style.alignItems = 'center';
         if (useIndentation) {
             const indentLevel = this.getIndentLevel(params.data);
-            const indentPadding = indentLevel * 20 + 27;
+            const indentPadding = indentLevel * 20 + 17;
             div.style.paddingLeft = `${indentPadding}px`;
         }
         div.style.color = '#666';
