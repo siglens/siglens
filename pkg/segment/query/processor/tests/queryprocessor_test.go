@@ -48,5 +48,8 @@ func assertCanParallelSearch(t *testing.T, expectedOk bool, expectedSplitIndex i
 func Test_CanParallelSearch(t *testing.T) {
 	assertCanParallelSearch(t, false, 0, `*`)
 	assertCanParallelSearch(t, false, 0, `foo=bar`)
-	assertCanParallelSearch(t, true, 2, `* | rex field=foo "(?<bar>.*)" | sort bar`)
+	assertCanParallelSearch(t, true, 1, `* | rex field=foo "(?<bar>.*)" | sort bar`)
+	assertCanParallelSearch(t, true, 1, `* | rex field=foo "(?<bar>.*)" | stats avg(bar) as avg | sort avg`)
+	assertCanParallelSearch(t, true, 2, `* | rex field=foo "(?<bar>.*)" | eval x=bar*10 | stats avg(x)`)
+	assertCanParallelSearch(t, false, 0, `* | rex field=foo "(?<bar>.*)" | eval x=bar*10 | where x>1000`)
 }

@@ -49,7 +49,15 @@ type DataProcessor struct {
 	mergeSettings mergeSettings
 	processor     processor
 
+	// The next two flags are not quite opposites.
+	// Let p be a permutation function.
+	// Let f be a command (e.g., head, sort)
+	// Let rows be some rows of data.
+	// !inputOrderMatters means: for all (p, rows), f(p(rows)) == p(f(rows)).
+	// ignoresInputOrder means: for all (p, rows), f(p(rows)) == f(rows).
 	inputOrderMatters bool
+	ignoresInputOrder bool
+
 	isPermutingCmd    bool // This command may change the order of input.
 	isBottleneckCmd   bool // This command must see all input before yielding any output.
 	isTransformingCmd bool // This command transforms the input into a different format (e.g., stats).
@@ -67,7 +75,7 @@ func (dp *DataProcessor) DoesInputOrderMatter() bool {
 }
 
 func (dp *DataProcessor) IgnoresInputOrder() bool {
-	return false // TODO
+	return dp.ignoresInputOrder
 }
 
 func (dp *DataProcessor) IsPermutingCmd() bool {
@@ -446,6 +454,7 @@ func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &binProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   !hasSpan,
 		isTwoPassCmd:      !hasSpan,
@@ -460,6 +469,7 @@ func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &dedupProcessor{options: options},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   hasSort,
 		isTwoPassCmd:      false,
@@ -473,6 +483,7 @@ func NewEvalDP(options *structs.EvalExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &evalProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -486,6 +497,7 @@ func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &fieldsProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -499,6 +511,7 @@ func NewRenameDP(options *structs.RenameExp) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &renameProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -513,6 +526,7 @@ func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &fillnullProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   !isFieldListSet,
 		isTwoPassCmd:      !isFieldListSet,
@@ -529,6 +543,7 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 			currStartTime: options.StartTime,
 		},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -545,6 +560,7 @@ func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
 			start:   options.Start,
 		},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -558,6 +574,7 @@ func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &headProcessor{options: options},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -571,6 +588,7 @@ func NewTailDP(options *structs.TailExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &tailProcessor{options: options},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true, // TODO: depends on the previous DPs in the chain.
 		isTwoPassCmd:      false,
@@ -584,6 +602,7 @@ func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &makemvProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -597,6 +616,7 @@ func NewMVExpandDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &mvexpandProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -610,6 +630,7 @@ func NewRegexDP(options *structs.RegexExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &regexProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -623,6 +644,7 @@ func NewRexDP(options *structs.RexExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &rexProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -636,6 +658,7 @@ func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &whereProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -649,6 +672,7 @@ func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &streamstatsProcessor{options: options},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -662,6 +686,7 @@ func NewTimechartDP(options *timechartOptions) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         NewTimechartProcessor(options),
 		inputOrderMatters: false,
+		ignoresInputOrder: true,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
 		isTransformingCmd: true,
@@ -676,6 +701,7 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         NewStatsProcessor(options),
 		inputOrderMatters: false,
+		ignoresInputOrder: true,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
 		isTransformingCmd: true,
@@ -717,6 +743,7 @@ func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         NewTopProcessor(options),
 		inputOrderMatters: false,
+		ignoresInputOrder: true,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
 		isTransformingCmd: true,
@@ -731,6 +758,7 @@ func NewRareDP(options *structs.QueryAggregators) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         NewRareProcessor(options),
 		inputOrderMatters: false,
+		ignoresInputOrder: true,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
 		isTransformingCmd: true,
@@ -745,6 +773,7 @@ func NewTransactionDP(options *structs.TransactionArguments) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &transactionProcessor{options: options},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -758,6 +787,7 @@ func NewSortDP(options *structs.SortExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &sortProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: true,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      false,
@@ -771,6 +801,7 @@ func NewScrollerDP(scrollFrom uint64, qid uint64) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &scrollProcessor{scrollFrom: scrollFrom, qid: qid},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -811,6 +842,7 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 		streams:           cachedStreams,
 		processor:         &passThroughProcessor{},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
