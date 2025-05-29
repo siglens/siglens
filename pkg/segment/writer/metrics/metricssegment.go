@@ -1671,7 +1671,8 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 				return
 			}
 			retBlocks := make(map[uint16]bool)
-			blockSummaryFile := mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix) + ".mbsu"
+			// blockSummaryFile := mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix) + ".mbsu"
+			blockSummaryFile := filepath.Join(mSeg.metricsKeyBase, fmt.Sprintf("%d.mbsu", mSeg.Suffix))
 			blockSummaries, err := microreader.ReadMetricsBlockSummaries(blockSummaryFile)
 			if err != nil {
 				// Regardless of the error, we continue execution as we need to consider the unrotated block for this segment.
