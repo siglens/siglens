@@ -655,6 +655,9 @@ function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
 //eslint-disable-next-line no-unused-vars
 function showToast(msg, type = 'error', autoCloseTime = null) {
     let toastTypeClass = type === 'success' ? 'toast-success' : 'toast-error';
+
+    $('#message-toast').remove();
+
     let toast = `
         <div class="${toastTypeClass}" id="message-toast">
             <button type="button" aria-label="Close" class="toast-close">×</button>
