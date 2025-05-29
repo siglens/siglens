@@ -544,6 +544,7 @@ type SegStats struct {
 	NumStats    *NumericStats
 	StringStats *StringStats
 	Records     []*sutils.CValueEnclosure
+	TDigest     *utils.GobbableTDigest
 }
 
 type NumericStats struct {
@@ -1447,7 +1448,6 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.Estdc:        {},
 	sutils.EstdcError:   {},
 	sutils.ExactPerc:    {},
-	sutils.Perc:         {},
 	sutils.UpperPerc:    {},
 	sutils.Median:       {},
 	sutils.Mode:         {},

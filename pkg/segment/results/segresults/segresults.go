@@ -299,6 +299,8 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		return runningSegStat, nil
 	case sutils.Cardinality:
 		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
+	case sutils.Perc:
+		sstResult, err = segread.GetSegPerc(runningSegStat, incomingSegStat, measureAgg.Param)
 	case sutils.Count:
 		sstResult, err = segread.GetSegCount(runningSegStat, incomingSegStat)
 	case sutils.Sum:

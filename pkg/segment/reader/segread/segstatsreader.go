@@ -20,6 +20,7 @@ package segread
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -384,6 +385,40 @@ func GetSegSum(runningSegStat *structs.SegStats,
 	}
 
 	return &rSst, nil
+}
+
+func GetSegPerc(runningSegStat *structs.SegStats, currSegStat *structs.SegStats, perc string) (*sutils.NumTypeEnclosure, error) {
+	res := sutils.NumTypeEnclosure{
+		Ntype:    sutils.SS_DT_FLOAT,
+		IntgrVal: 0,
+		FloatVal: 0.0,
+	}
+
+	if currSegStat == nil {
+		return &res, fmt.Errorf("GetSegPerc: currSegStat is nil")
+	}
+
+	fltPercentile, err := strconv.ParseFloat(perc, 64)
+	if err != nil {
+		return &res, fmt.Errorf("GetSegPerc: percentile can't be converted to a float")
+	}
+
+	fltPercentileVal := fltPercentile / 100
+	if fltPercentileVal < 0.0 || fltPercentileVal > 1.0 {
+		return &res, fmt.Errorf("GetSegPerc: percentile not between the valid range")
+	}
+
+	if runningSegStat == nil {
+		res.FloatVal = currSegStat.TDigest.GetQuantile(fltPercentileVal)
+		return &res, nil
+	}
+
+	err = runningSegStat.TDigest.MergeTDigest(currSegStat.TDigest)
+	if err != nil {
+		return &res, fmt.Errorf("GetSegPerc: Can't merge TDigests, check if they have the same compression value")
+	}
+	res.FloatVal = runningSegStat.TDigest.GetQuantile(fltPercentile)
+	return &res, nil
 }
 
 func GetSegCardinality(runningSegStat *structs.SegStats,

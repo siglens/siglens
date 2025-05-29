@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -231,6 +232,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 			ValueColRequest:    m.ValueColRequest,
 			StrEnc:             m.StrEnc,
 			OverrodeMeasureAgg: overrodeMeasureAgg,
+			Param:              m.Param,
 		})
 		idx++
 	}
@@ -815,6 +817,26 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 
 			*hllToMerge = runningStats[valIdx].hll
+		}
+	case sutils.Perc:
+		incrementIdxBy = 1
+		valIdx := gb.reverseMeasureIndex[idx]
+		// TODO - after implementing eval change to != nil
+		if mInfo.ValueColRequest == nil {
+			fltPercentile, err := strconv.ParseFloat(mInfo.Param, 64)
+			if err != nil {
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:PERCENTILE", fmt.Errorf("percentile param must be numeric, got type: %T, val: %v", mInfo.Param, mInfo.Param))
+				return
+			}
+			fltPercentileVal := fltPercentile / 100
+			// should never happen
+			if fltPercentileVal < 0 || fltPercentileVal > 1 {
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:PERCENTILE", fmt.Errorf("percentile param out of range"))
+				return
+			}
+			finalVal := runningStats[valIdx].tDigest.Quantile(fltPercentileVal)
+			eVal.CVal = finalVal
+			eVal.Dtype = sutils.SS_DT_FLOAT
 		}
 	case sutils.Values:
 		incrementIdxBy = 1
