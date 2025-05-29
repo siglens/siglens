@@ -1,22 +1,24 @@
 {
     "queryText": "| gentimes start=-30 end=-20 increment=7s | stats count",
     "expectedResult": {
-        "totalMatched": {
-            "value": 1,
-            "relation": "eq"
-        },
-        "qtype": "logs-query",
-        "records": [
+        "bucketCount": 1,
+        "measure": [
             {
-                "count(*)": 123429
+                "GroupByValues": ["*"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "*",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "count(*)": 123429
+                }
             }
         ],
-        "allColumns": [
-            "count(*)"
-        ],
-        "columnsOrder": [
-            "count(*)"
-        ]
+        "measureFunctions": ["count(*)"],
+        "qtype": "segstats-query"
     }
- }
+
+}
  

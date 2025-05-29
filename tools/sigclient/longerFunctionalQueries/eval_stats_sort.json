@@ -1,61 +1,240 @@
 {
     "queryText": "_index=ind-0 | search  city=boston group=\"group 0\" user_agent=Mozilla*Windows* http_status=200 latency!=0 hobby!=\"Acting\" AND hobby!=\"Walking\" AND hobby!=\"*k.ing*\" AND hobby!=\"*gg*\"| eval hobby_http = hobby+\"@\"+http_method | stats count as cnt by hobby_http | sort -cnt | where cnt > 1 | sort hobby_http",
-    "expectedResult": {
-        "totalMatched": {
-            "value": 19,
-            "relation": "eq"
-        },
-        "qtype": "logs-query",
-        "records": [
+    "expectedResult":{
+        "bucketCount": 19,
+        "groupByCols": ["hobby_http"],
+        "measure": [
             {
-                "cnt": 2,
-                "hobby_http": "Air sports@PATCH"
+                "GroupByValues": ["Air sports@PATCH"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Air sports@PATCH",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
             },
             {
-                "cnt": 2,
-                "hobby_http": "Bowling@GET"
+                "GroupByValues": ["Bowling@GET"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Bowling@GET",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
             },
             {
-                "cnt": 2,
-                "hobby_http": "Boxing@PUT"
+                "GroupByValues": ["Boxing@PUT"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Boxing@PUT",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
             },
             {
-                "cnt": 2,
-                "hobby_http": "Cabaret@PUT"
+                "GroupByValues": ["Cabaret@PUT"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Cabaret@PUT",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
             },
             {
-                "cnt": 2,
-                "hobby_http": "Coin collecting@GET"
+                "GroupByValues": ["Coin collecting@GET"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Coin collecting@GET",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
             },
             {
-                "cnt": 2,
-                "hobby_http": "Coloring@HEAD"
+                "GroupByValues": ["Coloring@HEAD"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Coloring@HEAD",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
             },
             {
-                "cnt": 3,
-                "hobby_http": "Creative writing@DELETE"
+                "GroupByValues": ["Creative writing@DELETE"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Creative writing@DELETE",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 3
+                }
             },
             {
-                "cnt": 2,
-                "hobby_http": "Cryptography@POST"
+                "GroupByValues": ["Cryptography@POST"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Cryptography@POST",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
             },
             {
-                "cnt": 2,
-                "hobby_http": "Dolls@POST"
+                "GroupByValues": ["Dolls@POST"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Dolls@POST",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
             },
             {
-                "cnt": 2,
-                "hobby_http": "Hacking@PATCH"
+                "GroupByValues": ["Hacking@PATCH"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Hacking@PATCH",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
+            },
+            {
+                "GroupByValues": ["Leather crafting@HEAD"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Leather crafting@HEAD",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
+            },
+            {
+                "GroupByValues": ["Longboarding@GET"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Longboarding@GET",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
+            },
+            {
+                "GroupByValues": ["Martial arts@PUT"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Martial arts@PUT",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
+            },
+            {
+                "GroupByValues": ["Metal detecting@POST"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Metal detecting@POST",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
+            },
+            {
+                "GroupByValues": ["Painting@DELETE"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Painting@DELETE",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
+            },
+            {
+                "GroupByValues": ["Running@PATCH"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Running@PATCH",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
+            },
+            {
+                "GroupByValues": ["Sculpting@PUT"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Sculpting@PUT",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
+            },
+            {
+                "GroupByValues": ["Surfing@PUT"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Surfing@PUT",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
+            },
+            {
+                "GroupByValues": ["Travel@POST"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "Travel@POST",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "cnt": 2
+                }
             }
         ],
-        "allColumns": [
-            "hobby_http",
-            "cnt"
-        ],
-        "columnsOrder": [
-            "cnt",
-            "hobby_http"
-        ]
+        "measureFunctions": ["cnt"],
+        "qtype": "aggs-query"
     }
 }
   
