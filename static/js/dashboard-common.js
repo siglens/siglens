@@ -236,6 +236,7 @@ function deleteDashboard(dashboardId) {
         });
 }
 
+// eslint-disable-next-line no-unused-vars
 async function getFolderCount(folderId) {
     try {
         const response = await fetch(`api/dashboards/folders/${folderId}/count`);
