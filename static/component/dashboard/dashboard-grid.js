@@ -37,6 +37,7 @@ class DashboardGrid {
             rowSelection: 'multiple',
             rowMultiSelectWithClick: true,
             suppressRowDeselection: false,
+            suppressRowClickSelection: true,
             getRowId: (params) => params.data.rowId,
             localeText: {
                 noRowsToShow: "This folder doesn't have any dashboards/folders yet ",
@@ -91,10 +92,62 @@ class DashboardGrid {
     getTreeViewColumnDefs() {
         return [
             {
-                checkboxSelection: true,
                 headerCheckboxSelection: true,
                 maxWidth: 50,
                 pinned: 'left',
+                cellRenderer: (params) => {
+                    if (params.data.type === 'no-items') {
+                        return '';
+                    }
+
+                    if (params.data.type === 'folder') {
+                        const div = document.createElement('div');
+                        div.className = 'ag-selection-checkbox';
+
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.className = 'ag-checkbox-input';
+
+                        const selectionState = this.getFolderSelectionState(params.data.uniqId);
+
+                        if (selectionState === 'all') {
+                            checkbox.checked = true;
+                            checkbox.indeterminate = false;
+                        } else if (selectionState === 'some') {
+                            checkbox.checked = false;
+                            checkbox.indeterminate = true;
+                        } else {
+                            checkbox.checked = false;
+                            checkbox.indeterminate = false;
+                        }
+
+                        checkbox.addEventListener('change', (e) => {
+                            e.stopPropagation();
+                            const shouldSelect = selectionState !== 'all';
+                            params.node.setSelected(shouldSelect);
+                        });
+
+                        div.appendChild(checkbox);
+                        return div;
+                    }
+
+                    // Default checkbox for dashboards
+                    const div = document.createElement('div');
+                    div.className = 'ag-selection-checkbox';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'ag-checkbox-input';
+                    checkbox.checked = params.node.isSelected();
+
+                    checkbox.addEventListener('change', (e) => {
+                        e.stopPropagation();
+                        params.node.setSelected(e.target.checked);
+                    });
+
+                    div.appendChild(checkbox);
+                    return div;
+                },
             },
             {
                 headerName: 'Name',
@@ -248,12 +301,11 @@ class DashboardGrid {
         }
 
         if (!params.data.expanded) {
-            // Recursively get all child IDs to remove
+            // Collapsing
             const getAllChildIds = (parentId) => {
                 const children = currentData.filter((row) => row.parentFolderId === parentId);
                 let ids = children.map((child) => child.rowId);
 
-                // Recursively get children of folders
                 children.forEach((child) => {
                     if (child.type === 'folder') {
                         ids = [...ids, ...getAllChildIds(child.uniqId)];
@@ -263,20 +315,18 @@ class DashboardGrid {
                 return ids;
             };
 
-            // Get all nested items to remove
             const idsToRemove = getAllChildIds(folderId);
             const newData = currentData.filter((row) => !idsToRemove.includes(row.rowId));
             this.gridOptions.api.setRowData(newData);
             return;
         }
 
+        // Expanding folder
         const contents = await getFolderContents(folderId);
         if (!contents) return;
 
-        // Find the index of the folder
         const folderIndex = currentData.findIndex((row) => row.uniqId === folderId);
 
-        // If folder is empty, add "No items" row
         if (!contents.items || contents.items.length === 0) {
             const noItemsRow = {
                 rowId: `${folderId}-no-items`,
@@ -308,21 +358,28 @@ class DashboardGrid {
         }));
 
         const newData = [...currentData.slice(0, folderIndex + 1), ...folderContents, ...currentData.slice(folderIndex + 1)];
-
         this.gridOptions.api.setRowData(newData);
+
+        const parentNode = this.gridOptions.api.getRowNode(params.data.rowId);
+        if (parentNode && parentNode.isSelected()) {
+            setTimeout(() => {
+                this.selectDeselectChildren(folderId, true);
+                setTimeout(() => {
+                    this.refreshFolderCheckboxes();
+                }, 50);
+            }, 150);
+        }
     }
 
     setData(items, useListView = false) {
         let rowData = [];
         let rowId = 0;
 
-        // If tree view, sort items by type first (folders before dashboards)
         if (!useListView) {
             items.sort((a, b) => {
                 if (a.type !== b.type) {
                     return a.type === 'folder' ? -1 : 1;
                 }
-                // If same type, maintain original order
                 return 0;
             });
         }
@@ -381,15 +438,12 @@ class DashboardGrid {
                                 if (data.type === 'folder') {
                                     await deleteFolder(data.uniqId);
 
-                                    // Get all visible rows
                                     const currentData = this.gridOptions.api.getModel().rowsToDisplay.map((row) => row.data);
 
-                                    // Recursively get all child IDs to remove
                                     const getAllChildIds = (parentId) => {
                                         const children = currentData.filter((row) => row.parentFolderId === parentId);
                                         let ids = children.map((child) => child.rowId);
 
-                                        // Recursively get children of folders
                                         children.forEach((child) => {
                                             if (child.type === 'folder') {
                                                 ids = [...ids, ...getAllChildIds(child.uniqId)];
@@ -399,10 +453,8 @@ class DashboardGrid {
                                         return ids;
                                     };
 
-                                    // Get all items to remove
                                     const idsToRemove = [data.rowId, ...getAllChildIds(data.uniqId)];
 
-                                    // Remove parent and all children
                                     this.gridOptions.api.applyTransaction({
                                         remove: idsToRemove.map((id) => ({ rowId: id })),
                                     });
@@ -444,10 +496,10 @@ class DashboardGrid {
                 const countData = await getFolderCount(item.uniqId);
                 if (countData && countData.total > 0) {
                     totalCount += countData.total;
-                    folderCount += countData.folders + 1; // +1 for the folder itself
+                    folderCount += countData.folders + 1;
                     dashboardCount += countData.dashboards;
                 } else {
-                    folderCount += 1; // Just the empty folder itself
+                    folderCount += 1;
                 }
             } else {
                 dashboardCount += 1;
@@ -474,15 +526,12 @@ class DashboardGrid {
             .on('click', async () => {
                 if ($('.confirm-input').val() === 'Delete') {
                     try {
-                        // Get all visible rows before deletion
                         const currentData = this.gridOptions.api.getModel().rowsToDisplay.map((row) => row.data);
 
-                        // Get all nested child IDs
                         const getAllChildIds = (parentId) => {
                             const children = currentData.filter((row) => row.parentFolderId === parentId);
                             let ids = children.map((child) => child.rowId);
 
-                            // Recursively get children of folders
                             children.forEach((child) => {
                                 if (child.type === 'folder') {
                                     ids = [...ids, ...getAllChildIds(child.uniqId)];
@@ -492,20 +541,16 @@ class DashboardGrid {
                             return ids;
                         };
 
-                        // Collect all IDs to remove (selected items + their nested children)
                         let allIdsToRemove = [];
 
                         for (const item of selectedData) {
-                            // Add the selected item itself
                             allIdsToRemove.push(item.rowId);
 
-                            // If it's a folder, add all its nested children
                             if (item.type === 'folder') {
                                 const childIds = getAllChildIds(item.uniqId);
                                 allIdsToRemove = [...allIdsToRemove, ...childIds];
                             }
 
-                            // Delete from backend
                             if (item.type === 'folder') {
                                 await deleteFolder(item.uniqId);
                             } else {
@@ -534,9 +579,45 @@ class DashboardGrid {
         });
     }
 
+    getFolderSelectionState(folderId) {
+        const allNodes = [];
+        this.gridOptions.api.forEachNode((node) => allNodes.push(node));
+
+        const getChildNodes = (parentId) => {
+            const visibleChildren = allNodes.filter((node) => node.data.parentFolderId === parentId && node.data.type !== 'no-items');
+            let childNodes = [...visibleChildren];
+
+            visibleChildren.forEach((child) => {
+                if (child.data.type === 'folder') {
+                    childNodes = [...childNodes, ...getChildNodes(child.data.uniqId)];
+                }
+            });
+
+            return childNodes;
+        };
+
+        const childNodes = getChildNodes(folderId);
+        const selectedChildren = childNodes.filter((node) => node.isSelected());
+
+        if (childNodes.length === 0) {
+            const folderNode = allNodes.find((node) => node.data.uniqId === folderId);
+            return folderNode && folderNode.isSelected() ? 'all' : 'none';
+        }
+
+        if (selectedChildren.length === 0) return 'none';
+        if (selectedChildren.length === childNodes.length) return 'all';
+        return 'some';
+    }
+
     handleSelectionChange() {
         const selectedNodes = this.gridOptions.api.getSelectedNodes();
         const selectedCount = selectedNodes.length;
+
+        this.handleCascadingSelection();
+
+        setTimeout(() => {
+            this.refreshFolderCheckboxes();
+        }, 50);
 
         if (selectedCount > 0) {
             $('#bulk-delete-btn').show().text(`Delete (${selectedCount})`);
@@ -549,6 +630,98 @@ class DashboardGrid {
             $('#bulk-delete-btn').hide();
             $('.filter-controls, #sort-container').show();
         }
+    }
+
+    refreshFolderCheckboxes() {
+        this.gridOptions.api.refreshCells({
+            force: true,
+        });
+    }
+
+    handleCascadingSelection() {
+        const allNodes = [];
+        this.gridOptions.api.forEachNode((node) => allNodes.push(node));
+
+        const currentSelection = new Set();
+        const previousSelection = this.previousSelection || new Set();
+
+        allNodes.forEach((node) => {
+            if (node.isSelected()) {
+                currentSelection.add(node.data.rowId);
+            }
+        });
+
+        const newlySelected = [...currentSelection].filter((id) => !previousSelection.has(id));
+        const newlyDeselected = [...previousSelection].filter((id) => !currentSelection.has(id));
+
+        newlySelected.forEach((rowId) => {
+            const node = this.gridOptions.api.getRowNode(rowId);
+            if (node && node.data.type === 'folder') {
+                this.selectDeselectChildren(node.data.uniqId, true);
+            }
+        });
+
+        newlyDeselected.forEach((rowId) => {
+            const nodeData = allNodes.find((n) => n.data.rowId === rowId)?.data;
+            if (nodeData && nodeData.type === 'folder') {
+                this.selectDeselectChildren(nodeData.uniqId, false);
+            }
+        });
+
+        this.updateParentFolderStates(allNodes);
+
+        this.previousSelection = new Set(currentSelection);
+    }
+
+    updateParentFolderStates(allNodes) {
+        const folders = allNodes.filter((node) => node.data.type === 'folder');
+
+        folders.forEach((folderNode) => {
+            const folderId = folderNode.data.uniqId;
+            const selectionState = this.getFolderSelectionState(folderId);
+
+            if (selectionState === 'all') {
+                if (!folderNode.isSelected()) {
+                    folderNode.setSelected(true, false);
+                }
+            } else if (selectionState === 'none') {
+                if (folderNode.isSelected()) {
+                    folderNode.setSelected(false, false);
+                }
+            }
+        });
+    }
+
+    selectDeselectChildren(folderId, select) {
+        const allNodes = [];
+        this.gridOptions.api.forEachNode((node) => allNodes.push(node));
+
+        const getChildNodes = (parentId) => {
+            const children = allNodes.filter((node) => node.data.parentFolderId === parentId);
+            let childNodes = [...children];
+
+            children.forEach((child) => {
+                if (child.data.type === 'folder') {
+                    childNodes = [...childNodes, ...getChildNodes(child.data.uniqId)];
+                }
+            });
+
+            return childNodes;
+        };
+
+        const childNodes = getChildNodes(folderId);
+
+        childNodes.forEach((childNode) => {
+            if (childNode.data.type !== 'no-items') {
+                childNode.setSelected(select, false);
+            }
+        });
+
+        setTimeout(() => {
+            this.gridOptions.api.refreshCells({
+                force: true,
+            });
+        }, 10);
     }
 
     clearSelection() {
