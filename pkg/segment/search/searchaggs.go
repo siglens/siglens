@@ -179,11 +179,11 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 	allSearchResults.AddBlockResults(blkResults)
 }
 
-func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, numMFuncs int,
+func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, MFuncs []*structs.MeasureAggregator,
 	multiColReader *segread.MultiColSegmentReader, blockNum uint16, recIT *BlockRecordIterator, blockRes *blockresults.BlockResults,
 	qid uint64, aggsKeyWorkingBuf []byte, timeRangeBuckets *aggregations.Range, nodeRes *structs.NodeResult) []byte {
 
-	measureResults := make([]sutils.CValueEnclosure, numMFuncs)
+	measureResults := make([]sutils.CValueEnclosure, len(MFuncs))
 	var retCVal sutils.CValueEnclosure
 
 	usedByTimechart := (timeHistogram != nil && timeHistogram.Timechart != nil)
@@ -335,7 +335,8 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				retCVal.CVal = nil
 			}
 			for _, idx := range indices {
-				if grpReq.MeasureOperations[idx].MeasureFunc != sutils.LatestTime {
+				// grpReq won't work since aggs like range are converted to 2 aggs -> min and max
+				if MFuncs[idx].MeasureFunc != sutils.LatestTime {
 					measureResults[idx] = retCVal
 				} else {
 					tsCVal := sutils.CValueEnclosure{}
@@ -1180,7 +1181,7 @@ func doAggs(aggs *structs.QueryAggregators, mcr *segread.MultiColSegmentReader,
 	}
 
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
-	return addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram, measureInfo, len(internalMops), mcr,
+	return addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram, measureInfo, internalMops, mcr,
 		bss.BlockNum, recIT, blkResults, qid, aggsKeyWorkingBuf, timeRangeBuckets, nodeRes)
 }
 
