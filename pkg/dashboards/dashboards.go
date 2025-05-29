@@ -238,7 +238,7 @@ func getDashboard(id string, myid int64) (map[string]interface{}, error) {
 	}
 
 	if err := refreshFolderMetadata(id, detailDashboardInfo, myid); err != nil {
-		log.Warnf("getDashboard: Failed to refresh folder metadata for dashboard %s: %v", id, err)
+		log.Warnf("getDashboard: Failed to refresh folder metadata for dashboard, id: %v, err: %v", id, err)
 	}
 
 	return detailDashboardInfo, nil
@@ -251,13 +251,13 @@ func refreshFolderMetadata(id string, dashboardDetails map[string]interface{}, m
 
 	structure, err := readFolderStructure(myid)
 	if err != nil {
-		log.Errorf("refreshFolderMetadata: failed to read structure: %v", err)
+		log.Errorf("refreshFolderMetadata: failed to read structure, err: %v", err)
 		return err
 	}
 
 	dashboardItem, exists := structure.Items[id]
 	if !exists {
-		log.Warnf("refreshFolderMetadata: dashboard %s not found in structure", id)
+		log.Warnf("refreshFolderMetadata: dashboard not found in structure, id: %v", id)
 		return nil
 	}
 
@@ -265,17 +265,34 @@ func refreshFolderMetadata(id string, dashboardDetails map[string]interface{}, m
 	currentFolder, exists := structure.Items[folderID]
 
 	if !exists {
-		log.Warnf("refreshFolderMetadata: folder %s not found", folderID)
+		log.Warnf("refreshFolderMetadata: folder not found, folderID: %v", folderID)
 		return nil
 	}
 
 	currentPath := buildFolderPath(folderID, structure)
 
 	// Check if already up-to-date
-	if folderData, ok := dashboardDetails["folder"].(map[string]interface{}); ok {
-		if storedPath, ok := folderData["path"].(string); ok && storedPath == currentPath {
+	folderVal, ok := dashboardDetails["folder"]
+	if !ok {
+		return fmt.Errorf("folder key not found in dashboard details")
+	}
+	switch fData := folderVal.(type) {
+	case map[string]interface{}:
+		pathVal, pathExists := fData["path"]
+		if !pathExists {
+			return fmt.Errorf("path key not found in folder data")
+		}
+
+		storedPath, ok := pathVal.(string)
+		if !ok {
+			return fmt.Errorf("path value is not a string")
+		}
+
+		if storedPath == currentPath {
 			return nil
 		}
+	default:
+		return fmt.Errorf("folder value is not a map, got %T", fData)
 	}
 
 	folderPath := currentPath
