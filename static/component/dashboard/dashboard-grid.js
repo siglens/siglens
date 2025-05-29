@@ -199,7 +199,7 @@ class DashboardGrid {
             baseDiv.style.alignItems = 'center';
 
             const icon = document.createElement('i');
-            icon.className = params.data.type === 'folder' ? 'fa fa-folder' : 'fa fa-columns';
+            icon.className = params.data.type === 'folder' ? 'fa fa-folder' : 'fa fa-large';
             icon.style.color = params.data.type === 'folder' ? '#FFB84D' : '#6366f1';
             icon.style.marginRight = '8px';
 
@@ -228,7 +228,7 @@ class DashboardGrid {
                     <span class="folder-arrow" style="cursor: pointer">
                         ${params.data.expanded ? '<i class="fa fa-chevron-down"></i>' : '<i class="fa fa-chevron-right"></i>'}
                     </span>
-                    <i class="fa fa-folder" style="color: #FFB84D; margin-right: 8px; margin-left: 8px;"></i>
+                    <i class="fa ${params.data.expanded ? 'fa-folder-open' : 'fa-folder'}" style="color: #FFB84D; margin-right: 8px; margin-left: 8px;"></i>
                     <a href="folder.html?id=${params.data.uniqId}">${params.value}</a>
                 </div>`;
 
@@ -247,7 +247,7 @@ class DashboardGrid {
             dashDiv.style.paddingLeft = `${indentPadding + 27}px`;
 
             const icon = document.createElement('i');
-            icon.className = 'fa fa-columns';
+            icon.className = 'fa fa-th-large';
             icon.style.color = '#6366f1';
             icon.style.marginRight = '8px';
 
