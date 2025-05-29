@@ -112,14 +112,14 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 
 	// common routes
 
-	hs.Router.GET(server_utils.API_PREFIX+"/health", tracing.TraceMiddleware(hs.Recovery(getHealthHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/health", tracing.TraceMiddleware(getHealthHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/config", tracing.TraceMiddleware(hs.Recovery(getConfigHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/config/reload", tracing.TraceMiddleware(hs.Recovery(getConfigReloadHandler())))
 
-	//elasticsearch routes - common to both ingest and query
+	// elasticsearch routes - common to both ingest and query
 	hs.Router.GET(server_utils.ELASTIC_PREFIX+"/", hs.Recovery(esGreetHandler()))
 
-	//elasticsearch routes - specific to query
+	// elasticsearch routes - specific to query
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/search", hs.Recovery(esGetSearchHandler()))
 	hs.Router.GET(server_utils.ELASTIC_PREFIX+"/_search", hs.Recovery(esGetSearchHandler()))
 	hs.Router.GET(server_utils.ELASTIC_PREFIX+"/{indexName}/_search", hs.Recovery(esGetSearchHandler()))
@@ -159,22 +159,22 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		hs.router.DELETE(ELASTIC_PREFIX+"/{indexName}/_alias/{aliasName}", hs.Recovery(esDeleteAliasHandler()))
 	*/
 
-	//splunk endpoint
+	// splunk endpoint
 	hs.Router.GET("/services/collector/health", hs.Recovery(getHealthHandler()))
 	hs.Router.GET("/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
 
-	//jaeger
+	// jaeger
 	hs.Router.GET(server_utils.JAEGER_PREFIX+"/api/services", hs.Recovery(getServicesHandler()))
 	hs.Router.GET(server_utils.JAEGER_PREFIX+"/api/services/{serviceName}/operations", hs.Recovery(getOperationsHandler()))
 	hs.Router.GET(server_utils.JAEGER_PREFIX+"/api/dependencies", hs.Recovery(getDependenciesHandler()))
 	hs.Router.GET(server_utils.JAEGER_PREFIX+"/api/traces", hs.Recovery(getTracesHandler()))
 
-	//OTSDB query endpoint
+	// OTSDB query endpoint
 	hs.Router.GET(server_utils.OTSDB_PREFIX+"/api/query", hs.Recovery(otsdbMetricQueryHandler()))
 	hs.Router.POST(server_utils.OTSDB_PREFIX+"/api/query", hs.Recovery(otsdbMetricQueryHandler()))
 	hs.Router.POST(server_utils.OTSDB_PREFIX+"/api/v1/query/exp", hs.Recovery(otsdbMetricQueryExpHandler()))
 
-	//prometheus query endpoint
+	// prometheus query endpoint
 	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/v1/query", hs.Recovery(promqlMetricsInstantQueryHandler()))
 	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/query", hs.Recovery(promqlMetricsInstantQueryHandler()))
 	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/ui/query", hs.Recovery(uiMetricsSearchHandler()))
