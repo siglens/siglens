@@ -66,6 +66,22 @@ Options:
   -u, --uniqueness int       Cardinality (uniqueness) of the data (default 2000000)
   -e, --eventsPerDay uint    Number of events to ingest per day. If set, the ingestion mode will be assumed to be continuous.
 ```
+### Prometheus Remote Write
+To send ingestion traffic to a server using the Prometheus Remote Write format:
+```bash
+go run main.go ingest metrics -d http://localhost:8081/promql -t 10_000 -m 5 -p 1 -f Prometheus
+```
+Options:
+```
+  -m, --metrics int   Number of different metric names to send (default 1000)
+  -r, --bearerToken string   Bearer token of your org to ingest (default "")
+  -b, --batchSize int        Batch size (default 100)
+  -d, --dest string          Server URL.
+  -p, --processCount int     Number of parallel process to ingest data from. (default 1)
+  -t, --totalEvents int      Total number of events to send (default 1000000)
+  -u, --uniqueness int       Cardinality (uniqueness) of the data (default 2000000)
+  -e, --eventsPerDay uint    Number of events to ingest per day. If set, the ingestion mode will be assumed to be continuous.
+```
 
 ## Query
 
