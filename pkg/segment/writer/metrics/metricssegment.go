@@ -1646,100 +1646,20 @@ func ForceFlushMetricsBlock() {
 	wg.Wait()
 }
 
-func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid int64) (map[string][]*structs.MetricsSearchRequest, error) {
+func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid utils.Option[int64]) (map[string][]*structs.MetricsSearchRequest, error) {
 	sTime := time.Now()
 	retVal := make(map[string][]*structs.MetricsSearchRequest)
 	retLock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
+	org, orgPresent := orgid.Get()
 
 	parallelism := int(config.GetParallelism())
-	allMetricsSegments := GetMetricSegments(orgid)
-	idxCtr := 0
-	for _, metricSeg := range allMetricsSegments {
-		wg.Add(1)
-		go func(mSeg *MetricsSegment) {
-			defer wg.Done()
-			mSeg.rwLock.RLock()
-			defer mSeg.rwLock.RUnlock()
-			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) || mSeg.Orgid != orgid {
-				return
-			}
-			retBlocks := make(map[uint16]bool)
-			blockSummaryFile := mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix) + ".mbsu"
-			blockSummaries, err := microreader.ReadMetricsBlockSummaries(blockSummaryFile)
-			if err != nil {
-				// Regardless of the error, we continue execution as we need to consider the unrotated block for this segment.
-				if errors.Is(err, os.ErrNotExist) {
-					log.Warnf("GetUnrotatedMetricsSegmentRequests: Block summary file not found at %v", blockSummaryFile)
-				} else {
-					log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v. Error=%v", blockSummaryFile, err)
-				}
-			}
-
-			for _, bSum := range blockSummaries {
-				if tRange.CheckRangeOverLap(bSum.LowTs, bSum.HighTs) {
-					retBlocks[bSum.Blknum] = true
-				}
-			}
-
-			tKeys := make(map[string]bool)
-			allTrees := GetTagsTreeHolder(orgid, mSeg.Mid).allTrees
-			for k := range allTrees {
-				tKeys[k] = true
-			}
-
-			finalReq := &structs.MetricsSearchRequest{
-				Mid:                  mSeg.Mid,
-				UnrotatedBlkToSearch: make(map[uint16]bool),
-				MetricsKeyBaseDir:    mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix),
-				BlocksToSearch:       retBlocks,
-				BlkWorkerParallelism: uint(2),
-				QueryType:            structs.UNROTATED_METRICS_SEARCH,
-				AllTagKeys:           tKeys,
-				UnrotatedMetricNames: mSeg.mNamesMap,
-			}
-
-			// Check if the current unrotated block is within the time range
-			if tRange.CheckRangeOverLap(mSeg.mBlock.mBlockSummary.LowTs, mSeg.mBlock.mBlockSummary.HighTs) {
-				finalReq.UnrotatedBlkToSearch[mSeg.mBlock.mBlockSummary.Blknum] = true
-			}
-
-			if len(retBlocks) == 0 && len(finalReq.UnrotatedBlkToSearch) == 0 {
-				return
-			}
-
-			tt := GetTagsTreeHolder(orgid, mSeg.Mid)
-			if tt == nil {
-				return
-			}
-			baseTTDir := tt.tagstreeBase
-			retLock.Lock()
-			_, ok := retVal[baseTTDir]
-			if !ok {
-				retVal[baseTTDir] = make([]*structs.MetricsSearchRequest, 0)
-			}
-			retVal[baseTTDir] = append(retVal[baseTTDir], finalReq)
-			retLock.Unlock()
-		}(metricSeg)
-		if idxCtr%parallelism == 0 {
-			wg.Wait()
-		}
-		idxCtr++
+	var allMetricsSegments []*MetricsSegment
+	if orgPresent {
+		allMetricsSegments = GetMetricSegments(org)
+	} else {
+		allMetricsSegments = GetAllMetricsSegments()
 	}
-	wg.Wait()
-	timeElapsed := time.Since(sTime)
-	querySummary.UpdateTimeGettingUnrotatedSearchRequests(timeElapsed)
-	return retVal, nil
-}
-
-func GetUnrotatedMetricsSegmentRequestsForAllOrgs(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
-	sTime := time.Now()
-	retVal := make(map[string][]*structs.MetricsSearchRequest)
-	retLock := &sync.Mutex{}
-	wg := &sync.WaitGroup{}
-
-	parallelism := int(config.GetParallelism())
-	allMetricsSegments := GetAllMetricsSegments()
 	idxCtr := 0
 	for _, metricSeg := range allMetricsSegments {
 		wg.Add(1)
@@ -1747,7 +1667,7 @@ func GetUnrotatedMetricsSegmentRequestsForAllOrgs(tRange *dtu.MetricsTimeRange, 
 			defer wg.Done()
 			mSeg.rwLock.RLock()
 			defer mSeg.rwLock.RUnlock()
-			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) {
+			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) || (orgPresent && mSeg.Orgid != org) {
 				return
 			}
 			retBlocks := make(map[uint16]bool)
@@ -1769,12 +1689,12 @@ func GetUnrotatedMetricsSegmentRequestsForAllOrgs(tRange *dtu.MetricsTimeRange, 
 			}
 
 			tKeys := make(map[string]bool)
-			for _, tt := range GetTagsTreeHolderForAllOrgs(mSeg.Mid) {
+			tagTreeHolders := getAllTagsTreeHolders(orgid, mSeg.Mid)
+			for _, tt := range tagTreeHolders {
 				for k := range tt.allTrees {
 					tKeys[k] = true
 				}
 			}
-
 			finalReq := &structs.MetricsSearchRequest{
 				Mid:                  mSeg.Mid,
 				UnrotatedBlkToSearch: make(map[uint16]bool),
@@ -1795,9 +1715,10 @@ func GetUnrotatedMetricsSegmentRequestsForAllOrgs(tRange *dtu.MetricsTimeRange, 
 				return
 			}
 
-			for _, tt := range GetTagsTreeHolderForAllOrgs(mSeg.Mid) {
+			tagTreeHolders = getAllTagsTreeHolders(orgid, mSeg.Mid)
+			for _, tt := range tagTreeHolders {
 				if tt == nil {
-					continue
+					return
 				}
 				baseTTDir := tt.tagstreeBase
 				retLock.Lock()
@@ -1818,6 +1739,22 @@ func GetUnrotatedMetricsSegmentRequestsForAllOrgs(tRange *dtu.MetricsTimeRange, 
 	timeElapsed := time.Since(sTime)
 	querySummary.UpdateTimeGettingUnrotatedSearchRequests(timeElapsed)
 	return retVal, nil
+}
+
+func getAllTagsTreeHolders(orgid utils.Option[int64], metricsId string) []*TagsTreeHolder {
+	org, orgPresent := orgid.Get()
+	var tagTreeHolders []*TagsTreeHolder
+	if orgPresent {
+		tagTreeHolders = []*TagsTreeHolder{}
+		tth := GetTagsTreeHolder(org, metricsId)
+		if tth != nil {
+			tagTreeHolders = append(tagTreeHolders, tth)
+		}
+	} else {
+		tagTreeHolders = GetTagsTreeHolderForAllOrgs(metricsId)
+	}
+
+	return tagTreeHolders
 }
 
 func GetUnrotatedMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid int64) ([]*MetricsSegment, error) {

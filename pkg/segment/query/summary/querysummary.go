@@ -700,9 +700,18 @@ func (qs *QuerySummary) LogMetricsQuerySummaryForAllOrgs() {
 	avgTimeLoadingTSOFiles := getSumSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSOFiles) / float64(qs.numTSOFilesLoaded)
 	avgTimeLoadingTSGFiles := getSumSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles) / float64(qs.numTSGFilesLoaded)
 
-	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TagsTree Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)", qs.qid, qs.getNumTagsTreesSearched(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeSearchingTagsTrees), getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeSearchingTagsTrees), avgTimeSearchingTagsTrees, getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeSearchingTagsTrees))
-	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TSO Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)", qs.qid, qs.getNumTSOFilesLoaded(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSOFiles), getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSOFiles), avgTimeLoadingTSOFiles, getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeLoadingTSOFiles))
-	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TSG Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)", qs.qid, qs.getNumTSGFilesLoaded(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles), getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles), avgTimeLoadingTSGFiles, getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeLoadingTSGFiles))
+	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TagsTree Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)",
+		qs.qid, qs.getNumTagsTreesSearched(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeSearchingTagsTrees),
+		getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeSearchingTagsTrees), avgTimeSearchingTagsTrees,
+		getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeSearchingTagsTrees))
+	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TSO Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)",
+		qs.qid, qs.getNumTSOFilesLoaded(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSOFiles),
+		getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSOFiles), avgTimeLoadingTSOFiles,
+		getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeLoadingTSOFiles))
+	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TSG Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)",
+		qs.qid, qs.getNumTSGFilesLoaded(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles),
+		getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles), avgTimeLoadingTSGFiles,
+		getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeLoadingTSGFiles))
 
 	uStats.UpdateQueryStatsForAllOrgs(1, float64(qs.getQueryTotalTime().Milliseconds()))
 	qs.Cleanup()

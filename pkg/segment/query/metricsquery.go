@@ -51,7 +51,7 @@ type TagKeySeriesCount struct {
 	NumSeries uint64 `json:"numSeries"`
 }
 
-func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid int64, querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
+func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid utils.Option[int64], querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
 	rotatedMetricRequests, err := segmetadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
 	if err != nil {
 		err = fmt.Errorf("getAllRequestsWithinTimeRange: failed to get rotated metric segments for time range %+v; err=%v", timeRange, err)
@@ -71,28 +71,8 @@ func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid int64, 
 	return allSearchRequests, nil
 }
 
-func getAllRequestsWithinTimeRangeForAllOrgs(timeRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
-	rotatedMetricRequests, err := segmetadata.GetMetricsSegmentRequestsForAllOrgs(timeRange, querySummary)
-	if err != nil {
-		err = fmt.Errorf("getAllRequestsWithinTimeRange: failed to get rotated metric segments for time range %+v; err=%v", timeRange, err)
-		log.Errorf(err.Error())
-		return nil, err
-	}
-
-	unrotatedMetricRequests, err := metrics.GetUnrotatedMetricsSegmentRequestsForAllOrgs(timeRange, querySummary)
-	if err != nil {
-		err = fmt.Errorf("getAllRequestsWithinTimeRange: failed to get unrotated metric segments for time range %+v; err=%v", timeRange, err)
-		log.Errorf(err.Error())
-		return nil, err
-	}
-
-	allSearchRequests := mergeMetricSearchRequests(unrotatedMetricRequests, rotatedMetricRequests)
-
-	return allSearchRequests, nil
-}
-
 func GetAllTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary) ([]*tagstree.AllTagTreeReaders, error) {
-	allSearchRequests, err := getAllRequestsWithinTimeRangeForAllOrgs(timeRange, querySummary)
+	allSearchRequests, err := getAllRequestsWithinTimeRange(timeRange, utils.NewUnsetOption[int64](), querySummary)
 	if err != nil {
 		err = fmt.Errorf("GetAllTagsTreesWithinTimeRange: failed to get all metric requests within time range %+v; err=%v", timeRange, err)
 		log.Errorf(err.Error())
@@ -131,7 +111,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 
 	// todo: switch this to use rotated segs only
-	mSegments, err := getAllRequestsWithinTimeRange(finalTimeRange, mQuery.OrgId, querySummary)
+	mSegments, err := getAllRequestsWithinTimeRange(finalTimeRange, utils.NewOptionWithValue(mQuery.OrgId), querySummary)
 	if err != nil {
 		log.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", finalTimeRange, err)
 		return &mresults.MetricsResult{
@@ -281,7 +261,7 @@ func mergeMetricSearchRequests(unrotatedMSegments map[string][]*structs.MetricsS
 }
 
 func GetAllMetricNamesOverTheTimeRangeForAllOrgs(timeRange *dtu.MetricsTimeRange) ([]string, error) {
-	mSgementsMeta := segmetadata.GetMetricSegmentsOverTheTimeRangeForAllOrgs(timeRange)
+	mSgementsMeta := segmetadata.GetMetricSegmentsOverTheTimeRange(timeRange, utils.NewUnsetOption[int64]())
 	unrotatedMSegments, err := metrics.GetUnrotatedMetricSegmentsOverTheTimeRangeForAllOrgs(timeRange)
 	if err != nil {
 		log.Errorf("GetAllMetricNamesOverTheTimeRange: failed to get unrotated metric segments: %v", err)
@@ -295,7 +275,7 @@ func GetAllMetricNamesOverTheTimeRangeForAllOrgs(timeRange *dtu.MetricsTimeRange
 }
 
 func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid int64) ([]string, error) {
-	mSgementsMeta := segmetadata.GetMetricSegmentsOverTheTimeRange(timeRange, orgid)
+	mSgementsMeta := segmetadata.GetMetricSegmentsOverTheTimeRange(timeRange, utils.NewOptionWithValue(orgid))
 	unrotatedMSegments, err := metrics.GetUnrotatedMetricSegmentsOverTheTimeRange(timeRange, orgid)
 	if err != nil {
 		log.Errorf("GetAllMetricNamesOverTheTimeRange: failed to get unrotated metric segments: %v", err)
@@ -546,7 +526,7 @@ func GetSeriesCardinalityOverTimeRange(timeRange *dtu.MetricsTimeRange, myid int
 }
 
 func GetRotatedTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid int64, querySummary *summary.QuerySummary) ([]*tagstree.AllTagTreeReaders, error) {
-	allSearchRequests, err := segmetadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
+	allSearchRequests, err := segmetadata.GetMetricsSegmentRequests(timeRange, querySummary, utils.NewOptionWithValue(myid))
 	if err != nil {
 		err = fmt.Errorf("GetRotatedTagsTreesWithinTimeRange: failed to get rotated metric segments for time range %+v; err=%v", timeRange, err)
 		log.Errorf(err.Error())

@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -122,7 +123,7 @@ func processSegmentAndIndexStats(allSegmetas []*structs.SegMeta, allCnts map[str
 	}
 
 	for indexName := range uniqueIndexes {
-		stats, err := segwriter.GetIndexSizeStatsForAllOrgs(indexName)
+		stats, err := segwriter.GetIndexSizeStats(indexName, utils.NewUnsetOption[int64]())
 		if err != nil {
 			log.Errorf("processSegmentAndIndexStats: failed to get stats=%v for index=%v err=%v",
 				stats, indexName, err)
@@ -136,7 +137,7 @@ func processSegmentAndIndexStats(allSegmetas []*structs.SegMeta, allCnts map[str
 		totalCmiSize += stats.TotalCmiSize
 		totalCsgSize += stats.TotalCsgSize
 
-		_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCountsForAllOrgs(indexName)
+		_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, utils.NewUnsetOption[int64]())
 		for col := range columnNamesSet {
 			uniqueColumns[col] = struct{}{}
 		}

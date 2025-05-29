@@ -965,33 +965,16 @@ func WriteRunningSegMeta(rsm *structs.SegMeta) {
 	WriteSfm(segFullMeta)
 }
 
-func GetUnrotatedVTableCounts(vtable string, orgid int64) (uint64, int, uint64, map[string]struct{}) {
+func GetUnrotatedVTableCounts(vtable string, orgid utils.Option[int64]) (uint64, int, uint64, map[string]struct{}) {
 	bytesCount := uint64(0)
 	onDiskBytesCount := uint64(0)
 	recCount := 0
 	allColumnsMap := make(map[string]struct{})
+	org, orgPresent := orgid.Get()
 	allSegStoresLock.RLock()
 	defer allSegStoresLock.RUnlock()
 	for _, segstore := range allSegStores {
-		if segstore.VirtualTableName == vtable && segstore.OrgId == orgid {
-			bytesCount += segstore.BytesReceivedCount
-			recCount += segstore.RecordCount
-			onDiskBytesCount += segstore.OnDiskBytes
-			utils.AddMapKeysToSet(allColumnsMap, segstore.AllSeenColumnSizes)
-		}
-	}
-	return bytesCount, recCount, onDiskBytesCount, allColumnsMap
-}
-
-func GetUnrotatedVTableCountsForAllOrgs(vtable string) (uint64, int, uint64, map[string]struct{}) {
-	bytesCount := uint64(0)
-	onDiskBytesCount := uint64(0)
-	recCount := 0
-	allColumnsMap := make(map[string]struct{})
-	allSegStoresLock.RLock()
-	defer allSegStoresLock.RUnlock()
-	for _, segstore := range allSegStores {
-		if segstore.VirtualTableName == vtable {
+		if segstore.VirtualTableName == vtable && (!orgPresent || (orgPresent && segstore.OrgId == org)) {
 			bytesCount += segstore.BytesReceivedCount
 			recCount += segstore.RecordCount
 			onDiskBytesCount += segstore.OnDiskBytes
