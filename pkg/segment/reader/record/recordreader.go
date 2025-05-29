@@ -416,7 +416,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 			var cValEnc sutils.CValueEnclosure
 
 			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
-				qid, isTsCol, &cValEnc, false)
+				qid, isTsCol, &cValEnc, true)
 			if err != nil {
 				nodeRes.StoreGlobalSearchError(fmt.Sprintf("readAllRawRecords: Failed to extract value for column %v", cname), log.ErrorLevel, err)
 				nodeRes.StoreGlobalSearchError(ErrExtractValue.Error(), log.ErrorLevel, err)
