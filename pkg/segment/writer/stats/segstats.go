@@ -23,6 +23,7 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 
 	bbp "github.com/valyala/bytebufferpool"
 )
@@ -153,7 +154,10 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 				})
 			}
 			if hasPercFunc {
-				stats.TDigest.InsertIntoTDigest(fltVal)
+				err := stats.TDigest.InsertIntoTDigest(fltVal)
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
 			}
 		} else {
 			stats.NumStats.Sum.FloatVal = float64(stats.NumStats.Sum.IntgrVal) + fltVal
@@ -173,7 +177,10 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 				})
 			}
 			if hasPercFunc {
-				stats.TDigest.InsertIntoTDigest(fltVal)
+				err := stats.TDigest.InsertIntoTDigest(fltVal)
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
 			}
 		}
 	// incoming is NON-float
@@ -196,7 +203,10 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 				})
 			}
 			if hasPercFunc {
-				stats.TDigest.InsertIntoTDigest(float64(inIntgrVal))
+				err := stats.TDigest.InsertIntoTDigest(float64(inIntgrVal))
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
 			}
 		} else {
 			stats.NumStats.Sum.IntgrVal = stats.NumStats.Sum.IntgrVal + inIntgrVal
@@ -215,7 +225,10 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 				})
 			}
 			if hasPercFunc {
-				stats.TDigest.InsertIntoTDigest(float64(inIntgrVal))
+				err := stats.TDigest.InsertIntoTDigest(float64(inIntgrVal))
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
 			}
 		}
 	}

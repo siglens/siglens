@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/caio/go-tdigest/v4"
 	"github.com/cespare/xxhash"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -57,7 +56,7 @@ type runningStats struct {
 	hll       *utils.GobbableHll
 	rangeStat *structs.RangeStat
 	avgStat   *structs.AvgStat
-	tDigest   *tdigest.TDigest
+	tDigest   *utils.GobbableTDigest
 }
 
 func (rs *runningStats) syncRawValue() {
@@ -100,7 +99,7 @@ func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []running
 		} else if internalMeasureFns[i].MeasureFunc == sutils.Range {
 			retVal[i] = runningStats{rangeStat: agg.InitRangeStat()}
 		} else if internalMeasureFns[i].MeasureFunc == sutils.Perc {
-			t, err := tdigest.New(tdigest.Compression(sutils.TDIGESTCOMPRESSION))
+			t, err := utils.CreateNewTDigest()
 			if err == nil {
 				retVal[i] = runningStats{tDigest: t}
 			}
@@ -948,18 +947,22 @@ func GetRunningBucketResultsSliceForTest() []*RunningBucketResults {
 	return runningBucketResults
 }
 
-func tDigestAddCval(td *tdigest.TDigest, cval *sutils.CValueEnclosure) error {
+func tDigestAddCval(td *utils.GobbableTDigest, cval *sutils.CValueEnclosure) error {
+	var err error
 	switch cval.Dtype {
 	case sutils.SS_DT_FLOAT:
-		td.Add(cval.CVal.(float64))
+		err = td.Add(cval.CVal.(float64))
 	case sutils.SS_DT_SIGNED_NUM:
-		td.Add(float64(cval.CVal.(int64)))
+		err = td.Add(float64(cval.CVal.(int64)))
 	case sutils.SS_DT_UNSIGNED_NUM:
-		td.Add(float64(cval.CVal.(uint64)))
+		err = td.Add(float64(cval.CVal.(uint64)))
 	case sutils.SS_DT_BACKFILL:
 		return utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetString: nil value"))
 	default:
 		return fmt.Errorf("tDigestAddCval: Works only on numerical columns. Received: %v", cval.Dtype)
+	}
+	if err != nil {
+		return fmt.Errorf("tDigestAddCval: Unable to add value to digest tree; val: %v, err: %v", cval.CVal, err)
 	}
 	return nil
 }
