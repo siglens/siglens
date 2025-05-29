@@ -22,7 +22,6 @@ let localPanels = [],
     dbName,
     dbDescr,
     dbId,
-    dbFolder,
     allResultsDisplayed = 0;
 let panelIndex;
 let isFavorite = false;
@@ -161,6 +160,7 @@ function saveJsonChanges() {
                     refresh: dbRefresh,
                     isFavorite: isFavorite,
                     panelFlag: `{{ .PanelFlag }}`,
+                    folder: dbData.folder,
                 },
             }),
         })
@@ -234,6 +234,7 @@ async function updateDashboard() {
                 refresh: dbRefresh,
                 panelFlag: `{{ .PanelFlag }}`,
                 isFavorite: isFavorite,
+                folder: dbData.folder,
             },
         }),
     })
@@ -463,13 +464,13 @@ async function getDashboardData() {
         dbData.name,
         true, // Show favorite button for dashboard
         dbData.isFavorite,
-        mode === 'settings'
+        mode === 'settings',
+        false
     );
     breadcrumb.onFavoriteClick(() => toggleFavorite(dbId));
 
     dbName = dbData.name;
     dbDescr = dbData.description;
-    dbFolder = dbData.folder.name;
     dbRefresh = dbData.refresh;
     isFavorite = dbData.isFavorite;
     if (dbData.panels != undefined) {
@@ -1025,11 +1026,11 @@ function handleDbSettings() {
     window.history.pushState({}, '', currentUrl);
 
     const breadcrumb = new Breadcrumb();
-    breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, true);
+    breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, true, false);
 
     $('.dbSet-dbName').val(dbName);
     $('.dbSet-dbDescr').val(dbDescr);
-    $('.dbSet-dbFolder').val(dbFolder);
+    initializeFolderDropdown();
 
     if (isDefaultDashboard) {
         $('.dbSet-dbName').prop('readonly', true);
@@ -1133,13 +1134,26 @@ $('#error-ok-btn').click(function () {
     $('.error-tip').removeClass('active');
 });
 
+function initializeFolderDropdown() {
+    new FolderDropdown('folder-dropdown-container', {
+        showRoot: true,
+        initialFolder: dbData.folder ? {
+            id: dbData.folder.id,
+            name: dbData.folder.id === 'root-folder' ? 'Dashboards' : dbData.folder.name
+        } : null,
+        onSelect: (selectedFolder) => {
+            dbData.folder = selectedFolder;
+        }
+    });
+}
+
 function discardDbSetting() {
     const currentUrl = new URL(window.location.href);
     currentUrl.searchParams.delete('mode');
     window.history.pushState({}, '', currentUrl);
 
     const breadcrumb = new Breadcrumb();
-    breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, false);
+    breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, false, false);
 
     if (editPanelFlag) {
         $('.panelEditor-container').css('display', 'flex');

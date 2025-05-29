@@ -145,24 +145,7 @@ func createDashboard(req *CreateDashboardRequest, myid int64) (map[string]string
 
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + newId + ".json"
 
-	folderPath := ""
-	if req.ParentID != rootFolderID {
-		currentID := req.ParentID
-		folderNames := []string{}
-
-		// Build folder path
-		for currentID != "" && currentID != rootFolderID {
-			if item, exists := structure.Items[currentID]; exists {
-				folderNames = append([]string{item.Name}, folderNames...)
-				currentID = item.ParentID
-			} else {
-				break
-			}
-		}
-		if len(folderNames) > 0 {
-			folderPath = strings.Join(folderNames, "/")
-		}
-	}
+	folderPath := buildFolderPath(req.ParentID, structure)
 
 	breadcrumbs := generateBreadcrumbs(req.ParentID, structure)
 
@@ -254,11 +237,85 @@ func getDashboard(id string, myid int64) (map[string]interface{}, error) {
 		return nil, err
 	}
 
+	if err := refreshFolderMetadata(id, detailDashboardInfo, myid); err != nil {
+		log.Warnf("getDashboard: Failed to refresh folder metadata for dashboard, id: %v, err: %v", id, err)
+	}
+
 	return detailDashboardInfo, nil
 }
 
-func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, myid int64) error {
+func refreshFolderMetadata(id string, dashboardDetails map[string]interface{}, myid int64) error {
+	if isDefaultDashboard(id) {
+		return nil
+	}
 
+	structure, err := readFolderStructure(myid)
+	if err != nil {
+		log.Errorf("refreshFolderMetadata: failed to read structure, err: %v", err)
+		return err
+	}
+
+	dashboardItem, exists := structure.Items[id]
+	if !exists {
+		log.Warnf("refreshFolderMetadata: dashboard not found in structure, id: %v", id)
+		return nil
+	}
+
+	folderID := dashboardItem.ParentID
+	currentFolder, exists := structure.Items[folderID]
+
+	if !exists {
+		log.Warnf("refreshFolderMetadata: folder not found, folderID: %v", folderID)
+		return nil
+	}
+
+	currentPath := buildFolderPath(folderID, structure)
+
+	// Check if already up-to-date
+	folderVal, ok := dashboardDetails["folder"]
+	if !ok {
+		return fmt.Errorf("folder key not found in dashboard details")
+	}
+	switch fData := folderVal.(type) {
+	case map[string]interface{}:
+		pathVal, pathExists := fData["path"]
+		if !pathExists {
+			return fmt.Errorf("path key not found in folder data")
+		}
+
+		storedPath, ok := pathVal.(string)
+		if !ok {
+			return fmt.Errorf("path value is not a string, type: %T", pathVal)
+		}
+
+		if storedPath == currentPath {
+			return nil
+		}
+	default:
+		return fmt.Errorf("folder value is not a map, got %T", fData)
+	}
+
+	folderPath := currentPath
+
+	breadcrumbs := generateBreadcrumbs(folderID, structure)
+
+	dashboardDetails["folder"] = map[string]interface{}{
+		"id":          folderID,
+		"name":        currentFolder.Name,
+		"path":        folderPath,
+		"breadcrumbs": breadcrumbs,
+	}
+
+	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
+	detailsData, err := json.MarshalIndent(dashboardDetails, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(dashboardDetailsFname, detailsData, 0644)
+}
+
+func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, myid int64) error {
 	if isDefaultDashboard(id) {
 		return errors.New("updateDashboard: cannot update default dashboard")
 	}
@@ -342,28 +399,15 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	}
 
 	// Get folder path for metadata
-	folderPath := ""
-	if item.ParentID != rootFolderID {
-		currentID := item.ParentID
-		folderNames := []string{}
+	folderPath := buildFolderPath(item.ParentID, structure)
 
-		for currentID != "" && currentID != rootFolderID {
-			if folderItem, exists := structure.Items[currentID]; exists {
-				folderNames = append([]string{folderItem.Name}, folderNames...)
-				currentID = folderItem.ParentID
-			} else {
-				break
-			}
-		}
-		if len(folderNames) > 0 {
-			folderPath = strings.Join(folderNames, "/")
-		}
-	}
+	breadcrumbs := generateBreadcrumbs(item.ParentID, structure)
 
 	dashboardDetails["folder"] = map[string]interface{}{
-		"id":   item.ParentID,
-		"name": structure.Items[item.ParentID].Name,
-		"path": folderPath,
+		"id":          item.ParentID,
+		"name":        structure.Items[item.ParentID].Name,
+		"path":        folderPath,
+		"breadcrumbs": breadcrumbs,
 	}
 
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
@@ -455,6 +499,26 @@ func parseUpdateDashboardRequest(readJSON map[string]interface{}) (string, strin
 	}
 
 	return dId, dName, details, nil
+}
+
+func buildFolderPath(folderID string, structure *FolderStructure) string {
+	if folderID == rootFolderID {
+		return ""
+	}
+
+	var folderNames []string
+	currentID := folderID
+
+	for currentID != "" && currentID != rootFolderID {
+		if item, exists := structure.Items[currentID]; exists {
+			folderNames = append([]string{item.Name}, folderNames...)
+			currentID = item.ParentID
+		} else {
+			break
+		}
+	}
+
+	return strings.Join(folderNames, "/")
 }
 
 func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
