@@ -446,6 +446,9 @@ function runFilterBtnHandler(evt) {
         let data = getQueryParamsData();
         fetchLogsPanelData(data, -1).then((res) => {
             alertChart(res);
+        }).catch((error) => {
+            const errorMessage = error.jqXHR?.responseJSON?.error || error.message || 'Failed to fetch logs data';
+            alertChart({}, errorMessage); 
         });
     } else if (currentPage === '/dashboard.html') {
         runQueryBtnHandler();
