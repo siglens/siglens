@@ -285,7 +285,7 @@ func refreshFolderMetadata(id string, dashboardDetails map[string]interface{}, m
 
 		storedPath, ok := pathVal.(string)
 		if !ok {
-			return fmt.Errorf("path value is not a string")
+			return fmt.Errorf("path value is not a string, type: %T", pathVal)
 		}
 
 		if storedPath == currentPath {
