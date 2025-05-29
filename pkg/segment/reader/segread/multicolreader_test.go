@@ -90,7 +90,7 @@ func Test_segReader(t *testing.T) {
 		assert.NotNil(t, arr)
 
 		var cVal sutils.CValueEnclosure
-		_, err = writer.GetCvalFromRec(arr, 23, &cVal, true)
+		_, err = writer.GetCvalFromRec(arr, 23, &cVal)
 		assert.Nil(t, err)
 		assert.NotNil(t, cVal)
 		log.Infof("GetCvalFromRec: %+v for column %s", cVal, queryCol)
@@ -154,11 +154,11 @@ func Test_multiSegReader(t *testing.T) {
 
 		// correct block, incorrect recordNum
 		err = multiReader.ExtractValueFromColumnFile(cKeyidx, 0, uint16(numEntriesInBlock), 0,
-			false, &cValEnc, true)
+			false, &cValEnc)
 		assert.NotNil(t, err)
 
 		err = multiReader.ExtractValueFromColumnFile(cKeyidx, 0, uint16(numEntriesInBlock-3), 0,
-			false, &cValEnc, true)
+			false, &cValEnc)
 		assert.Nil(t, err)
 		assert.NotNil(t, cValEnc)
 		log.Infof("ExtractValueFromColumnFile: %+v for column %s", cValEnc, colName)

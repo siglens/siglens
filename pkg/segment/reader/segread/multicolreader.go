@@ -331,8 +331,7 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 // Reads the request value and converts it to a *utils.CValueEnclosure
 func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, blockNum uint16,
 	recordNum uint16, qid uint64, isTsCol bool, retCVal *sutils.CValueEnclosure,
-	doUnsafeStr bool) error {
-
+) error {
 	if isTsCol {
 		ts, err := mcsr.GetTimeStampForRecord(blockNum, recordNum, qid)
 		if err != nil {
@@ -352,7 +351,7 @@ func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, b
 		return err
 	}
 
-	_, err = writer.GetCvalFromRec(rawVal, qid, retCVal, doUnsafeStr)
+	_, err = writer.GetCvalFromRec(rawVal, qid, retCVal)
 	return err
 }
 
