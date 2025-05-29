@@ -934,7 +934,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			for colKeyIdx, cname := range nonDeColsKeyIndices {
 				isTsCol := colKeyIdx == timestampColKeyIdx
 				err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum,
-					recNum, qid, isTsCol, &cValEnc, false)
+					recNum, qid, isTsCol, &cValEnc, true)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("segmentStatsWorker: Failed to extract value for cname %+v", cname), log.ErrorLevel, err)
 					continue
