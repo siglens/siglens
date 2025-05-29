@@ -209,12 +209,18 @@ function deleteFolder(folderId) {
             'Content-Type': 'application/json',
             Accept: '*/*',
         },
-    });
+    })
+        .done(() => {
+            showToast('Folder deleted successfully', 'success');
+        })
+        .fail(() => {
+            showToast('Failed to delete folder', 'error');
+        });
 }
 
 // eslint-disable-next-line no-unused-vars
 function deleteDashboard(dashboardId) {
-    $.ajax({
+    return $.ajax({
         method: 'get',
         url: `api/dashboards/delete/${dashboardId}`,
         headers: {
@@ -222,5 +228,22 @@ function deleteDashboard(dashboardId) {
             Accept: '*/*',
         },
         crossDomain: true,
-    });
+    })
+        .done(() => {
+            showToast('Dashboard deleted successfully', 'success');
+        })
+        .fail(() => {
+            showToast('Failed to delete dashboard', 'error');
+        });
+}
+
+async function getFolderCount(folderId) {
+    try {
+        const response = await fetch(`api/dashboards/folders/${folderId}/count`);
+        if (!response.ok) throw new Error('Failed to get folder count');
+        return await response.json();
+    } catch (error) {
+        console.error('Error getting folder count:', error);
+        return null;
+    }
 }
