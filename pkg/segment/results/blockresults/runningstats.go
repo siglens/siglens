@@ -20,7 +20,6 @@ package blockresults
 import (
 	"fmt"
 	"math"
-	"strconv"
 
 	"github.com/cespare/xxhash"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
@@ -391,14 +390,7 @@ func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e su
 	if err != nil {
 		return ErrReduceCVal
 	} else {
-		// otherwise the frontend adds commas to the epoch time returned by latest_time
-		if aggFunc != sutils.LatestTime {
-			(*runningStats)[i].rawVal = retVal
-		} else {
-			retVal.Dtype = sutils.SS_DT_STRING
-			retVal.CVal = strconv.FormatUint(retVal.CVal.(uint64), 10)
-			(*runningStats)[i].rawVal = retVal
-		}
+		(*runningStats)[i].rawVal = retVal
 		(*runningStats)[i].number = nil
 	}
 	return nil

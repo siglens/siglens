@@ -549,6 +549,8 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues boo
 				measureVal = humanize.CommafWithDigits(measureVal.(float64), 3)
 			}
 			bucketHolder.MeasureVal[mfName] = measureVal
+		case sutils.SS_DT_UNSIGNED_NUM:
+			fallthrough
 		case sutils.SS_DT_SIGNED_NUM:
 			if humanizeValues {
 				measureVal = humanize.Comma(aggVal.CVal.(int64))
@@ -557,15 +559,6 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues boo
 		case sutils.SS_DT_STRING:
 			bucketHolder.MeasureVal[mfName] = aggVal.CVal
 		case sutils.SS_DT_STRING_SLICE:
-			strVal, err := aggVal.GetString()
-			if err != nil {
-				log.Errorf("GetSegmentStatsResults: failed to convert string slice to string, qid: %v, err: %v", sr.qid, err)
-				bucketHolder.MeasureVal[mfName] = ""
-			} else {
-				bucketHolder.MeasureVal[mfName] = strVal
-			}
-		case sutils.SS_DT_UNSIGNED_NUM:
-			// if uint is returned then the frontend will add commas to it(humanize it?)
 			strVal, err := aggVal.GetString()
 			if err != nil {
 				log.Errorf("GetSegmentStatsResults: failed to convert string slice to string, qid: %v, err: %v", sr.qid, err)
