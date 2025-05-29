@@ -731,7 +731,8 @@ returns:
    uint16: len of this entry inside that was inside the byte slice
    error:
 */
-func GetCvalFromRec(rec []byte, qid uint64, retVal *CValueEnclosure) (uint16, error) {
+func GetCvalFromRec(rec []byte, qid uint64, retVal *CValueEnclosure,
+	doUnsafeStr bool) (uint16, error) {
 
 	if len(rec) == 0 {
 		return 0, errors.New("column value is empty")
@@ -746,7 +747,11 @@ func GetCvalFromRec(rec []byte, qid uint64, retVal *CValueEnclosure) (uint16, er
 
 		strlen := utils.BytesToUint16LittleEndian(rec[1:3])
 		endIdx = strlen + 3
-		retVal.CVal = string(rec[3:endIdx])
+		if doUnsafeStr {
+			retVal.CVal = utils.UnsafeByteSliceToString(rec[3:endIdx])
+		} else {
+			retVal.CVal = string(rec[3:endIdx])
+		}
 	case VALTYPE_ENC_BOOL[0]:
 		retVal.Dtype = SS_DT_BOOL
 		if rec[1] == 0 {

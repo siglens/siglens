@@ -327,7 +327,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 
 		for colKeyIdx, indices := range measureColKeyIdxAndIndices {
 			err := multiColReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
-				qid, false, &retCVal)
+				qid, false, &retCVal, true)
 			if err != nil {
 				nodeRes.StoreGlobalSearchError(fmt.Sprintf("addRecordToAggregations: Failed to extract measure value from colKeyIdx %v", colKeyIdx), log.ErrorLevel, err)
 
@@ -934,7 +934,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			for colKeyIdx, cname := range nonDeColsKeyIndices {
 				isTsCol := colKeyIdx == timestampColKeyIdx
 				err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum,
-					recNum, qid, isTsCol, &cValEnc)
+					recNum, qid, isTsCol, &cValEnc, true)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("segmentStatsWorker: Failed to extract value for cname %+v", cname), log.ErrorLevel, err)
 					continue
