@@ -1079,7 +1079,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 				}
 				hasPercFunc, exists := percUsage[colName]
 				if !exists {
-					hasListFunc = false
+					hasPercFunc = false
 				}
 
 				switch val := rawVal.(type) {

@@ -255,7 +255,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		}
 	}
 
-	if colUsage == BothUsage || colUsage == WithEvalUsage || hasPercFunc {
+	if colUsage == BothUsage || colUsage == WithEvalUsage {
 		stats.Records = append(stats.Records, &CValueEnclosure{
 			Dtype: SS_DT_STRING,
 			CVal:  strVal,
