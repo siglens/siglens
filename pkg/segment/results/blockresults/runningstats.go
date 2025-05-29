@@ -463,10 +463,11 @@ func PopulateFieldToValueFromMeasureResults(fieldToValue map[string]sutils.CValu
 		fieldToValue = make(map[string]sutils.CValueEnclosure, len(fields))
 	}
 
+	if index+len(fields) >= len(measureResults) {
+		return nil, fmt.Errorf("RunningBucketResults.PopulateFieldToValueFromMeasureResults: index out of bounds, index: %v, len(measureResults): %v", index, len(measureResults))
+	}
+
 	for _, field := range fields {
-		if index >= len(measureResults) {
-			return nil, fmt.Errorf("RunningBucketResults.PopulateFieldToValueFromMeasureResults: index out of bounds, index: %v, len(measureResults): %v", index, len(measureResults))
-		}
 		fieldToValue[field] = measureResults[index]
 		index++
 	}
