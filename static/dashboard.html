@@ -52,6 +52,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
     <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
     <link rel="stylesheet" href="./css/metrics-explorer.css?cb={{ AppVersion }}" />
+    <link rel="stylesheet" href="./component/dashboard/folders-dropdown.css?cb={{ AppVersion }}" />
 
 
     <script src="./js/lib/uuidv4.min.js"></script>
@@ -246,7 +247,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
                         <div class="dbSet-inputContainer" id="dbSet-descrContainer">
                             <label for="dbSet-dbFolder">Folder</label>
-                            <input class="dbSet-dbFolder" id="dbSet-dbFolder" readonly></input>
+                            <div id="folder-dropdown-container" class="w-100"></div>
                         </div>
                         <div class="dbSet-saveBtnContainer">
                         </div>
@@ -975,6 +976,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/dashboard-logs-results-grid.js?cb={{ AppVersion }}"></script>
     <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>
     <script src="./component/dashboard/breadcrum.js?cb={{ AppVersion }}"></script>
+    <script src="./component/dashboard/folders-dropdown.js"></script>
+    <script src="./js/dashboard-common.js"></script>
     <script src="./js/metrics-explorer.js?cb={{ AppVersion }}"></script>
     <script src="./js/query-builder.js?cb={{ AppVersion }}"></script>
     <script src="./js/logs-visualization.js?cb={{ AppVersion }}"></script>

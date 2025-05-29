@@ -43,7 +43,7 @@ class FolderDropdown {
     render() {
         const template = `
             <div class="folder-select-dropdown">
-                <button class="folder-select-btn grey-dropdown-btn btn">
+                <button class="folder-select-btn grey-btn btn">
                     <div>
                         <i class="fa fa-folder" style="color: #FFB84D; margin-right: 8px;"></i>
                         <span class="selected-folder">
