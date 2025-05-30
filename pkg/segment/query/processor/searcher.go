@@ -92,7 +92,7 @@ type Searcher struct {
 	startTime    time.Time
 
 	gotBlocks             bool
-	getBlocksLock         sync.Mutex
+	getBlocksLock         *sync.Mutex
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
 	didFirstFetch         bool
 	qsrs                  []*query.QuerySegmentRequest
@@ -133,6 +133,7 @@ func newSearcherHelper(queryInfo *query.QueryInformation, querySummary *summary.
 		sortMode:              sortMode,
 		sortExpr:              sortExpr,
 		startTime:             startTime,
+		getBlocksLock:         &sync.Mutex{},
 		remainingBlocksSorted: make([]*block, 0),
 		unsentRRCs:            make([]*sutils.RecordResultContainer, 0),
 		segEncToKey:           utils.NewTwoWayMap[uint32, string](),
