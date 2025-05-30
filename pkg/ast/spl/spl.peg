@@ -3985,6 +3985,36 @@ AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "
 
     return agg, nil
 }
+/ aggName:CommonPercAggName L_PAREN "eval" valueExpr:ValueExpr COMMA percentileStr:PercentileStr R_PAREN {
+    measureFunc := GetAggregateFunction(aggName.(string))
+    if measureFunc == sutils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: measureFunc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
+        Param: percentileStr.(string),
+    }
+
+    return agg, nil
+}
+/ aggName:CommonPercAggName L_PAREN field:FieldName COMMA percentileStr:PercentileStr R_PAREN {
+    measureFunc := GetAggregateFunction(aggName.(string))
+    if measureFunc == sutils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: measureFunc,
+        Param: percentileStr.(string),
+    }
+
+    return agg, nil
+}
 
 
 FieldWithNumberValue <- keyValuePair:(NamedFieldWithNumberValue / UnnamedFieldWithNumberValue) {
