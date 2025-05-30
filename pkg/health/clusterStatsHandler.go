@@ -526,7 +526,7 @@ func getStats(myid int64, filterFunc func(string) bool, allSegMetas []*structs.S
 			counts = &structs.VtableCounts{}
 		}
 
-		indexSegStats, err := writer.GetIndexSizeStats(indexName, myid)
+		indexSegStats, err := writer.GetIndexSizeStats(indexName, utils.NewOptionWithValue(myid))
 		if err != nil {
 			log.Errorf("getStats: failed to get size stats=%v for index %s: err:%v",
 				indexSegStats, indexName, err)
@@ -535,7 +535,7 @@ func getStats(myid int64, filterFunc func(string) bool, allSegMetas []*structs.S
 			}
 		}
 
-		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, utils.NewOptionWithValue(myid))
 
 		if unrotatedTS, ok := unrotatedTimestamps[indexName]; ok {
 			updateTimestamps(indexName, unrotatedTS.Earliest, unrotatedTS.Latest)

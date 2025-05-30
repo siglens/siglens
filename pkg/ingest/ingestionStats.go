@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -55,8 +56,8 @@ func ingestionMetricsLooper() {
 
 		allSegmetas := segwriter.ReadGlobalSegmetas()
 
-		allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
-		segwriter.GetUnrotatedVTableCountsForAll(0, allCnts)
+		allCnts := segwriter.GetAllOrgsVTableCounts(allSegmetas)
+		segwriter.GetAllOrgsUnrotatedVTableCounts(allCnts)
 
 		uniqueIndexes, uniqueColumns, totalCmiSize, totalCsgSize, totalSegments := processSegmentAndIndexStats(allSegmetas, allCnts)
 
@@ -122,7 +123,7 @@ func processSegmentAndIndexStats(allSegmetas []*structs.SegMeta, allCnts map[str
 	}
 
 	for indexName := range uniqueIndexes {
-		stats, err := segwriter.GetIndexSizeStats(indexName, 0)
+		stats, err := segwriter.GetIndexSizeStats(indexName, utils.NewUnsetOption[int64]())
 		if err != nil {
 			log.Errorf("processSegmentAndIndexStats: failed to get stats=%v for index=%v err=%v",
 				stats, indexName, err)
@@ -136,7 +137,7 @@ func processSegmentAndIndexStats(allSegmetas []*structs.SegMeta, allCnts map[str
 		totalCmiSize += stats.TotalCmiSize
 		totalCsgSize += stats.TotalCsgSize
 
-		_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, 0)
+		_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, utils.NewUnsetOption[int64]())
 		for col := range columnNamesSet {
 			uniqueColumns[col] = struct{}{}
 		}
@@ -175,7 +176,7 @@ func setNumMetricNames() {
 		StartEpochSec: 0,
 		EndEpochSec:   uint32(time.Now().Unix()),
 	}
-	names, err := query.GetAllMetricNamesOverTheTimeRange(allPreviousTime, 0)
+	names, err := query.GetAllMetricNamesOverTheTimeRangeForAllOrgs(allPreviousTime)
 	if err != nil {
 		log.Errorf("setNumMetricNames: failed to get all metric names: %v", err)
 		return
@@ -189,10 +190,9 @@ func setNumKeysAndValues() {
 		StartEpochSec: 0,
 		EndEpochSec:   uint32(time.Now().Unix()),
 	}
-	myid := int64(0)
 	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
-	defer querySummary.LogMetricsQuerySummary(myid)
-	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(allPreviousTime, myid, querySummary)
+	defer querySummary.LogMetricsQuerySummaryForAllOrgs()
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(allPreviousTime, querySummary)
 	if err != nil {
 		log.Errorf("setNumKeysAndValues: failed to get tags trees: %v", err)
 		return

@@ -25,6 +25,11 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/utils"
+)
+
+const (
+	TWO = 2
 )
 
 /*
@@ -32,7 +37,7 @@ Returns all tagTrees that we need to search and what MetricsSegments & MetricsBl
 
 Returns map[string][]*structs.MetricSearchRequest, mapping a tagsTree to all MetricSearchRequest that pass time filtering
 */
-func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid int64) (map[string][]*structs.MetricsSearchRequest, error) {
+func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid utils.Option[int64]) (map[string][]*structs.MetricsSearchRequest, error) {
 	sTime := time.Now()
 
 	retUpdate := &sync.Mutex{}
@@ -40,12 +45,13 @@ func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summa
 	parallelism := int(config.GetParallelism())
 	retVal := make(map[string][]*structs.MetricsSearchRequest)
 	var gErr error
+	org, orgPresent := orgid.Get()
 
 	globalMetricsMetadata.updateLock.Lock()
 	defer globalMetricsMetadata.updateLock.Unlock()
 
 	for i, mSegMeta := range globalMetricsMetadata.sortedMetricsSegmentMeta {
-		if !tRange.CheckRangeOverLap(mSegMeta.EarliestEpochSec, mSegMeta.LatestEpochSec) || mSegMeta.OrgId != orgid {
+		if !tRange.CheckRangeOverLap(mSegMeta.EarliestEpochSec, mSegMeta.LatestEpochSec) || (orgPresent && mSegMeta.OrgId != org) {
 			continue
 		}
 		wg.Add(1)
@@ -79,7 +85,7 @@ func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summa
 			finalReq := &structs.MetricsSearchRequest{
 				MetricsKeyBaseDir:    msm.MSegmentDir,
 				BlocksToSearch:       retBlocks,
-				BlkWorkerParallelism: uint(2),
+				BlkWorkerParallelism: uint(TWO),
 				QueryType:            structs.METRICS_SEARCH,
 				AllTagKeys:           allTagKeys,
 			}
@@ -106,15 +112,15 @@ func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summa
 	return retVal, gErr
 }
 
-func GetMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid int64) map[string]*structs.MetricsMeta {
-
+func GetMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid utils.Option[int64]) map[string]*structs.MetricsMeta {
 	globalMetricsMetadata.updateLock.Lock()
 	defer globalMetricsMetadata.updateLock.Unlock()
 
 	metricsSegMeta := make(map[string]*structs.MetricsMeta)
+	org, orgPresent := orgid.Get()
 
 	for _, mSegMeta := range globalMetricsMetadata.sortedMetricsSegmentMeta {
-		if !tRange.CheckRangeOverLap(mSegMeta.EarliestEpochSec, mSegMeta.LatestEpochSec) || mSegMeta.OrgId != orgid {
+		if !tRange.CheckRangeOverLap(mSegMeta.EarliestEpochSec, mSegMeta.LatestEpochSec) || (orgPresent && mSegMeta.OrgId != org) {
 			continue
 		}
 		metricsSegMeta[mSegMeta.MSegmentDir] = &mSegMeta.MetricsMeta
@@ -124,7 +130,7 @@ func GetMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid int64
 }
 
 func GetUniqueTagKeysForRotated(tRange *dtu.MetricsTimeRange, myid int64) (map[string]struct{}, error) {
-	mSegmentsMeta := GetMetricSegmentsOverTheTimeRange(tRange, myid)
+	mSegmentsMeta := GetMetricSegmentsOverTheTimeRange(tRange, utils.NewOptionWithValue(myid))
 
 	uniqueTagKeys := make(map[string]struct{})
 

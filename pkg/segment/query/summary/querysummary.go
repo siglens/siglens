@@ -110,11 +110,15 @@ type QuerySummary struct {
 
 const TICK_DURATION_SECS = 10
 
-var numTicksInFiveMins = uint32(5 * 60 / TICK_DURATION_SECS)
-var numTicksInTwoMins = uint32(2 * 60 / TICK_DURATION_SECS)
+var (
+	numTicksInFiveMins = uint32(5 * 60 / TICK_DURATION_SECS)
+	numTicksInTwoMins  = uint32(2 * 60 / TICK_DURATION_SECS)
+)
 
-var activeQSCountForLogs int64
-var activeQSCountForMetrics int64
+var (
+	activeQSCountForLogs    int64
+	activeQSCountForMetrics int64
+)
 
 // InitQuerySummary returns a struct to store query level search stats.
 // This function starts a ticker to log info about long running queries.
@@ -210,7 +214,6 @@ func (qs *QuerySummary) tickWatcher() {
 }
 
 func (qs *QuerySummary) processTick() {
-
 	logIt := false
 	if qs.tickCount < numTicksInFiveMins {
 		// we log only in the first 5 minutes with the TICK_DURATION_SECS granularity
@@ -572,7 +575,6 @@ func (qs *QuerySummary) getNumRecordsMatchedMinMax(searchType SearchTypeEnum) (u
 }
 
 func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, containsKibana bool, orgid int64) {
-
 	sort.Slice(qs.metadataSummary.allTimes, func(i, j int) bool {
 		return qs.metadataSummary.allTimes[i] < qs.metadataSummary.allTimes[j]
 	})
@@ -684,6 +686,34 @@ func (qs *QuerySummary) LogMetricsQuerySummary(orgid int64) {
 	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TSG Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)", qs.qid, qs.getNumTSGFilesLoaded(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles), getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles), avgTimeLoadingTSGFiles, getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeLoadingTSGFiles))
 
 	uStats.UpdateQueryStats(1, float64(qs.getQueryTotalTime().Milliseconds()), orgid)
+	qs.Cleanup()
+}
+
+func (qs *QuerySummary) LogMetricsQuerySummaryForAllOrgs() {
+	log.Warnf("qid=%d, MetricsQuerySummary: Finished in %+v ms time. numTSIDsMatched: %+v, numSeriesSearched=%+v. Returned numSeries=%+v",
+		qs.qid, humanize.Comma(int64(time.Since(qs.startTime).Milliseconds())), qs.getNumTSIDsMatched(), qs.getNumSeriesSearched(), qs.getNumResultSeries())
+	log.Warnf("qid=%d, MetricsQuerySummary: Time taken to get rotated search requests=%+vms. Time taken to get unrotated search requests=%+vms. Total numMetricSegs searched=%+v.",
+		qs.qid, qs.metricsQuerySummary.timeGettingRotatedSearchRequests.Microseconds(),
+		qs.metricsQuerySummary.timeGettingUnrotatedSearchRequests.Microseconds(), qs.getNumMetricsSegmentsSearched())
+
+	avgTimeSearchingTagsTrees := getSumSearchTimeFromArr(qs.metricsQuerySummary.timeSearchingTagsTrees) / float64(qs.numTagsTreesSearched)
+	avgTimeLoadingTSOFiles := getSumSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSOFiles) / float64(qs.numTSOFilesLoaded)
+	avgTimeLoadingTSGFiles := getSumSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles) / float64(qs.numTSGFilesLoaded)
+
+	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TagsTree Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)",
+		qs.qid, qs.getNumTagsTreesSearched(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeSearchingTagsTrees),
+		getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeSearchingTagsTrees), avgTimeSearchingTagsTrees,
+		getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeSearchingTagsTrees))
+	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TSO Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)",
+		qs.qid, qs.getNumTSOFilesLoaded(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSOFiles),
+		getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSOFiles), avgTimeLoadingTSOFiles,
+		getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeLoadingTSOFiles))
+	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TSG Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)",
+		qs.qid, qs.getNumTSGFilesLoaded(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles),
+		getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles), avgTimeLoadingTSGFiles,
+		getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeLoadingTSGFiles))
+
+	uStats.UpdateQueryStatsForAllOrgs(1, float64(qs.getQueryTotalTime().Milliseconds()))
 	qs.Cleanup()
 }
 

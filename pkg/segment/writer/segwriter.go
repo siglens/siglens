@@ -50,9 +50,11 @@ import (
 const maxAllowedSegStores = 1000
 
 // global map
-var allSegStores = map[string]*SegStore{}
-var allSegStoresLock sync.RWMutex = sync.RWMutex{}
-var sortedIndexWG = &sync.WaitGroup{}
+var (
+	allSegStores                  = map[string]*SegStore{}
+	allSegStoresLock sync.RWMutex = sync.RWMutex{}
+	sortedIndexWG                 = &sync.WaitGroup{}
+)
 
 var KibanaInternalBaseDir string
 
@@ -68,8 +70,10 @@ var plePool = sync.Pool{
 
 // Create a writer that caches compressors.
 // For this operation type we supply a nil Reader.
-var encoder, _ = zstd.NewWriter(nil)
-var decoder, _ = zstd.NewReader(nil)
+var (
+	encoder, _ = zstd.NewWriter(nil)
+	decoder, _ = zstd.NewReader(nil)
+)
 
 func InitKibanaInternalData() {
 	KibanaInternalBaseDir = config.GetDataPath() + "common/kibanainternaldata/"
@@ -318,8 +322,8 @@ func cleanRecentlyRotatedInfo() {
 
 func AddEntryToInMemBuf(streamid string, indexName string, flush bool,
 	signalType SIGNAL_TYPE, orgid int64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
-	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
-
+	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent,
+) error {
 	segstore, err := getOrCreateSegStore(streamid, indexName, orgid)
 	if err != nil {
 		log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
@@ -449,8 +453,8 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 
 func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool,
 	signalType SIGNAL_TYPE, orgid int64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
-	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
-
+	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent,
+) error {
 	tsKey := config.GetTimeStampKey()
 
 	segstore.Lock.Lock()
@@ -582,7 +586,6 @@ func (ss *SegStore) isSegstoreUnusedSinceTime(timeDuration time.Duration) bool {
 }
 
 func removeStaleSegments() {
-
 	segStoresToDeleteChan := make(chan string, len(allSegStores))
 
 	allSegStoresLock.RLock()
@@ -634,7 +637,6 @@ func removeStaleSegmentsLoop() {
 		time.Sleep(STALE_SEGMENT_DELETION_SLEEP_SECONDS * time.Second)
 		removeStaleSegments()
 	}
-
 }
 
 func FlushWipBufferToFile(idleWipFlushDuration *time.Duration, maxWaitWipFlushDuration *time.Duration) {
@@ -669,8 +671,8 @@ func FlushWipBufferToFile(idleWipFlushDuration *time.Duration, maxWaitWipFlushDu
 }
 
 func InitColWip(segKey string, colName string) *ColWip {
-
-	deData := DeData{deMap: make(map[string][]uint16),
+	deData := DeData{
+		deMap:   make(map[string][]uint16),
 		deCount: 0,
 	}
 
@@ -688,7 +690,6 @@ func InitColWip(segKey string, colName string) *ColWip {
 // The first bit of each byte of varint specifies whether there are follow on bytes
 // rest 7 bits are used to store the number
 func getOrCreateSegStore(streamid string, table string, orgId int64) (*SegStore, error) {
-
 	segstore := getSegStore(streamid)
 	if segstore == nil {
 		return createSegStore(streamid, table, orgId)
@@ -739,7 +740,6 @@ func createSegStore(streamid string, table string, orgId int64) (*SegStore, erro
 }
 
 func getBlockBloomSize(bi *BloomIndex) uint32 {
-
 	if len(bi.HistoricalCount) == 0 {
 		bi.HistoricalCount = make([]uint32, 0)
 		return BLOCK_BLOOM_SIZE
@@ -773,7 +773,8 @@ func GetRotatedVersion(segKey string) string {
 }
 
 func updateRangeIndex(key string, rangeIndexPtr map[string]*structs.Numbers, numType SS_IntUintFloatTypes, intVal int64,
-	uintVal uint64, fltVal float64) {
+	uintVal uint64, fltVal float64,
+) {
 	switch numType {
 	case SS_INT8, SS_INT16, SS_INT32, SS_INT64:
 		addIntToRangeIndex(key, intVal, rangeIndexPtr)
@@ -815,14 +816,17 @@ func addUintToRangeIndex(key string, incomingVal uint64, rangeIndexPtr map[strin
 		rangeIndexPtr[key] = &structs.Numbers{Min_uint64: incomingVal, Max_uint64: incomingVal, NumType: RNT_UNSIGNED_INT}
 	}
 }
+
 func addIntToRangeIndex(key string, incomingVal int64, rangeIndexPtr map[string]*structs.Numbers) {
 	existingRI, present := rangeIndexPtr[key]
 	if present {
 		inMemType := existingRI.NumType
 		switch inMemType {
 		case RNT_UNSIGNED_INT:
-			existingRI = &structs.Numbers{Min_int64: int64(rangeIndexPtr[key].Min_uint64), Max_int64: int64(rangeIndexPtr[key].Max_uint64),
-				NumType: RNT_SIGNED_INT}
+			existingRI = &structs.Numbers{
+				Min_int64: int64(rangeIndexPtr[key].Min_uint64), Max_int64: int64(rangeIndexPtr[key].Max_uint64),
+				NumType: RNT_SIGNED_INT,
+			}
 			if incomingVal < existingRI.Min_int64 {
 				existingRI.Min_int64 = incomingVal
 			} else if incomingVal > existingRI.Max_int64 {
@@ -843,12 +847,13 @@ func addIntToRangeIndex(key string, incomingVal int64, rangeIndexPtr map[string]
 			}
 		}
 		rangeIndexPtr[key] = existingRI
-		//fmt.Printf("present %v\n", (*rangeIndexPtr))
+		// fmt.Printf("present %v\n", (*rangeIndexPtr))
 	} else {
 		rangeIndexPtr[key] = &structs.Numbers{Min_int64: incomingVal, Max_int64: incomingVal, NumType: RNT_SIGNED_INT}
-		//fmt.Printf("ADDED %v\n", (*rangeIndexPtr))
+		// fmt.Printf("ADDED %v\n", (*rangeIndexPtr))
 	}
 }
+
 func addFloatToRangeIndex(key string, incomingVal float64, rangeIndexPtr map[string]*structs.Numbers) {
 	existingRI, present := rangeIndexPtr[key]
 	if present {
@@ -882,8 +887,8 @@ func addFloatToRangeIndex(key string, incomingVal float64, rangeIndexPtr map[str
 // returns number of written bytes, offset of block in file, and any errors
 
 func writeWip(colWip *ColWip, encType []byte, compBuf []byte,
-	blkRecCount uint16) (uint32, int64, error) {
-
+	blkRecCount uint16,
+) (uint32, int64, error) {
 	blkLen := uint32(0)
 	// todo better error handling should not exit
 	fd, err := os.OpenFile(colWip.csgFname, os.O_WRONLY|os.O_CREATE, 0644)
@@ -928,10 +933,10 @@ func writeWip(colWip *ColWip, encType []byte, compBuf []byte,
 }
 
 func compressWip(colWip *ColWip, encType []byte, compBuf []byte,
-	blkRecCount uint16) ([]byte, uint32, error) {
+	blkRecCount uint16,
+) ([]byte, uint32, error) {
 	var compressed []byte
 	if bytes.Equal(encType, ZSTD_COMLUNAR_BLOCK) {
-
 		// reduce the len to 0, but keep the cap of the underlying buffer
 		compressed = encoder.EncodeAll(colWip.cbuf.Slice(0, int(colWip.cbufidx)),
 			compBuf[:0])
@@ -950,7 +955,6 @@ func compressWip(colWip *ColWip, encType []byte, compBuf []byte,
 }
 
 func WriteRunningSegMeta(rsm *structs.SegMeta) {
-
 	segFullMeta := &structs.SegFullMeta{
 		SegMeta:     rsm,
 		ColumnNames: rsm.ColumnNames,
@@ -961,15 +965,16 @@ func WriteRunningSegMeta(rsm *structs.SegMeta) {
 	WriteSfm(segFullMeta)
 }
 
-func GetUnrotatedVTableCounts(vtable string, orgid int64) (uint64, int, uint64, map[string]struct{}) {
+func GetUnrotatedVTableCounts(vtable string, orgid utils.Option[int64]) (uint64, int, uint64, map[string]struct{}) {
 	bytesCount := uint64(0)
 	onDiskBytesCount := uint64(0)
 	recCount := 0
 	allColumnsMap := make(map[string]struct{})
+	org, orgPresent := orgid.Get()
 	allSegStoresLock.RLock()
 	defer allSegStoresLock.RUnlock()
 	for _, segstore := range allSegStores {
-		if segstore.VirtualTableName == vtable && segstore.OrgId == orgid {
+		if segstore.VirtualTableName == vtable && (!orgPresent || (orgPresent && segstore.OrgId == org)) {
 			bytesCount += segstore.BytesReceivedCount
 			recCount += segstore.RecordCount
 			onDiskBytesCount += segstore.OnDiskBytes
@@ -1016,7 +1021,6 @@ func GetUnrotatedVTableTimestamps(orgid int64) map[string]struct{ Earliest, Late
 }
 
 func GetUnrotatedVTableCountsForAll(orgid int64, allvtables map[string]*structs.VtableCounts) {
-
 	var ok bool
 	var cnts *structs.VtableCounts
 
@@ -1027,6 +1031,25 @@ func GetUnrotatedVTableCountsForAll(orgid int64, allvtables map[string]*structs.
 			continue
 		}
 
+		cnts, ok = allvtables[segstore.VirtualTableName]
+		if !ok {
+			cnts = &structs.VtableCounts{}
+			allvtables[segstore.VirtualTableName] = cnts
+		}
+
+		cnts.BytesCount += segstore.BytesReceivedCount
+		cnts.RecordCount += uint64(segstore.RecordCount)
+		cnts.OnDiskBytesCount += segstore.OnDiskBytes
+	}
+}
+
+func GetAllOrgsUnrotatedVTableCounts(allvtables map[string]*structs.VtableCounts) {
+	var ok bool
+	var cnts *structs.VtableCounts
+
+	allSegStoresLock.RLock()
+	defer allSegStoresLock.RUnlock()
+	for _, segstore := range allSegStores {
 		cnts, ok = allvtables[segstore.VirtualTableName]
 		if !ok {
 			cnts = &structs.VtableCounts{}
@@ -1066,7 +1089,6 @@ func DeleteSegmentsForIndex(indexName string) {
 }
 
 func RemoveSegMetas(segmentsToDelete map[string]*structs.SegMeta) map[string]struct{} {
-
 	segKeysToDelete := make(map[string]struct{})
 	for segkey := range segmentsToDelete {
 		segKeysToDelete[segkey] = struct{}{}
@@ -1113,8 +1135,8 @@ func (cw *ColWip) GetBufAndIdx() ([]byte, uint32) {
 }
 
 func (cw *ColWip) SetDeDataForTest(deCount uint16, deMap map[string][]uint16) {
-
-	deData := DeData{deMap: deMap,
+	deData := DeData{
+		deMap:   deMap,
 		deCount: deCount,
 	}
 	cw.deData = &deData
@@ -1139,8 +1161,8 @@ func GetPQMRDirFromSegKey(segKey string) string {
 }
 
 func (ss *SegStore) writeToBloom(encType []byte, buf []byte, cname string,
-	cw *ColWip) error {
-
+	cw *ColWip,
+) error {
 	// no bloom for timestamp column
 	if encType[0] == TIMESTAMP_TOPDIFF_VARENC[0] {
 		return nil
@@ -1198,8 +1220,8 @@ func (cw *ColWip) writeDeBloom(buf []byte, bi *BloomIndex) error {
 }
 
 func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
-	cname string) error {
-
+	cname string,
+) error {
 	bloomEstimate := uint(numRecs) * 2
 	bi.Bf = bloom.NewWithEstimates(bloomEstimate, BLOOM_COLL_PROBABILITY)
 	bi.uniqueWordCount = 0
@@ -1225,8 +1247,8 @@ func (cw *ColWip) writeNonDeBloom(buf []byte, bi *BloomIndex, numRecs uint16,
 }
 
 func (cw *ColWip) writeToBloom(buf []byte, bi *BloomIndex, numRecs uint16,
-	cname string) error {
-
+	cname string,
+) error {
 	if bi == nil {
 		return utils.TeeErrorf("writeToBloom: bloom index is nil for cname: %v", cname)
 	}
@@ -1260,7 +1282,6 @@ Subwords are gotten by splitting the fullWord by whitespace
 NOTE: This function may modify the incoming byte slice
 */
 func addToBlockBloomBothCases(blockBloom *bloom.BloomFilter, fullWord []byte) uint32 {
-
 	blockWordCount, err := addToBlockBloomBothCasesWithBuf(blockBloom, fullWord, fullWord)
 	if err != nil {
 		log.Errorf("addToBlockBloomBothCases: err adding bloom: err: %v", err)
@@ -1274,8 +1295,8 @@ Adds the fullWord and sub-words (lowercase as well) to the bloom
 Subwords are gotten by splitting the fullWord by whitespace
 */
 func addToBlockBloomBothCasesWithBuf(blockBloom *bloom.BloomFilter, fullWord []byte,
-	workBuf []byte) (uint32, error) {
-
+	workBuf []byte,
+) (uint32, error) {
 	var blockWordCount uint32 = 0
 	copy := fullWord[:]
 
