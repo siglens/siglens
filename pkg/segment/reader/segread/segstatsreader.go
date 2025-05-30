@@ -402,6 +402,35 @@ func GetSegSum(runningSegStat *structs.SegStats,
 	return &rSst, nil
 }
 
+func GetSegSumsq(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
+
+	rSst := sutils.NumTypeEnclosure{
+		Ntype:    sutils.SS_DT_FLOAT,
+		FloatVal: 0,
+	}
+
+	if currSegStat == nil {
+		return &rSst, fmt.Errorf("GetSegSumsq: currSegStat is nil")
+	}
+
+	if !currSegStat.IsNumeric {
+		return &rSst, fmt.Errorf("GetSegSumsq: current segStats is non-numeric")
+	}
+
+	// if this is the first segment, then running will be nil, and we return the first seg's stats
+	if runningSegStat == nil {
+		rSst.FloatVal = currSegStat.NumStats.Sumsq
+		return &rSst, nil
+	}
+
+	// both running and curr seg stats are float64, so we can add them directly
+	runningSegStat.NumStats.Sumsq += currSegStat.NumStats.Sumsq
+	rSst.FloatVal = runningSegStat.NumStats.Sumsq
+
+	return &rSst, nil
+}
+
 func GetSegCardinality(runningSegStat *structs.SegStats,
 	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
 

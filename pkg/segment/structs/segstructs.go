@@ -550,6 +550,7 @@ type SegStats struct {
 type NumericStats struct {
 	NumericCount uint64                  `json:"numericCount,omitempty"`
 	Sum          sutils.NumTypeEnclosure `json:"sum,omitempty"`
+	Sumsq        float64                 `json:"sumsq,omitempty"` // sum of squares, use float64 since we expect large values
 }
 
 type StringStats struct {
@@ -844,6 +845,7 @@ func (ss *NumericStats) Merge(other *NumericStats) {
 			ss.Sum.IntgrVal = ss.Sum.IntgrVal + other.Sum.IntgrVal
 		}
 	}
+	ss.Sumsq = ss.Sumsq + other.Sumsq
 }
 
 func (nr *NodeResult) ApplyScroll(scroll int) {
@@ -1454,7 +1456,6 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.Mode:         {},
 	sutils.Stdev:        {},
 	sutils.Stdevp:       {},
-	sutils.Sumsq:        {},
 	sutils.Var:          {},
 	sutils.Varp:         {},
 	sutils.First:        {},
