@@ -24,6 +24,7 @@ import (
 	"math"
 	"runtime"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/siglens/siglens/pkg/segment/metadata"
@@ -91,6 +92,7 @@ type Searcher struct {
 	startTime    time.Time
 
 	gotBlocks             bool
+	getBlocksLock         sync.Mutex
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
 	didFirstFetch         bool
 	qsrs                  []*query.QuerySegmentRequest
@@ -299,10 +301,13 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 			s.initUnprocessedQSRs()
 			query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(s.qsrs))), s.qid)
 		}
+
+		s.getBlocksLock.Lock()
 		if !s.gotBlocks {
 			blocks, err := s.getBlocks()
 			if err != nil {
 				log.Errorf("qid=%v, searcher.Fetch: failed to get blocks: %v", s.qid, err)
+				s.getBlocksLock.Unlock()
 				return nil, err
 			}
 
@@ -310,6 +315,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 			err = sortBlocks(blocks, s.sortMode)
 			if err != nil {
 				log.Errorf("qid=%v, searcher.Fetch: failed to sort blocks: %v", s.qid, err)
+				s.getBlocksLock.Unlock()
 				return nil, err
 			}
 
@@ -317,7 +323,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 			s.gotBlocks = true
 		}
 
-		return s.fetchRRCs()
+		return s.fetchRRCs() // We'll unlock getBlocksLock inside this.
 	default:
 		return nil, utils.TeeErrorf("qid=%v, searcher.Fetch: invalid query type: %v",
 			s.qid, s.queryInfo.GetQueryType())
@@ -731,15 +737,18 @@ func (s *Searcher) applyRawSearchForSortedIndex(qsr *query.QuerySegmentRequest, 
 	return nil
 }
 
+// Note: in all return paths, this MUST unlock s.getBlocksLock.
 func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 
 	if len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 && s.gotAllSegments {
 		err := query.SetRawSearchFinished(s.qid)
 		if err != nil {
 			log.Errorf("qid=%v, searcher.fetchRRCs: failed to set raw search finished: %v", s.qid, err)
+			s.getBlocksLock.Unlock()
 			return nil, err
 		}
 
+		s.getBlocksLock.Unlock()
 		return nil, io.EOF
 	}
 
@@ -747,6 +756,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 	nextBlocks, endTime, err := getNextBlocks(s.remainingBlocksSorted, desiredMaxBlocks, s.sortMode)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchRRCs: failed to get next end time: %v", s.qid, err)
+		s.getBlocksLock.Unlock()
 		return nil, err
 	}
 
@@ -772,6 +782,8 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		// fetch more.
 		s.gotBlocks = false
 	}
+
+	s.getBlocksLock.Unlock() // TODO: do this better; unlocking in the middle is sloppy.
 
 	allRRCsSlices := make([][]*sutils.RecordResultContainer, 0, len(nextBlocks)+1)
 
