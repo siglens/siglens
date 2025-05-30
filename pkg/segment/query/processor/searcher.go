@@ -299,34 +299,29 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 			s.initUnprocessedQSRs()
 			query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(s.qsrs))), s.qid)
 		}
+		if !s.gotBlocks {
+			blocks, err := s.getBlocks()
+			if err != nil {
+				log.Errorf("qid=%v, searcher.Fetch: failed to get blocks: %v", s.qid, err)
+				return nil, err
+			}
+
+			blocks = append(blocks, s.remainingBlocksSorted...)
+			err = sortBlocks(blocks, s.sortMode)
+			if err != nil {
+				log.Errorf("qid=%v, searcher.Fetch: failed to sort blocks: %v", s.qid, err)
+				return nil, err
+			}
+
+			s.remainingBlocksSorted = blocks
+			s.gotBlocks = true
+		}
 
 		return s.fetchRRCs()
 	default:
 		return nil, utils.TeeErrorf("qid=%v, searcher.Fetch: invalid query type: %v",
 			s.qid, s.queryInfo.GetQueryType())
 	}
-}
-
-func (s *Searcher) getBlocksIfNeeded() error {
-	if !s.gotBlocks {
-		blocks, err := s.getBlocks()
-		if err != nil {
-			log.Errorf("qid=%v, searcher.getBlocksIfNeeded: failed to get blocks: %v", s.qid, err)
-			return err
-		}
-
-		blocks = append(blocks, s.remainingBlocksSorted...)
-		err = sortBlocks(blocks, s.sortMode)
-		if err != nil {
-			log.Errorf("qid=%v, searcher.getBlocksIfNeeded: failed to sort blocks: %v", s.qid, err)
-			return err
-		}
-
-		s.remainingBlocksSorted = blocks
-		s.gotBlocks = true
-	}
-
-	return nil
 }
 
 func (s *Searcher) getPQMRsFromQSRs(qsrs []*query.QuerySegmentRequest) []utils.Option[*pqmr.SegmentPQMRResults] {
