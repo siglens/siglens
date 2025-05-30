@@ -401,9 +401,9 @@ func (dp *DataProcessor) fetchFromAnyStream() (*iqr.IQR, error) {
 loop:
 	for {
 		select {
-		case resp := <-dp.streamDataChan:
-			if resp.iqr != nil {
-				return resp.iqr, nil
+		case message := <-dp.streamDataChan:
+			if message.iqr != nil {
+				return message.iqr, nil
 			}
 		default:
 			// The channel is empty.
@@ -434,11 +434,13 @@ loop:
 			iqr, err := dp.streams[i].Fetch()
 			if err != nil && err != io.EOF {
 				finalErr = fmt.Errorf("DP.fetchFromAnyStream: failed to fetch from stream %d: %v", i, err)
+				dp.streamDataChan <- streamResponse{streamId: i, iqr: nil}
 				return
 			}
 
 			if iqr == nil && err != io.EOF {
 				finalErr = fmt.Errorf("DP.fetchFromAnyStream: stream %d returned nil IQR without EOF", i)
+				dp.streamDataChan <- streamResponse{streamId: i, iqr: nil}
 				return
 			}
 
@@ -446,17 +448,22 @@ loop:
 		}(i)
 	}
 
+	if numFetchedFrom == 0 {
+		return nil, io.EOF
+	}
+
 	for {
-		resp := <-dp.streamDataChan
+		message := <-dp.streamDataChan
 		if finalErr != nil {
+			log.Error(finalErr)
 			return nil, finalErr
 		}
 
-		responders[resp.streamId] = struct{}{}
-		if resp.iqr != nil {
-			return resp.iqr, nil
+		if message.iqr != nil {
+			return message.iqr, nil
 		}
 
+		responders[message.streamId] = struct{}{}
 		if len(responders) == numFetchedFrom {
 			// All streams have responded, and none of them returned an IQR.
 			return nil, io.EOF

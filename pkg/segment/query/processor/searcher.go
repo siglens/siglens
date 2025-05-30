@@ -225,6 +225,9 @@ func (s *Searcher) SetAsIqrStatsResults() {
 }
 
 func (s *Searcher) Rewind() {
+	s.getBlocksLock.Lock()
+	defer s.getBlocksLock.Unlock()
+
 	s.gotBlocks = false
 	s.qsrs = nil
 	s.processedBlocks = nil
@@ -260,9 +263,6 @@ func getAllSegKeysInQSRS(qsrs []*query.QuerySegmentRequest) []string {
 }
 
 func (s *Searcher) initUnprocessedQSRs() {
-	if s.qsrs == nil {
-		return
-	}
 	s.unprocessedQSRs = list.New()
 	s.processedBlocks = make(map[string]map[uint16]struct{})
 
@@ -272,10 +272,6 @@ func (s *Searcher) initUnprocessedQSRs() {
 }
 
 func (s *Searcher) Fetch() (*iqr.IQR, error) {
-	defer func() {
-		s.didFirstFetch = true
-	}()
-
 	if s.subsearch != nil {
 		return s.subsearch.merger.Fetch()
 	}
@@ -288,6 +284,9 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 		if s.sortExpr != nil && !s.sortIndexState.forceNormalSearch {
 			return s.fetchColumnSortedRRCs()
 		}
+
+		s.getBlocksLock.Lock()
+
 		// initialize QSRs if they don't exist
 		// TODO: remove the !didFirstFetch check. Currently it's done to force
 		// calling query.setTotalRecordsToBeSearched(), which happens as a
@@ -297,13 +296,14 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 		if s.qsrs == nil || !s.didFirstFetch {
 			err := s.initializeQSRs()
 			if err != nil {
+				s.getBlocksLock.Unlock()
 				return nil, utils.TeeErrorf("qid=%v, searcher.Fetch: failed to get and set QSRs: %v", s.qid, err)
 			}
+			s.didFirstFetch = true
 			s.initUnprocessedQSRs()
 			query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(s.qsrs))), s.qid)
 		}
 
-		s.getBlocksLock.Lock()
 		if !s.gotBlocks {
 			blocks, err := s.getBlocks()
 			if err != nil {
@@ -827,25 +827,37 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
-	// Merge all these RRCs with any leftover RRCs from previous fetches.
-	allRRCsSlices = append(allRRCsSlices, s.unsentRRCs)
-	sortingFunc, err := getSortingFunc(s.sortMode)
-	if err != nil {
-		log.Errorf("qid=%v, searcher.fetchRRCs: failed to get sorting function: %v", s.qid, err)
-		return nil, err
+	var validRRCs []*sutils.RecordResultContainer
+	if s.sortMode == anyOrder {
+		totalLen := 0
+		for _, slice := range allRRCsSlices {
+			totalLen += len(slice)
+		}
+		validRRCs = make([]*sutils.RecordResultContainer, 0, totalLen)
+		for _, slice := range allRRCsSlices {
+			validRRCs = append(validRRCs, slice...)
+		}
+	} else {
+		// Merge all these RRCs with any leftover RRCs from previous fetches.
+		allRRCsSlices = append(allRRCsSlices, s.unsentRRCs)
+		sortingFunc, err := getSortingFunc(s.sortMode)
+		if err != nil {
+			log.Errorf("qid=%v, searcher.fetchRRCs: failed to get sorting function: %v", s.qid, err)
+			return nil, err
+		}
+
+		s.unsentRRCs = utils.MergeSortedSlices(sortingFunc, allRRCsSlices...)
+
+		validRRCs, err = getValidRRCs(s.unsentRRCs, endTime, s.sortMode)
+		if err != nil {
+			log.Errorf("qid=%v, searcher.fetchRRCs: failed to get valid RRCs: %v", s.qid, err)
+			return nil, err
+		}
+
+		// TODO: maybe look into optimizations for unsentRRCs so we can discard
+		// the memory at the beginning (which will never be used again).
+		s.unsentRRCs = s.unsentRRCs[len(validRRCs):]
 	}
-
-	s.unsentRRCs = utils.MergeSortedSlices(sortingFunc, allRRCsSlices...)
-
-	validRRCs, err := getValidRRCs(s.unsentRRCs, endTime, s.sortMode)
-	if err != nil {
-		log.Errorf("qid=%v, searcher.fetchRRCs: failed to get valid RRCs: %v", s.qid, err)
-		return nil, err
-	}
-
-	// TODO: maybe look into optimizations for unsentRRCs so we can discard
-	// the memory at the beginning (which will never be used again).
-	s.unsentRRCs = s.unsentRRCs[len(validRRCs):]
 
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
 	err = iqr.AppendRRCs(validRRCs, s.segEncToKey.GetMapCopy())
@@ -998,6 +1010,8 @@ func (s *Searcher) initializeQSRs() error {
 		return err
 	}
 
+	s.qsrs = qsrs
+
 	switch s.sortMode {
 	case anyOrder:
 		return nil
@@ -1013,7 +1027,6 @@ func (s *Searcher) initializeQSRs() error {
 		return fmt.Errorf("initializeQSRs: invalid sort mode: %v", s.sortMode)
 	}
 
-	s.qsrs = qsrs
 	return nil
 }
 

@@ -238,6 +238,13 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		dataProcessors := aggsToDataProcessors(firstProcessorAgg, queryInfo)
 		if i > 0 {
 			// Merge the chains once parallelism is no longer possible.
+			// e.g., if we merge into dp3 and parallelism=3, we eventually want
+			// to get to this structure:
+			//             dp1 -> dp2 ->\
+			//          /                \
+			// searcher -> dp1 -> dp2 -> dp3 -> dp4
+			//          \                /
+			//             dp1 -> dp2 ->/
 			dataProcessors = dataProcessors[:mergeIndex+1]
 			dataProcessors[mergeIndex] = dataProcessorChains[0][mergeIndex]
 		}
