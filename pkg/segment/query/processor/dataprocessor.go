@@ -421,7 +421,7 @@ loop:
 	// fetch again from stream A and it has time to complete both the previous
 	// and current fetches, so it puts two messages on the channel).
 	numFetchedFrom := 0
-	responders := make(map[int]struct{})
+	responders := make(map[int]struct{}, len(dp.streams))
 	var finalErr error
 
 	for i := range dp.streams {
