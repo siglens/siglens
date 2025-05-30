@@ -1,0 +1,17 @@
+{
+  "queryText": "search variable_col_0=batch* group=\"group 0\" user_agent=Mozilla*Mac* AND user_agent!=Opera* variable_col_17 > 0 | eval hobby_http=hobby+\"@\"+http_method | stats max(variable_col_19) as max_latency by hobby_http | where hobby_http=\"Audiophile@DELETE\"",
+  "expectedResult": {
+    "bucketCount": 1,
+    "qtype": "aggs-query",
+    "groupByCols": ["hobby_http"],
+    "measureFunctions": ["max_latency"],
+    "measure": [
+      {
+        "GroupByValues": ["Audiophile@DELETE"],
+        "MeasureVal": {
+          "max_latency": "9953063675"
+        }
+      }
+    ]
+  }
+}

@@ -215,6 +215,9 @@ type NumericExpr struct {
 	ValueIsField bool
 	Value        string
 
+	Fields            []string
+	IsFieldsPopulated bool
+
 	// Only used when IsTerminal is false.
 	Op           string // Including arithmetic, mathematical and text functions ops
 	Left         *NumericExpr
@@ -2847,23 +2850,40 @@ func (self *NumericExpr) GetFields() []string {
 	if self == nil {
 		return nil
 	}
+
+	if self.IsFieldsPopulated {
+		return self.Fields
+	}
+
 	fields := make([]string, 0)
 	if self.Val != nil {
-		return append(fields, self.Val.GetFields()...)
+		self.Fields = append(fields, self.Val.GetFields()...)
+		self.IsFieldsPopulated = true
+		return self.Fields
 	}
 	if self.IsTerminal {
 		if self.Op == "now" {
-			return fields
+			self.IsFieldsPopulated = true
+			self.Fields = fields
+			return self.Fields
 		}
 		if self.ValueIsField {
-			return []string{self.Value}
+			self.IsFieldsPopulated = true
+			self.Fields = []string{self.Value}
+			return self.Fields
 		} else {
-			return []string{}
+			self.IsFieldsPopulated = true
+			self.Fields = []string{}
+			return self.Fields
 		}
 	} else if self.Right != nil {
-		return append(self.Left.GetFields(), self.Right.GetFields()...)
+		self.IsFieldsPopulated = true
+		self.Fields = append(self.Left.GetFields(), self.Right.GetFields()...)
+		return self.Fields
 	} else {
-		return self.Left.GetFields()
+		self.IsFieldsPopulated = true
+		self.Fields = self.Left.GetFields()
+		return self.Fields
 	}
 }
 
