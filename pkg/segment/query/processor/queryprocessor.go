@@ -118,13 +118,21 @@ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	return sortExpr
 }
 
-func CanParallelSearchForAggs(agg *structs.QueryAggregators, queryInfo *query.QueryInformation) (bool, int) {
+func aggsToDataProcessors(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) []*DataProcessor {
 	dataProcessors := make([]*DataProcessor, 0)
-	for curAgg := agg; curAgg != nil; curAgg = curAgg.Next {
-		dataProcessors = append(dataProcessors, AsDataProcessor(curAgg, queryInfo))
+	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		dataProcessor := AsDataProcessor(curAgg, queryInfo)
+		if dataProcessor == nil {
+			break
+		}
+		dataProcessors = append(dataProcessors, dataProcessor)
 	}
 
-	return CanParallelSearch(dataProcessors)
+	return dataProcessors
+}
+
+func CanParallelSearchForAggs(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) (bool, int) {
+	return CanParallelSearch(aggsToDataProcessors(firstAgg, queryInfo))
 }
 
 func CanParallelSearch(dataProcessors []*DataProcessor) (bool, int) {
@@ -218,15 +226,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		firstProcessorAgg = firstProcessorAgg.Next
 	}
 
-	dataProcessors := make([]*DataProcessor, 0)
-	for curAgg := firstProcessorAgg; curAgg != nil; curAgg = curAgg.Next {
-		dataProcessor := AsDataProcessor(curAgg, queryInfo)
-		if dataProcessor == nil {
-			break
-		}
-		dataProcessors = append(dataProcessors, dataProcessor)
-	}
-
+	dataProcessors := aggsToDataProcessors(firstProcessorAgg, queryInfo)
 	if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
 		query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
 		dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
