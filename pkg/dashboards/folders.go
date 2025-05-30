@@ -806,11 +806,11 @@ func migrateToFolderStructure(myid int64) error {
 func getFolderNestedCount(folderID string, myid int64) (*FolderNestedCount, error) {
 	structure, err := readCombinedFolderStructure(myid)
 	if err != nil {
-		return nil, fmt.Errorf("getFolderNestedCount: failed to read folder structure: %v", err)
+		return nil, fmt.Errorf("getFolderNestedCount: failed to read folder structure, err: %v", err)
 	}
 
 	if _, exists := structure.Items[folderID]; !exists {
-		return nil, fmt.Errorf("getFolderNestedCount: folder not found: %s", folderID)
+		return nil, fmt.Errorf("getFolderNestedCount: folder not found, folderID: %v", folderID)
 	}
 
 	count := &FolderNestedCount{Folders: 0, Dashboards: 0, Total: 0}
