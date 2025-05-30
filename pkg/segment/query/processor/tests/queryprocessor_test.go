@@ -32,12 +32,7 @@ func assertCanParallelSearch(t *testing.T, expectedOk bool, expectedSplitIndex i
 	_, agg, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
 	require.NoError(t, err)
 
-	dataProcessors := make([]*processor.DataProcessor, 0)
-	for agg != nil {
-		dataProcessors = append(dataProcessors, processor.AsDataProcessor(agg, nil))
-		agg = agg.Next
-	}
-
+	dataProcessors := processor.AggsToDataProcessors(agg, nil)
 	ok, splitIndex := processor.CanParallelSearch(dataProcessors)
 	require.Equal(t, expectedOk, ok)
 	if expectedOk {

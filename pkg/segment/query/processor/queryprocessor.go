@@ -119,10 +119,10 @@ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	return sortExpr
 }
 
-func aggsToDataProcessors(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) []*DataProcessor {
+func AggsToDataProcessors(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) []*DataProcessor {
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
-		dataProcessor := AsDataProcessor(curAgg, queryInfo)
+		dataProcessor := asDataProcessor(curAgg, queryInfo)
 		if dataProcessor == nil {
 			break
 		}
@@ -130,10 +130,6 @@ func aggsToDataProcessors(firstAgg *structs.QueryAggregators, queryInfo *query.Q
 	}
 
 	return dataProcessors
-}
-
-func CanParallelSearchForAggs(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) (bool, int) {
-	return CanParallelSearch(aggsToDataProcessors(firstAgg, queryInfo))
 }
 
 func CanParallelSearch(dataProcessors []*DataProcessor) (bool, int) {
@@ -177,7 +173,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	sortExpr := MutateForSearchSorter(firstAgg)
-	canParallelize, mergeIndex := CanParallelSearchForAggs(firstAgg, queryInfo)
+	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstAgg, queryInfo))
 	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
 	if canParallelize {
 		// If we can parallelize, we don't need to sort
@@ -235,7 +231,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	for i := 0; i < parallelism; i++ {
-		dataProcessors := aggsToDataProcessors(firstProcessorAgg, queryInfo)
+		dataProcessors := AggsToDataProcessors(firstProcessorAgg, queryInfo)
 		if i > 0 {
 			// Merge the chains once parallelism is no longer possible.
 			// e.g., if we merge into dp3 and parallelism=3, we eventually want
@@ -358,7 +354,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	}, nil
 }
 
-func AsDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
+func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
 	if queryAgg == nil {
 		return nil
 	}
