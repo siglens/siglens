@@ -28,6 +28,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
+	"github.com/dustin/go-humanize"
 	"github.com/siglens/siglens/pkg/config"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -70,6 +71,133 @@ func writeMockMetrics(forceRotate bool, allTimeSeries []timeSeries) ([]*metrics.
 		err := mSeg.CheckAndRotate(forceRotate)
 		if err != nil {
 			log.Errorf("writeMockMetrics: unable to force rotate: %s", err)
+			return nil, err
+		}
+		retVal[idx] = mSeg
+	}
+
+	return retVal, nil
+}
+
+func generateOrQueryMockMetrics(t *testing.T, numSeries uint64, generate bool,
+	attr *AllTagTreeReaders) {
+
+	timestamp := uint64(time.Now().Unix() - 24*3600)
+
+	mPrefix := "somelargeMetricName-m"
+	numTagKeys := 20
+	numTagValues := 100
+
+	numMetricNames := min(3000, numSeries/uint64((numTagKeys*numTagValues)))
+	if numMetricNames == 0 {
+		numMetricNames = 3000
+	}
+
+	if generate {
+		log.Infof("generateOrQueryMockMetrics: generating with numSeries: %v, numMetricNames: %v, numTagKeys: %v, numTagValues: %v",
+			numSeries, numMetricNames, numTagKeys, numTagValues)
+	} else {
+		log.Infof("generateOrQueryMockMetrics: QUERYING with numSeries: %v, numMetricNames: %v, numTagKeys: %v, numTagValues: %v",
+			numSeries, numMetricNames, numTagKeys, numTagValues)
+
+	}
+
+	mCnt := uint64(0)
+	tvCnt := make([]int, numTagKeys)
+	for i := 0; i < numTagKeys; i++ {
+		tvCnt[i] = 0
+	}
+
+	tkPrefix := "colorblah-tk-"
+	tvPrefixConst := "superniceblue-v"
+	tvPrefix := tvPrefixConst + "0-"
+	tvPrefIter := 1
+	tvArrIter := 0
+	verifyCount := uint64(0)
+	for serCount := uint64(0); serCount < numSeries; serCount++ {
+
+		mname := fmt.Sprintf("%v%v", mPrefix, mCnt)
+		mCnt++
+		if mCnt >= numMetricNames {
+			mCnt = 0
+			tvPrefix = fmt.Sprintf("%v%v-", tvPrefixConst, tvPrefIter)
+			tvPrefIter++
+		}
+
+		tags := make(map[string]interface{})
+		for i := 0; i < numTagKeys; i++ {
+			tkName := fmt.Sprintf("%v%v", tkPrefix, i)
+			tags[tkName] = fmt.Sprintf("%v%v", tvPrefix, tvCnt[i]%numTagValues)
+			if !generate {
+				verifyMetric(t, attr, mname, tkName, tags[tkName].(string))
+				verifyCount++
+				if verifyCount%2000 == 0 {
+					log.Infof("Verified: 2k queries, serCount: %v, totalVerified: %v",
+						humanize.Comma(int64(serCount)), humanize.Comma(int64(verifyCount)))
+				}
+			}
+		}
+
+		tvCnt[tvArrIter]++
+		tvArrIter++
+		if tvArrIter >= numTagKeys {
+			tvArrIter = 0
+		}
+
+		dp := make(map[string]interface{})
+		dp["metric"] = mname
+		dp["tags"] = tags
+
+		dp["timestamp"] = timestamp + serCount
+		dp["value"] = rand.Float64()
+		rawJson, _ := json.Marshal(dp)
+
+		if generate {
+			err := writer.AddTimeSeriesEntryToInMemBuf(rawJson, segutils.SIGNAL_METRICS_OTSDB, 0)
+			assert.Nil(t, err)
+		}
+	}
+
+	if !generate {
+		log.Infof("generateOrQueryMockMetrics: QUERIED numSeries: %v", numSeries)
+	}
+}
+
+func verifyMetric(t *testing.T, attr *AllTagTreeReaders, metricName string,
+	tagKey string, tagValue string) {
+
+	tagKeyFileExists := attr.tagTreeFileExists(tagKey)
+	assert.True(t, tagKeyFileExists)
+
+	hashedMname := xxhash.Sum64String(metricName)
+	hashedTagVal := xxhash.Sum64String(tagValue)
+
+	exists, tagValExists, rawTagValueToTSIDs, retTagVal, err := attr.GetMatchingTSIDsOrCount(hashedMname, tagKey, hashedTagVal, segutils.Equal, nil)
+	assert.Nil(t, err)
+	assert.True(t, exists)
+	assert.True(t, tagValExists)
+	assert.Equal(t, hashedTagVal, retTagVal)
+	assert.Len(t, rawTagValueToTSIDs, 1)
+
+	_, found, err := attr.GetValueIteratorForMetric(hashedMname, tagKey)
+	assert.Nil(t, err)
+	assert.True(t, found)
+}
+
+func writeScaledMockMetrics(t *testing.T, forceRotate bool,
+	numSeries uint64) ([]*metrics.MetricsSegment, error) {
+
+	metrics.InitMetricsSegStore()
+
+	generateOrQueryMockMetrics(t, numSeries, true, nil)
+
+	// Check and rotate each segement.
+	retVal := make([]*metrics.MetricsSegment, len(metrics.GetAllMetricsSegments()))
+
+	for idx, mSeg := range metrics.GetAllMetricsSegments() {
+		err := mSeg.CheckAndRotate(forceRotate)
+		if err != nil {
+			log.Errorf("writeScaledMockMetrics: unable to force rotate: %s", err)
 			return nil, err
 		}
 		retVal[idx] = mSeg
@@ -358,4 +486,25 @@ func initTestConfig(t *testing.T) {
 
 	err := config.InitDerivedConfig("test")
 	assert.NoError(t, err)
+}
+
+func Test_MetricsScaleRW(t *testing.T) {
+
+	initTestConfig(t)
+
+	numSeries := uint64(20_000)
+	mSegs, err := writeScaledMockMetrics(t, true, numSeries)
+
+	assert.Nil(t, err)
+	assert.Equal(t, len(mSegs), 1)
+	mSeg := mSegs[0]
+
+	tagsTreeHolder := metrics.GetTagsTreeHolder(mSeg.Orgid, mSeg.Mid)
+	err = tagsTreeHolder.EncodeTagsTreeHolder()
+	assert.Nil(t, err)
+	tagsTreeDir := metrics.GetFinalTagsTreeDir(mSeg.Mid, mSeg.Suffix)
+	attr, err := InitAllTagsTreeReader(tagsTreeDir)
+	assert.Nil(t, err)
+	assert.NotNil(t, attr)
+	generateOrQueryMockMetrics(t, numSeries, false, attr)
 }
