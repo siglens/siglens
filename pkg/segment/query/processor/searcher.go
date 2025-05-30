@@ -784,7 +784,8 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		s.gotBlocks = false
 	}
 
-	s.getBlocksLock.Unlock() // TODO: do this better; unlocking in the middle is sloppy.
+	// The rest can be done in parallel.
+	s.getBlocksLock.Unlock()
 
 	allRRCsSlices := make([][]*sutils.RecordResultContainer, 0, len(nextBlocks)+1)
 
