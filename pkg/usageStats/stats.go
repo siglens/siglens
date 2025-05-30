@@ -487,19 +487,6 @@ func UpdateQueryStats(queryCount uint64, respTime float64, orgid int64) {
 }
 
 func UpdateQueryStatsForAllOrgs(queryCount uint64, respTime float64) {
-	// TODO
-	// 1. Get All Orgs
-	// 	mu.Lock()
-	// if _, ok := QueryStatsMap[orgid]; !ok {
-	// QueryStatsMap[orgid] = &QueryStats{
-	// QueryCount:                0,
-	// TotalRespTimeSinceRestart: 0,
-	// TotalRespTimeSinceInstall: 0,
-	// ActiveQueryCount:          0,
-	// }
-	// }
-	// mu.Unlock()
-	// else
 	for _, qs := range QueryStatsMap {
 		atomic.AddUint64(&qs.QueryCount, queryCount)
 		atomic.AddUint64(&qs.QueriesSinceInstall, queryCount)
