@@ -49,7 +49,15 @@ type DataProcessor struct {
 	mergeSettings mergeSettings
 	processor     processor
 
+	// The next two flags are not quite opposites.
+	// Let p be a permutation function.
+	// Let f be a command (e.g., head, sort)
+	// Let rows be some rows of data.
+	// !inputOrderMatters means: for all (p, rows), f(p(rows)) == p(f(rows)).
+	// ignoresInputOrder means: for all (p, rows), f(p(rows)) == f(rows).
 	inputOrderMatters bool
+	ignoresInputOrder bool
+
 	isPermutingCmd    bool // This command may change the order of input.
 	isBottleneckCmd   bool // This command must see all input before yielding any output.
 	isTransformingCmd bool // This command transforms the input into a different format (e.g., stats).
@@ -60,10 +68,21 @@ type DataProcessor struct {
 	isCleanupCalled bool
 
 	name string // For debugging
+
+	streamDataChan chan streamResponse
+}
+
+type streamResponse struct {
+	streamId int
+	iqr      *iqr.IQR
 }
 
 func (dp *DataProcessor) DoesInputOrderMatter() bool {
 	return dp.inputOrderMatters
+}
+
+func (dp *DataProcessor) IgnoresInputOrder() bool {
+	return dp.ignoresInputOrder
 }
 
 func (dp *DataProcessor) IsPermutingCmd() bool {
@@ -185,6 +204,7 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 
 			dp.processorLock.Lock()
 			if dp.isCleanupCalled {
+				dp.processorLock.Unlock()
 				return nil, io.EOF
 			}
 			output, err = dp.processor.Process(input)
@@ -312,6 +332,15 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	case 1:
 		return dp.streams[0].Fetch()
 	default:
+		if dp.IgnoresInputOrder() && dp.IsBottleneckCmd() {
+			// Since it ignores input order, it doesn't matter which stream we
+			// get data from, and we don't need to merge multiple streams.
+			//
+			// Since it's a bottleneck, we need to eventually get all data, so
+			// we don't need to check dp.mergeSettings.limit
+			return dp.fetchFromAnyStream()
+		}
+
 		iqrs, streamIndices, err := dp.fetchFromAllStreamsWithData()
 		if err != nil {
 			return nil, utils.WrapErrorf(err, "DP.getStreamInput: failed to fetch from all streams: %v", err)
@@ -360,6 +389,86 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 		}
 
 		return iqr, nil
+	}
+}
+
+func (dp *DataProcessor) fetchFromAnyStream() (*iqr.IQR, error) {
+	if dp.streamDataChan == nil {
+		dp.streamDataChan = make(chan streamResponse, len(dp.streams))
+	}
+
+	// Check if there's a non-nil response still in the channel from last time,
+	// but avoid blocking.
+loop:
+	for {
+		select {
+		case message := <-dp.streamDataChan:
+			if message.iqr != nil {
+				return message.iqr, nil
+			}
+		default:
+			// The channel is empty.
+			break loop
+		}
+	}
+
+	// We'll fetch from several streams and want to detect when all streams
+	// have no more data. However, we'll return once any stream returns data;
+	// so to check if all streams have no more data, we have to track which
+	// streams responded rather than simply how many responded because the same
+	// stream could respond multiple times (e.g., in the previous call to this
+	// function, we returned before stream A sent data on the channel, now we
+	// fetch again from stream A and it has time to complete both the previous
+	// and current fetches, so it puts two messages on the channel).
+	numFetchedFrom := 0
+	responders := make(map[int]struct{}, len(dp.streams))
+	var finalErr error
+
+	for i := range dp.streams {
+		if dp.streams[i].IsExhausted() {
+			continue
+		}
+
+		numFetchedFrom++
+
+		go func(i int) {
+			iqr, err := dp.streams[i].Fetch()
+			if err != nil && err != io.EOF {
+				finalErr = fmt.Errorf("DP.fetchFromAnyStream: failed to fetch from stream %d: %v", i, err)
+				dp.streamDataChan <- streamResponse{streamId: i, iqr: nil}
+				return
+			}
+
+			if iqr == nil && err != io.EOF {
+				finalErr = fmt.Errorf("DP.fetchFromAnyStream: stream %d returned nil IQR without EOF", i)
+				dp.streamDataChan <- streamResponse{streamId: i, iqr: nil}
+				return
+			}
+
+			dp.streamDataChan <- streamResponse{streamId: i, iqr: iqr}
+		}(i)
+	}
+
+	if numFetchedFrom == 0 {
+		return nil, io.EOF
+	}
+
+	for {
+		message := <-dp.streamDataChan
+		if finalErr != nil {
+			log.Error(finalErr)
+			return nil, finalErr
+		}
+
+		if message.iqr != nil {
+			return message.iqr, nil
+		}
+
+		responders[message.streamId] = struct{}{}
+		if len(responders) == numFetchedFrom {
+			// All streams have responded, and none of them returned an IQR.
+			return nil, io.EOF
+		}
 	}
 }
 
@@ -442,6 +551,7 @@ func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &binProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   !hasSpan,
 		isTwoPassCmd:      !hasSpan,
@@ -456,6 +566,7 @@ func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &dedupProcessor{options: options},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   hasSort,
 		isTwoPassCmd:      false,
@@ -469,6 +580,7 @@ func NewEvalDP(options *structs.EvalExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &evalProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -482,6 +594,7 @@ func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &fieldsProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -495,6 +608,7 @@ func NewRenameDP(options *structs.RenameExp) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &renameProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -509,6 +623,7 @@ func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &fillnullProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   !isFieldListSet,
 		isTwoPassCmd:      !isFieldListSet,
@@ -525,6 +640,7 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 			currStartTime: options.StartTime,
 		},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -541,6 +657,7 @@ func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
 			start:   options.Start,
 		},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -554,6 +671,7 @@ func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &headProcessor{options: options},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -567,6 +685,7 @@ func NewTailDP(options *structs.TailExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &tailProcessor{options: options},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true, // TODO: depends on the previous DPs in the chain.
 		isTwoPassCmd:      false,
@@ -580,6 +699,7 @@ func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &makemvProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -593,6 +713,7 @@ func NewMVExpandDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &mvexpandProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -606,6 +727,7 @@ func NewRegexDP(options *structs.RegexExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &regexProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -619,6 +741,7 @@ func NewRexDP(options *structs.RexExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &rexProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -632,6 +755,7 @@ func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &whereProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -645,6 +769,7 @@ func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &streamstatsProcessor{options: options},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -658,6 +783,7 @@ func NewTimechartDP(options *timechartOptions) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         NewTimechartProcessor(options),
 		inputOrderMatters: false,
+		ignoresInputOrder: true,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
 		isTransformingCmd: true,
@@ -672,6 +798,7 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         NewStatsProcessor(options),
 		inputOrderMatters: false,
+		ignoresInputOrder: true,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   true,
 		isTransformingCmd: true,
@@ -713,6 +840,7 @@ func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         NewTopProcessor(options),
 		inputOrderMatters: false,
+		ignoresInputOrder: true,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
 		isTransformingCmd: true,
@@ -727,6 +855,7 @@ func NewRareDP(options *structs.QueryAggregators) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         NewRareProcessor(options),
 		inputOrderMatters: false,
+		ignoresInputOrder: true,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
 		isTransformingCmd: true,
@@ -741,6 +870,7 @@ func NewTransactionDP(options *structs.TransactionArguments) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &transactionProcessor{options: options},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -754,6 +884,7 @@ func NewSortDP(options *structs.SortExpr) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &sortProcessor{options: options},
 		inputOrderMatters: false,
+		ignoresInputOrder: true,
 		isPermutingCmd:    true,
 		isBottleneckCmd:   true,
 		isTwoPassCmd:      false,
@@ -767,6 +898,7 @@ func NewScrollerDP(scrollFrom uint64, qid uint64) *DataProcessor {
 		streams:           make([]*CachedStream, 0),
 		processor:         &scrollProcessor{scrollFrom: scrollFrom, qid: qid},
 		inputOrderMatters: true,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
@@ -807,6 +939,7 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 		streams:           cachedStreams,
 		processor:         &passThroughProcessor{},
 		inputOrderMatters: false,
+		ignoresInputOrder: false,
 		isPermutingCmd:    false,
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,

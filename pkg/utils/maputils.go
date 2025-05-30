@@ -20,6 +20,7 @@ package utils
 import (
 	"fmt"
 	"sort"
+	"sync"
 )
 
 // GetOrCreateNestedMap returns the inner map corresponding to key1 from the outer map.
@@ -232,6 +233,7 @@ func TransposeMapOfSlices[K comparable, V any](m map[K][]V) []map[K]V {
 type TwoWayMap[T1, T2 comparable] struct {
 	normal  map[T1]T2
 	reverse map[T2]T1
+	lock    sync.RWMutex
 }
 
 func NewTwoWayMap[T1, T2 comparable]() *TwoWayMap[T1, T2] {
@@ -242,27 +244,45 @@ func NewTwoWayMap[T1, T2 comparable]() *TwoWayMap[T1, T2] {
 }
 
 func (twm *TwoWayMap[T1, T2]) Set(key T1, value T2) {
+	twm.lock.Lock()
+	defer twm.lock.Unlock()
+
 	twm.normal[key] = value
 	twm.reverse[value] = key
 }
 
 func (twm *TwoWayMap[T1, T2]) Get(key T1) (T2, bool) {
+	twm.lock.RLock()
+	defer twm.lock.RUnlock()
+
 	value, exists := twm.normal[key]
 	return value, exists
 }
 
 func (twm *TwoWayMap[T1, T2]) GetReverse(key T2) (T1, bool) {
+	twm.lock.RLock()
+	defer twm.lock.RUnlock()
+
 	value, exists := twm.reverse[key]
 	return value, exists
 }
 
 func (twm *TwoWayMap[T1, T2]) Conflicts(other map[T1]T2) bool {
+	twm.lock.RLock()
+	defer twm.lock.RUnlock()
+
 	return MapsConflict(twm.normal, other)
 }
 
-// Do not modify the returned map. Modifying it will break the two-way mapping.
-func (twm *TwoWayMap[T1, T2]) GetMapForReading() map[T1]T2 {
-	return twm.normal
+func (twm *TwoWayMap[T1, T2]) GetMapCopy() map[T1]T2 {
+	twm.lock.RLock()
+	defer twm.lock.RUnlock()
+
+	mapCopy := make(map[T1]T2, len(twm.normal))
+	for k, v := range twm.normal {
+		mapCopy[k] = v
+	}
+	return mapCopy
 }
 
 func (twm *TwoWayMap[T1, T2]) Len() int {
