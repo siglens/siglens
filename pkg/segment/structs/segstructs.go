@@ -1171,6 +1171,15 @@ func HasValueColRequestInMeasureAggs(measureAggs []*MeasureAggregator) bool {
 	return false
 }
 
+func (qa *QueryAggregators) HasSumsqFunc() bool {
+	for _, agg := range qa.MeasureOperations {
+		if agg.MeasureFunc == sutils.Sumsq {
+			return true
+		}
+	}
+	return false
+}
+
 // To determine whether it contains Aggregate Func: Values()
 func (qa *QueryAggregators) HasValuesFunc() bool {
 	for _, agg := range qa.MeasureOperations {

@@ -3935,9 +3935,24 @@ AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
     }
 
+    var valueColRequest *structs.ValueExpr
+    if measureFunc == sutils.Sumsq {
+        // For sumsq(field), create a ValueExpr for the field
+        valueColRequest = &structs.ValueExpr{
+            ValueExprMode: structs.VEMNumericExpr,
+            NumericExpr: &structs.NumericExpr{
+                IsTerminal:      true,
+                ValueIsField:    true,
+                Value:           field.(string),
+                NumericExprMode: structs.NEMNumberField,
+            },
+        }
+    }
+
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: measureFunc,
+        ValueColRequest: valueColRequest,
     }
 
     return agg, nil
