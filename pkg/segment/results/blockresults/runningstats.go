@@ -166,6 +166,13 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:MinMax", err)
 			}
 			i += step
+		case sutils.LatestTime:
+			isLatestTime := measureFunc == sutils.LatestTime
+			step, err := rr.AddEvalResultsForMinMax(runningStats, measureResults, i, isLatestTime, fieldToValue)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:MinMax", err)
+			}
+			i += step
 		case sutils.Range:
 			step, err := rr.AddEvalResultsForRange(runningStats, measureResults, i, fieldToValue)
 			if err != nil {

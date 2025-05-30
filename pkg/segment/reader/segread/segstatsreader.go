@@ -274,6 +274,22 @@ func GetSegMax(runningSegStat *structs.SegStats,
 	return &runningSegStat.Max, nil
 }
 
+func GetSegLatestTs(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*sutils.CValueEnclosure, error) {
+	if currSegStat == nil {
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestTs: currSegStat is nil")
+	}
+
+	if runningSegStat == nil {
+		return &currSegStat.LatestTs, nil
+	}
+	result, err := sutils.ReduceMinMax(runningSegStat.LatestTs, currSegStat.LatestTs, false)
+	if err != nil {
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegMax: error in ReduceMinMax, err: %v", err)
+	}
+	runningSegStat.LatestTs = result
+	return &runningSegStat.LatestTs, nil
+}
+
 func getRange(max sutils.CValueEnclosure, min sutils.CValueEnclosure) (*sutils.CValueEnclosure, error) {
 	result := sutils.CValueEnclosure{}
 	if !max.IsNumeric() && !min.IsNumeric() {
