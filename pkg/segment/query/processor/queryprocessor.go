@@ -237,9 +237,8 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	for i := 0; i < parallelism; i++ {
 		dataProcessors := aggsToDataProcessors(firstProcessorAgg, queryInfo)
 		if i > 0 {
-			// Merge the chains into one chain past the point where parallelism
-			// is possible.
-			dataProcessors = dataProcessors[:mergeIndex]
+			// Merge the chains once parallelism is no longer possible.
+			dataProcessors = dataProcessors[:mergeIndex+1]
 			dataProcessors[mergeIndex] = dataProcessorChains[0][mergeIndex]
 		}
 
