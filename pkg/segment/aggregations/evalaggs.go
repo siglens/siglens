@@ -390,7 +390,6 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 }
 
 func PerformEvalAggForSumsq(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult sutils.CValueEnclosure, fieldToValue map[string]sutils.CValueEnclosure) (sutils.CValueEnclosure, error) {
-	log.Info("PerformEvalAggForSumSq called")
 	finalResult := sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  float64(0),
@@ -979,6 +978,8 @@ func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggrega
 
 // Determine if cols used by eval statements or not
 func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool) {
+	log.Infof("DetermineAggColUsage called with aggCols: %+v", aggCols)
+	log.Infof("DetermineAggColUsage called with measureAgg.ValueColRequest: %+v", measureAgg.ValueColRequest)
 	if measureAgg.ValueColRequest != nil {
 		fields := measureAgg.ValueColRequest.GetFields()
 		for _, field := range fields {
@@ -1022,4 +1023,6 @@ func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[str
 			aggColUsage[measureAgg.MeasureCol] = sutils.NoEvalUsage
 		}
 	}
+
+	log.Infof("DetermineAggColUsage returns %+v, %+v, %+v", aggCols, aggColUsage, valuesUsage, listUsage)
 }
