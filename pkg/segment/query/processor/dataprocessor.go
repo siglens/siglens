@@ -204,6 +204,7 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 
 			dp.processorLock.Lock()
 			if dp.isCleanupCalled {
+				dp.processorLock.Unlock()
 				return nil, io.EOF
 			}
 			output, err = dp.processor.Process(input)
