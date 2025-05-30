@@ -118,6 +118,15 @@ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	return sortExpr
 }
 
+func CanParallelSearchForAggs(agg *structs.QueryAggregators, queryInfo *query.QueryInformation) (bool, int) {
+	dataProcessors := make([]*DataProcessor, 0)
+	for curAgg := agg; curAgg != nil; curAgg = curAgg.Next {
+		dataProcessors = append(dataProcessors, AsDataProcessor(curAgg, queryInfo))
+	}
+
+	return CanParallelSearch(dataProcessors)
+}
+
 func CanParallelSearch(dataProcessors []*DataProcessor) (bool, int) {
 	canSplit := false
 	for i, dp := range dataProcessors {
@@ -158,8 +167,15 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
 	}
 
-	sortMode := recentFirst // TODO: compute this from the query.
 	sortExpr := MutateForSearchSorter(firstAgg)
+	canParallelize, _ := CanParallelSearchForAggs(firstAgg, queryInfo)
+	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
+	if canParallelize {
+		// If we can parallelize, we don't need to sort
+		sortMode = anyOrder
+		sortExpr = nil
+	}
+
 	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
 	if err != nil {
 		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
