@@ -848,7 +848,10 @@ func PerformEvalAggForPerc(measureAgg *structs.MeasureAggregator, count uint64, 
 		}
 		// can just be reduced to a floatValue, but there is a variable called runningEvalStats (multiple routines? unable to verify)
 		for i := uint64(0); i < count; i++ {
-			td.InsertIntoTDigest(floatValue)
+			err = td.InsertIntoTDigest(floatValue)
+			if err != nil {
+				return fmt.Errorf("PerformEvalAggForPerc: can't insert value into digest tree; err: %v", err)
+			}
 		}
 	} else {
 		if measureAgg.ValueColRequest.BooleanExpr != nil {
@@ -857,9 +860,15 @@ func PerformEvalAggForPerc(measureAgg *structs.MeasureAggregator, count uint64, 
 				return fmt.Errorf("PerformEvalAggForPerc: there are some errors in the eval function that is inside the avg function: %v", err)
 			}
 			if boolResult {
-				td.InsertIntoTDigest(1)
+				err = td.InsertIntoTDigest(1)
+				if err != nil {
+					return fmt.Errorf("PerformEvalAggForPerc: can't insert value into digest tree; err: %v", err)
+				}
 			} else {
-				td.InsertIntoTDigest(0)
+				err = td.InsertIntoTDigest(0)
+				if err != nil {
+					return fmt.Errorf("PerformEvalAggForPerc: can't insert value into digest tree; err: %v", err)
+				}
 			}
 		} else {
 			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
@@ -868,7 +877,10 @@ func PerformEvalAggForPerc(measureAgg *structs.MeasureAggregator, count uint64, 
 			}
 
 			if isNumeric {
-				td.InsertIntoTDigest(floatValue)
+				err = td.InsertIntoTDigest(floatValue)
+				if err != nil {
+					return fmt.Errorf("PerformEvalAggForPerc: can't insert value into digest tree; err: %v", err)
+				}
 			}
 		}
 	}
