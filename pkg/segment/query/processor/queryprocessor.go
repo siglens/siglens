@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"runtime"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -176,7 +177,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	sortExpr := MutateForSearchSorter(firstAgg)
-	canParallelize, _ := CanParallelSearchForAggs(firstAgg, queryInfo)
+	canParallelize, mergeIndex := CanParallelSearchForAggs(firstAgg, queryInfo)
 	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
 	if canParallelize {
 		// If we can parallelize, we don't need to sort
@@ -226,40 +227,61 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		firstProcessorAgg = firstProcessorAgg.Next
 	}
 
-	dataProcessors := aggsToDataProcessors(firstProcessorAgg, queryInfo)
-	if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
-		query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
-		dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
-		dataProcessors[0].SetLimitForDataGenerator(sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
+	searcherStream := NewCachedStream(searcher)
+	dataProcessorChains := make([][]*DataProcessor, 0)
+	parallelism := 1
+	if canParallelize {
+		parallelism = runtime.GOMAXPROCS(0)
 	}
 
-	// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
-	if len(dataProcessors) > 0 && !dataProcessors[0].IsDataGenerator() {
-		dataProcessors[0].streams = append(dataProcessors[0].streams, NewCachedStream(searcher))
-	}
-	for i := 1; i < len(dataProcessors); i++ {
-		dataProcessors[i].streams = append(dataProcessors[i].streams, NewCachedStream(dataProcessors[i-1]))
-	}
-
-	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
-		chainedDPAsAny, err := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
-		if err != nil {
-			return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook failed; err=%v", err)
+	for i := 0; i < parallelism; i++ {
+		dataProcessors := aggsToDataProcessors(firstProcessorAgg, queryInfo)
+		if i > 0 {
+			// Merge the chains into one chain past the point where parallelism
+			// is possible.
+			dataProcessors = dataProcessors[:mergeIndex]
+			dataProcessors[mergeIndex] = dataProcessorChains[0][mergeIndex]
 		}
 
-		chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
-		if !ok {
-			log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
-		} else {
-			dataProcessors = chainedDp
+		if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
+			query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
+			dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
+			dataProcessors[0].SetLimitForDataGenerator(sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
 		}
+
+		// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
+		if len(dataProcessors) > 0 && !dataProcessors[0].IsDataGenerator() {
+			dataProcessors[0].streams = append(dataProcessors[0].streams, searcherStream)
+		}
+		for m := 1; m < len(dataProcessors); m++ {
+			dataProcessors[m].streams = append(dataProcessors[m].streams, NewCachedStream(dataProcessors[m-1]))
+		}
+
+		if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
+			chainedDPAsAny, err := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
+			if err != nil {
+				return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook failed; err=%v", err)
+			}
+
+			chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
+			if !ok {
+				log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
+			} else {
+				dataProcessors = chainedDp
+			}
+		}
+
+		dataProcessorChains = append(dataProcessorChains, dataProcessors)
 	}
+
+	dataProcessors := dataProcessorChains[0]
 
 	var lastStreamer Streamer = searcher
 	if len(dataProcessors) > 0 {
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
+	// TODO: pass all the dataProcessorChains so cleanup happens properly.
 	queryProcessor, err := newQueryProcessorHelper(fullQueryType, lastStreamer,
 		dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls, shouldDistribute, sizeLimit)
 	if err != nil {
