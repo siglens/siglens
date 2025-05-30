@@ -71,7 +71,7 @@ class DashboardGrid {
                 field: 'type',
                 flex: 1,
                 cellRenderer: (params) => {
-                    const icon = params.value === 'folder' ? '<i class="fa fa-folder" style="color: #FFB84D"></i>' : '<i class="fa fa-columns" style="color: #6366f1"></i>';
+                    const icon = params.value === 'folder' ? '<i class="fa fa-folder" style="color: #FFB84D"></i>' : '<i class="fa fa-th-large" style="color: #6366f1"></i>';
                     return `<div style="display: flex; align-items: center; gap: 8px;">
                         ${icon} 
                         <span>${params.value.charAt(0).toUpperCase() + params.value.slice(1)}</span>
@@ -198,16 +198,10 @@ class DashboardGrid {
             baseDiv.style.display = 'flex';
             baseDiv.style.alignItems = 'center';
 
-            const icon = document.createElement('i');
-            icon.className = params.data.type === 'folder' ? 'fa fa-folder' : 'fa fa-large';
-            icon.style.color = params.data.type === 'folder' ? '#FFB84D' : '#6366f1';
-            icon.style.marginRight = '8px';
-
             const link = document.createElement('a');
             link.href = params.data.type === 'folder' ? `folder.html?id=${params.data.uniqId}` : `dashboard.html?id=${params.data.uniqId}`;
             link.innerText = params.value;
 
-            baseDiv.appendChild(icon);
             baseDiv.appendChild(link);
             return baseDiv;
         }
@@ -223,13 +217,14 @@ class DashboardGrid {
         if (params.data.type === 'folder') {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'folder-row';
+            folderDiv.style.pointerEvents = 'none';
             folderDiv.innerHTML = `
                 <div style="display: flex; align-items: center; padding-left: ${indentPadding}px;">
-                    <span class="folder-arrow" style="cursor: pointer">
+                    <span class="folder-arrow" style="cursor: pointer; pointer-events: auto;">
                         ${params.data.expanded ? '<i class="fa fa-chevron-down"></i>' : '<i class="fa fa-chevron-right"></i>'}
                     </span>
                     <i class="fa ${params.data.expanded ? 'fa-folder-open' : 'fa-folder'}" style="color: #FFB84D; margin-right: 8px; margin-left: 8px;"></i>
-                    <a href="folder.html?id=${params.data.uniqId}">${params.value}</a>
+                    <a href="folder.html?id=${params.data.uniqId}" style="pointer-events: auto;">${params.value}</a>
                 </div>`;
 
             const arrowElement = folderDiv.querySelector('.folder-arrow');
@@ -662,7 +657,7 @@ class DashboardGrid {
         }, 50);
 
         if (selectedCount > 0) {
-            $('#bulk-delete-btn').show().text(`Delete`);
+            $('#bulk-delete-btn').show().text('Delete');
             $('.filter-controls, #sort-container').hide();
 
             $('#bulk-delete-btn')
