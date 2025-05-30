@@ -822,16 +822,22 @@ func getFolderNestedCount(folderID string, myid int64) (*FolderNestedCount, erro
 }
 
 func collectItemsCount(folderID string, structure *FolderStructure, count *FolderNestedCount) {
-	if childIDs, exists := structure.Order[folderID]; exists {
-		for _, childID := range childIDs {
-			if child, exists := structure.Items[childID]; exists {
-				if child.Type == ItemTypeFolder {
-					count.Folders++
-					collectItemsCount(childID, structure, count)
-				} else if child.Type == ItemTypeDashboard {
-					count.Dashboards++
-				}
-			}
+	childIDs, exists := structure.Order[folderID]
+	if !exists {
+		return
+	}
+
+	for _, childID := range childIDs {
+		child, exists := structure.Items[childID]
+		if !exists {
+			continue
+		}
+
+		if child.Type == ItemTypeFolder {
+			count.Folders++
+			collectItemsCount(childID, structure, count)
+		} else if child.Type == ItemTypeDashboard {
+			count.Dashboards++
 		}
 	}
 }
@@ -871,7 +877,7 @@ func ProcessGetFolderContentsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	contents, err := getFolderContents(folderID, foldersOnly, myid)
 	if err != nil {
-		log.Errorf("ProcessGetFolderContentsRequest: failed to get folder contents: %v", err)
+		log.Errorf("ProcessGetFolderContentsRequest: failed to get folder contents, folderID: %v err: %v", folderID, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
