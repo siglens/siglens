@@ -68,6 +68,13 @@ type DataProcessor struct {
 	isCleanupCalled bool
 
 	name string // For debugging
+
+	streamDataChan chan streamResponse
+}
+
+type streamResponse struct {
+	streamId int
+	iqr      *iqr.IQR
 }
 
 func (dp *DataProcessor) DoesInputOrderMatter() bool {
@@ -324,6 +331,15 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	case 1:
 		return dp.streams[0].Fetch()
 	default:
+		if dp.IgnoresInputOrder() && dp.IsBottleneckCmd() {
+			// Since it ignores input order, it doesn't matter which stream we
+			// get data from, and we don't need to merge multiple streams.
+			//
+			// Since it's a bottleneck, we need to eventually get all data, so
+			// we don't need to check dp.mergeSettings.limit
+			return dp.fetchFromAnyStream()
+		}
+
 		iqrs, streamIndices, err := dp.fetchFromAllStreamsWithData()
 		if err != nil {
 			return nil, utils.WrapErrorf(err, "DP.getStreamInput: failed to fetch from all streams: %v", err)
@@ -372,6 +388,79 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 		}
 
 		return iqr, nil
+	}
+}
+
+func (dp *DataProcessor) fetchFromAnyStream() (*iqr.IQR, error) {
+	if dp.streamDataChan == nil {
+		dp.streamDataChan = make(chan streamResponse, len(dp.streams))
+	}
+
+	// Check if there's a non-nil response still in the channel from last time,
+	// but avoid blocking.
+loop:
+	for {
+		select {
+		case resp := <-dp.streamDataChan:
+			if resp.iqr != nil {
+				return resp.iqr, nil
+			}
+		default:
+			// The channel is empty.
+			break loop
+		}
+	}
+
+	// We'll fetch from several streams and want to detect when all streams
+	// have no more data. However, we'll return once any stream returns data;
+	// so to check if all streams have no more data, we have to track which
+	// streams responded rather than simply how many responded because the same
+	// stream could respond multiple times (e.g., in the previous call to this
+	// function, we returned before stream A sent data on the channel, now we
+	// fetch again from stream A and it has time to complete both the previous
+	// and current fetches, so it puts two messages on the channel).
+	numFetchedFrom := 0
+	responders := make(map[int]struct{})
+	var finalErr error
+
+	for i := range dp.streams {
+		if dp.streams[i].IsExhausted() {
+			continue
+		}
+
+		numFetchedFrom++
+
+		go func(i int) {
+			iqr, err := dp.streams[i].Fetch()
+			if err != nil && err != io.EOF {
+				finalErr = fmt.Errorf("DP.fetchFromAnyStream: failed to fetch from stream %d: %v", i, err)
+				return
+			}
+
+			if iqr == nil && err != io.EOF {
+				finalErr = fmt.Errorf("DP.fetchFromAnyStream: stream %d returned nil IQR without EOF", i)
+				return
+			}
+
+			dp.streamDataChan <- streamResponse{streamId: i, iqr: iqr}
+		}(i)
+	}
+
+	for {
+		resp := <-dp.streamDataChan
+		if finalErr != nil {
+			return nil, finalErr
+		}
+
+		responders[resp.streamId] = struct{}{}
+		if resp.iqr != nil {
+			return resp.iqr, nil
+		}
+
+		if len(responders) == numFetchedFrom {
+			// All streams have responded, and none of them returned an IQR.
+			return nil, io.EOF
+		}
 	}
 }
 
