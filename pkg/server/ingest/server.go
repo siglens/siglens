@@ -67,8 +67,7 @@ func (hs *ingestionServerCfg) Close() {
 }
 
 func (hs *ingestionServerCfg) Run() (err error) {
-
-	//Register all the method handlers here
+	// Register all the method handlers here
 	ingest.InitIngestionMetrics()
 	writer.InitWriterNode()
 
@@ -76,13 +75,13 @@ func (hs *ingestionServerCfg) Run() (err error) {
 		go query.InitQueryInfoRefresh(server_utils.GetMyIds)
 	}
 
-	hs.router.GET(server_utils.API_PREFIX+"/health", hs.Recovery(getHealthHandler()))
+	hs.router.GET(server_utils.API_PREFIX+"/health", getHealthHandler())
 	hs.router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", hs.Recovery(sampleDatasetBulkHandler()))
 
 	hs.router.GET("/config", hs.Recovery(getConfigHandler()))
 	hs.router.POST("/config/reload", hs.Recovery(getConfigReloadHandler()))
 
-	//elasticsearch endpoints
+	// elasticsearch endpoints
 	hs.router.HEAD(server_utils.ELASTIC_PREFIX+"/", hs.Recovery(esGreetHandler()))
 	hs.router.GET(server_utils.ELASTIC_PREFIX+"/", hs.Recovery(esGreetHandler()))
 	hs.router.GET(server_utils.ELASTIC_PREFIX+"/_xpack", hs.Recovery(esGreetHandler()))

@@ -42,10 +42,10 @@ class Breadcrumb {
             filteredBreadcrumbs = breadcrumbs?.filter((crumb) => crumb.id !== 'root-folder' && crumb.name !== 'Root') || [];
         }
 
-        // Add "All Dashboards" item
-        this.addBreadcrumbItem('All Dashboards', '../dashboards-home.html');
+        // Add "Dashboards" item
+        this.addBreadcrumbItem('Dashboards', '../dashboards-home.html');
 
-        // Add separator after "All Dashboards"
+        // Add separator after "Dashboards"
         if (filteredBreadcrumbs.length > 0 || currentName) {
             this.addSeparator();
         }
