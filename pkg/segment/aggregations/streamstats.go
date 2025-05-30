@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 func GetBucketKey(record map[string]interface{}, groupByRequest *structs.GroupByRequest) (string, error) {
@@ -44,6 +45,7 @@ func GetBucketKey(record map[string]interface{}, groupByRequest *structs.GroupBy
 }
 
 func InitRunningStreamStatsResults(measureFunc sutils.AggregateFunctions) *structs.RunningStreamStatsResults {
+	log.Infof("InitRunningStreamStatsResults called for %+v", measureFunc)
 	runningSSResult := &structs.RunningStreamStatsResults{
 		Window:          &utils.GobbableList{},
 		SecondaryWindow: &utils.GobbableList{},
