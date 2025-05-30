@@ -216,6 +216,15 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 			} else {
 				mFunc = m.MeasureFunc
 			}
+		case sutils.StatsRate:
+			if m.ValueColRequest != nil {
+				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, sutils.StatsRate, &allReverseIndex, colToIdx, idx)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: Error while setting up measure agg for rate, err: %v", err)
+				}
+				idx = curId
+				continue
+		}
 		default:
 			mFunc = m.MeasureFunc
 		}
@@ -875,6 +884,12 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 				return
 			}
 		}
+		valIdx := gb.reverseMeasureIndex[idx]
+		runningStats[valIdx].syncRawValue()
+		cTypeVal := runningStats[valIdx].rawVal
+		eVal.CVal = cTypeVal.CVal
+		eVal.Dtype = cTypeVal.Dtype
+	case sutils.StatsRate:
 		valIdx := gb.reverseMeasureIndex[idx]
 		runningStats[valIdx].syncRawValue()
 		cTypeVal := runningStats[valIdx].rawVal
