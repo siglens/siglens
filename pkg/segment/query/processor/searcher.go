@@ -587,7 +587,7 @@ func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines
 
 	rrcs, values := sortindex.AsRRCs(lines, segKeyEncoding)
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
-	err := iqr.AppendRRCs(rrcs, s.segEncToKey.GetMapForReading())
+	err := iqr.AppendRRCs(rrcs, s.segEncToKey.GetMapCopy())
 	if err != nil {
 		log.Errorf("qid=%v, searcher.handleSortIndexMatchAll: failed to append RRCs: %v", s.qid, err)
 		return nil, err
@@ -659,7 +659,7 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 	rrcs := searchResults.GetResults()
 
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
-	err = iqr.AppendRRCs(rrcs, s.segEncToKey.GetMapForReading())
+	err = iqr.AppendRRCs(rrcs, s.segEncToKey.GetMapCopy())
 	if err != nil {
 		return nil, err
 	}
@@ -848,7 +848,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 	s.unsentRRCs = s.unsentRRCs[len(validRRCs):]
 
 	iqr := iqr.NewIQR(s.queryInfo.GetQid())
-	err = iqr.AppendRRCs(validRRCs, s.segEncToKey.GetMapForReading())
+	err = iqr.AppendRRCs(validRRCs, s.segEncToKey.GetMapCopy())
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchRRCs: failed to append RRCs: %v", s.qid, err)
 		return nil, err
