@@ -26,7 +26,6 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResultExists bool, currResult sutils.CValueEnclosure, fieldToValue map[string]sutils.CValueEnclosure, isMin bool) (sutils.CValueEnclosure, error) {
@@ -978,8 +977,6 @@ func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggrega
 
 // Determine if cols used by eval statements or not
 func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool) {
-	log.Infof("DetermineAggColUsage called with aggCols: %+v", aggCols)
-	log.Infof("DetermineAggColUsage called with measureAgg.ValueColRequest: %+v", measureAgg.ValueColRequest)
 	if measureAgg.ValueColRequest != nil {
 		fields := measureAgg.ValueColRequest.GetFields()
 		for _, field := range fields {
@@ -1023,6 +1020,4 @@ func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[str
 			aggColUsage[measureAgg.MeasureCol] = sutils.NoEvalUsage
 		}
 	}
-
-	log.Infof("DetermineAggColUsage returns %+v, %+v, %+v", aggCols, aggColUsage, valuesUsage, listUsage)
 }
