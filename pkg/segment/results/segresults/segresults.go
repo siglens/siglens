@@ -364,8 +364,6 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats, measureOps []*structs.MeasureAggregator) error {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
-	log.Info("UpdateSegmentStats called, PerformEvalAggForSumSq likely called")
-
 	for idx, measureAgg := range measureOps {
 		if len(sstMap) == 0 {
 			continue

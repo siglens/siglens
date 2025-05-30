@@ -1581,6 +1581,7 @@ OR
 NonNumeric [DType 1B] [Min_Size 2B] [Min_Data xB] [Max_Size 2B] [Max_Data xB]
 */
 func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
+
 	idx := uint32(0)
 
 	// version

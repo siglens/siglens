@@ -490,11 +490,9 @@ func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *s
 
 func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
 	qsrs []*QuerySegmentRequest, querySummary *summary.QuerySummary, orgid int64, getSstMap bool) *structs.NodeResult {
-	log.Infof("GetNodeResultsForSegmentStatsCmd called")
 
 	sortedQSRSlice, numRawSearch, numDistributed, err := getAllSegmentsInAggs(queryInfo, qsrs, queryInfo.aggs,
 		queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), queryInfo.qid, sTime, orgid)
-	log.Infof("SortedQSR slice has valueColRequest: %+v", sortedQSRSlice[0].aggs.MeasureOperations[0].ValueColRequest)
 	if err != nil {
 		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to get all segments in query! Error: %+v", queryInfo.qid, err)
 		return &structs.NodeResult{
@@ -877,7 +875,6 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 	numRawSearch += rotatedRawCount
 
 	numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
-	log.Infof("finalQsrs slice has valueColRequest: %+v", finalQsrs[0].aggs.MeasureOperations[0].ValueColRequest)
 
 	return finalQsrs, numRawSearch, numDistributed, nil
 }
@@ -931,7 +928,6 @@ func canUseSSTForStats(searchType structs.SearchNodeType, segmentFullyEnclosed b
 
 func computeSegStatsFromRawRecords(segReq *QuerySegmentRequest, qs *summary.QuerySummary, allSegFileResults *segresults.SearchResults,
 	qid uint64, nodeRes *structs.NodeResult) (map[string]*structs.SegStats, error) {
-	log.Infof("computeSegStatsFromRawRecords called with measureOps[0] %+v", segReq.aggs.MeasureOperations[0].ValueColRequest)
 	var sstMap map[string]*structs.SegStats
 	// run through micro index check for block tracker & generate SSR
 	blocksToRawSearch, err := segReq.GetMicroIndexFilter()
@@ -961,7 +957,6 @@ func computeSegStatsFromRawRecords(segReq *QuerySegmentRequest, qs *summary.Quer
 			return sstMap, fmt.Errorf("qid=%d, computeSegStatsFromRawRecords: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
 		}
 	}
-	log.Infof("computeSegStatsFromRawRecords computed sstMap %+v", sstMap["latency"])
 	return sstMap, nil
 }
 
@@ -978,7 +973,6 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 
 	//assuming we will allow 100 measure Operations
 	for _, segReq := range sortedQSRSlice {
-		log.Infof("applyAggOpOnSegments: valuecolrequest is %+v ", segReq.aggs.MeasureOperations[0].ValueColRequest)
 		isCancelled, err := checkForCancelledQuery(qid)
 		if err != nil {
 			log.Errorf("applyAggOpOnSegments:: qid=%d Failed to checkForCancelledQuery. Error: %v", qid, err)
@@ -1027,8 +1021,6 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 			}
 		}
 
-		log.Infof("applyAggOpOnSegments: sstMap is %+v after canUseSSTForStats check for segKey %s", sstMap["latency"], segReq.segKey)
-
 		statsRes.MergeSegStats(sstMap)
 
 		totalRecsSearched := uint64(0)
@@ -1044,7 +1036,6 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 	}
 
 	finalSstMap := statsRes.GetSegStats()
-	log.Infof("applyAggOpOnSegments: finalSstMap is %+v", finalSstMap["latency"])
 
 	if !getSstMap {
 		err = allSegFileResults.UpdateSegmentStats(finalSstMap, measureOperations)
