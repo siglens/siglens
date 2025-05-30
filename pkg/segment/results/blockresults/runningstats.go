@@ -200,6 +200,12 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:List", err)
 			}
 			i += step
+		case sutils.StatsRate:
+			step, err := rr.AddEvalResultsForRate(runningStats, measureResults, i, fieldToValue)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Rate", err)
+			}
+			i += step
 		default:
 			err := rr.ProcessReduce(runningStats, measureResults[i], i)
 			if err != nil {
@@ -691,6 +697,43 @@ func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningSta
 
 	return len(fieldToValue) - 1, nil
 }
+
+func (rr *RunningBucketResults) AddEvalResultsForRate(runningStats []runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue interface{}) (int, error) {
+	stat := &runningStats[i]
+
+	value, ok := fieldToValue.(float64)
+	if !ok {
+		return 1, fmt.Errorf("invalid value type for rate")
+	}
+
+	ts := rr.currTs 
+
+	if stat.number == nil {
+		stat.number = &sutils.Number{}
+		stat.earliestValue = value
+		stat.earliestTime = ts
+	} else {
+		stat.latestValue = value
+		stat.latestTime = ts
+
+		if stat.latestValue < stat.earliestValue {
+			stat.earliestValue = stat.latestValue
+			stat.earliestTime = stat.latestTime
+		}
+	}
+
+	
+	if stat.latestTime != stat.earliestTime {
+		rate := (stat.latestValue - stat.earliestValue) / (stat.latestTime - stat.earliestTime)
+		stat.rawVal = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_FLOAT,
+			CVal:  rate,
+		}
+	}
+
+	return 1, nil
+}
+
 
 func (rr *RunningBucketResults) GetRunningStatsBucketValues() ([]sutils.CValueEnclosure, uint64) {
 	retVal := make([]sutils.CValueEnclosure, len(rr.runningStats))
