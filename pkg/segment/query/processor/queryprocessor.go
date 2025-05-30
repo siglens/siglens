@@ -305,13 +305,13 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 			return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create head data processor")
 		}
 
-		headDP.streams = append(headDP.streams, &CachedStream{input, nil, false})
+		headDP.streams = append(headDP.streams, NewCachedStream(input))
 
 		scrollerDP := NewScrollerDP(uint64(scrollFrom), qid)
 		if scrollerDP == nil {
 			return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create scroller data processor")
 		}
-		scrollerDP.streams = append(scrollerDP.streams, &CachedStream{headDP, nil, false})
+		scrollerDP.streams = append(scrollerDP.streams, NewCachedStream(headDP))
 
 		fetchDp = scrollerDP
 	}
