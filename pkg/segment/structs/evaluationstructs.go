@@ -19,7 +19,6 @@ package structs
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -466,6 +465,18 @@ var timeFormatReplacements = []struct {
 	{"%X", "15:04:05"},
 	{"%%", "%"},
 }
+
+var ErrFloatMissingField = fmt.Errorf("Missing field")
+var ErrFloatFieldNull = fmt.Errorf("field was null")
+
+var ErrWithCodeConversionErr = utils.NewErrorWithCode(utils.CONVERSION_ERR,
+	sutils.ErrFloatConversionFailed)
+
+var ErrWithCodeFloatMissingField = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
+	ErrFloatMissingField)
+
+var ErrWithCodeFieldNull = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
+	ErrFloatFieldNull)
 
 func (self *DedupExpr) AcquireProcessedSegmentsLock() {
 	self.processedSegmentsLock.Lock()
@@ -1811,18 +1822,41 @@ func MatchAndExtractNamedGroups(str string, rexExp *regexp.Regexp) (map[string]s
 	if len(match) == 0 {
 		return nil, fmt.Errorf("MatchAndExtractNamedGroups: no str in field match the pattern")
 	}
-	if len(rexExp.SubexpNames()) == 0 {
+
+	names := rexExp.SubexpNames()
+	if len(names) == 0 {
 		return nil, fmt.Errorf("MatchAndExtractNamedGroups: no field create from the pattern")
 	}
 
-	result := make(map[string]string)
-	for i, name := range rexExp.SubexpNames() {
+	result := make(map[string]string, len(names))
+	for i, name := range names {
 		if i != 0 && name != "" {
 			result[name] = match[i]
 		}
 	}
 
 	return result, nil
+}
+
+func MatchAndPopulateNamedGroups(str string, rexExp *regexp.Regexp,
+	newColValues map[string][]sutils.CValueEnclosure, idx int) error {
+	match := rexExp.FindStringSubmatch(str)
+	if len(match) == 0 {
+		return fmt.Errorf("MatchAndPopulateNamedGroups: no str in field match the pattern")
+	}
+	names := rexExp.SubexpNames()
+	if len(names) == 0 {
+		return fmt.Errorf("MatchAndPopulateNamedGroups: no field create from the pattern")
+	}
+
+	for i, name := range names {
+		if i != 0 && name != "" {
+			newColValues[name][idx].Dtype = sutils.SS_DT_STRING
+			newColValues[name][idx].CVal = match[i]
+		}
+	}
+
+	return nil
 }
 
 func MatchAndExtractGroups(str string, rexExp *regexp.Regexp) (map[string]string, []string, error) {
@@ -2899,11 +2933,11 @@ func getValueAsString(fieldToValue map[string]sutils.CValueEnclosure, field stri
 func getValueAsFloat(fieldToValue map[string]sutils.CValueEnclosure, field string) (float64, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
-		return 0, utils.NewErrorWithCode(utils.NIL_VALUE_ERR, errors.New("getValueAsFloat: Missing field"))
+		return 0, ErrWithCodeFloatMissingField
 	}
 
 	if enclosure.IsNull() {
-		return 0, utils.NewErrorWithCode(utils.NIL_VALUE_ERR, errors.New("getValueAsFloat: Field was null"))
+		return 0, ErrWithCodeFieldNull
 	}
 
 	if value, err := enclosure.GetFloatValue(); err == nil {
@@ -2912,12 +2946,14 @@ func getValueAsFloat(fieldToValue map[string]sutils.CValueEnclosure, field strin
 
 	// Check if the string value is a number.
 	if enclosure.Dtype == sutils.SS_DT_STRING {
-		if value, err := strconv.ParseFloat(enclosure.CVal.(string), 64); err == nil {
+
+		value, err := utils.FastParseFloat([]byte(enclosure.CVal.(string)))
+		if err == nil {
 			return value, nil
 		}
 	}
 
-	return 0, utils.NewErrorWithCode(utils.CONVERSION_ERR, errors.New("getValueAsFloat: Cannot convert CValueEnclosure to float"))
+	return 0, ErrWithCodeConversionErr
 }
 
 func (self *SortValue) Compare(other *SortValue) (int, error) {

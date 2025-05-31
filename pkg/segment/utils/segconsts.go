@@ -591,6 +591,10 @@ type DtypeEnclosure struct {
 	RexpCompiled   regex.Regex
 }
 
+var ErrFloatConversionFailed = fmt.Errorf("Cannot convert CValueEnclosure to float")
+var ErrFloatUnsupportedType = fmt.Errorf("CValueEnclosure GetFloatValue: unsupported Dtype")
+var ErrFloatNilValue = fmt.Errorf("CValueEnclosure GetFloatValue: nil value")
+
 func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
@@ -1067,7 +1071,7 @@ func (e *CValueEnclosure) GetValueAsString() (string, error) {
 func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 	switch e.Dtype {
 	case SS_DT_STRING, SS_DT_BOOL:
-		return 0, errors.New("CValueEnclosure GetFloatValue: cannot convert to float")
+		return 0, ErrFloatConversionFailed
 	case SS_DT_UNSIGNED_NUM:
 		return float64(e.CVal.(uint64)), nil
 	case SS_DT_SIGNED_NUM:
@@ -1075,9 +1079,9 @@ func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 	case SS_DT_FLOAT:
 		return e.CVal.(float64), nil
 	case SS_DT_BACKFILL:
-		return 0, utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetFloatValue: nil value"))
+		return 0, ErrFloatNilValue
 	default:
-		return 0, errors.New("CValueEnclosure GetFloatValue: unsupported Dtype")
+		return 0, ErrFloatUnsupportedType
 	}
 }
 
