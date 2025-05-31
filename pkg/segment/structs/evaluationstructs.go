@@ -2903,7 +2903,7 @@ func getValueAsString(fieldToValue map[string]sutils.CValueEnclosure, field stri
 func getValueAsFloat(fieldToValue map[string]sutils.CValueEnclosure, field string) (float64, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
-		return 0, ErrFloatMissingField
+		return 0, utils.NewErrorWithCode(utils.NIL_VALUE_ERR, ErrFloatMissingField)
 	}
 
 	if enclosure.IsNull() {
@@ -2923,7 +2923,7 @@ func getValueAsFloat(fieldToValue map[string]sutils.CValueEnclosure, field strin
 		}
 	}
 
-	return 0, sutils.ErrFloatConversionFailed
+	return 0, utils.NewErrorWithCode(utils.CONVERSION_ERR, sutils.ErrFloatConversionFailed)
 }
 
 func (self *SortValue) Compare(other *SortValue) (int, error) {
