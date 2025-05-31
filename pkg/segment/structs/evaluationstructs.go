@@ -469,6 +469,15 @@ var timeFormatReplacements = []struct {
 var ErrFloatMissingField = fmt.Errorf("Missing field")
 var ErrFloatFieldNull = fmt.Errorf("field was null")
 
+var ErrWithCodeConversionErr = utils.NewErrorWithCode(utils.CONVERSION_ERR,
+	sutils.ErrFloatConversionFailed)
+
+var ErrWithCodeFloatMissingField = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
+	ErrFloatMissingField)
+
+var ErrWithCodeFieldNull = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
+	ErrFloatFieldNull)
+
 func (self *DedupExpr) AcquireProcessedSegmentsLock() {
 	self.processedSegmentsLock.Lock()
 }
@@ -1835,7 +1844,6 @@ func MatchAndPopulateNamedGroups(str string, rexExp *regexp.Regexp,
 	if len(match) == 0 {
 		return fmt.Errorf("MatchAndPopulateNamedGroups: no str in field match the pattern")
 	}
-
 	names := rexExp.SubexpNames()
 	if len(names) == 0 {
 		return fmt.Errorf("MatchAndPopulateNamedGroups: no field create from the pattern")
@@ -2925,11 +2933,11 @@ func getValueAsString(fieldToValue map[string]sutils.CValueEnclosure, field stri
 func getValueAsFloat(fieldToValue map[string]sutils.CValueEnclosure, field string) (float64, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
-		return 0, utils.NewErrorWithCode(utils.NIL_VALUE_ERR, ErrFloatMissingField)
+		return 0, ErrWithCodeFloatMissingField
 	}
 
 	if enclosure.IsNull() {
-		return 0, utils.NewErrorWithCode(utils.NIL_VALUE_ERR, ErrFloatFieldNull)
+		return 0, ErrWithCodeFieldNull
 	}
 
 	if value, err := enclosure.GetFloatValue(); err == nil {
@@ -2945,7 +2953,7 @@ func getValueAsFloat(fieldToValue map[string]sutils.CValueEnclosure, field strin
 		}
 	}
 
-	return 0, utils.NewErrorWithCode(utils.CONVERSION_ERR, sutils.ErrFloatConversionFailed)
+	return 0, ErrWithCodeConversionErr
 }
 
 func (self *SortValue) Compare(other *SortValue) (int, error) {
