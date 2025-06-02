@@ -71,19 +71,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
             <div class="header-container">
                 <div id="breadcrumb"></div>
-                <div class="d-flex align-items-center">
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle btn-grey w-100" data-toggle="dropdown"
-                            aria-haspopup="false" aria-expanded="false" data-bs-toggle="dropdown">
-                            <span style="margin-right: 6px;">Folder Action</span>
-                            <i class="dropdown-arrow"></i>
-                        </button>
-                        <div class="dropdown-menu box-shadow dropdown-menu-style dd-width-150">
-                            <li class="dropdown-option" id="move-folder">Move</li>
-                            <li class="dropdown-option" id="delete-folder">Delete</li>
+                <div class="d-flex align-items-center justify-content-between w-100" id="folder-actions">
+                    <div class="d-flex align-items-center">
+                        <div class="dropdown">
+                            <button class="btn dropdown-toggle btn-grey w-100" data-toggle="dropdown"
+                                aria-haspopup="false" aria-expanded="false" data-bs-toggle="dropdown">
+                                <span style="margin-right: 6px;">Folder Action</span>
+                                <i class="dropdown-arrow"></i>
+                            </button>
+                            <div class="dropdown-menu box-shadow dropdown-menu-style dd-width-150">
+                                <li class="dropdown-option" id="move-folder">Move</li>
+                                <li class="dropdown-option" id="delete-folder">Delete</li>
+                            </div>
                         </div>
+                        <div id="add-new-container" style="margin-left: 10px;"></div>
                     </div>
-                    <div id="add-new-container" style="margin-left: 10px;"></div>
                 </div>
             </div>
 

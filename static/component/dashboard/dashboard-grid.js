@@ -175,7 +175,7 @@ class DashboardGrid {
             const dashDiv = document.createElement('div');
             dashDiv.style.display = 'flex';
             dashDiv.style.alignItems = 'center';
-            dashDiv.style.paddingLeft = `${indentPadding + 33}px`;
+            dashDiv.style.paddingLeft = `${indentPadding + 27}px`;
 
             const icon = document.createElement('i');
             icon.className = 'fa fa-columns';
@@ -199,7 +199,7 @@ class DashboardGrid {
         div.style.alignItems = 'center';
         if (useIndentation) {
             const indentLevel = this.getIndentLevel(params.data);
-            const indentPadding = indentLevel * 20 + 33;
+            const indentPadding = indentLevel * 20 + 27;
             div.style.paddingLeft = `${indentPadding}px`;
         }
         div.style.color = '#666';

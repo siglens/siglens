@@ -197,13 +197,19 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 	subsearchers[1].sortIndexState.forceNormalSearch = true
 	subsearchers[1].segEncToKeyBaseValue += uint32(len(sortIndexQSRs))
 
+	streams := make([]*CachedStream, 0, len(subsearchers))
+	for _, searcher := range subsearchers {
+		streams = append(streams, NewCachedStream(searcher))
+	}
+	merger := NewPassThroughDPWithStreams(streams)
+
+	// Set the less() function for the merger. We'll make a SortDP so we can
+	// easily get the correct less() function from the sort expression, but we
+	// won't really use the SortDP for sorting, since we know each input stream
+	// is already sorted.
 	sortExpr := searcher.sortExpr.ShallowCopy()
 	sortExpr.Limit = math.MaxInt64
-	merger := NewSortDP(sortExpr) // TODO: use a mergeDP, since each stream is already sorted.
-	for _, searcher := range subsearchers {
-		merger.streams = append(merger.streams, NewCachedStream(searcher))
-	}
-	merger.SetMergeSettingsBasedOnStream(merger)
+	merger.SetMergeSettingsBasedOnStream(NewSortDP(sortExpr))
 
 	return &subsearch{
 		subsearchers: subsearchers,
@@ -1461,24 +1467,14 @@ func getPQMR(blocks []*block) (*pqmr.SegmentPQMRResults, error) {
 		return nil, nil
 	}
 
-	// Each block should have come from the same PQMR.
-	firstPQMR, ok := blocks[0].parentPQMR.Get()
-	if !ok {
-		return nil, utils.TeeErrorf("getPQMR: first block has no PQMR")
-	}
-
+	finalPQMR := pqmr.InitSegmentPQMResults()
 	for _, block := range blocks {
 		pqmr, ok := block.parentPQMR.Get()
 		if !ok {
 			return nil, utils.TeeErrorf("getPQMR: block has no PQMR")
-		} else if pqmr != firstPQMR {
-			return nil, utils.TeeErrorf("getPQMR: blocks are from different PQMRs")
 		}
-	}
 
-	finalPQMR := pqmr.InitSegmentPQMResults()
-	for _, block := range blocks {
-		blockResults, ok := firstPQMR.GetBlockResults(block.BlkNum)
+		blockResults, ok := pqmr.GetBlockResults(block.BlkNum)
 		if !ok {
 			return nil, utils.TeeErrorf("getPQMR: block %v not found", block.BlkNum)
 		}
