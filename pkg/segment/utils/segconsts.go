@@ -33,6 +33,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/regex"
 	"github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/common/option"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -691,12 +692,12 @@ func (nte *NumTypeEnclosure) ToCValueEnclosure() (*CValueEnclosure, error) {
 	case SS_DT_FLOAT:
 		return &CValueEnclosure{
 			Dtype: SS_DT_FLOAT,
-			CVal:  nte.FloatVal,
+			CVal:  option.Some[any](nte.FloatVal),
 		}, nil
 	case SS_DT_SIGNED_NUM, SS_DT_SIGNED_32_NUM, SS_DT_SIGNED_16_NUM, SS_DT_SIGNED_8_NUM:
 		return &CValueEnclosure{
 			Dtype: nte.Ntype,
-			CVal:  nte.IntgrVal,
+			CVal:  option.Some[any](nte.IntgrVal),
 		}, nil
 	default:
 		return nil, fmt.Errorf("ToCValueEnclosure: unexpected Ntype: %v", nte.Ntype)
@@ -718,19 +719,19 @@ func (cval *CValueEnclosure) ToNumber(number *Number) error {
 
 	switch cval.Dtype {
 	case SS_DT_FLOAT:
-		val, ok := cval.CVal.(float64)
+		val, ok := cval.CVal.UnwrapOr(nil).(float64)
 		if !ok {
 			return fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
 		}
 		number.SetFloat64(val)
 	case SS_DT_SIGNED_NUM:
-		val, ok := cval.CVal.(int64)
+		val, ok := cval.CVal.UnwrapOr(nil).(int64)
 		if !ok {
 			return fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
 		}
 		number.SetInt64(int64(val))
 	case SS_DT_UNSIGNED_NUM:
-		val, ok := cval.CVal.(uint64)
+		val, ok := cval.CVal.UnwrapOr(nil).(uint64)
 		if !ok {
 			return fmt.Errorf("ToNumber: unexpected Dtype: %v", cval.Dtype)
 		}
@@ -752,15 +753,15 @@ func (cval *CValueEnclosure) ToNumType(res *NumTypeEnclosure) error {
 	switch cval.Dtype {
 	case SS_DT_FLOAT:
 		res.Ntype = SS_DT_FLOAT
-		res.FloatVal = cval.CVal.(float64)
+		res.FloatVal = cval.CVal.UnwrapOr(float64(0)).(float64)
 		return nil
 	case SS_DT_SIGNED_NUM:
 		res.Ntype = SS_DT_SIGNED_NUM
-		res.IntgrVal = cval.CVal.(int64)
+		res.IntgrVal = cval.CVal.UnwrapOr(int64(0)).(int64)
 		return nil
 	case SS_DT_UNSIGNED_NUM:
 		res.Ntype = SS_DT_UNSIGNED_NUM
-		res.IntgrVal = int64(cval.CVal.(uint64))
+		res.IntgrVal = int64(cval.CVal.UnwrapOr(uint64(0)).(uint64))
 		return nil
 	case SS_DT_BACKFILL:
 		res.Ntype = SS_DT_BACKFILL
@@ -887,8 +888,8 @@ func (dte *DtypeEnclosure) GetValue() (interface{}, error) {
 }
 
 type CValueEnclosure struct {
-	Dtype SS_DTYPE
-	CVal  interface{}
+    Dtype SS_DTYPE
+    CVal  option.Option[any]
 }
 
 func (e *CValueEnclosure) Equal(other *CValueEnclosure) bool {
@@ -898,15 +899,15 @@ func (e *CValueEnclosure) Equal(other *CValueEnclosure) bool {
 
 	switch e.Dtype {
 	case SS_DT_STRING:
-		return e.CVal.(string) == other.CVal.(string)
+		return e.CVal.UnwrapOr(nil).(string) == other.CVal.UnwrapOr(nil).(string)
 	case SS_DT_BOOL:
-		return e.CVal.(bool) == other.CVal.(bool)
+		return e.CVal.UnwrapOr(nil).(bool) == other.CVal.UnwrapOr(nil).(bool)
 	case SS_DT_UNSIGNED_NUM:
-		return e.CVal.(uint64) == other.CVal.(uint64)
+		return e.CVal.UnwrapOr(nil).(uint64) == other.CVal.UnwrapOr(nil).(uint64)
 	case SS_DT_SIGNED_NUM:
-		return e.CVal.(int64) == other.CVal.(int64)
+		return e.CVal.UnwrapOr(nil).(int64) == other.CVal.UnwrapOr(nil).(int64)
 	case SS_DT_FLOAT:
-		return math.Abs(e.CVal.(float64)-other.CVal.(float64)) < 1e-6
+		return math.Abs(e.CVal.UnwrapOr(nil).(float64) - other.CVal.UnwrapOr(nil).(float64)) < 1e-6
 	case SS_DT_BACKFILL:
 		return true
 	default:
@@ -921,15 +922,15 @@ func (e *CValueEnclosure) Hash() uint64 {
 
 	switch e.Dtype {
 	case SS_DT_STRING:
-		bytes = append(bytes, []byte(e.CVal.(string))...)
+		bytes = append(bytes, []byte(e.CVal.UnwrapOr(nil).(string))...)
 	case SS_DT_BOOL:
-		bytes = append(bytes, []byte(strconv.FormatBool(e.CVal.(bool)))...)
+		bytes = append(bytes, []byte(strconv.FormatBool(e.CVal.UnwrapOr(nil).(bool)))...)
 	case SS_DT_UNSIGNED_NUM:
-		bytes = append(bytes, []byte(strconv.FormatUint(e.CVal.(uint64), 10))...)
+		bytes = append(bytes, []byte(strconv.FormatUint(e.CVal.UnwrapOr(nil).(uint64), 10))...)
 	case SS_DT_SIGNED_NUM:
-		bytes = append(bytes, []byte(strconv.FormatInt(e.CVal.(int64), 10))...)
+		bytes = append(bytes, []byte(strconv.FormatInt(e.CVal.UnwrapOr(nil).(int64), 10))...)
 	case SS_DT_FLOAT:
-		bytes = append(bytes, []byte(strconv.FormatFloat(e.CVal.(float64), 'f', -1, 64))...)
+		bytes = append(bytes, []byte(strconv.FormatFloat(e.CVal.UnwrapOr(nil).(float64), 'f', -1, 64))...)
 	case SS_DT_BACKFILL:
 		// Do nothing.
 	case SS_INVALID:
@@ -947,49 +948,49 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 	switch val := val.(type) {
 	case string:
 		e.Dtype = SS_DT_STRING
-		e.CVal = val
+		e.CVal = option.Some[any](val)
 	case []string:
 		e.Dtype = SS_DT_STRING_SLICE
-		e.CVal = val
+		e.CVal = option.Some[any](val)
 	case bool:
 		e.Dtype = SS_DT_BOOL
-		e.CVal = val
+		e.CVal = option.Some[any](val)
 	case uint8:
 		e.Dtype = SS_DT_UNSIGNED_NUM
-		e.CVal = uint64(val)
+		e.CVal = option.Some[any](uint64(val))
 	case uint16:
 		e.Dtype = SS_DT_UNSIGNED_NUM
-		e.CVal = uint64(val)
+		e.CVal = option.Some[any](uint64(val))
 	case uint32:
 		e.Dtype = SS_DT_UNSIGNED_NUM
-		e.CVal = uint64(val)
+		e.CVal = option.Some[any](uint64(val))
 	case uint64:
 		e.Dtype = SS_DT_UNSIGNED_NUM
-		e.CVal = val
+		e.CVal = option.Some[any](val)
 	case uint:
 		e.Dtype = SS_DT_UNSIGNED_NUM
-		e.CVal = uint64(val)
+		e.CVal = option.Some[any](uint64(val))
 	case int8:
 		e.Dtype = SS_DT_SIGNED_NUM
-		e.CVal = int64(val)
+		e.CVal = option.Some[any](int64(val))
 	case int16:
 		e.Dtype = SS_DT_SIGNED_NUM
-		e.CVal = int64(val)
+		e.CVal = option.Some[any](int64(val))
 	case int32:
 		e.Dtype = SS_DT_SIGNED_NUM
-		e.CVal = int64(val)
+		e.CVal = option.Some[any](int64(val))
 	case int64:
 		e.Dtype = SS_DT_SIGNED_NUM
-		e.CVal = val
+		e.CVal = option.Some[any](val)
 	case int:
 		e.Dtype = SS_DT_SIGNED_NUM
-		e.CVal = int64(val)
+		e.CVal = option.Some[any](int64(val))
 	case float64:
 		e.Dtype = SS_DT_FLOAT
-		e.CVal = val
+		e.CVal = option.Some[any](val)
 	case nil:
 		e.Dtype = SS_DT_BACKFILL
-		e.CVal = nil
+		e.CVal = option.None[any]()
 	default:
 		return fmt.Errorf("ConvertValue: unsupported type: %T", val)
 	}
@@ -999,19 +1000,19 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 func (e *CValueEnclosure) GetValue() (interface{}, error) {
 	switch e.Dtype {
 	case SS_DT_STRING_SET:
-		return e.CVal.(map[string]struct{}), nil
+		return e.CVal.UnwrapOr(nil).(map[string]struct{}), nil
 	case SS_DT_STRING:
-		return e.CVal.(string), nil
+		return e.CVal.UnwrapOr(nil).(string), nil
 	case SS_DT_STRING_SLICE:
-		return e.CVal.([]string), nil
+		return e.CVal.UnwrapOr(nil).([]string), nil
 	case SS_DT_BOOL:
-		return e.CVal.(bool), nil
+		return e.CVal.UnwrapOr(nil).(bool), nil
 	case SS_DT_UNSIGNED_NUM:
-		return e.CVal.(uint64), nil
+		return e.CVal.UnwrapOr(nil).(uint64), nil
 	case SS_DT_SIGNED_NUM:
-		return e.CVal.(int64), nil
+		return e.CVal.UnwrapOr(nil).(int64), nil
 	case SS_DT_FLOAT:
-		return e.CVal.(float64), nil
+		return e.CVal.UnwrapOr(nil).(float64), nil
 	case SS_DT_BACKFILL:
 		return nil, nil
 	default:
@@ -1023,17 +1024,17 @@ func (e *CValueEnclosure) GetValue() (interface{}, error) {
 func (e *CValueEnclosure) GetString() (string, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
-		return e.CVal.(string), nil
+		return e.CVal.UnwrapOr("").(string), nil
 	case SS_DT_STRING_SLICE:
-		return fmt.Sprintf("%v", e.CVal.([]string)), nil
+		return fmt.Sprintf("%v", e.CVal.UnwrapOr(nil).([]string)), nil
 	case SS_DT_BOOL:
-		return strconv.FormatBool(e.CVal.(bool)), nil
+		return strconv.FormatBool(e.CVal.UnwrapOr(false).(bool)), nil
 	case SS_DT_UNSIGNED_NUM:
-		return strconv.FormatUint(e.CVal.(uint64), 10), nil
+		return strconv.FormatUint(e.CVal.UnwrapOr(uint64(0)).(uint64), 10), nil
 	case SS_DT_SIGNED_NUM:
-		return strconv.FormatInt(e.CVal.(int64), 10), nil
+		return strconv.FormatInt(e.CVal.UnwrapOr(int64(0)).(int64), 10), nil
 	case SS_DT_FLOAT:
-		return fmt.Sprintf("%f", e.CVal.(float64)), nil
+		return fmt.Sprintf("%f", e.CVal.UnwrapOr(float64(0)).(float64)), nil
 	case SS_DT_BACKFILL:
 		return "", utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetString: nil value"))
 	default:
@@ -1041,22 +1042,23 @@ func (e *CValueEnclosure) GetString() (string, error) {
 	}
 }
 
+
 func (e *CValueEnclosure) GetValueAsString() (string, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
-		return e.CVal.(string), nil
+		return e.CVal.UnwrapOr("").(string), nil
 	case SS_DT_STRING_SLICE:
-		return fmt.Sprintf("%v", e.CVal.([]string)), nil
+		return fmt.Sprintf("%v", e.CVal.UnwrapOr(nil).([]string)), nil
 	case SS_DT_STRING_SET:
-		return fmt.Sprintf("%v", e.CVal.(map[string]struct{})), nil
+		return fmt.Sprintf("%v", e.CVal.UnwrapOr(nil).(map[string]struct{})), nil
 	case SS_DT_BOOL:
-		return strconv.FormatBool(e.CVal.(bool)), nil
+		return strconv.FormatBool(e.CVal.UnwrapOr(false).(bool)), nil
 	case SS_DT_UNSIGNED_NUM:
-		return strconv.FormatUint(e.CVal.(uint64), 10), nil
+		return strconv.FormatUint(e.CVal.UnwrapOr(uint64(0)).(uint64), 10), nil
 	case SS_DT_SIGNED_NUM:
-		return strconv.FormatInt(e.CVal.(int64), 10), nil
+		return strconv.FormatInt(e.CVal.UnwrapOr(int64(0)).(int64), 10), nil
 	case SS_DT_FLOAT:
-		return fmt.Sprintf("%f", e.CVal.(float64)), nil
+		return fmt.Sprintf("%f", e.CVal.UnwrapOr(float64(0)).(float64)), nil
 	case SS_DT_BACKFILL:
 		return "", nil
 	default:
@@ -1069,11 +1071,11 @@ func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 	case SS_DT_STRING, SS_DT_BOOL:
 		return 0, errors.New("CValueEnclosure GetFloatValue: cannot convert to float")
 	case SS_DT_UNSIGNED_NUM:
-		return float64(e.CVal.(uint64)), nil
+		return float64(e.CVal.UnwrapOr(uint64(0)).(uint64)), nil
 	case SS_DT_SIGNED_NUM:
-		return float64(e.CVal.(int64)), nil
+		return float64(e.CVal.UnwrapOr(int64(0)).(int64)), nil
 	case SS_DT_FLOAT:
-		return e.CVal.(float64), nil
+		return e.CVal.UnwrapOr(float64(0)).(float64), nil
 	case SS_DT_BACKFILL:
 		return 0, utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetFloatValue: nil value"))
 	default:
@@ -1084,7 +1086,7 @@ func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 func (e *CValueEnclosure) GetFloatValueIfPossible() (float64, bool) {
 	switch e.Dtype {
 	case SS_DT_STRING:
-		strVal := e.CVal.(string)
+		strVal := e.CVal.UnwrapOr("").(string)
 		if !utils.MightBeFloat(strVal) {
 			return 0, false
 		}
@@ -1094,12 +1096,16 @@ func (e *CValueEnclosure) GetFloatValueIfPossible() (float64, bool) {
 			return 0, false
 		}
 		return floatVal, true
+
 	case SS_DT_UNSIGNED_NUM:
-		return float64(e.CVal.(uint64)), true
+		return float64(e.CVal.UnwrapOr(uint64(0)).(uint64)), true
+
 	case SS_DT_SIGNED_NUM:
-		return float64(e.CVal.(int64)), true
+		return float64(e.CVal.UnwrapOr(int64(0)).(int64)), true
+
 	case SS_DT_FLOAT:
-		return e.CVal.(float64), true
+		return e.CVal.UnwrapOr(float64(0)).(float64), true
+
 	default:
 		return 0, false
 	}
@@ -1114,22 +1120,27 @@ if its a string, xxhashed and returns it
 func (e *CValueEnclosure) GetUIntValue() (uint64, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
-		return xxhash.Sum64String(e.CVal.(string)), nil
+		return xxhash.Sum64String(e.CVal.UnwrapOr("").(string)), nil
+
 	case SS_DT_BACKFILL:
 		return 0, nil
+
 	case SS_DT_BOOL:
-		if e.CVal.(bool) {
+		if e.CVal.UnwrapOr(false).(bool) {
 			return 1, nil
 		} else {
 			return 0, nil
 		}
-	// Treat it as a Uint64; using it as a 4-byte object, not a number
+
 	case SS_DT_UNSIGNED_NUM:
-		return e.CVal.(uint64), nil
+		return e.CVal.UnwrapOr(uint64(0)).(uint64), nil
+
 	case SS_DT_FLOAT:
-		return uint64(e.CVal.(float64)), nil
+		return uint64(e.CVal.UnwrapOr(float64(0)).(float64)), nil
+
 	case SS_DT_SIGNED_NUM:
-		return uint64(e.CVal.(int64)), nil
+		return uint64(e.CVal.UnwrapOr(int64(0)).(int64)), nil
+
 	default:
 		return 0, errors.New("CValueEnclosure GetUIntValue: unsupported Dtype")
 	}
@@ -1144,25 +1155,32 @@ if its a string, try to parse as int64, if fails, xxhashes and returns it
 func (e *CValueEnclosure) GetIntValue() (int64, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
-		int64Val, err := strconv.ParseInt(e.CVal.(string), 10, 64)
+		strVal := e.CVal.UnwrapOr("").(string)
+		int64Val, err := strconv.ParseInt(strVal, 10, 64)
 		if err != nil {
-			int64Val = int64(xxhash.Sum64String(e.CVal.(string)))
+			int64Val = int64(xxhash.Sum64String(strVal))
 		}
 		return int64Val, nil
+
 	case SS_DT_BACKFILL:
 		return 0, nil
+
 	case SS_DT_BOOL:
-		if e.CVal.(bool) {
+		if e.CVal.UnwrapOr(false).(bool) {
 			return 1, nil
 		} else {
 			return 0, nil
 		}
+
 	case SS_DT_UNSIGNED_NUM:
-		return int64(e.CVal.(uint64)), nil
+		return int64(e.CVal.UnwrapOr(uint64(0)).(uint64)), nil
+
 	case SS_DT_SIGNED_NUM:
-		return e.CVal.(int64), nil
+		return e.CVal.UnwrapOr(int64(0)).(int64), nil
+
 	case SS_DT_FLOAT:
-		return int64(e.CVal.(float64)), nil
+		return int64(e.CVal.UnwrapOr(float64(0)).(float64)), nil
+
 	default:
 		return 0, fmt.Errorf("CValueEnclosure GetIntValue: unsupported Dtype: %v", e.Dtype)
 	}
@@ -1185,8 +1203,8 @@ func (e *CValueEnclosure) getWriteTotalBytesSize() int {
 		size += 8 // for the value
 	case SS_DT_STRING:
 		size += 1 // for the type
-		strLen := len(e.CVal.(string))
-		sizeOfStrLen := 2    // 2 bytes
+		strLen := len(e.CVal.UnwrapOr("").(string))
+		sizeOfStrLen := 2 // 2 bytes
 		size += sizeOfStrLen // for the length of the string
 		size += strLen       // for the string
 	case SS_DT_BACKFILL:
@@ -1224,7 +1242,7 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, 
 	case SS_DT_BOOL:
 		copy(buf[bufIdx:], VALTYPE_ENC_BOOL)
 		bufIdx += 1
-		if e.CVal.(bool) {
+		if e.CVal.UnwrapOr(false).(bool) {
 			buf[bufIdx] = 1
 		} else {
 			buf[bufIdx] = 0
@@ -1233,22 +1251,25 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, 
 	case SS_DT_UNSIGNED_NUM:
 		copy(buf[bufIdx:], VALTYPE_ENC_UINT64)
 		bufIdx += 1
-		utils.Uint64ToBytesLittleEndianInplace(e.CVal.(uint64), buf[bufIdx:bufIdx+8])
+		utils.Uint64ToBytesLittleEndianInplace(e.CVal.UnwrapOr(uint64(0)).(uint64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
+
 	case SS_DT_SIGNED_NUM:
 		copy(buf[bufIdx:], VALTYPE_ENC_INT64)
 		bufIdx += 1
-		utils.Int64ToBytesLittleEndianInplace(e.CVal.(int64), buf[bufIdx:bufIdx+8])
+		utils.Int64ToBytesLittleEndianInplace(e.CVal.UnwrapOr(int64(0)).(int64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
+
 	case SS_DT_FLOAT:
 		copy(buf[bufIdx:], VALTYPE_ENC_FLOAT64)
 		bufIdx += 1
-		utils.Float64ToBytesLittleEndianInplace(e.CVal.(float64), buf[bufIdx:bufIdx+8])
+		utils.Float64ToBytesLittleEndianInplace(e.CVal.UnwrapOr(float64(0)).(float64), buf[bufIdx:bufIdx+8])
 		bufIdx += 8
+
 	case SS_DT_STRING:
 		copy(buf[bufIdx:], VALTYPE_ENC_SMALL_STRING)
 		bufIdx += 1
-		strBytes := []byte(e.CVal.(string))
+		strBytes := []byte(e.CVal.UnwrapOr("").(string))
 		strLen := len(strBytes)
 		copy(buf[bufIdx:], utils.Uint16ToBytesLittleEndian(uint16(strLen)))
 		bufIdx += 2
@@ -1288,7 +1309,7 @@ func (e *CValueEnclosure) WriteBytes(writer io.Writer) (int, error) {
 	case SS_DT_BOOL:
 		size += 1
 		_, typeErr = writer.Write(VALTYPE_ENC_BOOL)
-		value, ok := e.CVal.(bool)
+		value, ok := e.CVal.UnwrapOr(false).(bool)
 		if !ok {
 			return 0, fmt.Errorf("WriteBytes: error converting value %v to bool", e.CVal)
 		}
@@ -1301,31 +1322,35 @@ func (e *CValueEnclosure) WriteBytes(writer io.Writer) (int, error) {
 	case SS_DT_UNSIGNED_NUM:
 		size += 8
 		_, typeErr = writer.Write(VALTYPE_ENC_UINT64)
-		if value, ok := e.CVal.(uint64); ok {
+		if value, ok := e.CVal.UnwrapOr(uint64(0)).(uint64); ok {
 			_, valErr = writer.Write(utils.Uint64ToBytesLittleEndian(value))
 		} else {
 			return 0, fmt.Errorf("WriteBytes: error converting value %v to uint64", e.CVal)
 		}
+
 	case SS_DT_SIGNED_NUM:
 		size += 8
 		_, typeErr = writer.Write(VALTYPE_ENC_INT64)
-		if value, ok := e.CVal.(int64); ok {
+		if value, ok := e.CVal.UnwrapOr(int64(0)).(int64); ok {
 			_, valErr = writer.Write(utils.Int64ToBytesLittleEndian(value))
 		} else {
 			return 0, fmt.Errorf("WriteBytes: error converting value %v to int64", e.CVal)
 		}
+
 	case SS_DT_FLOAT:
 		size += 8
 		_, typeErr = writer.Write(VALTYPE_ENC_FLOAT64)
-		if value, ok := e.CVal.(float64); ok {
+		if value, ok := e.CVal.UnwrapOr(float64(0)).(float64); ok {
 			_, valErr = writer.Write(utils.Float64ToBytesLittleEndian(value))
 		} else {
 			return 0, fmt.Errorf("WriteBytes: error converting value %v to float64", e.CVal)
 		}
+
 	case SS_DT_STRING:
 		size += 2
 		_, typeErr = writer.Write(VALTYPE_ENC_SMALL_STRING)
-		value, ok := e.CVal.(string)
+		value, ok := e.CVal.UnwrapOr("").(string)
+
 		if !ok {
 			return 0, fmt.Errorf("WriteBytes: error converting value %v to string", e.CVal)
 		}
@@ -1370,7 +1395,7 @@ func (e *CValueEnclosure) FromBytes(buf []byte) (int, error) {
 		}
 		boolVal := buf[idx]
 		idx += 1
-		e.CVal = (boolVal == 1)
+		e.CVal = option.Some[any](boolVal == 1)
 		e.Dtype = SS_DT_BOOL
 	case VALTYPE_ENC_UINT64[0]:
 		if len(buf) < idx+8 {
@@ -1378,24 +1403,27 @@ func (e *CValueEnclosure) FromBytes(buf []byte) (int, error) {
 		}
 		uint64Val := utils.BytesToUint64LittleEndian(buf[idx : idx+8])
 		idx += 8
-		e.CVal = uint64Val
+		e.CVal = option.Some[any](uint64Val)
 		e.Dtype = SS_DT_UNSIGNED_NUM
-	case VALTYPE_ENC_INT64[0]:
-		if len(buf) < idx+8 {
-			return 0, errors.New("CVal.FromBytes: not enough bytes for int64")
-		}
-		int64Val := utils.BytesToInt64LittleEndian(buf[idx : idx+8])
-		idx += 8
-		e.CVal = int64Val
-		e.Dtype = SS_DT_SIGNED_NUM
-	case VALTYPE_ENC_FLOAT64[0]:
-		if len(buf) < idx+8 {
-			return 0, errors.New("CVal.FromBytes: not enough bytes for float64")
-		}
-		float64Val := utils.BytesToFloat64LittleEndian(buf[idx : idx+8])
-		idx += 8
-		e.CVal = float64Val
-		e.Dtype = SS_DT_FLOAT
+
+		case VALTYPE_ENC_INT64[0]:
+			if len(buf) < idx+8 {
+				return 0, errors.New("CVal.FromBytes: not enough bytes for int64")
+			}
+			int64Val := utils.BytesToInt64LittleEndian(buf[idx : idx+8])
+			idx += 8
+			e.CVal = option.Some[any](int64Val)
+			e.Dtype = SS_DT_SIGNED_NUM
+
+		case VALTYPE_ENC_FLOAT64[0]:
+			if len(buf) < idx+8 {
+				return 0, errors.New("CVal.FromBytes: not enough bytes for float64")
+			}
+			float64Val := utils.BytesToFloat64LittleEndian(buf[idx : idx+8])
+			idx += 8
+			e.CVal = option.Some[any](float64Val)
+			e.Dtype = SS_DT_FLOAT
+
 	case VALTYPE_ENC_SMALL_STRING[0]:
 		if len(buf) < idx+2 {
 			return 0, errors.New("CVal.FromBytes: not enough bytes for string length")
@@ -1407,10 +1435,10 @@ func (e *CValueEnclosure) FromBytes(buf []byte) (int, error) {
 		}
 		strVal := string(buf[idx : idx+strLen])
 		idx += strLen
-		e.CVal = strVal
+		e.CVal = option.Some[any](strVal)
 		e.Dtype = SS_DT_STRING
 	case VALTYPE_ENC_BACKFILL[0]:
-		e.CVal = nil
+		e.CVal = option.None[any]()
 		e.Dtype = SS_DT_BACKFILL
 	default:
 		return 0, fmt.Errorf("CVal.FromBytes: unsupported Dtype: %v", valtype)
@@ -1436,9 +1464,10 @@ func (e *CValueEnclosure) FromReader(reader io.Reader) (int, error) {
 			return 0, fmt.Errorf("CVal.FromReader: failed reading bool value: %v", err)
 		}
 
-		e.CVal = (boolVal == 1)
+		e.CVal = option.Some[any](boolVal == 1)
 		e.Dtype = SS_DT_BOOL
 		idx += 1
+
 	case VALTYPE_ENC_UINT64[0]:
 		var uint64Val uint64
 		err = binary.Read(reader, binary.LittleEndian, &uint64Val)
@@ -1446,9 +1475,10 @@ func (e *CValueEnclosure) FromReader(reader io.Reader) (int, error) {
 			return 0, fmt.Errorf("CVal.FromReader: failed reading uint64 value: %v", err)
 		}
 
-		e.CVal = uint64Val
+		e.CVal = option.Some[any](uint64Val)
 		e.Dtype = SS_DT_UNSIGNED_NUM
 		idx += 8
+
 	case VALTYPE_ENC_INT64[0]:
 		var int64Val int64
 		err = binary.Read(reader, binary.LittleEndian, &int64Val)
@@ -1456,9 +1486,10 @@ func (e *CValueEnclosure) FromReader(reader io.Reader) (int, error) {
 			return 0, fmt.Errorf("CVal.FromReader: failed reading int64 value: %v", err)
 		}
 
-		e.CVal = int64Val
+		e.CVal = option.Some[any](int64Val)
 		e.Dtype = SS_DT_SIGNED_NUM
 		idx += 8
+
 	case VALTYPE_ENC_FLOAT64[0]:
 		var float64Val float64
 		err = binary.Read(reader, binary.LittleEndian, &float64Val)
@@ -1466,9 +1497,10 @@ func (e *CValueEnclosure) FromReader(reader io.Reader) (int, error) {
 			return 0, fmt.Errorf("CVal.FromReader: failed reading float64 value: %v", err)
 		}
 
-		e.CVal = float64Val
+		e.CVal = option.Some[any](float64Val)
 		e.Dtype = SS_DT_FLOAT
 		idx += 8
+
 	case VALTYPE_ENC_SMALL_STRING[0]:
 		// Read len of value
 		var valueLen uint16
@@ -1483,12 +1515,13 @@ func (e *CValueEnclosure) FromReader(reader io.Reader) (int, error) {
 			return 0, fmt.Errorf("CVal.FromReader: failed reading value: %v", err)
 		}
 
-		e.CVal = string(valueBytes)
+		e.CVal = option.Some[any](string(valueBytes))
 		e.Dtype = SS_DT_STRING
 		idx += 2 + int(valueLen)
+
 	case VALTYPE_ENC_BACKFILL[0]:
 		e.Dtype = SS_DT_BACKFILL
-		e.CVal = nil
+		e.CVal = option.None[any]()
 	default:
 		return idx, fmt.Errorf("CVal.FromReader: invalid DType: %v", encoding)
 	}
@@ -1497,7 +1530,7 @@ func (e *CValueEnclosure) FromReader(reader io.Reader) (int, error) {
 }
 
 func (e *CValueEnclosure) IsNull() bool {
-	return e.Dtype == SS_DT_BACKFILL || e.Dtype == SS_INVALID || e.CVal == nil
+    return !e.CVal.IsSome() || e.Dtype == SS_DT_BACKFILL || e.Dtype == SS_INVALID
 }
 
 func (e *CValueEnclosure) IsString() bool {
@@ -1529,44 +1562,44 @@ func (e *CValueEnclosure) IsUnsignedInt() bool {
 }
 
 type CValueDictEnclosure struct {
-	Dtype       SS_DTYPE
-	CValString  string
-	CValBool    bool
-	CValUInt64  uint64
-	CValInt64   int64
-	CValFloat64 float64
-	CValUInt32  uint32
-	CValInt32   int32
-	CValUInt16  uint16
-	CValInt16   int16
-	CValUInt    uint8
-	CValInt     int8
+    Dtype       SS_DTYPE
+    CValString  option.Option[string]
+    CValBool    option.Option[bool]
+    CValUInt64  option.Option[uint64]
+    CValInt64   option.Option[int64]
+    CValFloat64 option.Option[float64]
+    CValUInt32  option.Option[uint32]
+    CValInt32   option.Option[int32]
+    CValUInt16  option.Option[uint16]
+    CValInt16   option.Option[int16]
+    CValUInt    option.Option[uint8]
+    CValInt     option.Option[int8]
 }
 
 func (e *CValueDictEnclosure) GetValue() (interface{}, error) {
 	switch e.Dtype {
 	case SS_DT_STRING:
-		return e.CValString, nil
+		return e.CValString.UnwrapOr(""), nil
 	case SS_DT_BOOL:
-		return e.CValBool, nil
+		return e.CValBool.UnwrapOr(false), nil
 	case SS_DT_UNSIGNED_NUM:
-		return e.CValUInt64, nil
+		return e.CValUInt64.UnwrapOr(uint64(0)), nil
 	case SS_DT_SIGNED_NUM:
-		return e.CValInt64, nil
+		return e.CValInt64.UnwrapOr(int64(0)), nil
 	case SS_DT_FLOAT:
-		return e.CValFloat64, nil
+		return e.CValFloat64.UnwrapOr(float64(0)), nil
 	case SS_DT_USIGNED_32_NUM:
-		return e.CValUInt32, nil
+		return e.CValUInt32.UnwrapOr(uint32(0)), nil
 	case SS_DT_SIGNED_32_NUM:
-		return e.CValInt32, nil
+		return e.CValInt32.UnwrapOr(int32(0)), nil
 	case SS_DT_USIGNED_16_NUM:
-		return e.CValUInt16, nil
+		return e.CValUInt16.UnwrapOr(uint16(0)), nil
 	case SS_DT_SIGNED_16_NUM:
-		return e.CValInt16, nil
+		return e.CValInt16.UnwrapOr(int16(0)), nil
 	case SS_DT_USIGNED_8_NUM:
-		return e.CValUInt, nil
+		return e.CValUInt.UnwrapOr(uint8(0)), nil
 	case SS_DT_SIGNED_8_NUM:
-		return e.CValInt, nil
+		return e.CValInt.UnwrapOr(int8(0)), nil
 	default:
 		return nil, errors.New("CValueDictEnclosure GetValue: unsupported Dtype")
 	}

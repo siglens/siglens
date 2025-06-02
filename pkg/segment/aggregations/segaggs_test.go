@@ -32,6 +32,7 @@ import (
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/siglens/siglens/pkg/common/option"
 )
 
 type SimpleSearchExpr struct {
@@ -2612,10 +2613,10 @@ func compareValues(cValue1 sutils.CValueEnclosure, cValue2 sutils.CValueEnclosur
 		return false
 	}
 	if cValue1.Dtype == sutils.SS_DT_STRING {
-		return cValue1.CVal.(string) == cValue2.CVal.(string)
+		return cValue1.CVal.UnwrapOr(nil).(string) == cValue2.CVal.UnwrapOr(nil).(string)
 	}
 	if cValue1.Dtype == sutils.SS_DT_FLOAT {
-		return cValue1.CVal.(float64) == cValue2.CVal.(float64)
+		return cValue1.CVal.UnwrapOr(0).(float64) == cValue2.CVal.UnwrapOr(0).(float64)
 	}
 	if cValue1.Dtype == sutils.SS_INVALID {
 		return cValue1.CVal == cValue2.CVal
@@ -2707,11 +2708,11 @@ func StreamStatsValuesHelper(t *testing.T, colValues []sutils.CValueEnclosure, e
 			} else {
 				assert.True(t, exist)
 				assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
-				assert.True(t, utils.CompareStringSlices(expectedValues[i-1], result.CVal.([]string)))
+				assert.True(t, utils.CompareStringSlices(expectedValues[i-1], result.CVal.UnwrapOr(nil).([]string)))
 			}
 		} else {
 			assert.True(t, exist)
-			assert.True(t, utils.CompareStringSlices(expectedValues[i], result.CVal.([]string)))
+			assert.True(t, utils.CompareStringSlices(expectedValues[i], result.CVal.UnwrapOr(nil).([]string)))
 		}
 	}
 }
@@ -2758,8 +2759,8 @@ func NoWindowStreamStatsHelperTest(t *testing.T, values []sutils.CValueEnclosure
 					assert.True(t, compareValues(expectedValues2[i][j], ssResults.CurrResult))
 				} else if measureAgg.MeasureFunc == sutils.Range {
 					assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
-					assert.True(t, compareValues(expectedValues2[i][j], sutils.CValueEnclosure{Dtype: sutils.SS_DT_FLOAT, CVal: ssResults.RangeStat.Max}))
-					assert.True(t, compareValues(expectedValues3[i][j], sutils.CValueEnclosure{Dtype: sutils.SS_DT_FLOAT, CVal: ssResults.RangeStat.Min}))
+					assert.True(t, compareValues(expectedValues2[i][j], sutils.CValueEnclosure{Dtype: sutils.SS_DT_FLOAT, CVal: option.Some[any](ssResults.RangeStat.Max)}))
+					assert.True(t, compareValues(expectedValues3[i][j], sutils.CValueEnclosure{Dtype: sutils.SS_DT_FLOAT, CVal: option.Some[any](ssResults.RangeStat.Min)}))
 				} else {
 					assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
 				}
@@ -2809,11 +2810,11 @@ func createCValues(values []interface{}, dtypes []sutils.SS_DTYPE) []sutils.CVal
 	for i, value := range values {
 		if dtypes[i] == sutils.SS_DT_FLOAT {
 			floatVal, _ := strconv.ParseFloat(fmt.Sprintf("%v", value), 64)
-			expectedValues = append(expectedValues, sutils.CValueEnclosure{Dtype: sutils.SS_DT_FLOAT, CVal: floatVal})
+			expectedValues = append(expectedValues, sutils.CValueEnclosure{Dtype: sutils.SS_DT_FLOAT, CVal: option.Some[any](floatVal)})
 		} else if dtypes[i] == sutils.SS_INVALID {
-			expectedValues = append(expectedValues, sutils.CValueEnclosure{Dtype: sutils.SS_INVALID, CVal: nil})
+			expectedValues = append(expectedValues, sutils.CValueEnclosure{Dtype: sutils.SS_INVALID, CVal: option.None[any]()})
 		} else {
-			expectedValues = append(expectedValues, sutils.CValueEnclosure{Dtype: dtypes[i], CVal: value})
+			expectedValues = append(expectedValues, sutils.CValueEnclosure{Dtype: dtypes[i], CVal: option.Some[any](value)})
 		}
 	}
 	return expectedValues

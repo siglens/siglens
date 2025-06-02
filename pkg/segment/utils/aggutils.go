@@ -20,6 +20,7 @@ package utils
 import (
 	"fmt"
 	"math"
+	"github.com/siglens/siglens/pkg/common/option"
 )
 
 func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CValueEnclosure, error) {
@@ -47,10 +48,10 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		switch e2.Dtype {
 		case SS_DT_UNSIGNED_NUM:
 			e2.Dtype = SS_DT_FLOAT
-			e2.CVal = float64(e2.CVal.(uint64))
+			e2.CVal = option.Some[any](float64(e2.CVal.UnwrapOr(uint64(0)).(uint64)))
 		case SS_DT_SIGNED_NUM:
 			e2.Dtype = SS_DT_FLOAT
-			e2.CVal = float64(e2.CVal.(int64))
+			e2.CVal = option.Some[any](float64(e2.CVal.UnwrapOr(int64(0)).(int64)))
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported e2 Dtype: %v", e2.Dtype)
 		}
@@ -60,10 +61,10 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		switch e1.Dtype {
 		case SS_DT_UNSIGNED_NUM:
 			e1.Dtype = SS_DT_FLOAT
-			e1.CVal = float64(e1.CVal.(uint64))
+			e1.CVal = option.Some[any](float64(e1.CVal.UnwrapOr(uint64(0)).(uint64)))
 		case SS_DT_SIGNED_NUM:
 			e1.Dtype = SS_DT_FLOAT
-			e1.CVal = float64(e1.CVal.(int64))
+			e1.CVal = option.Some[any](float64(e1.CVal.UnwrapOr(int64(0)).(int64)))
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported e1 Dtype: %v", e1.Dtype)
 		}
@@ -75,68 +76,100 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	case SS_DT_UNSIGNED_NUM:
 		switch fun {
 		case Sum, Count:
-			e1.CVal = e1.CVal.(uint64) + e2.CVal.(uint64)
+			e1.CVal = option.Some[any](
+				e1.CVal.UnwrapOr(uint64(0)).(uint64) + e2.CVal.UnwrapOr(uint64(0)).(uint64),
+			)
 			return e1, nil
+
 		case Min:
-			e1.CVal = min(e1.CVal.(uint64), e2.CVal.(uint64))
+			e1.CVal = option.Some[any](
+				min(e1.CVal.UnwrapOr(uint64(0)).(uint64), e2.CVal.UnwrapOr(uint64(0)).(uint64)),
+			)
 			return e1, nil
+
 		case Max:
-			e1.CVal = max(e1.CVal.(uint64), e2.CVal.(uint64))
+			e1.CVal = option.Some[any](
+				max(e1.CVal.UnwrapOr(uint64(0)).(uint64), e2.CVal.UnwrapOr(uint64(0)).(uint64)),
+			)
 			return e1, nil
+
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for unsigned int", fun)
 		}
+
 	case SS_DT_SIGNED_NUM:
 		switch fun {
 		case Sum, Count:
-			e1.CVal = e1.CVal.(int64) + e2.CVal.(int64)
+			e1.CVal = option.Some[any](
+				e1.CVal.UnwrapOr(int64(0)).(int64) + e2.CVal.UnwrapOr(int64(0)).(int64),
+			)
 			return e1, nil
+
 		case Min:
-			e1.CVal = min(e1.CVal.(int64), e2.CVal.(int64))
+			e1.CVal = option.Some[any](
+				min(e1.CVal.UnwrapOr(int64(0)).(int64), e2.CVal.UnwrapOr(int64(0)).(int64)),
+			)
 			return e1, nil
+
 		case Max:
-			e1.CVal = max(e1.CVal.(int64), e2.CVal.(int64))
+			e1.CVal = option.Some[any](
+				max(e1.CVal.UnwrapOr(int64(0)).(int64), e2.CVal.UnwrapOr(int64(0)).(int64)),
+			)
 			return e1, nil
+
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for signed int", fun)
 		}
+
 	case SS_DT_FLOAT:
 		switch fun {
 		case Sum, Count:
-			e1.CVal = e1.CVal.(float64) + e2.CVal.(float64)
+			e1.CVal = option.Some[any](
+				e1.CVal.UnwrapOr(float64(0)).(float64) + e2.CVal.UnwrapOr(float64(0)).(float64),
+			)
 			return e1, nil
+
 		case Min:
-			e1.CVal = math.Min(e1.CVal.(float64), e2.CVal.(float64))
+			e1.CVal = option.Some[any](
+				math.Min(e1.CVal.UnwrapOr(float64(0)).(float64), e2.CVal.UnwrapOr(float64(0)).(float64)),
+			)
 			return e1, nil
+
 		case Max:
-			e1.CVal = math.Max(e1.CVal.(float64), e2.CVal.(float64))
+			e1.CVal = option.Some[any](
+				math.Max(e1.CVal.UnwrapOr(float64(0)).(float64), e2.CVal.UnwrapOr(float64(0)).(float64)),
+			)
 			return e1, nil
+
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for float", fun)
 		}
+
 	case SS_DT_STRING_SET:
-		{
-			switch fun {
-			case Cardinality:
-				fallthrough
-			case Values:
-				set1 := e1.CVal.(map[string]struct{})
-				set2 := e2.CVal.(map[string]struct{})
-				for str := range set2 {
-					set1[str] = struct{}{}
-				}
-				return e1, nil
-			default:
-				return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for string set", fun)
+		switch fun {
+		case Cardinality:
+			fallthrough
+
+		case Values:
+			set1 := e1.CVal.UnwrapOr(nil).(map[string]struct{})
+			set2 := e2.CVal.UnwrapOr(nil).(map[string]struct{})
+			for str := range set2 {
+				set1[str] = struct{}{}
 			}
+			e1.CVal = option.Some[any](set1)
+			return e1, nil
+
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for string set", fun)
 		}
+
 	case SS_DT_STRING_SLICE:
 		{
 			if fun == List {
-				list1 := e1.CVal.([]string)
-				list2 := e2.CVal.([]string)
+				list1 := e1.CVal.UnwrapOr(nil).([]string)
+				list2 := e2.CVal.UnwrapOr(nil).([]string)
 				list1 = append(list1, list2...)
-				e1.CVal = list1
+				e1.CVal = option.Some[any](list1)
 				return e1, nil
 			} else {
 				return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for slice", fun)
@@ -270,8 +303,13 @@ func ReduceMinMax(e1 CValueEnclosure, e2 CValueEnclosure, isMin bool) (CValueEnc
 
 	if e1.Dtype == e2.Dtype {
 		if e1.Dtype == SS_DT_STRING {
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: GetMinMaxString(e1.CVal.(string), e2.CVal.(string), isMin)}, nil
-		} else {
+			str1 := e1.CVal.UnwrapOr("").(string)
+			str2 := e2.CVal.UnwrapOr("").(string)
+			return CValueEnclosure{
+				Dtype: e1.Dtype,
+				CVal:  option.Some[any](GetMinMaxString(str1, str2, isMin)),
+			}, nil
+	} else {
 			if isMin {
 				return Reduce(e1, e2, Min)
 			} else {

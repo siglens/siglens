@@ -22,6 +22,7 @@ import (
 	"math"
 
 	"github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/common/option"
 )
 
 type numberType = byte
@@ -239,23 +240,23 @@ func (n *Number) ToCVal(enclosure *CValueEnclosure) error {
 	switch n.ntype() {
 	case invalidType:
 		enclosure.Dtype = SS_INVALID
-		enclosure.CVal = nil
+		enclosure.CVal = option.None[any]()
 	case backfillType:
 		enclosure.Dtype = SS_DT_BACKFILL
-		enclosure.CVal = nil
+		enclosure.CVal = option.None[any]()
 	case int64Type:
 		i, err := n.Int64()
 		if err != nil {
 			return err
 		}
-		enclosure.CVal = i
+		enclosure.CVal = option.Some[any](i)
 		enclosure.Dtype = SS_DT_SIGNED_NUM
 	case float64Type:
 		f, err := n.Float64()
 		if err != nil {
 			return err
 		}
-		enclosure.CVal = f
+		enclosure.CVal = option.Some[any](f)
 		enclosure.Dtype = SS_DT_FLOAT
 	}
 

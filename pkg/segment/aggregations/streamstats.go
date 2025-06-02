@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/common/option"
 )
 
 func GetBucketKey(record map[string]interface{}, groupByRequest *structs.GroupByRequest) (string, error) {
@@ -53,7 +54,7 @@ func InitRunningStreamStatsResults(measureFunc sutils.AggregateFunctions) *struc
 	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality:
 		runningSSResult.CurrResult = sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_FLOAT,
-			CVal:  0.0,
+			CVal:  option.Some[any](0.0),
 		}
 	default:
 		runningSSResult.CurrResult = sutils.CValueEnclosure{}
@@ -78,7 +79,7 @@ func getValues[T any](valuesMap map[string]T) sutils.CValueEnclosure {
 
 	return sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_STRING_SLICE,
-		CVal:  uniqueStrings,
+		CVal:  option.Some[any](uniqueStrings),
 	}
 }
 
@@ -101,7 +102,7 @@ func calculateAvg(ssResults *structs.RunningStreamStatsResults, window bool) sut
 	}
 	return sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_FLOAT,
-		CVal:  ssResults.CurrResult.CVal.(float64) / float64(count),
+		CVal: option.Some[any](ssResults.CurrResult.CVal.UnwrapOr(0).(float64) / float64(count)),
 	}
 }
 
@@ -151,12 +152,12 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 
 	switch measureAgg.MeasureFunc {
 	case sutils.Count:
-		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) + 1
+		ssResults.CurrResult.CVal = option.Some[any](ssResults.CurrResult.CVal.UnwrapOr(0).(float64)  + 1)
 	case sutils.Sum, sutils.Avg:
 		if colValue.Dtype != sutils.SS_DT_FLOAT {
 			return result, valExist, nil
 		}
-		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) + colValue.CVal.(float64)
+		ssResults.CurrResult.CVal = option.Some[any](ssResults.CurrResult.CVal.UnwrapOr(0).(float64)  + colValue.CVal.UnwrapOr(0).(float64))
 	case sutils.Min, sutils.Max:
 		isMin := measureAgg.MeasureFunc == sutils.Min
 		resultCVal, err := GetNoWindowMinMax(ssResults.CurrResult, colValue, isMin)
@@ -171,15 +172,15 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		if ssResults.RangeStat == nil {
 			ssResults.RangeStat = InitRangeStat()
 		}
-		UpdateRangeStat(colValue.CVal.(float64), ssResults.RangeStat)
-		ssResults.CurrResult.CVal = ssResults.RangeStat.Max - ssResults.RangeStat.Min
+		UpdateRangeStat(colValue.CVal.UnwrapOr(0).(float64), ssResults.RangeStat)
+		ssResults.CurrResult.CVal = option.Some[any](ssResults.RangeStat.Max - ssResults.RangeStat.Min)
 	case sutils.Cardinality:
 		strValue := fmt.Sprintf("%v", colValue.CVal)
 		if ssResults.CardinalityHLL == nil {
 			ssResults.CardinalityHLL = structs.CreateNewHll()
 		}
 		ssResults.CardinalityHLL.AddRaw(xxhash.Sum64String(strValue))
-		ssResults.CurrResult.CVal = float64(ssResults.CardinalityHLL.Cardinality())
+		ssResults.CurrResult.CVal = option.Some[any](float64(ssResults.CardinalityHLL.Cardinality()))
 	case sutils.Values:
 		strValue := fmt.Sprintf("%v", colValue.CVal)
 		if ssResults.ValuesMap == nil {
@@ -225,14 +226,14 @@ func removeFrontElementFromWindow(window *utils.GobbableList, ssResults *structs
 		if frontElement.Value.Dtype != sutils.SS_DT_FLOAT {
 			return fmt.Errorf("removeFrontElementFromWindow: Error: front element in the window does not have a numeric value, has value: %v, function: %v", frontElement.Value, measureAgg)
 		}
-		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) - frontElement.Value.CVal.(float64)
+		ssResults.CurrResult.CVal = option.Some[any](ssResults.CurrResult.CVal.UnwrapOr(0).(float64) - frontElement.Value.CVal.UnwrapOr(0).(float64))
 	} else if measureAgg == sutils.Count {
-		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) - 1
+		ssResults.CurrResult.CVal = option.Some[any](ssResults.CurrResult.CVal.UnwrapOr(0).(float64) - 1)
 	} else if measureAgg == sutils.Cardinality || measureAgg == sutils.Values {
 		if frontElement.Value.Dtype != sutils.SS_DT_STRING {
 			return fmt.Errorf("removeFrontElementFromWindow: Error: front element in the window does not have a string value, has value: %v, function: %v", frontElement.Value, measureAgg)
 		}
-		strValue := fmt.Sprintf("%v", frontElement.Value.CVal.(string))
+		strValue := fmt.Sprintf("%v", frontElement.Value.CVal.UnwrapOr(nil).(string))
 		_, exist := ssResults.CardinalityMap[strValue]
 		if exist {
 			ssResults.CardinalityMap[strValue]--
@@ -242,7 +243,7 @@ func removeFrontElementFromWindow(window *utils.GobbableList, ssResults *structs
 		} else {
 			return fmt.Errorf("removeFrontElementFromWindow: Error: cardinality map does not contain the value: %v which is present in the window", strValue)
 		}
-		ssResults.CurrResult.CVal = float64(len(ssResults.CardinalityMap))
+		ssResults.CurrResult.CVal = option.Some[any](float64(len(ssResults.CardinalityMap)))
 	}
 
 	window.Remove(window.Front())
@@ -364,7 +365,7 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg sutils.
 		if err != nil {
 			return sutils.CValueEnclosure{}, false, fmt.Errorf("getResults: Error while getting float value from first window element, err: %v", err)
 		}
-		ssResults.CurrResult.CVal = maxFloatVal - minFloatval
+		ssResults.CurrResult.CVal = option.Some[any](maxFloatVal - minFloatval)
 		return ssResults.CurrResult, true, nil
 	case sutils.Cardinality:
 		return ssResults.CurrResult, true, nil
@@ -388,7 +389,7 @@ func getListElementAsFloatFromWindow(listElement *list.Element) (float64, error)
 		return 0.0, fmt.Errorf("getListElementAsFloatFromWindow: Error: element in window does not have a numeric value, has value %v", windowElement.Value)
 	}
 
-	return windowElement.Value.CVal.(float64), nil
+	return windowElement.Value.CVal.UnwrapOr(0).(float64), nil
 }
 
 func getListElementFromWindow(listElement *list.Element) (sutils.CValueEnclosure, error) {
@@ -414,13 +415,13 @@ func manageMinWindow(window *utils.GobbableList, index int, newValue sutils.CVal
 			return fmt.Errorf("manageMinWindow: Error while comparing values because of different types, lastElementVal: %v, newValue: %v", lastElementVal, newValue)
 		}
 		if lastElementVal.Dtype == sutils.SS_DT_FLOAT {
-			if lastElementVal.CVal.(float64) >= newValue.CVal.(float64) {
+			if lastElementVal.CVal.UnwrapOr(0).(float64) >= newValue.CVal.UnwrapOr(0).(float64) {
 				window.Remove(window.Back())
 			} else {
 				break
 			}
 		} else if lastElementVal.Dtype == sutils.SS_DT_STRING {
-			if lastElementVal.CVal.(string) >= newValue.CVal.(string) {
+			if lastElementVal.CVal.UnwrapOr(nil).(string) >= newValue.CVal.UnwrapOr(0).(string) {
 				window.Remove(window.Back())
 			} else {
 				break
@@ -444,13 +445,13 @@ func manageMaxWindow(window *utils.GobbableList, index int, newValue sutils.CVal
 			return fmt.Errorf("manageMaxWindow: Error while comparing values because of different types, lastElementVal: %v, newValue: %v", lastElementVal, newValue)
 		}
 		if lastElementVal.Dtype == sutils.SS_DT_FLOAT {
-			if lastElementVal.CVal.(float64) <= newValue.CVal.(float64) {
+			if lastElementVal.CVal.UnwrapOr(0).(float64) <= newValue.CVal.UnwrapOr(0).(float64) {
 				window.Remove(window.Back())
 			} else {
 				break
 			}
 		} else if lastElementVal.Dtype == sutils.SS_DT_STRING {
-			if lastElementVal.CVal.(string) <= newValue.CVal.(string) {
+			if lastElementVal.CVal.UnwrapOr(nil).(string) <= newValue.CVal.UnwrapOr(nil).(string) {
 				window.Remove(window.Back())
 			} else {
 				break
@@ -493,13 +494,13 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 
 	switch measureAgg.MeasureFunc {
 	case sutils.Count:
-		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) + 1
+		ssResults.CurrResult.CVal = option.Some[any](ssResults.CurrResult.CVal.UnwrapOr(0).(float64) + 1)
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	case sutils.Sum, sutils.Avg:
 		if colValue.Dtype != sutils.SS_DT_FLOAT {
 			return defaultResult, nil
 		}
-		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) + colValue.CVal.(float64)
+		ssResults.CurrResult.CVal = option.Some[any](ssResults.CurrResult.CVal.UnwrapOr(0).(float64) + colValue.CVal.UnwrapOr(0).(float64))
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	case sutils.Min:
 		if colValue.Dtype != sutils.SS_DT_FLOAT && colValue.Dtype != sutils.SS_DT_STRING {
@@ -555,7 +556,7 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 		if err != nil {
 			return sutils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error while getting float value from min window element, err: %v", err)
 		}
-		ssResults.CurrResult.CVal = maxFloatVal - minFloatval
+		ssResults.CurrResult.CVal = option.Some[any](maxFloatVal - minFloatval)
 	case sutils.Cardinality, sutils.Values:
 		if ssResults.CardinalityMap == nil {
 			ssResults.CardinalityMap = make(map[string]int, 0)
@@ -567,10 +568,10 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 		} else {
 			ssResults.CardinalityMap[strValue]++
 		}
-		ssResults.CurrResult.CVal = float64(len(ssResults.CardinalityMap))
+		ssResults.CurrResult.CVal = option.Some[any](float64(len(ssResults.CardinalityMap)))
 		cvalue := sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_STRING,
-			CVal:  strValue,
+			CVal:  option.Some[any](strValue),
 		}
 
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: cvalue, TimeInMilli: timestamp})
@@ -662,7 +663,7 @@ func CreateCValueFromValueExpression(measureAgg *structs.MeasureAggregator, fiel
 		} else {
 			return sutils.CValueEnclosure{
 				Dtype: sutils.SS_DT_FLOAT,
-				CVal:  1.0,
+				CVal:  option.Some[any](1.0),
 			}, true
 		}
 	}
@@ -673,12 +674,12 @@ func CreateCValueFromValueExpression(measureAgg *structs.MeasureAggregator, fiel
 	if isNumeric {
 		return sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_FLOAT,
-			CVal:  floatVal,
+			CVal:  option.Some[any](floatVal),
 		}, true
 	}
 	return sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_STRING,
-		CVal:  strVal,
+		CVal:  option.Some[any](strVal),
 	}, true
 }
 
@@ -690,13 +691,13 @@ func CreateCValueFromColValue(colValue interface{}) sutils.CValueEnclosure {
 	if err == nil {
 		return sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_FLOAT,
-			CVal:  floatVal,
+			CVal:  option.Some[any](floatVal),
 		}
 	}
 	strVal := fmt.Sprintf("%v", colValue)
 	return sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_STRING,
-		CVal:  strVal,
+		CVal:  option.Some[any](strVal),
 	}
 }
 
@@ -1021,12 +1022,12 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 						}
 						aggregationResult.Results[rowIndex].StatRes[measureAgg.String()] = sutils.CValueEnclosure{
 							Dtype: dataType,
-							CVal:  streamStatsResult,
+							CVal:  option.Some[any](streamStatsResult),
 						}
 					} else {
 						aggregationResult.Results[rowIndex].StatRes[measureAgg.String()] = sutils.CValueEnclosure{
 							Dtype: sutils.SS_DT_STRING,
-							CVal:  "",
+							CVal:  option.Some[any](""),
 						}
 					}
 				}

@@ -9,6 +9,7 @@ import (
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	statswriter "github.com/siglens/siglens/pkg/segment/writer/stats"
 	"github.com/stretchr/testify/assert"
+	"github.com/siglens/siglens/pkg/common/option"
 )
 
 func getDummyMeasureAggregator() *structs.MeasureAggregator {
@@ -35,19 +36,20 @@ func getDummySegStats() *structs.SegStats {
 			StrList: []string{"1", "4", "10"},
 		},
 		Records: []*sutils.CValueEnclosure{
-			{
-				CVal:  1.0,
-				Dtype: sutils.SS_DT_FLOAT,
-			},
-			{
-				CVal:  4.0,
-				Dtype: sutils.SS_DT_FLOAT,
-			},
-			{
-				CVal:  10.0,
-				Dtype: sutils.SS_DT_FLOAT,
-			},
+		{
+			CVal:  option.Some[any](1.0),
+			Dtype: sutils.SS_DT_FLOAT,
 		},
+		{
+			CVal:  option.Some[any](4.0),
+			Dtype: sutils.SS_DT_FLOAT,
+		},
+		{
+			CVal:  option.Some[any](10.0),
+			Dtype: sutils.SS_DT_FLOAT,
+		},
+	},
+
 	}
 }
 
@@ -163,9 +165,9 @@ func TestComputeAggEvalForList_CorrectInputsWithoutField(t *testing.T) {
 	expected := []string{"100", "100", "100"}
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
-	assert.Equal(t, 3, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be 1")
+	assert.Equal(t, 3, len(measureResults["vals"].CVal.UnwrapOr(nil).([]string)), "The length of the measureResults slice should be 1")
 	assert.Equal(t, 3, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be 1")
-	assert.Equal(t, expected, measureResults["vals"].CVal.([]string), "The measureResults slice should be equal to the expected slice")
+	assert.Equal(t, expected, measureResults["vals"].CVal.UnwrapOr(nil).([]string), "The measureResults slice should be equal to the expected slice")
 	assert.Equal(t, expected, runningEvalStats["vals"].([]string), "The runningEvalStats slice should be equal to the expected slice")
 }
 
@@ -179,9 +181,9 @@ func TestComputeAggEvalForList_CorrectInputsWithField(t *testing.T) {
 	expected := []string{"0.5", "2", "5"}
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
-	assert.Equal(t, 3, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be 3")
+	assert.Equal(t, 3, len(measureResults["vals"].CVal.UnwrapOr(nil).([]string)), "The length of the measureResults slice should be 3")
 	assert.Equal(t, 3, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be 3")
-	assert.Equal(t, expected, measureResults["vals"].CVal.([]string), "The measureResults slice should be equal to the expected slice")
+	assert.Equal(t, expected, measureResults["vals"].CVal.UnwrapOr(nil).([]string), "The measureResults slice should be equal to the expected slice")
 	assert.Equal(t, expected, runningEvalStats["vals"].([]string), "The runningEvalStats slice should be equal to the expected slice")
 }
 
@@ -194,7 +196,7 @@ func TestComputeAggEvalForList_largeLists(t *testing.T) {
 
 	for i := range list {
 		list[i] = &sutils.CValueEnclosure{
-			CVal:  1.0,
+			CVal:  option.Some[any](1.0),
 			Dtype: sutils.SS_DT_FLOAT,
 		}
 	}
@@ -203,7 +205,7 @@ func TestComputeAggEvalForList_largeLists(t *testing.T) {
 	measureResults := make(map[string]sutils.CValueEnclosure)
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
-	assert.Equal(t, sutils.MAX_SPL_LIST_SIZE, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be MAX_SPL_LIST_SIZE")
+	assert.Equal(t, sutils.MAX_SPL_LIST_SIZE, len(measureResults["vals"].CVal.UnwrapOr(nil).([]string)), "The length of the measureResults slice should be MAX_SPL_LIST_SIZE")
 	assert.Equal(t, sutils.MAX_SPL_LIST_SIZE, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be MAX_SPL_LIST_SIZE")
 }
 
@@ -217,18 +219,18 @@ func TestComputeAggEvalForList_TestUpdateWithMultipleEvals(t *testing.T) {
 	expected := []string{"0.5", "2", "5"}
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
-	assert.Equal(t, 3, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be 3")
+	assert.Equal(t, 3, len(measureResults["vals"].CVal.UnwrapOr(nil).([]string)), "The length of the measureResults slice should be 3")
 	assert.Equal(t, 3, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be 3")
-	assert.Equal(t, expected, measureResults["vals"].CVal.([]string), "The measureResults slice should be equal to the expected slice")
+	assert.Equal(t, expected, measureResults["vals"].CVal.UnwrapOr(nil).([]string), "The measureResults slice should be equal to the expected slice")
 	assert.Equal(t, expected, runningEvalStats["vals"].([]string), "The runningEvalStats slice should be equal to the expected slice")
 
 	expected = []string{"0.5", "2", "5", "0.5", "2", "5"}
 	measureResults = make(map[string]sutils.CValueEnclosure)
 	err = ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
-	assert.Equal(t, 6, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be 6")
+	assert.Equal(t, 6, len(measureResults["vals"].CVal.UnwrapOr(nil).([]string)), "The length of the measureResults slice should be 6")
 	assert.Equal(t, 6, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be 6")
-	assert.Equal(t, expected, measureResults["vals"].CVal.([]string), "The measureResults slice should be equal to the expected slice")
+	assert.Equal(t, expected, measureResults["vals"].CVal.UnwrapOr(nil).([]string), "The measureResults slice should be equal to the expected slice")
 	assert.Equal(t, expected, runningEvalStats["vals"].([]string), "The runningEvalStats slice should be equal to the expected slice")
 
 }
@@ -291,7 +293,7 @@ func TestComputeAggEvalForValues_WithFieldsAndValidData(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
-	uniqueStrings, ok := result.CVal.([]string)
+	uniqueStrings, ok := result.CVal.UnwrapOr(nil).([]string)
 	assert.True(t, ok)
 	assert.Equal(t, expected, uniqueStrings)
 }
@@ -311,7 +313,7 @@ func TestComputeAggEvalForValues_WithoutFieldsAndValidData(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
-	uniqueStrings, ok := result.CVal.([]string)
+	uniqueStrings, ok := result.CVal.UnwrapOr(nil).([]string)
 	assert.True(t, ok)
 	assert.Equal(t, expected, uniqueStrings)
 }
@@ -331,7 +333,7 @@ func TestComputeAggEvalForValues_UpdateWithMultipleEvals(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
-	uniqueStrings, ok := result.CVal.([]string)
+	uniqueStrings, ok := result.CVal.UnwrapOr(nil).([]string)
 	assert.True(t, ok)
 	assert.Equal(t, expected, uniqueStrings)
 
@@ -341,7 +343,7 @@ func TestComputeAggEvalForValues_UpdateWithMultipleEvals(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
-	uniqueStrings, ok = result.CVal.([]string)
+	uniqueStrings, ok = result.CVal.UnwrapOr(nil).([]string)
 	assert.True(t, ok)
 	// expected remains the same
 	assert.Equal(t, expected, uniqueStrings)
@@ -362,7 +364,7 @@ func TestComputeAggEvalForValues_UpdateWithMultipleEvalsWithoutField(t *testing.
 	assert.True(t, ok)
 	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
-	uniqueStrings, ok := result.CVal.([]string)
+	uniqueStrings, ok := result.CVal.UnwrapOr(nil).([]string)
 	assert.True(t, ok)
 	assert.Equal(t, expected, uniqueStrings)
 
@@ -372,7 +374,7 @@ func TestComputeAggEvalForValues_UpdateWithMultipleEvalsWithoutField(t *testing.
 	assert.True(t, ok)
 	assert.Equal(t, sutils.SS_DT_STRING_SLICE, result.Dtype)
 
-	uniqueStrings, ok = result.CVal.([]string)
+	uniqueStrings, ok = result.CVal.UnwrapOr(nil).([]string)
 	assert.True(t, ok)
 	// expected remains the same
 	assert.Equal(t, expected, uniqueStrings)

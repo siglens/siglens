@@ -22,65 +22,66 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/siglens/siglens/pkg/common/option"
 )
 
 func Test_CVal_Equal(t *testing.T) {
-	c1 := &CValueEnclosure{Dtype: SS_DT_STRING, CVal: "hello"}
-	c2 := &CValueEnclosure{Dtype: SS_DT_STRING, CVal: "hello"}
+	c1 := &CValueEnclosure{Dtype: SS_DT_STRING, CVal: option.Some[any]("hello")}
+	c2 := &CValueEnclosure{Dtype: SS_DT_STRING, CVal: option.Some[any]("hello")}
 	assert.True(t, c1.Equal(c2))
 
-	c1 = &CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: int64(123)}
-	c2 = &CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: int64(123)}
+	c1 = &CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: option.Some[any](int64(123))}
+	c2 = &CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: option.Some[any](int64(123))}
 	assert.True(t, c1.Equal(c2))
 
-	c1 = &CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: uint64(123)}
-	c2 = &CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: uint64(123)}
+	c1 = &CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: option.Some[any](uint64(123))}
+	c2 = &CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: option.Some[any](uint64(123))}
 	assert.False(t, c1.Equal(c2))
 
-	c1 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(123.456)}
-	c2 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(123.456001)}
+	c1 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: option.Some[any](float64(123.456))}
+	c2 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: option.Some[any](float64(123.456001))}
 	assert.True(t, c1.Equal(c2))
 
-	c1 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(123.456)}
-	c2 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(123.457)}
+	c1 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: option.Some[any](float64(123.456))}
+	c2 = &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: option.Some[any](float64(123.457))}
 	assert.False(t, c1.Equal(c2))
 }
 
 func Test_CVal_Hash(t *testing.T) {
 	assert.NotEqual(t,
-		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: "hello"}).Hash(),
-		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: "world"}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: option.Some[any]("hello")}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: option.Some[any]("world")}).Hash(),
 	)
 
 	assert.NotEqual(t,
-		(&CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: int64(123)}).Hash(),
-		(&CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: uint64(123)}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: option.Some[any](int64(123))}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: option.Some[any](uint64(123))}).Hash(),
 	)
 
 	assert.NotEqual(t,
-		(&CValueEnclosure{Dtype: SS_DT_BOOL, CVal: false}).Hash(),
-		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: nil}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_BOOL, CVal: option.Some[any](false)}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: option.None[any]()}).Hash(),
 	)
 
 	assert.Equal(t,
-		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: "hello"}).Hash(),
-		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: "hello"}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: option.Some[any]("hello")}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_STRING, CVal: option.Some[any]("hello")}).Hash(),
 	)
 
 	assert.Equal(t,
-		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: nil}).Hash(),
-		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: 123}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: option.None[any]()}).Hash(),
+		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: option.Some[any](123)}).Hash(),
 	)
 }
 
 func Test_CValFromBytes(t *testing.T) {
 	original := make([]*CValueEnclosure, 0)
-	original = append(original, &CValueEnclosure{Dtype: SS_DT_STRING, CVal: "hello"})
-	original = append(original, &CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: int64(-123)})
-	original = append(original, &CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: uint64(123)})
-	original = append(original, &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(123.456)})
-	original = append(original, &CValueEnclosure{Dtype: SS_DT_BOOL, CVal: true})
-	original = append(original, &CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: nil})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_STRING, CVal: option.Some[any]("hello")})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: option.Some[any](int64(-123))})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: option.Some[any](uint64(123))})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: option.Some[any](float64(123.456))})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_BOOL, CVal: option.Some[any](true)})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: option.None[any]()})
 
 	var bytes []byte
 	idx := 0

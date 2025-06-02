@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/common/option"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -286,8 +287,12 @@ func InitialScoreMap(timechart *structs.TimechartExpr, groupByColValCnt map[stri
 
 	groupByColValScoreMap := make(map[string]*sutils.CValueEnclosure, 0)
 	for groupByColVal := range groupByColValCnt {
-		groupByColValScoreMap[groupByColVal] = &sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
+		groupByColValScoreMap[groupByColVal] = &sutils.CValueEnclosure{
+			CVal:  option.None[any](),
+			Dtype: sutils.SS_INVALID,
+		}
 	}
+
 
 	return groupByColValScoreMap
 }
@@ -380,7 +385,7 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 			if err != nil {
 				batchErr.AddError("MergeVal:HLL_STATS", err)
 			}
-			eVal.CVal = hll.Cardinality()
+			eVal.CVal = option.Some[any](hll.Cardinality())
 			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 			return
 		}
@@ -398,7 +403,7 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 		}
 		sort.Strings(uniqueStrings)
 
-		eVal.CVal = uniqueStrings
+		eVal.CVal = option.Some[any](uniqueStrings)
 		eVal.Dtype = sutils.SS_DT_STRING_SLICE
 		return
 	default:

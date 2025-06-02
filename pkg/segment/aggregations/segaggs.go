@@ -34,6 +34,7 @@ import (
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/siglens/siglens/pkg/common/option"
 )
 
 func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *structs.TimeBucket, aggName string) {
@@ -371,7 +372,7 @@ func performInputLookupOnHistogram(nodeResult *structs.NodeResult, agg *structs.
 			for col, recordValue := range record {
 				statRes[col] = sutils.CValueEnclosure{
 					Dtype: sutils.SS_DT_STRING,
-					CVal:  fmt.Sprintf("%v", recordValue),
+					CVal:  option.Some[any](fmt.Sprintf("%v", recordValue)),
 				}
 			}
 			// Add the record as bucket result to aggregation results
@@ -2362,7 +2363,7 @@ func performStatisticColRequestOnHistogram(nodeResult *structs.NodeResult, letCo
 			bucketKey := make([]string, len(groupByKeys))
 			otherEnclosure := sutils.CValueEnclosure{
 				Dtype: sutils.SS_DT_STRING,
-				CVal:  letColReq.StatisticColRequest.StatisticOptions.OtherStr,
+				CVal:  option.Some[any](letColReq.StatisticColRequest.StatisticOptions.OtherStr),
 			}
 			for i := 0; i < len(groupByKeys); i++ {
 				if groupByKeys[i] == letColReq.StatisticColRequest.StatisticOptions.CountField || groupByKeys[i] == letColReq.StatisticColRequest.StatisticOptions.PercentField {
@@ -2637,7 +2638,7 @@ func performRexColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *
 				} else {
 					aggregationResult.Results[rowIndex].StatRes[rexColName] = sutils.CValueEnclosure{
 						Dtype: sutils.SS_DT_STRING,
-						CVal:  rexColVal,
+						CVal:  option.Some[any](rexColVal),
 					}
 				}
 			}
@@ -3274,7 +3275,7 @@ func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *str
 			} else {
 				aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = sutils.CValueEnclosure{
 					Dtype: valType,
-					CVal:  binValue,
+					CVal:  option.Some[any](binValue),
 				}
 			}
 		}
@@ -3391,7 +3392,7 @@ func getRecordFieldValues(fieldToValue map[string]sutils.CValueEnclosure, fields
 			value = fmt.Sprintf("%v", value)
 		}
 
-		fieldToValue[field] = sutils.CValueEnclosure{Dtype: dVal.Dtype, CVal: value}
+		fieldToValue[field] = sutils.CValueEnclosure{Dtype: dVal.Dtype, CVal: option.Some[any](value)}
 	}
 
 	return nil
@@ -3533,17 +3534,17 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 				if len(cellValueSlice) > 0 {
 					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = sutils.CValueEnclosure{
 						Dtype: sutils.SS_DT_STRING_SLICE,
-						CVal:  cellValueSlice,
+						CVal:  option.Some[any](cellValueSlice),
 					}
 				} else if len(cellValueStr) > 0 {
 					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = sutils.CValueEnclosure{
 						Dtype: sutils.SS_DT_STRING,
-						CVal:  cellValueStr,
+						CVal:  option.Some[any](cellValueStr),
 					}
 				} else {
 					aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = sutils.CValueEnclosure{
 						Dtype: sutils.SS_DT_FLOAT,
-						CVal:  cellValueFloat,
+						CVal:  option.Some[any](cellValueFloat),
 					}
 				}
 			}
@@ -3804,16 +3805,16 @@ func getMeasureResultsFieldValues(fieldToValue map[string]sutils.CValueEnclosure
 		switch value := value.(type) {
 		case string:
 			enclosure.Dtype = sutils.SS_DT_STRING
-			enclosure.CVal = value
+			enclosure.CVal = option.Some[any](value)
 		case float64:
 			enclosure.Dtype = sutils.SS_DT_FLOAT
-			enclosure.CVal = value
+			enclosure.CVal = option.Some[any](value)
 		case uint64:
 			enclosure.Dtype = sutils.SS_DT_UNSIGNED_NUM
-			enclosure.CVal = value
+			enclosure.CVal = option.Some[any](value)
 		case int64:
 			enclosure.Dtype = sutils.SS_DT_SIGNED_NUM
-			enclosure.CVal = value
+			enclosure.CVal = option.Some[any](value)
 		default:
 			return fmt.Errorf("getMeasureResultsFieldValues: expected field to have a string or float value but got %T", value)
 		}
@@ -3839,7 +3840,7 @@ func getAggregationResultFieldValues(fieldToValue map[string]sutils.CValueEnclos
 		switch value := value.(type) {
 		case string:
 			enclosure.Dtype = sutils.SS_DT_STRING
-			enclosure.CVal = value
+			enclosure.CVal = option.Some[any](value)
 		case sutils.CValueEnclosure:
 			enclosure = value
 		default:

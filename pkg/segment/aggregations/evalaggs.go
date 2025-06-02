@@ -26,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/common/option"
 )
 
 func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResultExists bool, currResult sutils.CValueEnclosure, fieldToValue map[string]sutils.CValueEnclosure, isMin bool) (sutils.CValueEnclosure, error) {
@@ -38,10 +39,10 @@ func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResult
 		}
 		if isNumeric {
 			finalResult.Dtype = sutils.SS_DT_FLOAT
-			finalResult.CVal = floatValue
+			finalResult.CVal = option.Some[any](floatValue)
 		} else {
 			finalResult.Dtype = sutils.SS_DT_STRING
-			finalResult.CVal = strValue
+			finalResult.CVal = option.Some[any](strValue)
 		}
 	} else {
 		if measureAgg.ValueColRequest.BooleanExpr != nil {
@@ -51,7 +52,8 @@ func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResult
 			}
 			if boolResult {
 				finalResult.Dtype = sutils.SS_DT_FLOAT
-				finalResult.CVal = float64(1)
+				finalResult.CVal = 	option.Some[any](float64(1))
+
 				return finalResult, nil
 			} else {
 				// return current result when no value needs to be updated
@@ -66,10 +68,10 @@ func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResult
 			if !currResultExists {
 				if isNumeric {
 					finalResult.Dtype = sutils.SS_DT_FLOAT
-					finalResult.CVal = floatValue
+					finalResult.CVal = option.Some[any](floatValue)
 				} else {
 					finalResult.Dtype = sutils.SS_DT_STRING
-					finalResult.CVal = strValue
+					finalResult.CVal = option.Some[any](strValue)
 				}
 				return finalResult, nil
 			}
@@ -79,16 +81,16 @@ func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResult
 				// if new value is numeric override the string result
 				if isNumeric {
 					finalResult.Dtype = sutils.SS_DT_FLOAT
-					finalResult.CVal = floatValue
+					finalResult.CVal = option.Some[any](floatValue)
 				} else {
-					strEncValue, isString := currResult.CVal.(string)
+					strEncValue, isString := currResult.CVal.UnwrapOr(nil).(string)
 					if !isString {
 						return currResult, fmt.Errorf("PerformEvalAggForMinOrMax: String type enclosure does not have a string value")
 					}
 
 					if (isMin && strValue < strEncValue) || (!isMin && strValue > strEncValue) {
 						finalResult.Dtype = sutils.SS_DT_STRING
-						finalResult.CVal = strValue
+						finalResult.CVal = option.Some[any](strValue)
 					} else {
 						// return current result when no value needs to be updated
 						return currResult, nil
@@ -97,14 +99,14 @@ func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResult
 			} else if currType == sutils.SS_DT_FLOAT {
 				// only check if the current value is numeric
 				if isNumeric {
-					floatEncValue, isFloat := currResult.CVal.(float64)
+					floatEncValue, isFloat := currResult.CVal.UnwrapOr(0).(float64)
 					if !isFloat {
 						return currResult, fmt.Errorf("PerformEvalAggForMinOrMax: Float type enclosure does not have a float value")
 					}
 
 					if (isMin && floatValue < floatEncValue) || (!isMin && floatValue > floatEncValue) {
 						finalResult.Dtype = sutils.SS_DT_FLOAT
-						finalResult.CVal = floatValue
+						finalResult.CVal = option.Some[any](floatValue)
 					} else {
 						// return current result when no value needs to be updated
 						return currResult, nil
@@ -253,7 +255,7 @@ func ComputeAggEvalForRange(measureAgg *structs.MeasureAggregator, sstMap map[st
 
 	enclosure := sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_FLOAT,
-		CVal:  rangeVal,
+		CVal:  option.Some[any](rangeVal),
 	}
 	measureResults[measureAgg.String()] = enclosure
 
@@ -299,7 +301,7 @@ func PopulateFieldToValueFromSegStats(fields []string, measureAgg *structs.Measu
 func PerformEvalAggForSum(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult sutils.CValueEnclosure, fieldToValue map[string]sutils.CValueEnclosure) (sutils.CValueEnclosure, error) {
 	finalResult := sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_FLOAT,
-		CVal:  float64(0),
+		CVal:  option.Some[any](float64(0)),
 	}
 	finalValue := float64(0)
 
@@ -332,17 +334,17 @@ func PerformEvalAggForSum(measureAgg *structs.MeasureAggregator, count uint64, c
 	}
 
 	if !currResultExists {
-		finalResult.CVal = finalValue
+		finalResult.CVal = option.Some[any](finalValue)
 		return finalResult, nil
 	}
 
-	currValue, isFloat := currResult.CVal.(float64)
+	currValue, isFloat := currResult.CVal.UnwrapOr(0).(float64)
 	if !isFloat {
 		return currResult, fmt.Errorf("PerformEvalAggForSum: Float type enclosure does not have a float value")
 	}
 
 	finalValue += currValue
-	finalResult.CVal = finalValue
+	finalResult.CVal = option.Some[any](finalValue)
 
 	return finalResult, nil
 }
@@ -391,7 +393,7 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 func PerformEvalAggForCount(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult sutils.CValueEnclosure, fieldToValue map[string]sutils.CValueEnclosure) (sutils.CValueEnclosure, error) {
 	finalResult := sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_FLOAT,
-		CVal:  float64(0),
+		CVal:  option.Some[any](float64(0)),
 	}
 	finalValue := float64(0)
 
@@ -413,17 +415,17 @@ func PerformEvalAggForCount(measureAgg *structs.MeasureAggregator, count uint64,
 	}
 
 	if !currResultExists {
-		finalResult.CVal = finalValue
+		finalResult.CVal = option.Some[any](finalValue)
 		return finalResult, nil
 	}
 
-	currValue, isFloat := currResult.CVal.(float64)
+	currValue, isFloat := currResult.CVal.UnwrapOr(0).(float64)
 	if !isFloat {
 		return currResult, fmt.Errorf("PerformEvalAggForCount: Float type enclosure does not have a float value")
 	}
 
 	finalValue += currValue
-	finalResult.CVal = finalValue
+	finalResult.CVal = option.Some[any](finalValue)
 
 	return finalResult, nil
 }
@@ -548,7 +550,7 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 
 	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_FLOAT,
-		CVal:  avgStat.Sum / float64(avgStat.Count),
+		CVal:  option.Some[any](avgStat.Sum / float64(avgStat.Count)),
 	}
 
 	return nil
@@ -648,7 +650,7 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 
 	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_SIGNED_NUM,
-		CVal:  int64(result),
+		CVal:  option.Some[any](int64(result)),
 	}
 
 	return nil
@@ -705,7 +707,7 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 
 	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_STRING_SLICE,
-		CVal:  uniqueStrings,
+		CVal:  option.Some[any](uniqueStrings),
 	}
 
 	return nil
@@ -763,7 +765,7 @@ func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[str
 	}
 	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_STRING_SLICE,
-		CVal:  finalList,
+		CVal:  option.Some[any](finalList),
 	}
 	runningEvalStats[measureAgg.String()] = finalList
 	return nil
