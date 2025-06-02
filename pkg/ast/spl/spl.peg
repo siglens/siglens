@@ -4407,10 +4407,13 @@ PositiveInteger <- intStr:PositiveIntegerAsString {
     return num, nil
 }
 
-EqualityOperator <- EMPTY_OR_SPACE op:("=" / "!=") EMPTY_OR_SPACE {
+EqualityOperator <- EMPTY_OR_SPACE op:("==" / "=" / "!=") EMPTY_OR_SPACE {
     opStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: EqualityOperator: %v", err)
+    }
+    if opStr == "==" {
+        opStr = "="
     }
     return opStr, nil
 }
@@ -5381,7 +5384,7 @@ PIPE <- EMPTY_OR_SPACE "|" EMPTY_OR_SPACE
 AS <- SPACE "AS"i SPACE // Case insensitive
 BY <- SPACE "BY"i SPACE // Case insensitive
 
-EQUAL <- EMPTY_OR_SPACE "=" EMPTY_OR_SPACE
+EQUAL <- EMPTY_OR_SPACE  EMPTY_OR_SPACE
 COMMA <- EMPTY_OR_SPACE "," EMPTY_OR_SPACE
 QUOTE <- '"'
 L_PAREN <- "(" EMPTY_OR_SPACE

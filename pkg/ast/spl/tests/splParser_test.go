@@ -11651,3 +11651,14 @@ func Test_searchField_Slash(t *testing.T) {
 	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, "ok", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }
+
+func Test_eqOperator_doubleEquals_numeric(t *testing.T) {
+	query := []byte(`status == 200`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+
+	comp := res.(ast.QueryStruct).SearchFilter
+	assert.Equal(t, comp.Comparison.Op, "=")
+	assert.Equal(t, comp.Comparison.Field, "status")
+	assert.Equal(t, comp.Comparison.Values, "200")
+}
