@@ -359,7 +359,7 @@ func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
 // For numeric agg(not include dc), we can simply use addition to merge them
 // For string values, it depends on the aggregation function
 func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, hll *utils.GobbableHll, hllToMerge *utils.GobbableHll,
-	strSet map[string]struct{}, strSetToMerge map[string]struct{}, aggFunc sutils.AggregateFunctions, useAdditionForMerge bool, batchErr *utils.BatchError) {
+	strSet map[string]struct{}, strSetToMerge map[string]struct{}, td *utils.GobbableTDigest, tdToMerge *utils.GobbableTDigest, aggFunc sutils.AggregateFunctions, aggParam string, useAdditionForMerge bool, batchErr *utils.BatchError) {
 
 	switch aggFunc {
 	case sutils.Count:
@@ -389,6 +389,28 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 			} else {
 				batchErr.AddError("MergeVal:HLL_STATS", errHllMerge)
 			}
+		}
+	case sutils.Perc:
+		if useAdditionForMerge {
+			aggFunc = sutils.Sum
+		} else {
+			fltPercentile, err := strconv.ParseFloat(aggParam, 64)
+			if err != nil {
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:PERCENTILE", fmt.Errorf("percentile param must be numeric, got type: %T, val: %v", aggParam, aggParam))
+				return
+			}
+			fltPercentileVal := fltPercentile / 100
+			if fltPercentileVal < 0 || fltPercentileVal > 1 {
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:PERCENTILE", fmt.Errorf("percentile param out of range"))
+				return
+			}
+			err = td.MergeTDigest(tdToMerge)
+			if err != nil {
+				batchErr.AddError("MergeVal:TDIGEST_STATS", err)
+			}
+			eVal.CVal = td.GetQuantile(fltPercentileVal)
+			eVal.Dtype = sutils.SS_DT_FLOAT
+			return
 		}
 	case sutils.Values:
 		// Can not do addition for values func
@@ -449,7 +471,7 @@ func IsRankBySum(timechart *structs.TimechartExpr) bool {
 }
 
 func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, index int, eVal sutils.CValueEnclosure,
-	hllToMerge *utils.GobbableHll, strSetToMerge map[string]struct{}, aggFunc sutils.AggregateFunctions, groupByColVal string,
+	hllToMerge *utils.GobbableHll, strSetToMerge map[string]struct{}, tdToMerge *utils.GobbableTDigest, aggFunc sutils.AggregateFunctions, aggParam string, groupByColVal string,
 	isOtherCol bool, batchErr *utils.BatchError) bool {
 
 	useAdditionForMerge := (tmLimitResult.OtherCValArr == nil)
@@ -458,13 +480,13 @@ func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLim
 	// If true, current col's val will be added into 'other' col. So its val should not be added into res at this time
 	if isOtherCol {
 		otherCVal := tmLimitResult.OtherCValArr[index]
-		MergeVal(otherCVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge, batchErr)
+		MergeVal(otherCVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, tmLimitResult.TDigest, tdToMerge, aggFunc, aggParam, useAdditionForMerge, batchErr)
 		return false
 	} else {
 		if isRankBySum && tmLimitResult.OtherCValArr == nil {
 			scoreVal, ok := tmLimitResult.GroupValScoreMap[groupByColVal]
 			if ok && scoreVal != nil {
-				MergeVal(scoreVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge, batchErr)
+				MergeVal(scoreVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, tmLimitResult.TDigest, tdToMerge, aggFunc, aggParam, useAdditionForMerge, batchErr)
 			}
 			return false
 		}

@@ -930,6 +930,7 @@ func SetupMeasureAgg(measureAgg *structs.MeasureAggregator, allConvertedMeasureO
 			MeasureFunc:     measureFunc,
 			ValueColRequest: measureAgg.ValueColRequest,
 			StrEnc:          measureAgg.StrEnc,
+			Param:           measureAgg.Param,
 		})
 		idx++
 	}

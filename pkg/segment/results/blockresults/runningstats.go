@@ -193,6 +193,11 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				}
 				continue
 			}
+			step, err := rr.AddEvalResultsForPerc(runningStats, measureResults, i, fieldToValue)
+			if err != nil {
+				batchErr.AddError("RunningBuckketResults.AddMeasureResults:Percentile", err)
+			}
+			i += step
 		case sutils.Cardinality:
 			if rr.currStats[i].ValueColRequest == nil {
 				err := hllAddRawCval((*runningStats)[i].hll, &measureResults[i])
@@ -635,6 +640,24 @@ func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningSt
 		(*runningStats)[i].number = nil
 	}
 
+	return len(fieldToValue) - 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForPerc(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+	if (*runningStats)[i].tDigest == nil {
+		td, err := utils.CreateNewTDigest()
+		if err != nil {
+			return 0, fmt.Errorf("RunningBuckets.AddEvalResultsForPerc: unable to initialize the digest tree; err: %v", err)
+		}
+		(*runningStats)[i].tDigest = td
+	}
+	td := (*runningStats)[i].tDigest
+	err := agg.PerformEvalAggForPerc(rr.currStats[i], 0, td, fieldToValue)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBuckets.AddEvalResultsForPerc: failed to evaluate ValueColRequest to string, err: %v", err)
+	}
+	(*runningStats)[i].tDigest = td
+	(*runningStats)[i].number = nil
 	return len(fieldToValue) - 1, nil
 }
 
