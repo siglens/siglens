@@ -376,13 +376,17 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 		if useAdditionForMerge {
 			aggFunc = sutils.Sum
 		} else {
-			err := hll.StrictUnion(hllToMerge.Hll)
-			if err != nil {
-				batchErr.AddError("MergeVal:HLL_STATS", err)
+			if hllToMerge != nil {
+				err := hll.StrictUnion(hllToMerge.Hll)
+				if err != nil {
+					batchErr.AddError("MergeVal:HLL_STATS", err)
+				}
+				eVal.CVal = hll.Cardinality()
+				eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
+				return
+			} else {
+				batchErr.AddError("MergeVal:HLL_STATS", errors.New("hllToMerge is nil"))
 			}
-			eVal.CVal = hll.Cardinality()
-			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
-			return
 		}
 	case sutils.Values:
 		// Can not do addition for values func
