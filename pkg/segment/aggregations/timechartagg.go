@@ -42,6 +42,8 @@ type Range struct {
 	step  uint64
 }
 
+var errHllMerge error = errors.New("hllToMerge is nil")
+
 func GenerateTimeRangeBuckets(timeHistogram *structs.TimeBucket) *Range {
 	return &Range{
 		start: timeHistogram.StartTime,
@@ -385,7 +387,7 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 				eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 				return
 			} else {
-				batchErr.AddError("MergeVal:HLL_STATS", errors.New("hllToMerge is nil"))
+				batchErr.AddError("MergeVal:HLL_STATS", errHllMerge)
 			}
 		}
 	case sutils.Values:
