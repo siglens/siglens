@@ -444,9 +444,13 @@ function runFilterBtnHandler(evt) {
     var currentPage = window.location.pathname;
     if (currentPage === '/alert.html') {
         let data = getQueryParamsData();
-        fetchLogsPanelData(data, -1).then((res) => {
-            alertChart(res);
-        });
+        fetchLogsPanelData(data, -1)
+            .then((res) => {
+                alertChart(res);
+            })
+            .catch(function (xhr, _err) {
+                handleErrors(xhr);
+            });
     } else if (currentPage === '/dashboard.html') {
         runQueryBtnHandler();
     } else {
@@ -476,7 +480,7 @@ function runFilterBtnHandler(evt) {
                 <div>Searching for matching records...</div>
                 <div></div>
             `);
-            
+
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;
