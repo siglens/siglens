@@ -18,6 +18,7 @@
 package aggregations
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -26,6 +27,10 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
+)
+
+var (
+	ErrPerformEvalAggForSumsqFloatEnclosureHasNonFloatValue = errors.New("PerformEvalAggForSumsq: Float type enclosure does not have a float value")
 )
 
 func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResultExists bool, currResult sutils.CValueEnclosure, fieldToValue map[string]sutils.CValueEnclosure, isMin bool) (sutils.CValueEnclosure, error) {
@@ -395,14 +400,14 @@ func PerformEvalAggForSumsq(measureAgg *structs.MeasureAggregator, count uint64,
 		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		// We cannot compute sum if constant is not numeric
 		if err != nil || !isNumeric {
-			return currResult, fmt.Errorf("PerformEvalAggForSumsq: Evaluating value col request failed, err: %v", err)
+			return currResult, err
 		}
 		finalValueSquared = floatValue * floatValue * float64(count)
 	} else {
 		if measureAgg.ValueColRequest.BooleanExpr != nil {
 			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
 			if err != nil {
-				return currResult, fmt.Errorf("PerformEvalAggForSumsq: eval failed, err: %v", err)
+				return currResult, err
 			}
 			if boolResult {
 				finalValueSquared = float64(1)
@@ -410,7 +415,7 @@ func PerformEvalAggForSumsq(measureAgg *structs.MeasureAggregator, count uint64,
 		} else {
 			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 			if err != nil {
-				return currResult, fmt.Errorf("PerformEvalAggForSumsq: Evaluating value col request failed, err: %v", err)
+				return currResult, err
 			}
 			// records that are not float will be ignored
 			if isNumeric {
@@ -431,7 +436,7 @@ func PerformEvalAggForSumsq(measureAgg *structs.MeasureAggregator, count uint64,
 
 	currValue, isFloat := currResult.CVal.(float64)
 	if !isFloat {
-		return currResult, fmt.Errorf("PerformEvalAggForSumsq: Float type enclosure does not have a float value")
+		return currResult, ErrPerformEvalAggForSumsqFloatEnclosureHasNonFloatValue
 	}
 
 	// Current value is already a sum of squares, so we add the new square to it
@@ -452,7 +457,7 @@ func ComputeAggEvalForSumsq(measureAgg *structs.MeasureAggregator, sstMap map[st
 		currResult, currResultExists := measureResults[measureAgg.String()]
 		result, err := PerformEvalAggForSumsq(measureAgg, countStat.Count, currResultExists, currResult, fieldToValue)
 		if err != nil {
-			return fmt.Errorf("ComputeAggEvalForSumsq: eval agg for sum failed, err: %v", err)
+			return err
 		}
 		measureResults[measureAgg.String()] = result
 	} else {
@@ -466,13 +471,13 @@ func ComputeAggEvalForSumsq(measureAgg *structs.MeasureAggregator, sstMap map[st
 			fieldToValue = make(map[string]sutils.CValueEnclosure)
 			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
 			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForSumsq: Populating fieldToValue from sstMap failed, err: %v", err)
+				return err
 			}
 
 			currResult, currResultExists := measureResults[measureAgg.String()]
 			result, err := PerformEvalAggForSumsq(measureAgg, uint64(length), currResultExists, currResult, fieldToValue)
 			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForSumsq: eval agg for sumsq failed, err: %v", err)
+				return err
 			}
 			measureResults[measureAgg.String()] = result
 		}
