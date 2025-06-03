@@ -449,6 +449,7 @@ function runFilterBtnHandler(evt) {
                 alertChart(res);
             })
             .catch(function (xhr, _err) {
+                //eslint-disable-next-line no-undef
                 handleErrors(xhr);
             });
     } else if (currentPage === '/dashboard.html') {
