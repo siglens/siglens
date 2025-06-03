@@ -897,6 +897,9 @@ function processEmptyQueryResults() {
     $('#show-record-intro-btn').show();
     $('#empty-response').empty().show();
 
+    $('#progress-div').html(``);
+    $('#record-searched').html(``);
+
     addEmptyMessagePopup();
 }
 
@@ -917,6 +920,9 @@ function showErrorResponse(res) {
     $('body').css('cursor', 'default');
     $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
     $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
+
+    $('#progress-div').html(``);
+    $('#record-searched').html(``);
 
     wsState = 'query';
 }
