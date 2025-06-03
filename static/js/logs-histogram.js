@@ -350,7 +350,6 @@ function triggerZoomSearch(startTime, endTime, isZoomTriggered = true) {
     updateDatePickerAndUrl(data.startEpoch, data.endEpoch);
 
     resetDashboard();
-    logsRowData = [];
     accumulatedRecords = [];
     lastColumnsOrder = [];
     totalLoadedRecords = 0;
