@@ -34,10 +34,15 @@ class DashboardGrid {
             enableCellTextSelection: true,
             suppressScrollOnNewData: true,
             suppressAnimationFrame: true,
+            rowSelection: 'multiple',
+            rowMultiSelectWithClick: true,
+            suppressRowDeselection: false,
+            suppressRowClickSelection: true,
             getRowId: (params) => params.data.rowId,
             localeText: {
                 noRowsToShow: "This folder doesn't have any dashboards/folders yet ",
             },
+            onSelectionChanged: () => this.handleSelectionChange(),
         };
 
         this.init();
@@ -50,6 +55,12 @@ class DashboardGrid {
     getListViewColumnDefs() {
         return [
             {
+                checkboxSelection: true,
+                headerCheckboxSelection: true,
+                maxWidth: 50,
+                pinned: 'left',
+            },
+            {
                 headerName: 'Name',
                 field: 'name',
                 flex: 2,
@@ -60,7 +71,7 @@ class DashboardGrid {
                 field: 'type',
                 flex: 1,
                 cellRenderer: (params) => {
-                    const icon = params.value === 'folder' ? '<i class="fa fa-folder" style="color: #FFB84D"></i>' : '<i class="fa fa-columns" style="color: #6366f1"></i>';
+                    const icon = params.value === 'folder' ? '<i class="fa fa-folder" style="color: #FFB84D"></i>' : '<i class="fa fa-th-large" style="color: #6366f1"></i>';
                     return `<div style="display: flex; align-items: center; gap: 8px;">
                         ${icon} 
                         <span>${params.value.charAt(0).toUpperCase() + params.value.slice(1)}</span>
@@ -81,6 +92,64 @@ class DashboardGrid {
     getTreeViewColumnDefs() {
         return [
             {
+                headerCheckboxSelection: true,
+                maxWidth: 50,
+                pinned: 'left',
+                cellRenderer: (params) => {
+                    if (params.data.type === 'no-items') {
+                        return '';
+                    }
+
+                    if (params.data.type === 'folder') {
+                        const div = document.createElement('div');
+                        div.className = 'ag-selection-checkbox';
+
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.className = 'ag-checkbox-input';
+
+                        const selectionState = this.getFolderSelectionState(params.data.uniqId);
+
+                        if (selectionState === 'all') {
+                            checkbox.checked = true;
+                            checkbox.indeterminate = false;
+                        } else if (selectionState === 'some') {
+                            checkbox.checked = false;
+                            checkbox.indeterminate = true;
+                        } else {
+                            checkbox.checked = false;
+                            checkbox.indeterminate = false;
+                        }
+
+                        checkbox.addEventListener('change', (e) => {
+                            e.stopPropagation();
+                            const shouldSelect = selectionState !== 'all';
+                            params.node.setSelected(shouldSelect);
+                        });
+
+                        div.appendChild(checkbox);
+                        return div;
+                    }
+
+                    // Default checkbox for dashboards
+                    const div = document.createElement('div');
+                    div.className = 'ag-selection-checkbox';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'ag-checkbox-input';
+                    checkbox.checked = params.node.isSelected();
+
+                    checkbox.addEventListener('change', (e) => {
+                        e.stopPropagation();
+                        params.node.setSelected(e.target.checked);
+                    });
+
+                    div.appendChild(checkbox);
+                    return div;
+                },
+            },
+            {
                 headerName: 'Name',
                 field: 'name',
                 cellRenderer: (params) => this.nameColumnRenderer(params, true),
@@ -95,7 +164,7 @@ class DashboardGrid {
                     }
 
                     const div = document.createElement('div');
-                    div.id = 'dashboard-grid-btn';
+                    div.className = 'dashboard-grid-btn';
 
                     if (params.data.isDefault) {
                         div.innerHTML = `
@@ -129,16 +198,10 @@ class DashboardGrid {
             baseDiv.style.display = 'flex';
             baseDiv.style.alignItems = 'center';
 
-            const icon = document.createElement('i');
-            icon.className = params.data.type === 'folder' ? 'fa fa-folder' : 'fa fa-columns';
-            icon.style.color = params.data.type === 'folder' ? '#FFB84D' : '#6366f1';
-            icon.style.marginRight = '8px';
-
             const link = document.createElement('a');
             link.href = params.data.type === 'folder' ? `folder.html?id=${params.data.uniqId}` : `dashboard.html?id=${params.data.uniqId}`;
             link.innerText = params.value;
 
-            baseDiv.appendChild(icon);
             baseDiv.appendChild(link);
             return baseDiv;
         }
@@ -149,18 +212,19 @@ class DashboardGrid {
         }
 
         const indentLevel = this.getIndentLevel(params.data);
-        const indentPadding = indentLevel * 20;
+        const indentPadding = indentLevel * 14;
 
         if (params.data.type === 'folder') {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'folder-row';
+            folderDiv.style.pointerEvents = 'none';
             folderDiv.innerHTML = `
                 <div style="display: flex; align-items: center; padding-left: ${indentPadding}px;">
-                    <span class="folder-arrow" style="cursor: pointer">
+                    <span class="folder-arrow" style="cursor: pointer; pointer-events: auto;">
                         ${params.data.expanded ? '<i class="fa fa-chevron-down"></i>' : '<i class="fa fa-chevron-right"></i>'}
                     </span>
-                    <i class="fa fa-folder" style="color: #FFB84D; margin-right: 8px; margin-left: 8px;"></i>
-                    <a href="folder.html?id=${params.data.uniqId}">${params.value}</a>
+                    <i class="fa ${params.data.expanded ? 'fa-folder-open' : 'fa-folder'}" style="color: #FFB84D; margin-right: 8px; margin-left: 8px;"></i>
+                    <a href="folder.html?id=${params.data.uniqId}" style="pointer-events: auto;">${params.value}</a>
                 </div>`;
 
             const arrowElement = folderDiv.querySelector('.folder-arrow');
@@ -175,10 +239,10 @@ class DashboardGrid {
             const dashDiv = document.createElement('div');
             dashDiv.style.display = 'flex';
             dashDiv.style.alignItems = 'center';
-            dashDiv.style.paddingLeft = `${indentPadding + 33}px`;
+            dashDiv.style.paddingLeft = `${indentPadding + 27}px`;
 
             const icon = document.createElement('i');
-            icon.className = 'fa fa-columns';
+            icon.className = 'fa fa-th-large';
             icon.style.color = '#6366f1';
             icon.style.marginRight = '8px';
 
@@ -199,7 +263,7 @@ class DashboardGrid {
         div.style.alignItems = 'center';
         if (useIndentation) {
             const indentLevel = this.getIndentLevel(params.data);
-            const indentPadding = indentLevel * 20 + 33;
+            const indentPadding = indentLevel * 20 + 17;
             div.style.paddingLeft = `${indentPadding}px`;
         }
         div.style.color = '#666';
@@ -232,12 +296,11 @@ class DashboardGrid {
         }
 
         if (!params.data.expanded) {
-            // Recursively get all child IDs to remove
+            // Collapsing
             const getAllChildIds = (parentId) => {
                 const children = currentData.filter((row) => row.parentFolderId === parentId);
                 let ids = children.map((child) => child.rowId);
 
-                // Recursively get children of folders
                 children.forEach((child) => {
                     if (child.type === 'folder') {
                         ids = [...ids, ...getAllChildIds(child.uniqId)];
@@ -247,20 +310,18 @@ class DashboardGrid {
                 return ids;
             };
 
-            // Get all nested items to remove
             const idsToRemove = getAllChildIds(folderId);
             const newData = currentData.filter((row) => !idsToRemove.includes(row.rowId));
             this.gridOptions.api.setRowData(newData);
             return;
         }
 
+        // Expanding folder
         const contents = await getFolderContents(folderId);
         if (!contents) return;
 
-        // Find the index of the folder
         const folderIndex = currentData.findIndex((row) => row.uniqId === folderId);
 
-        // If folder is empty, add "No items" row
         if (!contents.items || contents.items.length === 0) {
             const noItemsRow = {
                 rowId: `${folderId}-no-items`,
@@ -292,21 +353,28 @@ class DashboardGrid {
         }));
 
         const newData = [...currentData.slice(0, folderIndex + 1), ...folderContents, ...currentData.slice(folderIndex + 1)];
-
         this.gridOptions.api.setRowData(newData);
+
+        const parentNode = this.gridOptions.api.getRowNode(params.data.rowId);
+        if (parentNode && parentNode.isSelected()) {
+            setTimeout(() => {
+                this.selectDeselectChildren(folderId, true);
+                setTimeout(() => {
+                    this.refreshFolderCheckboxes();
+                }, 50);
+            }, 150);
+        }
     }
 
     setData(items, useListView = false) {
         let rowData = [];
         let rowId = 0;
 
-        // If tree view, sort items by type first (folders before dashboards)
         if (!useListView) {
             items.sort((a, b) => {
                 if (a.type !== b.type) {
                     return a.type === 'folder' ? -1 : 1;
                 }
-                // If same type, maintain original order
                 return 0;
             });
         }
@@ -338,13 +406,9 @@ class DashboardGrid {
     async handleDelete(data) {
         try {
             if (data.type === 'folder') {
-                const contents = await getFolderContents(data.uniqId);
-                const counts = countFolderContents(contents);
-                if (counts.total) {
-                    $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
-                } else {
-                    $('.content-count').text(`1 item: 1 folder`);
-                }
+                const countData = await getFolderCount(data.uniqId);
+                const message = getCountMessage(countData.total + 1, countData.folders + 1, countData.dashboards);
+                $('.content-count').text(message);
             } else {
                 $('.content-count').text('1 item: 1 dashboard');
             }
@@ -369,15 +433,12 @@ class DashboardGrid {
                                 if (data.type === 'folder') {
                                     await deleteFolder(data.uniqId);
 
-                                    // Get all visible rows
                                     const currentData = this.gridOptions.api.getModel().rowsToDisplay.map((row) => row.data);
 
-                                    // Recursively get all child IDs to remove
                                     const getAllChildIds = (parentId) => {
                                         const children = currentData.filter((row) => row.parentFolderId === parentId);
                                         let ids = children.map((child) => child.rowId);
 
-                                        // Recursively get children of folders
                                         children.forEach((child) => {
                                             if (child.type === 'folder') {
                                                 ids = [...ids, ...getAllChildIds(child.uniqId)];
@@ -387,10 +448,8 @@ class DashboardGrid {
                                         return ids;
                                     };
 
-                                    // Get all items to remove
                                     const idsToRemove = [data.rowId, ...getAllChildIds(data.uniqId)];
 
-                                    // Remove parent and all children
                                     this.gridOptions.api.applyTransaction({
                                         remove: idsToRemove.map((id) => ({ rowId: id })),
                                     });
@@ -417,5 +476,310 @@ class DashboardGrid {
         } catch (error) {
             showToast('Failed to get item contents. Please try again.', 'error');
         }
+    }
+    async handleBulkDelete() {
+        const selectedNodes = this.gridOptions.api.getSelectedNodes();
+        const selectedData = selectedNodes.map((node) => node.data);
+
+        // Filter out indeterminate folders AND child folders of selected parents
+        const actuallySelectedItems = selectedData.filter((item) => {
+            if (item.type === 'folder') {
+                const selectionState = this.getFolderSelectionState(item.uniqId);
+                if (selectionState !== 'all') return false;
+
+                // Check if this folder is a child of another selected folder
+                const isChildOfSelectedFolder = selectedData.some((otherItem) => {
+                    if (otherItem.type === 'folder' && otherItem.uniqId !== item.uniqId) {
+                        const otherSelectionState = this.getFolderSelectionState(otherItem.uniqId);
+                        if (otherSelectionState === 'all') {
+                            return this.isChildOf(item.uniqId, otherItem.uniqId);
+                        }
+                    }
+                    return false;
+                });
+
+                return !isChildOfSelectedFolder;
+            }
+            return true; // Always include dashboards for now, filter later
+        });
+
+        // Get list of fully selected folder IDs to avoid double counting their children
+        const fullySelectedFolderIds = actuallySelectedItems.filter((item) => item.type === 'folder').map((item) => item.uniqId);
+
+        let folderCount = 0;
+        let dashboardCount = 0;
+
+        for (const item of actuallySelectedItems) {
+            if (item.type === 'folder') {
+                const countData = await getFolderCount(item.uniqId);
+                if (countData && countData.total > 0) {
+                    folderCount += countData.folders + 1;
+                    dashboardCount += countData.dashboards;
+                } else {
+                    folderCount += 1;
+                }
+            } else {
+                // Only count dashboards that are NOT children of fully selected folders
+                const isChildOfSelectedFolder = fullySelectedFolderIds.some((folderId) => {
+                    return this.isChildOf(item.uniqId, folderId);
+                });
+
+                if (!isChildOfSelectedFolder) {
+                    dashboardCount += 1;
+                }
+            }
+        }
+
+        const totalCount = folderCount + dashboardCount;
+
+        const message = getCountMessage(totalCount, folderCount, dashboardCount);
+        $('.content-count').text(message);
+
+        $('.popupOverlay, #delete-folder-modal').addClass('active');
+
+        $('.confirm-input')
+            .val('')
+            .off('input')
+            .on('input', function () {
+                $('.delete-btn').prop('disabled', $(this).val() !== 'Delete');
+            });
+
+        $('.delete-btn')
+            .prop('disabled', true)
+            .off('click')
+            .on('click', async () => {
+                if ($('.confirm-input').val() === 'Delete') {
+                    try {
+                        const currentData = this.gridOptions.api.getModel().rowsToDisplay.map((row) => row.data);
+
+                        const getAllChildIds = (parentId) => {
+                            const children = currentData.filter((row) => row.parentFolderId === parentId);
+                            let ids = children.map((child) => child.rowId);
+
+                            children.forEach((child) => {
+                                if (child.type === 'folder') {
+                                    ids = [...ids, ...getAllChildIds(child.uniqId)];
+                                }
+                            });
+
+                            return ids;
+                        };
+
+                        // Collect all IDs to remove from UI (selected items + their nested children)
+                        let allIdsToRemove = [];
+
+                        for (const item of selectedData) {
+                            allIdsToRemove.push(item.rowId);
+
+                            if (item.type === 'folder') {
+                                const childIds = getAllChildIds(item.uniqId);
+                                allIdsToRemove = [...allIdsToRemove, ...childIds];
+                            }
+                        }
+
+                        // Only delete items that aren't children of other selected folders
+                        for (const item of selectedData) {
+                            const isChildOfSelectedFolder = selectedData.some((otherItem) => {
+                                if (otherItem.type === 'folder' && otherItem.uniqId !== item.uniqId) {
+                                    return this.isChildOf(item.uniqId, otherItem.uniqId);
+                                }
+                                return false;
+                            });
+
+                            if (!isChildOfSelectedFolder) {
+                                if (item.type === 'folder') {
+                                    await deleteFolder(item.uniqId);
+                                } else {
+                                    await deleteDashboard(item.uniqId);
+                                }
+                            }
+                        }
+
+                        allIdsToRemove = [...new Set(allIdsToRemove)];
+
+                        this.gridOptions.api.applyTransaction({
+                            remove: allIdsToRemove.map((id) => ({ rowId: id })),
+                        });
+
+                        $('.popupOverlay, #delete-folder-modal').removeClass('active');
+                        this.clearSelection();
+                    } catch (error) {
+                        console.error('Error deleting items:', error);
+                        alert('Failed to delete some items. Please try again.');
+                    }
+                }
+            });
+
+        $('.cancel-btn').click(function () {
+            $('.popupOverlay, .popupContent').removeClass('active');
+            $('.confirm-input').val('');
+        });
+    }
+
+    getFolderSelectionState(folderId) {
+        const allNodes = [];
+        this.gridOptions.api.forEachNode((node) => allNodes.push(node));
+
+        const getChildNodes = (parentId) => {
+            const visibleChildren = allNodes.filter((node) => node.data.parentFolderId === parentId && node.data.type !== 'no-items');
+            let childNodes = [...visibleChildren];
+
+            visibleChildren.forEach((child) => {
+                if (child.data.type === 'folder') {
+                    childNodes = [...childNodes, ...getChildNodes(child.data.uniqId)];
+                }
+            });
+
+            return childNodes;
+        };
+
+        const childNodes = getChildNodes(folderId);
+        const selectedChildren = childNodes.filter((node) => node.isSelected());
+
+        if (childNodes.length === 0) {
+            const folderNode = allNodes.find((node) => node.data.uniqId === folderId);
+            return folderNode && folderNode.isSelected() ? 'all' : 'none';
+        }
+
+        if (selectedChildren.length === 0) return 'none';
+        if (selectedChildren.length === childNodes.length) return 'all';
+        return 'some';
+    }
+
+    handleSelectionChange() {
+        const selectedNodes = this.gridOptions.api.getSelectedNodes();
+        const selectedCount = selectedNodes.length;
+
+        this.handleCascadingSelection();
+
+        setTimeout(() => {
+            this.refreshFolderCheckboxes();
+        }, 50);
+
+        if (selectedCount > 0) {
+            $('#bulk-delete-btn').show().text('Delete');
+            $('.filter-controls, #sort-container').hide();
+
+            $('#bulk-delete-btn')
+                .off('click')
+                .on('click', () => this.handleBulkDelete());
+        } else {
+            $('#bulk-delete-btn').hide();
+            $('.filter-controls, #sort-container').show();
+        }
+    }
+
+    refreshFolderCheckboxes() {
+        this.gridOptions.api.refreshCells({
+            force: true,
+        });
+    }
+
+    handleCascadingSelection() {
+        const allNodes = [];
+        this.gridOptions.api.forEachNode((node) => allNodes.push(node));
+
+        const currentSelection = new Set();
+        const previousSelection = this.previousSelection || new Set();
+
+        allNodes.forEach((node) => {
+            if (node.isSelected()) {
+                currentSelection.add(node.data.rowId);
+            }
+        });
+
+        const newlySelected = [...currentSelection].filter((id) => !previousSelection.has(id));
+        const newlyDeselected = [...previousSelection].filter((id) => !currentSelection.has(id));
+
+        newlySelected.forEach((rowId) => {
+            const node = this.gridOptions.api.getRowNode(rowId);
+            if (node && node.data.type === 'folder') {
+                this.selectDeselectChildren(node.data.uniqId, true);
+            }
+        });
+
+        newlyDeselected.forEach((rowId) => {
+            const nodeData = allNodes.find((n) => n.data.rowId === rowId)?.data;
+            if (nodeData && nodeData.type === 'folder') {
+                this.selectDeselectChildren(nodeData.uniqId, false);
+            }
+        });
+
+        this.updateParentFolderStates(allNodes);
+
+        this.previousSelection = new Set(currentSelection);
+    }
+
+    updateParentFolderStates(allNodes) {
+        const folders = allNodes.filter((node) => node.data.type === 'folder');
+
+        folders.forEach((folderNode) => {
+            const folderId = folderNode.data.uniqId;
+            const selectionState = this.getFolderSelectionState(folderId);
+
+            if (selectionState === 'all') {
+                if (!folderNode.isSelected()) {
+                    folderNode.setSelected(true, false);
+                }
+            } else if (selectionState === 'none') {
+                if (folderNode.isSelected()) {
+                    folderNode.setSelected(false, false);
+                }
+            }
+        });
+    }
+
+    selectDeselectChildren(folderId, select) {
+        const allNodes = [];
+        this.gridOptions.api.forEachNode((node) => allNodes.push(node));
+
+        const getChildNodes = (parentId) => {
+            const children = allNodes.filter((node) => node.data.parentFolderId === parentId);
+            let childNodes = [...children];
+
+            children.forEach((child) => {
+                if (child.data.type === 'folder') {
+                    childNodes = [...childNodes, ...getChildNodes(child.data.uniqId)];
+                }
+            });
+
+            return childNodes;
+        };
+
+        const childNodes = getChildNodes(folderId);
+
+        childNodes.forEach((childNode) => {
+            if (childNode.data.type !== 'no-items') {
+                childNode.setSelected(select, false);
+            }
+        });
+
+        setTimeout(() => {
+            this.gridOptions.api.refreshCells({
+                force: true,
+            });
+        }, 10);
+    }
+
+    clearSelection() {
+        this.gridOptions.api.deselectAll();
+    }
+
+    isChildOf(childId, parentFolderId) {
+        const allNodes = [];
+        this.gridOptions.api.forEachNode((node) => allNodes.push(node));
+
+        const childNode = allNodes.find((node) => node.data.uniqId === childId);
+        if (!childNode) return false;
+
+        let currentParentId = childNode.data.parentFolderId;
+        while (currentParentId) {
+            if (currentParentId === parentFolderId) return true;
+
+            const parentNode = allNodes.find((node) => node.data.uniqId === currentParentId);
+            currentParentId = parentNode?.data.parentFolderId;
+        }
+
+        return false;
     }
 }

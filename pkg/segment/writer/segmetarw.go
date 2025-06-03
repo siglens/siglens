@@ -777,9 +777,10 @@ func DeletePQSData() error {
 }
 
 func writeOverSegMeta(segMetaEntries []*structs.SegMeta) error {
-	fd, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	tempFile := localSegmetaFname + ".tmp"
+	fd, err := os.OpenFile(tempFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return fmt.Errorf("writeOverSegMeta: Failed to open SegMetaFile name=%v, err:%v", localSegmetaFname, err)
+		return fmt.Errorf("writeOverSegMeta: Failed to open tempFile name=%v, err:%v", tempFile, err)
 	}
 	defer fd.Close()
 
@@ -797,6 +798,10 @@ func writeOverSegMeta(segMetaEntries []*structs.SegMeta) error {
 		if _, err := fd.WriteString("\n"); err != nil {
 			return fmt.Errorf("writeOverSegMeta: failed to write newline filename=%v: err=%v", localSegmetaFname, err)
 		}
+	}
+
+	if err := os.Rename(tempFile, localSegmetaFname); err != nil {
+		log.Errorf("writeOverSegMeta: Failed to rename temp file=%v to original=%v, err=%v", tempFile, localSegmetaFname, err)
 	}
 
 	return nil
