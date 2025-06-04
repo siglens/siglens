@@ -604,11 +604,11 @@ func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 		rQuery.Progress.RecordsSearched = rQuery.totalRecsSearched
 
 		if rQuery.isAsync {
-			wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress, rQuery.scrollFrom)
+			wsResponse := CreateWSUpdateResponseWithProgress(rQuery, rQuery.Progress, rQuery.scrollFrom)
 			rQuery.StateChan <- &QueryStateChanData{
 				StateName:    QUERY_UPDATE,
 				UpdateWSResp: wsResponse,
-				Qid:          qid,
+				Qid:          rQuery.qid,
 			}
 		}
 	}
@@ -1184,11 +1184,11 @@ func IncProgressForRRCCmd(recordsSearched uint64, unitsSearched uint64, qid uint
 	rQuery.Progress.RecordsSearched += recordsSearched
 
 	if rQuery.isAsync {
-		wsResponse := CreateWSUpdateResponseWithProgress(qid, rQuery.QType, rQuery.Progress, rQuery.scrollFrom)
+		wsResponse := CreateWSUpdateResponseWithProgress(rQuery, rQuery.Progress, rQuery.scrollFrom)
 		rQuery.StateChan <- &QueryStateChanData{
 			StateName:    QUERY_UPDATE,
 			UpdateWSResp: wsResponse,
-			Qid:          qid,
+			Qid:          rQuery.qid,
 		}
 	}
 
@@ -1243,7 +1243,7 @@ func IncRecordsSent(qid uint64, recordsSent uint64) error {
 	return nil
 }
 
-func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress, scrollFrom uint64) *structs.PipeSearchWSUpdateResponse {
+func CreateWSUpdateResponseWithProgress(rQuery *RunningQueryState, progress *structs.Progress, scrollFrom uint64) *structs.PipeSearchWSUpdateResponse {
 	completion := float64(0)
 	// TODO: clean up completion percentage
 	percCompleteBySearch := float64(0)
@@ -1254,13 +1254,29 @@ func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, pro
 	completion = math.Max(float64(percCompleteBySearch), percCompleteByRecordsSent)
 	// TODO: fix completion percentage so that it is accurate - correctly identify UnitsSearched and TotalUnits.
 	completion = math.Min(completion, 100.0)
-	return &structs.PipeSearchWSUpdateResponse{
+	wsResponse := &structs.PipeSearchWSUpdateResponse{
 		State:               QUERY_UPDATE.String(),
 		Completion:          completion,
-		Qtype:               qType.String(),
+		Qtype:               rQuery.QType.String(),
 		TotalEventsSearched: humanize.Comma(int64(progress.RecordsSearched)),
 		TotalPossibleEvents: humanize.Comma(int64(progress.TotalRecords)),
 	}
+
+	if rQuery.QType == structs.SegmentStatsCmd {
+		if rQuery.searchRes != nil {
+			// TODO: this function needs to be implemented
+			// For now, assume a method GetRunningSegmentStatsResults(humanize bool) ([]*structs.BucketHolder, []string, []string, int) exists on *segresults.SearchResults
+			buckets, functions, cols, count := rQuery.searchRes.GetRunningSegmentStatsResults(true)
+			wsResponse.MeasureResults = buckets
+			wsResponse.MeasureFunctions = functions
+			wsResponse.GroupByCols = cols
+			wsResponse.BucketCount = count
+		}
+		if rQuery.queryCount != nil {
+			wsResponse.Hits.TotalMatched = ConvertQueryCountToTotalResponse(rQuery.queryCount)
+		}
+	}
+	return wsResponse
 }
 
 func InitScrollFrom(qid uint64, scrollFrom uint64) error {

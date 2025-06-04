@@ -562,6 +562,60 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues boo
 	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, nil, 1
 }
 
+// GetRunningSegmentStatsResults returns the current accumulated statistics for segment stats queries.
+// It does not modify sr.statsAreFinal or delete from sr.allSSTS.
+func (sr *SearchResults) GetRunningSegmentStatsResults(humanizeValues bool) ([]*structs.BucketHolder, []string, []string, int) {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+
+	if sr.segStatsResults == nil || sr.segStatsResults.measureResults == nil {
+		return nil, nil, nil, 0
+	}
+
+	bucketHolder := &structs.BucketHolder{}
+	bucketHolder.MeasureVal = make(map[string]interface{})
+	// For running stats, GroupByValues might not be finalized or applicable in the same way as final results.
+	// Using EMPTY_GROUPBY_KEY as a placeholder or acknowledging it might be nil/empty.
+	bucketHolder.GroupByValues = []string{EMPTY_GROUPBY_KEY}
+
+	var measureVal interface{}
+	for mfName, aggVal := range sr.segStatsResults.measureResults {
+		measureVal = aggVal.CVal
+		switch aggVal.Dtype {
+		case sutils.SS_DT_FLOAT:
+			if humanizeValues {
+				measureVal = humanize.CommafWithDigits(aggVal.CVal.(float64), 3)
+			}
+			bucketHolder.MeasureVal[mfName] = measureVal
+		case sutils.SS_DT_SIGNED_NUM:
+			if humanizeValues {
+				measureVal = humanize.Comma(aggVal.CVal.(int64))
+			}
+			bucketHolder.MeasureVal[mfName] = measureVal
+		case sutils.SS_DT_STRING:
+			bucketHolder.MeasureVal[mfName] = aggVal.CVal
+		case sutils.SS_DT_STRING_SLICE:
+			strVal, err := aggVal.GetString()
+			if err != nil {
+				log.Errorf("GetRunningSegmentStatsResults: failed to convert string slice to string, qid: %v, err: %v", sr.qid, err)
+				bucketHolder.MeasureVal[mfName] = ""
+			} else {
+				bucketHolder.MeasureVal[mfName] = strVal
+			}
+		default:
+			log.Errorf("GetRunningSegmentStatsResults: unsupported dtype: %v for mfname %s, qid=%v", aggVal.Dtype, mfName, sr.qid)
+		}
+	}
+
+	// If bucketHolder.MeasureVal is empty, it means no measure results were populated.
+	if len(bucketHolder.MeasureVal) == 0 {
+		return nil, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, 0
+	}
+
+	aggMeasureResult := []*structs.BucketHolder{bucketHolder}
+	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, 1
+}
+
 func (sr *SearchResults) GetSegmentStatsMeasureResults() map[string]sutils.CValueEnclosure {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
