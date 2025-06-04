@@ -538,6 +538,111 @@ func getAverage(sum sutils.NumTypeEnclosure, count uint64) (float64, error) {
 	return avg, nil
 }
 
+func GetSegVar(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
+	// Initialize result with default values
+	rSst := sutils.NumTypeEnclosure{
+		Ntype:    sutils.SS_DT_FLOAT,
+		IntgrVal: 0,
+		FloatVal: 0.0,
+	}
+
+	if currSegStat == nil {
+		return &rSst, fmt.Errorf("GetSegVar: currSegStat is nil")
+	}
+
+	if !currSegStat.IsNumeric {
+		return &rSst, fmt.Errorf("GetSegVar: current segStats is non-numeric")
+	}
+	// If running segment statistics are nil, return the current segment's variance
+	if runningSegStat == nil {
+		variance, err := getVariance(currSegStat.NumStats.Sum, currSegStat.NumStats.Sumsq, currSegStat.NumStats.NumericCount)
+		rSst.FloatVal = variance
+		return &rSst, err
+	}
+	// Update running segment statistics
+	runningSegStat.NumStats.NumericCount += currSegStat.NumStats.NumericCount
+	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, sutils.Sum)
+	if err != nil {
+		return &rSst, fmt.Errorf("GetSegVar: error in reducing sum, err: %+v", err)
+	}
+	runningSegStat.NumStats.Sumsq += currSegStat.NumStats.Sumsq
+
+	// Calculate and return the variance
+	variance, err := getVariance(runningSegStat.NumStats.Sum, runningSegStat.NumStats.Sumsq, runningSegStat.NumStats.NumericCount)
+	rSst.FloatVal = variance
+	return &rSst, err
+}
+
+// Helper function to calculate the variance
+func getVariance(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64, error) {
+	var variance float64
+	if count < 2 {
+		return variance, fmt.Errorf("getVariance: count is %v, cannot divide by 0", count)
+	}
+	switch sum.Ntype {
+	case sutils.SS_DT_FLOAT:
+		variance = (sumsq - (sum.FloatVal * sum.FloatVal / float64(count))) / float64(count-1)
+	case sutils.SS_DT_SIGNED_NUM:
+		variance = (sumsq - (float64(sum.IntgrVal) * float64(sum.IntgrVal) / float64(count))) / float64(count-1)
+	default:
+		return variance, fmt.Errorf("getVariance: invalid data type: %v", sum.Ntype)
+	}
+	return variance, nil
+}
+
+func GetSegVarp(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
+	// Initialize result with default values
+	rSst := sutils.NumTypeEnclosure{
+		Ntype:    sutils.SS_DT_FLOAT,
+		IntgrVal: 0,
+		FloatVal: 0.0,
+	}
+
+	if currSegStat == nil {
+		return &rSst, fmt.Errorf("GetSegVarp: currSegStat is nil")
+	}
+
+	if !currSegStat.IsNumeric {
+		return &rSst, fmt.Errorf("GetSegVarp: current segStats is non-numeric")
+	}
+
+	// If running segment statistics are nil, return the current segment's population variance
+	if runningSegStat == nil {
+		varp, err := getVarp(currSegStat.NumStats.Sum, currSegStat.NumStats.Sumsq, currSegStat.NumStats.NumericCount)
+		rSst.FloatVal = varp
+		return &rSst, err
+	}
+
+	// Update running segment statistics
+	runningSegStat.NumStats.NumericCount += currSegStat.NumStats.NumericCount
+	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, sutils.Sum)
+	if err != nil {
+		return &rSst, fmt.Errorf("GetSegVarp: error in reducing sum, err: %+v", err)
+	}
+	runningSegStat.NumStats.Sumsq += currSegStat.NumStats.Sumsq
+
+	// Calculate and return the varp
+	varp, err := getVarp(runningSegStat.NumStats.Sum, runningSegStat.NumStats.Sumsq, runningSegStat.NumStats.NumericCount)
+	rSst.FloatVal = varp
+	return &rSst, err
+}
+
+// Helper function to calculate the variance
+func getVarp(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64, error) {
+	var variance float64
+	switch sum.Ntype {
+	case sutils.SS_DT_FLOAT:
+		variance = (sumsq - (sum.FloatVal * sum.FloatVal / float64(count))) / float64(count)
+	case sutils.SS_DT_SIGNED_NUM:
+		variance = (sumsq - (float64(sum.IntgrVal) * float64(sum.IntgrVal) / float64(count))) / float64(count)
+	default:
+		return variance, fmt.Errorf("getVariance: invalid data type: %v", sum.Ntype)
+	}
+	return variance, nil
+}
+
 func GetSegList(runningSegStat *structs.SegStats,
 	currSegStat *structs.SegStats) (*sutils.CValueEnclosure, error) {
 	res := sutils.CValueEnclosure{

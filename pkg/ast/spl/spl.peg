@@ -3936,8 +3936,8 @@ AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     }
 
     var valueColRequest *structs.ValueExpr
-    if measureFunc == sutils.Sumsq {
-        // This ensures that sumsq is computed using the raw records
+    if measureFunc == sutils.Sumsq || measureFunc == sutils.Var || measureFunc == sutils.Varp {
+        // For sumsq, var, and varp, we need to create a ValueExpr for the field
         valueColRequest = &structs.ValueExpr{
             ValueExprMode: structs.VEMNumericExpr,
             NumericExpr: &structs.NumericExpr{
