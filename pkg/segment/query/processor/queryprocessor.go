@@ -139,6 +139,13 @@ func CanParallelSearch(dataProcessors []*DataProcessor) (bool, int) {
 			return false, 0
 		}
 
+		if dp.GeneratesData() {
+			// TODO: in principle we could parallelize (so delete the early
+			// "return false" but don't add an early "return true"), but it's
+			// not implemented yet.
+			return false, 0
+		}
+
 		if dp.IgnoresInputOrder() {
 			canSplit = true
 		}
