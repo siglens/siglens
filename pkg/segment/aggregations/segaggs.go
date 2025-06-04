@@ -30,7 +30,9 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/segment/formatter"
 	"github.com/siglens/siglens/pkg/segment/structs"
+
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -1093,6 +1095,32 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		if err := performRexColRequest(nodeResult, aggs, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
+	} else if letColReq.FormatResults != nil {
+
+		// Convert from RecordResultContainer to map[string]interface{}
+		recordMaps := make([]map[string]interface{}, 0, len(nodeResult.AllRecords))
+
+		// Debug to inspect the actual structure
+		if len(nodeResult.AllRecords) > 0 {
+			fmt.Printf("DEBUG: RecordResultContainer full structure: %#v\n", nodeResult.AllRecords[0])
+		}
+
+		for _, record := range nodeResult.AllRecords {
+			// Try using Data field instead of Record
+			recordMaps = append(recordMaps, record.Data)
+		}
+
+		// Process format command
+		formattedRecords := formatter.ProcessFormatResults(recordMaps, letColReq.FormatResults)
+
+		// Convert back to RecordResultContainer format
+		nodeResult.AllRecords = make([]*sutils.RecordResultContainer, len(formattedRecords))
+		for i, record := range formattedRecords {
+			nodeResult.AllRecords[i] = &sutils.RecordResultContainer{
+				Data: record,
+			}
+		}
+
 	} else if letColReq.RenameColRequest != nil {
 		if err := performRenameColRequest(nodeResult, aggs, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)

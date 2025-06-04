@@ -1500,7 +1500,7 @@ func (c EvalFuncChecker) IsUnsupported(funcName string) bool {
 	return found
 }
 
-var unsupportedLetColumnCommands = []string{"FormatResults", "EventCountRequest"}
+var unsupportedLetColumnCommands = []string{"EventCountRequest"}
 
 func CheckUnsupportedFunctions(post *QueryAggregators) error {
 
