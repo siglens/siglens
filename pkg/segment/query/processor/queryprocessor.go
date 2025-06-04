@@ -252,7 +252,8 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			mergingDp := dataProcessorChains[0][mergeIndex]
 
 			if len(dataProcessors) > 0 {
-				mergingDp.streams = append(mergingDp.streams, NewCachedStream(dataProcessors[0]))
+				lastDp := dataProcessors[len(dataProcessors)-1]
+				mergingDp.streams = append(mergingDp.streams, NewCachedStream(lastDp))
 			}
 		}
 
