@@ -69,7 +69,6 @@ $(document).ready(async function () {
     ]);
 
     await initializeFromUrl();
-    
 });
 
 function setupAlertEventHandlers() {
@@ -430,9 +429,13 @@ async function fillAlertForm(res) {
             queryLanguage: 'Splunk QL',
         };
 
-        fetchLogsPanelData(data, -1).then((res) => {
-            alertChart(res);
-        });
+        fetchLogsPanelData(data, -1)
+            .then((res) => {
+                alertChart(res);
+            })
+            .catch(function (xhr, _err) {
+                handleErrors(xhr);
+            });
     }
     // Alert Type: Metrics
     else if (res.alert_type === 2) {
@@ -512,9 +515,13 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
         indexName: selectedSearchIndex,
         queryLanguage: queryLanguage,
     };
-    fetchLogsPanelData(data, -1).then((res) => {
-        alertChart(res);
-    });
+    fetchLogsPanelData(data, -1)
+        .then((res) => {
+            alertChart(res);
+        })
+        .catch(function (xhr, _err) {
+            handleErrors(xhr);
+        });
 }
 
 function handleFormValidationTooltip(alertType) {
@@ -591,7 +598,7 @@ function alertChart(res) {
 
     // Handle both aggs-query and segstats-query
     if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
-        if (handleErrors(res, logsExplorer) || !res.measure || res.measure.length === 0) {
+        if (!res.measure || res.measure.length === 0) {
             showEmptyChart(logsExplorer);
             return;
         }
@@ -837,14 +844,16 @@ function prepareLogsChartData(res, hits) {
     return { labels, datasets };
 }
 
-function handleErrors(res, logsExplorer) {
-    if (res.errors) {
-        const errorMsg = document.createElement('div');
-        errorMsg.textContent = res.errors[0];
-        logsExplorer.appendChild(errorMsg);
-        return true;
-    }
-    return false;
+function handleErrors(error) {
+    const logsExplorer = document.getElementById('logs-explorer');
+    const errorText = error.responseJSON?.error || error.statusText || 'Failed to fetch logs data';
+    
+    logsExplorer.style.display = 'flex';
+    logsExplorer.innerHTML = `
+        <div style="color: #666; text-align: center; padding: 20px; font-size: 16px; font-style: italic;">
+            ${errorText}
+        </div>
+    `;
 }
 
 function showEmptyChart(logsExplorer) {

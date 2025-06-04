@@ -100,6 +100,10 @@ function showError(mainText, subText) {
     $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     $('#logs-result-container, #agg-result-container, #views-container, .fields-sidebar, #empty-response, #custom-chart-tab').hide();
     $('#save-query-div').children().hide();
+
+    $('#progress-div').html(``);
+    $('#record-searched').html(``);
+    
     wsState = 'query';
 }
 
@@ -131,6 +135,9 @@ function resetDashboard() {
 
     $('#LogResultsGrid').html('');
     $('#measureAggGrid').html('');
+
+    $('.json-popup').removeClass('active');
+
     columnCount = 0;
     gridDiv = null;
     eGridDiv = null;
