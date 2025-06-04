@@ -2062,6 +2062,76 @@ func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue m
 	}
 }
 
+func adjustResultToReqSigFigs(left float64, right float64, op string, byDecimalPlace bool) (float64, error) {
+	if byDecimalPlace {
+		leftArr := strings.Split(strconv.FormatFloat(left, 'f', -1, 64), ".")
+		rightArr := strings.Split(strconv.FormatFloat(right, 'f', -1, 64), ".")
+		var lenDecLeft int
+		var lenDecRight int
+		if len(leftArr) > 1 {
+			lenDecLeft = len(leftArr[1])
+		} else {
+			lenDecLeft = 0
+		}
+		if len(rightArr) > 1 {
+			lenDecRight = len(rightArr[1])
+		} else {
+			lenDecRight = 0
+		}
+		var precision int
+		if lenDecLeft < lenDecRight {
+			precision = lenDecLeft
+		} else if lenDecLeft > lenDecRight {
+			precision = lenDecRight
+		} else {
+			precision = lenDecRight
+		}
+		switch op {
+		case "+":
+			return round(left+right, precision), nil
+		case "-":
+			return round(left-right, precision), nil
+		default:
+			return 0.0, fmt.Errorf("adjustResultToReqSigFigs: Invalid operand received; op: %v", op)
+		}
+	} else {
+		leftLen := len(strconv.FormatFloat(left, 'f', -1, 64))
+		rightLen := len(strconv.FormatFloat(right, 'f', -1, 64))
+		var resLen int
+		if leftLen > rightLen {
+			resLen = rightLen
+		} else if leftLen < rightLen {
+			resLen = leftLen
+		} else {
+			resLen = rightLen
+		}
+		switch op {
+		case "*":
+			return mulDivSigFigHelper(left*right, resLen), nil
+		case "/":
+			return mulDivSigFigHelper(left/right, resLen), nil
+		default:
+			return 0.0, fmt.Errorf("adjustResultToReqSigFigs: Invalid operand received; op: %v", op)
+		}
+	}
+}
+
+func mulDivSigFigHelper(res float64, reqResLen int) float64 {
+	// can do strings.Replace and convert to int to get manteissa length
+	// don't know which is faster
+	resArr := strings.Split(strconv.FormatFloat(res, 'f', -1, 64), ".")
+	var lenDecPart int = 0
+	if len(resArr) > 1 {
+		lenDecPart = len(resArr[1])
+	}
+	lenMantPart := len(resArr[0])
+	totalResLen := lenDecPart + lenMantPart
+	if totalResLen < reqResLen {
+		return res
+	}
+	return round(res, reqResLen-lenMantPart)
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
@@ -2129,6 +2199,36 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 			return math.Abs(left), nil
 		case "ceil":
 			return math.Ceil(left), nil
+		case "sigfig":
+			toDo := self.Left
+			sigfigMainOperation := toDo.Op
+			if sigfigMainOperation == "" {
+				return toDo.Evaluate(fieldToValue)
+			}
+			sigfigLeftResult, err := toDo.Left.Evaluate(fieldToValue)
+			if err != nil {
+				return 0, utils.WrapErrorf(err, "NumericExpr.Evaluate: Error in sigfig operation: %v", err)
+			}
+			sigfigRightResult, err := toDo.Right.Evaluate(fieldToValue)
+			if err != nil {
+				return 0, utils.WrapErrorf(err, "NumericExpr.Evaluate: Error in sigfig operation: %v", err)
+			}
+			var sigfigFinalResult float64
+			switch sigfigMainOperation {
+			case "+", "-":
+				sigfigFinalResult, err = adjustResultToReqSigFigs(sigfigLeftResult, sigfigRightResult, sigfigMainOperation, true)
+				if err != nil {
+					return 0, utils.WrapErrorf(err, "NumericExpr.Evaluate: Error in sigfig operation: %v", err)
+				}
+			case "*", "/":
+				sigfigFinalResult, err = adjustResultToReqSigFigs(sigfigLeftResult, sigfigRightResult, sigfigMainOperation, false)
+				if err != nil {
+					return 0, utils.WrapErrorf(err, "NumericExpr.Evaluate: Error in sigfig operation: %v", err)
+				}
+			default:
+				return 0, fmt.Errorf("NumericExpr.Evaluate: invalid operand received in sigfig; op: %v", sigfigMainOperation)
+			}
+			return sigfigFinalResult, nil
 		case "acosh":
 			if left < 1 {
 				return -1, fmt.Errorf("NumericExpr.Evaluate: acosh requires values >= 1, got: %v", left)
