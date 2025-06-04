@@ -551,7 +551,7 @@ func humanizeUints(v uint64) string {
 		j--
 	}
 	parts[j] = strconv.FormatUint(v, 10)
-	return strings.Join(parts, ",")
+	return strings.Join(parts[j:], ",")
 }
 
 func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues bool) ([]*structs.BucketHolder, []string, []string, []string, int) {
