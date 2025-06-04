@@ -784,9 +784,6 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		s.gotBlocks = false
 	}
 
-	// The rest can be done in parallel.
-	s.getBlocksLock.Unlock()
-
 	allRRCsSlices := make([][]*sutils.RecordResultContainer, 0, len(nextBlocks)+1)
 
 	// Prepare to call BatchProcess.
@@ -825,8 +822,12 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 	_, err = utils.BatchProcess(nextBlocks, getBatchKey, batchKeyLess, batchOperation, 1)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchRRCs: failed to batch process blocks: %v", s.qid, err)
+		s.getBlocksLock.Unlock()
 		return nil, err
 	}
+
+	// The rest can be done in parallel.
+	s.getBlocksLock.Unlock()
 
 	var validRRCs []*sutils.RecordResultContainer
 	if s.sortMode == anyOrder {
