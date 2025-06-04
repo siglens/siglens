@@ -179,6 +179,25 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
 	}
 
+	sortExpr := MutateForSearchSorter(firstAgg)
+
+	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstAgg, queryInfo))
+	if firstAgg.HasStatsBlock() {
+		// There's a different flow when the first agg is stats compared to
+		// when when a later agg is stats. At some point we may want to unify
+		// these two flows, but for now we can't use parallelism because the
+		// first agg gets skipped (and handled in the different flow) when it's
+		// stats.
+		canParallelize = false
+		mergeIndex = 0
+	}
+	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
+	if canParallelize {
+		// If we can parallelize, we don't need to sort
+		sortMode = anyOrder
+		sortExpr = nil
+	}
+
 	firstProcessorAgg := firstAgg
 
 	isLogsQuery := query.IsLogsQuery(firstAgg)
@@ -209,25 +228,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 		// skip the first agg
 		firstProcessorAgg = firstProcessorAgg.Next
-	}
-
-	sortExpr := MutateForSearchSorter(firstAgg)
-
-	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstAgg, queryInfo))
-	if firstAgg.HasStatsBlock() {
-		// There's a different flow when the first agg is stats compared to
-		// when when a later agg is stats. At some point we may want to unify
-		// these two flows, but for now we can't use parallelism because the
-		// first agg gets skipped (and handled in the different flow) when it's
-		// stats.
-		canParallelize = false
-		mergeIndex = 0
-	}
-	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
-	if canParallelize {
-		// If we can parallelize, we don't need to sort
-		sortMode = anyOrder
-		sortExpr = nil
 	}
 
 	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
