@@ -262,8 +262,10 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			mergingDp := dataProcessorChains[0][mergeIndex]
 
 			if len(dataProcessors) > 0 {
-				lastDp := dataProcessors[len(dataProcessors)-1]
-				mergingDp.streams = append(mergingDp.streams, NewCachedStream(lastDp))
+				// We need this to be a single-threaded stream because we may
+				// Fetch() from it in parallel.
+				lastStream := NewSingleThreadedStream(dataProcessors[len(dataProcessors)-1])
+				mergingDp.streams = append(mergingDp.streams, NewCachedStream(lastStream))
 			}
 		}
 
@@ -278,7 +280,12 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			dataProcessors[0].streams = append(dataProcessors[0].streams, searcherStream)
 		}
 		for m := 1; m < len(dataProcessors); m++ {
-			dataProcessors[m].streams = append(dataProcessors[m].streams, NewCachedStream(dataProcessors[m-1]))
+			var stream Streamer = dataProcessors[m-1]
+			if canParallelize && m == mergeIndex {
+				stream = NewSingleThreadedStream(stream)
+			}
+
+			dataProcessors[m].streams = append(dataProcessors[m].streams, NewCachedStream(stream))
 		}
 
 		if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
