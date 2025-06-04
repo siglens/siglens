@@ -4,6 +4,8 @@ let totalLoadedRecords = 0;
 let hasMoreRecords = false;
 let accumulatedRecords = [];
 let isLoadingMore = false;
+//eslint-disable-next-line no-unused-vars
+let isLoadMoreOperation = false;
 
 //eslint-disable-next-line no-unused-vars
 function initializePagination() {
@@ -54,6 +56,7 @@ function goToPage(page) {
         paginateAggsData(segStatsRowData);
     } else {
         const startIndex = (currentPage - 1) * pageSize;
+        $('.json-popup').removeClass('active');
 
         if (startIndex + pageSize > totalLoadedRecords && hasMoreRecords) {
             loadMoreResults();
@@ -200,6 +203,7 @@ function loadMoreResults() {
     if (isLoadingMore) return;
 
     isLoadingMore = true;
+    isLoadMoreOperation = true;
     updateLoadMoreMessage();
 
     const data = getSearchFilter(true, true, false);
@@ -215,6 +219,7 @@ function loadMoreResults() {
 
     doSearch(data).finally(() => {
         isLoadingMore = false;
+        isLoadMoreOperation = false;
         updateLoadMoreMessage();
     });
 }
