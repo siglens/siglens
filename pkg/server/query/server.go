@@ -226,6 +226,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}", tracing.TraceMiddleware(hs.Recovery(getFolderContentsHandler())))
 	hs.Router.PUT(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}", tracing.TraceMiddleware(hs.Recovery(updateFolderHandler())))
 	hs.Router.DELETE(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}", tracing.TraceMiddleware(hs.Recovery(deleteFolderHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}/count", tracing.TraceMiddleware(hs.Recovery(getFolderNestedCountHandler())))
 
 	hs.Router.GET(server_utils.API_PREFIX+"/version/info", tracing.TraceMiddleware(hs.Recovery(getVersionHandler())))
 

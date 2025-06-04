@@ -49,12 +49,10 @@ async function loadFolderContents(response) {
 }
 
 async function showMoveModal() {
-    const counts = countFolderContents(currentFolderContents);
-    if (counts.total) {
-        $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
-    } else {
-        $('.content-count').text(`1 item: 1 folder`);
-    }
+    const countData = await getFolderCount(folderId);
+    const message = getCountMessage(countData.total + 1, countData.folders + 1, countData.dashboards);
+    $('.content-count').text(message);
+
     $('.popupOverlay, #move-folder-modal').addClass('active');
 
     const folderDropdown = new FolderDropdown('folder-selector', {
@@ -88,12 +86,9 @@ async function showMoveModal() {
 }
 
 async function showDeleteModal() {
-    const counts = countFolderContents(currentFolderContents);
-    if (counts.total) {
-        $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
-    } else {
-        $('.content-count').text(`1 item: 1 folder`);
-    }
+    const countData = await getFolderCount(folderId);
+    const message = getCountMessage(countData.total + 1, countData.folders + 1, countData.dashboards);
+    $('.content-count').text(message);
 
     $('.popupOverlay, #delete-folder-modal').addClass('active');
 

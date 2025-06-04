@@ -492,6 +492,12 @@ func deleteFolderHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func getFolderNestedCountHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(dashboards.ProcessGetFolderNestedCountRequest, ctx)
+	}
+}
+
 func getSafeHealthHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		health.ProcessSafeHealth(ctx)
