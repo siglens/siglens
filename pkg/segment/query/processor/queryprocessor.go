@@ -241,8 +241,12 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			// searcher -> dp1 -> dp2 -> dp3 -> dp4
 			//          \                /
 			//             dp1 -> dp2 ->/
-			dataProcessors = dataProcessors[:mergeIndex+1]
-			dataProcessors[mergeIndex] = dataProcessorChains[0][mergeIndex]
+			dataProcessors = dataProcessors[:mergeIndex]
+			mergingDp := dataProcessorChains[0][mergeIndex]
+
+			if len(dataProcessors) > 0 {
+				mergingDp.streams = append(mergingDp.streams, NewCachedStream(dataProcessors[0]))
+			}
 		}
 
 		if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
