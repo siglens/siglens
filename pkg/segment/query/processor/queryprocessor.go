@@ -180,7 +180,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	sortExpr := MutateForSearchSorter(firstAgg)
-
 	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstAgg, queryInfo))
 	if firstAgg.HasStatsBlock() {
 		// There's a different flow when the first agg is stats compared to
@@ -196,6 +195,16 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		// If we can parallelize, we don't need to sort
 		sortMode = anyOrder
 		sortExpr = nil
+	}
+
+	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
+	if err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
+	}
+
+	err = query.InitScrollFrom(searcher.qid, uint64(scrollFrom))
+	if err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: failed to init scroll from; err=%v", err)
 	}
 
 	firstProcessorAgg := firstAgg
@@ -228,16 +237,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 		// skip the first agg
 		firstProcessorAgg = firstProcessorAgg.Next
-	}
-
-	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
-	if err != nil {
-		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
-	}
-
-	err = query.InitScrollFrom(searcher.qid, uint64(scrollFrom))
-	if err != nil {
-		return nil, utils.TeeErrorf("NewQueryProcessor: failed to init scroll from; err=%v", err)
 	}
 
 	searcherStream := NewCachedStream(searcher)
