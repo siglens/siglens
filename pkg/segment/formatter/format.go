@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -12,6 +13,8 @@ import (
 // and returns a single record with a "search" field containing the formatted search string
 func ProcessFormatResults(records []map[string]interface{}, formatReq *structs.FormatResultsRequest) []map[string]interface{} {
 	// Set defaults if not provided
+	fmt.Printf("DEBUG: Processing format request: %+v\n", formatReq)
+
 	if formatReq == nil {
 		formatReq = getDefaultFormatResultsExpr()
 	} else {
@@ -31,6 +34,10 @@ func ProcessFormatResults(records []map[string]interface{}, formatReq *structs.F
 				RowSeparator:    "OR",
 				RowEnd:          ")",
 			}
+		}
+		// Initialize NumFormatPatterns if nil
+		if formatReq.NumFormatPatterns == nil {
+			formatReq.NumFormatPatterns = make(map[string]string)
 		}
 	}
 
@@ -60,6 +67,18 @@ func ProcessFormatResults(records []map[string]interface{}, formatReq *structs.F
 		var formattedColumns []string
 		for _, field := range fields {
 			value := record[field]
+
+			// Apply numeric formatting if applicable
+			if formatPattern, exists := formatReq.NumFormatPatterns[field]; exists {
+				if numValue, ok := value.(float64); ok {
+					value = fmt.Sprintf(formatPattern, numValue)
+				} else if numValue, ok := value.(int64); ok {
+					value = fmt.Sprintf(formatPattern, float64(numValue))
+				} else if numValue, ok := value.(int); ok {
+					value = fmt.Sprintf(formatPattern, float64(numValue))
+				}
+			}
+
 			// Handle multi-value fields
 			if mvSlice, ok := value.([]interface{}); ok {
 				// Format multiple values with the MVSeparator
@@ -92,6 +111,58 @@ func ProcessFormatResults(records []map[string]interface{}, formatReq *structs.F
 	}
 }
 
+// ParseFormatCommand parses the format command string and returns a FormatResultsRequest
+func ParseFormatCommand(formatCmd string) (*structs.FormatResultsRequest, error) {
+	formatReq := getDefaultFormatResultsExpr()
+	formatReq.NumFormatPatterns = make(map[string]string)
+
+	// Remove leading and trailing whitespace
+	formatCmd = strings.TrimSpace(formatCmd)
+
+	// Parse numeric format patterns
+	numRegex := regexp.MustCompile(`num\(([^)]+)\)\s*=\s*"([^"]+)"`)
+	matches := numRegex.FindAllStringSubmatch(formatCmd, -1)
+
+	if len(matches) > 0 {
+		for _, match := range matches {
+			if len(match) >= 3 {
+				fieldName := strings.TrimSpace(match[1])
+				formatPattern := match[2]
+				formatReq.NumFormatPatterns[fieldName] = formatPattern
+			}
+		}
+		return formatReq, nil
+	}
+
+	// Parse other format options
+	parts := strings.Split(formatCmd, " ")
+	for i := 0; i < len(parts); i++ {
+		part := parts[i]
+		switch part {
+		case "maxresults":
+			if i+1 < len(parts) {
+				i++
+				// Parse maxresults value
+			}
+		case "mvsep":
+			if i+1 < len(parts) {
+				i++
+				formatReq.MVSeparator = parts[i]
+			}
+		case "emptystr":
+			if i+1 < len(parts) {
+				i++
+				formatReq.EmptyString = parts[i]
+			}
+		default:
+			// Unknown option
+			return nil, fmt.Errorf("unknown format option: %s", part)
+		}
+	}
+
+	return formatReq, nil
+}
+
 // getDefaultFormatResultsExpr returns default format command settings
 func getDefaultFormatResultsExpr() *structs.FormatResultsRequest {
 	return &structs.FormatResultsRequest{
@@ -106,5 +177,6 @@ func getDefaultFormatResultsExpr() *structs.FormatResultsRequest {
 			RowSeparator:    "OR",
 			RowEnd:          ")",
 		},
+		NumFormatPatterns: make(map[string]string),
 	}
 }

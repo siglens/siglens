@@ -1095,6 +1095,7 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		if err := performRexColRequest(nodeResult, aggs, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
+
 	} else if letColReq.FormatResults != nil {
 
 		// Convert from RecordResultContainer to map[string]interface{}
@@ -1105,9 +1106,33 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 			fmt.Printf("DEBUG: RecordResultContainer full structure: %#v\n", nodeResult.AllRecords[0])
 		}
 
+		// Process the records based on their actual structure
 		for _, record := range nodeResult.AllRecords {
-			// Try using Data field instead of Record
-			recordMaps = append(recordMaps, record.Data)
+			// Create a map with the record's metadata
+			recordMap := map[string]interface{}{
+				"SegKeyInfo":       record.SegKeyInfo,
+				"BlockNum":         record.BlockNum,
+				"RecordNum":        record.RecordNum,
+				"SortColumnValue":  record.SortColumnValue,
+				"TimeStamp":        record.TimeStamp,
+				"VirtualTableName": record.VirtualTableName,
+			}
+
+			// If there are numeric fields that need formatting, ensure they're stored as float64
+			for field, value := range record.FieldsMap {
+				if _, exists := letColReq.FormatResults.NumFormatPatterns[field]; exists {
+					// Try to convert to float64 for numeric formatting
+					if numVal, err := dtypeutils.ConvertToFloat(value, 64); err == nil {
+						recordMap[field] = numVal
+					} else {
+						recordMap[field] = value
+					}
+				} else {
+					recordMap[field] = value
+				}
+			}
+
+			recordMaps = append(recordMaps, recordMap)
 		}
 
 		// Process format command
@@ -1116,9 +1141,46 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		// Convert back to RecordResultContainer format
 		nodeResult.AllRecords = make([]*sutils.RecordResultContainer, len(formattedRecords))
 		for i, record := range formattedRecords {
-			nodeResult.AllRecords[i] = &sutils.RecordResultContainer{
-				Data: record,
+			// Extract values from the map back to the struct fields
+			rec := &sutils.RecordResultContainer{}
+
+			if segKeyInfo, ok := record["SegKeyInfo"]; ok {
+				if typedSegKeyInfo, ok := segKeyInfo.(sutils.SegKeyInfo); ok {
+					rec.SegKeyInfo = typedSegKeyInfo
+				}
 			}
+
+			if blockNum, ok := record["BlockNum"]; ok {
+				if typedBlockNum, ok := blockNum.(uint16); ok {
+					rec.BlockNum = typedBlockNum
+				}
+			}
+
+			if recordNum, ok := record["RecordNum"]; ok {
+				if typedRecordNum, ok := recordNum.(uint16); ok {
+					rec.RecordNum = typedRecordNum
+				}
+			}
+
+			if sortColumnValue, ok := record["SortColumnValue"]; ok {
+				if typedSortColumnValue, ok := sortColumnValue.(float64); ok {
+					rec.SortColumnValue = typedSortColumnValue
+				}
+			}
+
+			if timeStamp, ok := record["TimeStamp"]; ok {
+				if typedTimeStamp, ok := timeStamp.(uint64); ok {
+					rec.TimeStamp = typedTimeStamp
+				}
+			}
+
+			if virtualTableName, ok := record["VirtualTableName"]; ok {
+				if typedVirtualTableName, ok := virtualTableName.(string); ok {
+					rec.VirtualTableName = typedVirtualTableName
+				}
+			}
+
+			nodeResult.AllRecords[i] = rec
 		}
 
 	} else if letColReq.RenameColRequest != nil {
@@ -2705,7 +2767,7 @@ func performRexColRequestOnMeasureResults(nodeResult *structs.NodeResult, letCol
 		}
 	}
 
-	// Setup a map from each of the fields used in this expression to its value for a certain row.
+	// Setup a map for fetching values of field
 	fieldsInExpr := letColReq.RexColRequest.GetFields()
 	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 	rexExp, err := regexp.Compile(letColReq.RexColRequest.Pattern)
@@ -3153,13 +3215,11 @@ func performBinRequestOnRawRecordWithoutSpan(nodeResult *structs.NodeResult, let
 		}
 	}
 
-	if letColReq.BinRequest.Field != "timestamp" {
-		if letColReq.BinRequest.Start != nil && *letColReq.BinRequest.Start < minVal {
-			minVal = *letColReq.BinRequest.Start
-		}
-		if letColReq.BinRequest.End != nil && *letColReq.BinRequest.End > maxVal {
-			maxVal = *letColReq.BinRequest.End
-		}
+	if letColReq.BinRequest.Start != nil && *letColReq.BinRequest.Start < minVal {
+		minVal = *letColReq.BinRequest.Start
+	}
+	if letColReq.BinRequest.End != nil && *letColReq.BinRequest.End > maxVal {
+		maxVal = *letColReq.BinRequest.End
 	}
 
 	// Find the span range
@@ -3313,36 +3373,11 @@ func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *str
 
 func performBinRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
 	var err error
-	// Check if the column already exists.
-	var isGroupByCol bool // If false, it should be a MeasureFunctions column.
-	colIndex := -1        // Index in GroupByCols or MeasureFunctions.
-	for i, measureCol := range nodeResult.MeasureFunctions {
-		if letColReq.NewColName == measureCol {
-			// We'll write over this existing column.
-			isGroupByCol = false
-			colIndex = i
-			break
-		}
-	}
-
-	for i, groupByCol := range nodeResult.GroupByCols {
-		if letColReq.NewColName == groupByCol {
-			// We'll write over this existing column.
-			isGroupByCol = true
-			colIndex = i
-			break
-		}
-	}
-
-	if colIndex == -1 {
-		// Append the column as a MeasureFunctions column.
-		isGroupByCol = false
-		colIndex = len(nodeResult.MeasureFunctions)
-		nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, letColReq.NewColName)
-	}
+	// Check if the column already exists and is a GroupBy column.
+	isGroupByCol := utils.SliceHas(nodeResult.GroupByCols, letColReq.NewColName)
 
 	// Setup a map for fetching values of field
-	fieldsInExpr := []string{letColReq.BinRequest.Field}
+	fieldsInExpr := letColReq.ValueColRequest.GetFields()
 	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
 	minVal := math.MaxFloat64
@@ -3481,6 +3516,7 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 			err := getAggregationResultFieldValues(fieldToValue, fieldsInExpr, aggregationResult, rowIndex)
 			if err != nil {
 				return fmt.Errorf("performValueColRequestOnHistogram: %v", err)
+
 			}
 
 			// Evaluate the expression to a value. We do not know this expression represent a number or str
@@ -3610,7 +3646,7 @@ func performValueColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 		nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, letColReq.NewColName)
 	}
 
-	// Setup a map from each of the fields used in this expression to its value for a certain row.
+	// Setup a map for fetching values of field
 	fieldsInExpr := letColReq.ValueColRequest.GetFields()
 	fieldToValue := make(map[string]sutils.CValueEnclosure, 0)
 
@@ -4174,7 +4210,6 @@ func evaluateMatchPhrase(matchPhrase string, fieldValueStr string) bool {
 	// Use the regular expression to find a match
 	return r.MatchString(fieldValueStr)
 }
-
 func evaluateExpressionFilter(expressionFilter *structs.ExpressionFilter, record map[string]interface{}, recordMapStr string) bool {
 	leftValue, errL := evaluateFilterInput(expressionFilter.LeftInput, record, recordMapStr)
 	if errL != nil {
@@ -4197,7 +4232,6 @@ func evaluateFilterInput(filterInput *structs.FilterInput, record map[string]int
 
 	return nil, fmt.Errorf("evaluateFilterInput: filterInput is invalid")
 }
-
 func evaluateExpression(expr *structs.Expression, record map[string]interface{}) (interface{}, error) {
 	var leftValue, rightValue, err interface{}
 

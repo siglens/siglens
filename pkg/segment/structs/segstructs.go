@@ -409,23 +409,6 @@ type EventCountExpr struct {
 	ListVix    bool
 }
 
-// formats the results into a single result and places that result into a new field called search.
-type FormatResultsRequest struct {
-	MVSeparator   string         // separator for multi-value fields. Default= "OR"
-	MaxResults    uint64         // max number of results to return
-	EmptyString   string         // string to return if no results are found. Default= "NOT()"
-	RowColOptions *RowColOptions // options for row column
-}
-
-type RowColOptions struct {
-	RowPrefix       string // prefix for row. Default= "("
-	ColumnPrefix    string // prefix for column. Default= "("
-	ColumnSeparator string // separator for column. Default= "AND"
-	ColumnEnd       string // end for column. Default= ")"
-	RowSeparator    string // separator for row. Default= "OR"
-	RowEnd          string // end for row. Default= ")"
-}
-
 type MultiColLetRequest struct {
 	LeftCName  string
 	Oper       sutils.LogicalAndArithmeticOperator
