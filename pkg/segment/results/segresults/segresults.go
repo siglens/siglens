@@ -373,10 +373,14 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 		if aggOp != sutils.Count && aggCol == "*" {
 			return fmt.Errorf("UpdateSegmentStats: aggOp: %v cannot be applied with *, qid=%v", aggOp, sr.qid)
 		}
+		var currSst *structs.SegStats
 		currSst, ok := sstMap[aggCol]
 		if !ok && measureAgg.ValueColRequest == nil {
-			log.Debugf("UpdateSegmentStats: sstMap was nil for aggCol %v, qid=%v", aggCol, sr.qid)
-			continue
+			currSst, ok = sstMap[config.GetTimeStampKey()]
+			if !ok {
+				log.Debugf("UpdateSegmentStats: sstMap was nil for aggCol %v, qid=%v", aggCol, sr.qid)
+				continue
+			}
 		}
 
 		if measureAgg.ValueColRequest == nil {
