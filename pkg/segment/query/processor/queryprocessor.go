@@ -179,25 +179,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
 	}
 
-	sortExpr := MutateForSearchSorter(firstAgg)
-	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstAgg, queryInfo))
-	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
-	if canParallelize {
-		// If we can parallelize, we don't need to sort
-		sortMode = anyOrder
-		sortExpr = nil
-	}
-
-	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
-	if err != nil {
-		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
-	}
-
-	err = query.InitScrollFrom(searcher.qid, uint64(scrollFrom))
-	if err != nil {
-		return nil, utils.TeeErrorf("NewQueryProcessor: failed to init scroll from; err=%v", err)
-	}
-
 	firstProcessorAgg := firstAgg
 
 	isLogsQuery := query.IsLogsQuery(firstAgg)
@@ -228,6 +209,25 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 		// skip the first agg
 		firstProcessorAgg = firstProcessorAgg.Next
+	}
+
+	sortExpr := MutateForSearchSorter(firstAgg)
+	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstProcessorAgg, queryInfo))
+	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
+	if canParallelize {
+		// If we can parallelize, we don't need to sort
+		sortMode = anyOrder
+		sortExpr = nil
+	}
+
+	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
+	if err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
+	}
+
+	err = query.InitScrollFrom(searcher.qid, uint64(scrollFrom))
+	if err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: failed to init scroll from; err=%v", err)
 	}
 
 	searcherStream := NewCachedStream(searcher)
