@@ -7,8 +7,9 @@ import (
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 )
 
-// EvalNullIf evaluates the nullif(expr1, expr2) function.
-// Returns nil if both values are equal, otherwise returns the first value.
+// EvalNullIf implements the nullif(expr1, expr2) SPL function.
+// Returns nil when expr1 equals expr2, otherwise returns expr1.
+// Supports string and numeric type comparison with proper type handling.
 func EvalNullIf(args []*structs.ValueExpr, fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 	if len(args) != 2 {
 		return nil, fmt.Errorf("nullif function requires exactly 2 arguments")
@@ -24,7 +25,7 @@ func EvalNullIf(args []*structs.ValueExpr, fieldToValue map[string]sutils.CValue
 		return nil, err
 	}
 
-	// Handle nil values
+	// Handle nil values first for efficiency
 	if val1 == nil && val2 == nil {
 		return nil, nil
 	}
@@ -32,19 +33,18 @@ func EvalNullIf(args []*structs.ValueExpr, fieldToValue map[string]sutils.CValue
 		return val1, nil
 	}
 
-	// Compare numeric values properly
+	// Try numeric comparison if both values can be converted to float64
 	v1Float, v1IsFloat := tryConvertToFloat64(val1)
 	v2Float, v2IsFloat := tryConvertToFloat64(val2)
 
 	if v1IsFloat && v2IsFloat {
-		// Both are numeric, compare as numbers
 		if v1Float == v2Float {
 			return nil, nil
 		}
 		return val1, nil
 	}
 
-	// Compare as strings as fallback
+	// Fall back to string comparison for non-numeric values
 	v1Str := fmt.Sprintf("%v", val1)
 	v2Str := fmt.Sprintf("%v", val2)
 	if v1Str == v2Str {
@@ -54,8 +54,8 @@ func EvalNullIf(args []*structs.ValueExpr, fieldToValue map[string]sutils.CValue
 	return val1, nil
 }
 
-// tryConvertToFloat64 attempts to convert a value to float64
-// Returns the converted value and a boolean indicating success
+// tryConvertToFloat64 attempts to convert various data types to float64.
+// Returns the numeric value and true if conversion was successful.
 func tryConvertToFloat64(val interface{}) (float64, bool) {
 	if val == nil {
 		return 0, false
@@ -79,7 +79,7 @@ func tryConvertToFloat64(val interface{}) (float64, bool) {
 	case uint32:
 		return float64(v), true
 	case string:
-		// Try to parse the string as a number
+		// Parse strings that contain numbers
 		f, err := sutils.ParseStringToFloat64(v)
 		if err == nil {
 			return f, true
