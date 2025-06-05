@@ -54,7 +54,7 @@ func (cci *CaseConversionInfo) ShouldAlsoSearchWithOriginalCase() bool {
 // to match and should not have quotation marks as the first and last character
 // unless those are intended to be matched.
 // If forceCaseSensitive is set to true, caseInsensitive will be ignored
-func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, caseInsensitive bool, forceCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
+func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, caseInsensitive bool, isTerm bool, forceCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
 	andFilterCondition := make([]*FilterCriteria, 0)
 	var opr FilterOperator = Equals
 	switch compOpr {
@@ -80,6 +80,11 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		if originalColValue != nil {
 			colValue = originalColValue
 		}
+	}
+
+	if isTerm {
+		log.Error("TERM() queries are currently a work-in-progress")
+		return nil, errors.New("TERM() is not yet supported")
 	}
 
 	caseConversion := &CaseConversionInfo{
