@@ -315,6 +315,12 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		sstResult, err = segread.GetSegSum(runningSegStat, incomingSegStat)
 	case sutils.Avg:
 		sstResult, err = segread.GetSegAvg(runningSegStat, incomingSegStat)
+	case sutils.StatsRate:
+		res, err := segread.GetSegValue(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for rate, err: %v", err)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
 	case sutils.Values:
 		// Use GetSegValue to process and get the segment value
 		res, err := segread.GetSegValue(runningSegStat, incomingSegStat)
@@ -412,6 +418,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			err = aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.List:
 			err = aggregations.ComputeAggEvalForList(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		case sutils.StatsRate:
+			err = aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		default:
 			return fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", aggOp, sr.qid)
 		}
@@ -1051,7 +1059,7 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 
 		// For eval statements in aggregate functions, there should be only one field for min and max
 		switch aggOp {
-		case sutils.Min, sutils.Max, sutils.Sum, sutils.Count:
+		case sutils.Min, sutils.Max, sutils.Sum, sutils.Count, sutils.StatsRate:
 			currRes := sr.segStatsResults.measureResults[measureAgg.String()]
 			remoteResCVal := sutils.CValueEnclosure{}
 			err := remoteResCVal.ConvertValue(remoteRes.MeasureResult)
@@ -1171,7 +1179,7 @@ func (sr *SearchResults) GetRemoteStats() (*RemoteStats, error) {
 	for _, measureAgg := range sr.sAggs.MeasureOperations {
 		if measureAgg.ValueColRequest != nil {
 			switch measureAgg.MeasureFunc {
-			case sutils.Min, sutils.Max, sutils.Count, sutils.Sum:
+			case sutils.Min, sutils.Max, sutils.Count, sutils.Sum,sutils.StatsRate:
 				_, exist := sr.segStatsResults.measureResults[measureAgg.String()]
 				if exist {
 					remoteStats.EvalStats[measureAgg.String()] = EvalStatsMetaData{

@@ -3860,7 +3860,7 @@ Aggregator <- aggFunc:AggFunction asField:AsField? {
 // 1. min, max, sum, avg, and range can only evaluate boolComparisonExpr, as they need to compute the field value inside the expression. There should be only one field.
 // 2. count can evaluate boolExpr because it does not care about the field value inside the expression. It only cares about whether the current row should be counted or not.
 // 3. distinctCount and values can evaluate valueExpr because they just need to find out the distinct values of the result of the expression. As for the type of the expression result, it is not important.
-AggFunction <- agg:(AggCount / AggPercCommon / AggCommon) {
+AggFunction <- agg:(AggCount / AggPercCommon / AggCommon / AggRate) {
     return agg, nil
 }
 
@@ -3912,6 +3912,13 @@ AggCount <- ("count" / "c") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     }
 
     return agg, nil
+}
+
+AggRate <- "rate" L_PAREN field:FieldName R_PAREN {
+    return &structs.MeasureAggregator{
+        MeasureCol: field.(string),
+        MeasureFunc: sutils.StatsRate,
+    }, nil
 }
 
 AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
