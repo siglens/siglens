@@ -11660,5 +11660,5 @@ func Test_eqOperator_doubleEquals_numeric(t *testing.T) {
 	comp := res.(ast.QueryStruct).SearchFilter
 	assert.Equal(t, comp.Comparison.Op, "=")
 	assert.Equal(t, comp.Comparison.Field, "status")
-	assert.Equal(t, comp.Comparison.Values, "200")
+	assert.Equal(t, fmt.Sprintf("%v", comp.Comparison.Values), "200")
 }
