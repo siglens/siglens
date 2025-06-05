@@ -2716,28 +2716,6 @@ func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]sutils.
 	return "", nil
 }
 
-func handleFunction(expr *ConditionExpr, fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
-	if len(expr.ValueList) != 2 {
-		return nil, fmt.Errorf("handleNullIfFunction: nullif requires exactly two arguments")
-	}
-
-	value1, err := expr.ValueList[0].EvaluateValueExpr(fieldToValue)
-	if err != nil {
-		return nil, utils.WrapErrorf(err, "handleNullIfFunction: Error while evaluating value1, err: %v", err)
-	}
-
-	value2, err := expr.ValueList[1].EvaluateValueExpr(fieldToValue)
-	if err != nil {
-		return nil, utils.WrapErrorf(err, "handleNullIfFunction: Error while evaluating value2, err: %v", err)
-	}
-
-	if value1 == value2 {
-		return nil, nil
-	}
-
-	return value1, nil
-}
-
 // Field may come from BoolExpr or ValueExpr
 func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 
