@@ -398,7 +398,7 @@ func PerformEvalAggForSumsq(measureAgg *structs.MeasureAggregator, count uint64,
 
 	if len(fieldToValue) == 0 {
 		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-		// We cannot compute sum if constant is not numeric
+		// We cannot compute sumsq if constant is not numeric
 		if err != nil || !isNumeric {
 			return currResult, err
 		}
@@ -417,7 +417,6 @@ func PerformEvalAggForSumsq(measureAgg *structs.MeasureAggregator, count uint64,
 			if err != nil {
 				return currResult, err
 			}
-			// records that are not float will be ignored
 			if isNumeric {
 				finalValueSquared = floatValue * floatValue
 			}
@@ -466,8 +465,8 @@ func ComputeAggEvalForSumsq(measureAgg *structs.MeasureAggregator, sstMap map[st
 			return fmt.Errorf("ComputeAggEvalForSumsq: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
 
-		length := len(sst.Records)
-		for i := 0; i < length; i++ {
+		numRecords := len(sst.Records)
+		for i := 0; i < numRecords; i++ {
 			fieldToValue = make(map[string]sutils.CValueEnclosure)
 			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
 			if err != nil {
@@ -475,7 +474,7 @@ func ComputeAggEvalForSumsq(measureAgg *structs.MeasureAggregator, sstMap map[st
 			}
 
 			currResult, currResultExists := measureResults[measureAgg.String()]
-			result, err := PerformEvalAggForSumsq(measureAgg, uint64(length), currResultExists, currResult, fieldToValue)
+			result, err := PerformEvalAggForSumsq(measureAgg, uint64(numRecords), currResultExists, currResult, fieldToValue)
 			if err != nil {
 				return err
 			}
