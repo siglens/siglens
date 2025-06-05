@@ -359,7 +359,7 @@ func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
 // For numeric agg(not include dc), we can simply use addition to merge them
 // For string values, it depends on the aggregation function
 func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, hll *utils.GobbableHll, hllToMerge *utils.GobbableHll,
-	strSet map[string]struct{}, strSetToMerge map[string]struct{}, td *utils.GobbableTDigest, tdToMerge *utils.GobbableTDigest, aggFunc sutils.AggregateFunctions, aggParam string, useAdditionForMerge bool, batchErr *utils.BatchError) {
+	strSet map[string]struct{}, strSetToMerge map[string]struct{}, td *utils.GobbableTDigest, tdToMerge *utils.GobbableTDigest, aggFunc sutils.AggregateFunctions, aggParam float64, useAdditionForMerge bool, batchErr *utils.BatchError) {
 
 	switch aggFunc {
 	case sutils.Count:
@@ -394,17 +394,12 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 		if useAdditionForMerge {
 			aggFunc = sutils.Sum
 		} else {
-			fltPercentile, err := strconv.ParseFloat(aggParam, 64)
-			if err != nil {
-				batchErr.AddError("GroupByBuckets.AddResultToStatRes:PERCENTILE", fmt.Errorf("percentile param must be numeric, got type: %T, val: %v", aggParam, aggParam))
-				return
-			}
-			fltPercentileVal := fltPercentile / 100
+			fltPercentileVal := aggParam / 100
 			if fltPercentileVal < 0 || fltPercentileVal > 1 {
 				batchErr.AddError("GroupByBuckets.AddResultToStatRes:PERCENTILE", fmt.Errorf("percentile param out of range"))
 				return
 			}
-			err = td.MergeTDigest(tdToMerge)
+			err := td.MergeTDigest(tdToMerge)
 			if err != nil {
 				batchErr.AddError("MergeVal:TDIGEST_STATS", err)
 			}
@@ -471,7 +466,7 @@ func IsRankBySum(timechart *structs.TimechartExpr) bool {
 }
 
 func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, index int, eVal sutils.CValueEnclosure,
-	hllToMerge *utils.GobbableHll, strSetToMerge map[string]struct{}, tdToMerge *utils.GobbableTDigest, aggFunc sutils.AggregateFunctions, aggParam string, groupByColVal string,
+	hllToMerge *utils.GobbableHll, strSetToMerge map[string]struct{}, tdToMerge *utils.GobbableTDigest, aggFunc sutils.AggregateFunctions, aggParam float64, groupByColVal string,
 	isOtherCol bool, batchErr *utils.BatchError) bool {
 
 	useAdditionForMerge := (tmLimitResult.OtherCValArr == nil)

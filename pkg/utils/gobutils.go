@@ -115,8 +115,12 @@ type GobbableTDigest struct {
 	*tdigest.TDigest
 }
 
+// splunk uses nearest rank for less than 1000 cardinality and tdigest for > 1000 cardinality
+// https://docs.splunk.com/Documentation/Splunk/9.1.1/SearchReference/Aggregatefunctions#Usage_12
+const TDIGEST_COMPRESSION float64 = 1000
+
 func CreateNewTDigest() (*GobbableTDigest, error) {
-	ntd, err := tdigest.New(tdigest.Compression(1000))
+	ntd, err := tdigest.New(tdigest.Compression(TDIGEST_COMPRESSION))
 	return &GobbableTDigest{TDigest: ntd}, err
 }
 

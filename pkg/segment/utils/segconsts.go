@@ -111,10 +111,6 @@ const MS_IN_DAY = 86_400_000 // 24 * 60 * 60 * 1000
 // https://docs.splunk.com/Documentation/SplunkCloud/9.1.2312/SearchReference/Multivaluefunctions
 const MAX_SPL_LIST_SIZE = 100
 
-// splunk uses nearest rank for less than 1000 cardinality and tdigest for > 1000 cardinality
-// https://help.splunk.com/en/splunk-cloud-platform/search/spl2-search-reference/statistical-and-charting-functions/aggregate-functions#differences-between-splunk-and-excel-percentile-algorithms-0
-const TDIGESTCOMPRESSION = 1000
-
 var BYTE_SPACE = []byte(" ")
 var BYTE_SPACE_LEN = len(BYTE_SPACE)
 var BYTE_EMPTY_STRING = []byte("")

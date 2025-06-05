@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -214,7 +213,6 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 				idx = curId
 				continue
 			} else {
-				// TODO: handle timechart
 				mFunc = sutils.Perc
 			}
 		case sutils.Cardinality:
@@ -840,12 +838,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 	case sutils.Perc:
 		incrementIdxBy = 1
 		valIdx := gb.reverseMeasureIndex[idx]
-		fltPercentile, err := strconv.ParseFloat(mInfo.Param, 64)
-		if err != nil {
-			batchErr.AddError("GroupByBuckets.AddResultToStatRes:PERCENTILE", fmt.Errorf("percentile param must be numeric, got type: %T, val: %v", mInfo.Param, mInfo.Param))
-			return
-		}
-		fltPercentileVal := fltPercentile / 100
+		fltPercentileVal := mInfo.Param / 100
 		if fltPercentileVal < 0 || fltPercentileVal > 1 {
 			batchErr.AddError("GroupByBuckets.AddResultToStatRes:PERCENTILE", fmt.Errorf("percentile param out of range"))
 			return

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -774,7 +773,6 @@ func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[str
 func ComputeAggEvalForPerc(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 	fieldToValue := make(map[string]sutils.CValueEnclosure)
-	// result := 0.0
 	var err error
 	var td *utils.GobbableTDigest
 	_, ok := runningEvalStats[measureAgg.String()]
@@ -805,13 +803,13 @@ func ComputeAggEvalForPerc(measureAgg *structs.MeasureAggregator, sstMap map[str
 		if !ok {
 			return fmt.Errorf("ComputeAggEvalForPerc: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
-		length := len(sst.Records)
-		for i := 0; i < length; i++ {
+		numRecords := len(sst.Records)
+		for i := 0; i < numRecords; i++ {
 			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForPerc: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
-			err = PerformEvalAggForPerc(measureAgg, uint64(length), td, fieldToValue)
+			err = PerformEvalAggForPerc(measureAgg, uint64(numRecords), td, fieldToValue)
 			if err != nil {
 				return fmt.Errorf("PerformEvalAggForPerc: Error while performing eval agg for perc, err: %v", err)
 			}
@@ -820,24 +818,15 @@ func ComputeAggEvalForPerc(measureAgg *structs.MeasureAggregator, sstMap map[str
 	}
 
 	runningEvalStats[measureAgg.String()] = td
-	percValStr := measureAgg.Param
-	if len(percValStr) != 0 {
-		percValFlt, err := strconv.ParseFloat(percValStr, 64)
-		if err != nil {
-			return fmt.Errorf("ComputeAggEvalForPerc: invalid percentile value; err: %v", err)
-		}
-		percValFlt = percValFlt / 100
-		if percValFlt < 0 || percValFlt > 1 {
-			return fmt.Errorf("ComputeAggEvalForPerc: percentile value not within valid range; val: %v", percValFlt)
-		}
-		measureResults[measureAgg.String()] = sutils.CValueEnclosure{
-			Dtype: sutils.SS_DT_FLOAT,
-			CVal:  td.GetQuantile(percValFlt),
-		}
-		return nil
-	} else {
-		return fmt.Errorf("ComputeAggEvalForPerc: percentile param empty")
+	percValFlt := measureAgg.Param / 100
+	if percValFlt < 0 || percValFlt > 1 {
+		return fmt.Errorf("ComputeAggEvalForPerc: percentile value not within valid range; val: %v", percValFlt)
 	}
+	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
+		CVal:  td.GetQuantile(percValFlt),
+	}
+	return nil
 }
 
 func PerformEvalAggForPerc(measureAgg *structs.MeasureAggregator, count uint64, td *utils.GobbableTDigest, fieldToValue map[string]sutils.CValueEnclosure) (err error) {

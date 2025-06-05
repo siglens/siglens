@@ -18,8 +18,10 @@
 package utils
 
 import (
+	"math/rand"
 	"testing"
 
+	tutils "github.com/siglens/siglens/pkg/segment/tracing/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -181,4 +183,63 @@ func Test_DecodeInvalidList(t *testing.T) {
 	decodedList := GobbableList{}
 	err := decodedList.GobDecode([]byte("invalid encoding"))
 	assert.Error(t, err)
+}
+
+func Test_EncodeDecodeTDigest(t *testing.T) {
+	originalTDigest, err := CreateNewTDigest()
+	assert.NoError(t, err)
+	numValsToInsert := uint64(5000)
+	for i := 0.0; i < float64(numValsToInsert); i++ {
+		err = originalTDigest.InsertIntoTDigest(i)
+		assert.NoError(t, err)
+	}
+	encoded, err := originalTDigest.GobEncode()
+	assert.NoError(t, err)
+	decoded, err := CreateNewTDigest()
+	assert.NoError(t, err)
+	err = decoded.GobDecode(encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, TDIGEST_COMPRESSION, decoded.Compression())
+	assert.Equal(t, numValsToInsert, decoded.Count())
+}
+
+func Test_EncodeDecodeTDigestEmpty(t *testing.T) {
+	originalTDigest, err := CreateNewTDigest()
+	assert.NoError(t, err)
+	encoded, err := originalTDigest.GobEncode()
+	assert.NoError(t, err)
+	decoded, err := CreateNewTDigest()
+	assert.NoError(t, err)
+	err = decoded.GobDecode(encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, TDIGEST_COMPRESSION, decoded.Compression())
+	assert.Equal(t, uint64(0), decoded.Count())
+}
+
+func Test_EncodeDecodeTDigest_LessThanCompression_PercentileCheck(t *testing.T) {
+	originalTDigest, err := CreateNewTDigest()
+	assert.NoError(t, err)
+	const numValsToInsert float64 = TDIGEST_COMPRESSION - 5
+	valArr := make([]float64, int(numValsToInsert))
+	for i := 0.0; i < numValsToInsert; i++ {
+		err = originalTDigest.InsertIntoTDigest(i)
+		assert.NoError(t, err)
+		valArr[int(i)] = i
+	}
+	percentileToCalc := rand.Intn(101)
+	ansToTestAgainst := tutils.FindPercentileData(valArr, percentileToCalc)
+	unEncodedRes := originalTDigest.GetQuantile(float64(percentileToCalc) / 100)
+	assert.Equal(t, ansToTestAgainst, unEncodedRes)
+
+	encoded, err := originalTDigest.GobEncode()
+	assert.NoError(t, err)
+	decoded, err := CreateNewTDigest()
+	assert.NoError(t, err)
+	err = decoded.GobDecode(encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, TDIGEST_COMPRESSION, decoded.Compression())
+	assert.Equal(t, uint64(numValsToInsert), decoded.Count())
+	ansToTestAgainst = tutils.FindPercentileData(valArr, percentileToCalc)
+	decodedRes := decoded.GetQuantile(float64(percentileToCalc) / 100)
+	assert.Equal(t, ansToTestAgainst, decodedRes)
 }
