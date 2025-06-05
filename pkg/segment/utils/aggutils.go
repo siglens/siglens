@@ -307,6 +307,5 @@ func AppendWithLimit(dest []string, src []string, limit int) []string {
 
 // ParseStringToFloat64 tries to parse a string to a float64
 func ParseStringToFloat64(s string) (float64, error) {
-	// Implementation that parses the string to float64
 	return strconv.ParseFloat(s, 64)
 }
