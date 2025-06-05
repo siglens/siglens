@@ -227,9 +227,10 @@ func removeMetricsSegmentsByList(metricsMetaFile string, metricsSegmentsToDelete
 				log.Errorf("removeMetricsSegmentsByList: Failed to remove metrics meta file name=%v, err:%v", metricsMetaFile, err)
 			}
 		} else {
-			wfd, err := os.OpenFile(metricsMetaFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+			tempFile := metricsMetaFile + ".tmp"
+			wfd, err := os.OpenFile(tempFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
-				log.Errorf("removeMetricsSegmentsByList: Failed to open temp metrics meta file name=%v, err:%v", metricsMetaFile, err)
+				log.Errorf("removeMetricsSegmentsByList: Failed to open temp file name=%v, err=%v", tempFile, err)
 				return
 			}
 			defer wfd.Close()
@@ -253,6 +254,9 @@ func removeMetricsSegmentsByList(metricsMetaFile string, metricsSegmentsToDelete
 					log.Errorf("removeMetricsSegmentsByList: failed to write new line to metrics meta. Filename: %v, Error: %v", metricsMetaFile, err)
 					return
 				}
+			}
+			if err := os.Rename(tempFile, metricsMetaFile); err != nil {
+				log.Errorf("removeMetricsSegmentsByList: Failed to rename temp file=%v to original=%v, err=%v", tempFile, metricsMetaFile, err)
 			}
 		}
 	}

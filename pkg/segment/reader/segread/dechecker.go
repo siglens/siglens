@@ -56,17 +56,19 @@ func ApplySearchToMatchFilterDictCsg(sfr *segreader.SegmentFileReader, match *st
 		}
 	}
 
+	anyMatched := false
 	for dwordIdx, dWord := range sfr.GetDeTlv() {
 		matched, err := writer.ApplySearchToMatchFilterRawCsg(match, dWord, compiledRegex, isCaseInsensitive)
 		if err != nil {
 			return false, err
 		}
 		if matched {
+			anyMatched = true
 			sfr.AddRecNumsToMr(uint16(dwordIdx), bsh)
 		}
 	}
 
-	return false, nil
+	return anyMatched, nil
 }
 
 /*
@@ -94,15 +96,17 @@ func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qVal
 	}
 
 	dte := &sutils.DtypeEnclosure{}
+	anyMatched := false
 	for dwordIdx, dWord := range sfr.GetDeTlv() {
 		matched, err := writer.ApplySearchToExpressionFilterSimpleCsg(qValDte, fop, dWord, isRegexSearch, dte, isCaseInsensitive)
 		if err != nil {
 			return false, err
 		}
 		if matched {
+			anyMatched = true
 			sfr.AddRecNumsToMr(uint16(dwordIdx), bsh)
 		}
 	}
 
-	return false, nil
+	return anyMatched, nil
 }

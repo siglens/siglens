@@ -230,12 +230,12 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 			return true, dictEncColNames, nil
 		}
 
-		found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, sq.QueryInfo.ColName, sq.FilterIsCaseInsensitive)
+		_, err = mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, sq.QueryInfo.ColName, sq.FilterIsCaseInsensitive)
 		if err != nil {
 			log.Errorf("applyColumnarSearchUsingDictEnc: matchwords dict search failed, err=%v", err)
 			return false, dictEncColNames, err
 		}
-		return found, dictEncColNames, err
+		return false, dictEncColNames, err
 
 	case MatchWordsAllColumns:
 		for cname := range cmiPassedCnames {
@@ -273,13 +273,13 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 			regex = true
 		}
 
-		found, err := mcr.ApplySearchToExpressionFilterDictCsg(sq.QueryInfo.QValDte,
+		_, err = mcr.ApplySearchToExpressionFilterDictCsg(sq.QueryInfo.QValDte,
 			sq.ExpressionFilter.FilterOp, regex, bsh, sq.QueryInfo.ColName, sq.FilterIsCaseInsensitive)
 		if err != nil {
 			log.Errorf("applyColumnarSearchUsingDictEnc: simpleexp/wildrexp dict search failed, err=%v", err)
 			return false, dictEncColNames, err
 		}
-		return found, dictEncColNames, err
+		return false, dictEncColNames, err
 
 	case RegexExpressionAllColumns:
 		for cname := range cmiPassedCnames {

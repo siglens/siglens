@@ -39,15 +39,19 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const ONE_MiB = 1024 * 1024
-const PQS_TICKER = 10 // seconds
-const PQS_FLUSH_SIZE = 100
-const PQS_CHAN_SIZE = 1000
+const (
+	ONE_MiB        = 1024 * 1024
+	PQS_TICKER     = 10 // seconds
+	PQS_FLUSH_SIZE = 100
+	PQS_CHAN_SIZE  = 1000
+)
 
 const siglensID = -7828473396868711293
 
-var smrLock sync.RWMutex = sync.RWMutex{}
-var localSegmetaFname string
+var (
+	smrLock           sync.RWMutex = sync.RWMutex{}
+	localSegmetaFname string
+)
 
 var SegmetaFilename = "segmeta.json"
 
@@ -69,7 +73,6 @@ type SegmentSizeStats struct {
 var pqsChan = make(chan PQSChanMeta, PQS_CHAN_SIZE)
 
 func initSmr() {
-
 	localSegmetaFname = GetLocalSegmetaFName()
 
 	fd, err := os.OpenFile(localSegmetaFname, os.O_RDONLY, 0666)
@@ -151,7 +154,6 @@ func readSfmForSegMetas(segmetas []*structs.SegMeta) {
 
 // read only the current node's segmeta
 func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
-
 	smrLock.RLock()
 	segMetas, err := readSegMetaEntries(localSegmetaFname)
 	smrLock.RUnlock()
@@ -332,7 +334,6 @@ func GetAllSegmetaToMap(segMetaFilename string) (map[string]*structs.SegMeta, er
 }
 
 func readSegMetaEntries(segMetaFilename string) ([]*structs.SegMeta, error) {
-
 	allSegMetas := make([]*structs.SegMeta, 0)
 
 	fd, err := os.OpenFile(segMetaFilename, os.O_RDONLY, 0666)
@@ -369,7 +370,6 @@ func readSegMetaEntries(segMetaFilename string) ([]*structs.SegMeta, error) {
 }
 
 func GetVTableCountsForAll(orgid int64, allSegmetas []*structs.SegMeta) map[string]*structs.VtableCounts {
-
 	allvtables := make(map[string]*structs.VtableCounts)
 
 	var ok bool
@@ -379,6 +379,27 @@ func GetVTableCountsForAll(orgid int64, allSegmetas []*structs.SegMeta) map[stri
 			continue
 		}
 		if segmeta.OrgId != orgid && orgid != siglensID {
+			continue
+		}
+		cnts, ok = allvtables[segmeta.VirtualTableName]
+		if !ok {
+			cnts = &structs.VtableCounts{}
+			allvtables[segmeta.VirtualTableName] = cnts
+		}
+		cnts.BytesCount += segmeta.BytesReceivedCount
+		cnts.RecordCount += uint64(segmeta.RecordCount)
+		cnts.OnDiskBytesCount += segmeta.OnDiskBytes
+	}
+	return allvtables
+}
+
+func GetAllOrgsVTableCounts(allSegmetas []*structs.SegMeta) map[string]*structs.VtableCounts {
+	allvtables := make(map[string]*structs.VtableCounts)
+
+	var ok bool
+	var cnts *structs.VtableCounts
+	for _, segmeta := range allSegmetas {
+		if segmeta == nil {
 			continue
 		}
 		cnts, ok = allvtables[segmeta.VirtualTableName]
@@ -585,7 +606,6 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 }
 
 func BulkBackFillPQSSegmetaEntries(segkey string, pqidMap map[string]bool) {
-
 	sfmData, err := ReadSfm(segkey)
 	if err != nil {
 		return
@@ -727,7 +747,6 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 }
 
 func DeletePQSData() error {
-
 	foundPqsidsInSegMeta := false
 	smrLock.Lock()
 	segmetaEntries, err := readSegMetaEntries(localSegmetaFname)
@@ -777,9 +796,10 @@ func DeletePQSData() error {
 }
 
 func writeOverSegMeta(segMetaEntries []*structs.SegMeta) error {
-	fd, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	tempFile := localSegmetaFname + ".tmp"
+	fd, err := os.OpenFile(tempFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return fmt.Errorf("writeOverSegMeta: Failed to open SegMetaFile name=%v, err:%v", localSegmetaFname, err)
+		return fmt.Errorf("writeOverSegMeta: Failed to open tempFile name=%v, err:%v", tempFile, err)
 	}
 	defer fd.Close()
 
@@ -797,6 +817,10 @@ func writeOverSegMeta(segMetaEntries []*structs.SegMeta) error {
 		if _, err := fd.WriteString("\n"); err != nil {
 			return fmt.Errorf("writeOverSegMeta: failed to write newline filename=%v: err=%v", localSegmetaFname, err)
 		}
+	}
+
+	if err := os.Rename(tempFile, localSegmetaFname); err != nil {
+		log.Errorf("writeOverSegMeta: Failed to rename temp file=%v to original=%v, err=%v", tempFile, localSegmetaFname, err)
 	}
 
 	return nil
@@ -822,9 +846,10 @@ func calculateSegmentSizes(segmentKey string) (*SegmentSizeStats, error) {
 	return stats, nil
 }
 
-func GetIndexSizeStats(indexName string, orgId int64) (*utils.IndexStats, error) {
+func GetIndexSizeStats(indexName string, orgId utils.Option[int64]) (*utils.IndexStats, error) {
 	allSegMetas := ReadGlobalSegmetas()
 	stats := &utils.IndexStats{}
+	org, orgPresent := orgId.Get()
 
 	type result struct {
 		stats *SegmentSizeStats
@@ -835,7 +860,7 @@ func GetIndexSizeStats(indexName string, orgId int64) (*utils.IndexStats, error)
 	var wg sync.WaitGroup
 
 	for _, meta := range allSegMetas {
-		if meta.VirtualTableName != indexName || (meta.OrgId != orgId && orgId != siglensID) {
+		if meta.VirtualTableName != indexName || (orgPresent && meta.OrgId != org && org != siglensID) {
 			continue
 		}
 
@@ -877,14 +902,16 @@ func GetIndexSizeStats(indexName string, orgId int64) (*utils.IndexStats, error)
 	return stats, err
 }
 
-func getUnrotatedSegmentStats(indexName string, orgId int64) *SegmentSizeStats {
+func getUnrotatedSegmentStats(indexName string, orgId utils.Option[int64]) *SegmentSizeStats {
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
 
 	stats := &SegmentSizeStats{}
+	org, orgPresent := orgId.Get()
+
 	for _, usi := range AllUnrotatedSegmentInfo {
 		if usi.TableName == indexName &&
-			(usi.orgid == orgId || orgId == siglensID) {
+			(orgPresent && (usi.orgid == org || org == siglensID)) {
 			if usi.cmiSize > 0 {
 				stats.TotalCmiSize += usi.cmiSize
 				stats.NumIndexFiles += len(usi.allColumns)

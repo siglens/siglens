@@ -92,6 +92,12 @@ type ListItemsResponse struct {
 	TotalCount int            `json:"totalCount"`
 }
 
+type FolderNestedCount struct {
+	Folders    int `json:"folders"`
+	Dashboards int `json:"dashboards"`
+	Total      int `json:"total"`
+}
+
 var (
 	folderStructureLock sync.RWMutex
 	rootFolderID        = "root-folder"
@@ -797,6 +803,45 @@ func migrateToFolderStructure(myid int64) error {
 	return nil
 }
 
+func getFolderNestedCount(folderID string, myid int64) (*FolderNestedCount, error) {
+	structure, err := readCombinedFolderStructure(myid)
+	if err != nil {
+		return nil, fmt.Errorf("getFolderNestedCount: failed to read folder structure, err: %v", err)
+	}
+
+	if _, exists := structure.Items[folderID]; !exists {
+		return nil, fmt.Errorf("getFolderNestedCount: folder not found, folderID: %v", folderID)
+	}
+
+	count := &FolderNestedCount{Folders: 0, Dashboards: 0, Total: 0}
+	collectItemsCount(folderID, structure, count)
+
+	count.Total = count.Folders + count.Dashboards
+
+	return count, nil
+}
+
+func collectItemsCount(folderID string, structure *FolderStructure, count *FolderNestedCount) {
+	childIDs, exists := structure.Order[folderID]
+	if !exists {
+		return
+	}
+
+	for _, childID := range childIDs {
+		child, exists := structure.Items[childID]
+		if !exists {
+			continue
+		}
+
+		if child.Type == ItemTypeFolder {
+			count.Folders++
+			collectItemsCount(childID, structure, count)
+		} else if child.Type == ItemTypeDashboard {
+			count.Dashboards++
+		}
+	}
+}
+
 func ProcessCreateFolderRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	var req CreateFolderRequest
 	if err := json.Unmarshal(ctx.PostBody(), &req); err != nil {
@@ -832,7 +877,7 @@ func ProcessGetFolderContentsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	contents, err := getFolderContents(folderID, foldersOnly, myid)
 	if err != nil {
-		log.Errorf("ProcessGetFolderContentsRequest: failed to get folder contents: %v", err)
+		log.Errorf("ProcessGetFolderContentsRequest: failed to get folder contents, folderID: %v err: %v", folderID, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -912,5 +957,23 @@ func ProcessListAllItemsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	utils.WriteJsonResponse(ctx, response)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessGetFolderNestedCountRequest(ctx *fasthttp.RequestCtx, myid int64) {
+	folderID := utils.ExtractParamAsString(ctx.UserValue("folder-id"))
+	if folderID == "" {
+		utils.SetBadMsg(ctx, "Folder ID is required")
+		return
+	}
+
+	count, err := getFolderNestedCount(folderID, myid)
+	if err != nil {
+		log.Errorf("ProcessGetFolderNestedCountRequest: failed to get folder nested count: %v", err)
+		utils.SetBadMsg(ctx, "Failed to get folder count")
+		return
+	}
+
+	utils.WriteJsonResponse(ctx, count)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }

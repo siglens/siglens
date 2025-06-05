@@ -201,6 +201,18 @@
         "message": "Folder and its contents deleted successfully"
     }
 
+### Get Folder Contents Count
+    endpoints: /api/dashboards/folders/{folder-id}/count
+    method: GET
+
+    Example:
+    request: http://localhost:5122/api/dashboards/folders/5790dd5e-6738-48e3-87cc-6b037d6e0849/count
+    response:
+    {
+        "total": 15,
+        "folders": 3,
+        "dashboards": 12
+    }
 
 
 ## Alerting APIs

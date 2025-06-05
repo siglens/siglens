@@ -20,6 +20,7 @@ package sampledataset
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
@@ -30,6 +31,26 @@ type Generator interface {
 	Init() error
 	GetLogLine() ([]byte, error)
 	GetRawLog() (map[string]interface{}, error)
+}
+
+type SyntheticTraceState struct {
+	mux          sync.RWMutex
+	TraceIds     []string
+	SpanIds      map[string][]string
+	ServiceName  map[string]string
+	StartEndTime map[string][]int64
+}
+
+type FakerState struct {
+	Faker *gofakeit.Faker
+	Seed  int64
+}
+
+func InitTraceFaker(seed int64) *FakerState {
+	return &FakerState{
+		Seed:  seed,
+		Faker: gofakeit.NewUnlocked(seed),
+	}
 }
 
 type DynamicUserGenerator struct {
