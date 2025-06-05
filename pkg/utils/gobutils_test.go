@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"math"
 	"math/rand"
 	"testing"
 
@@ -241,5 +242,8 @@ func Test_EncodeDecodeTDigest_LessThanCompression_PercentileCheck(t *testing.T) 
 	assert.Equal(t, uint64(numValsToInsert), decoded.Count())
 	ansToTestAgainst = tutils.FindPercentileData(valArr, percentileToCalc)
 	decodedRes := decoded.GetQuantile(float64(percentileToCalc) / 100)
-	assert.Equal(t, ansToTestAgainst, decodedRes)
+	// round to three decimal places to avoid rounding errors
+	rndAnsToTestAgainst := math.Round(ansToTestAgainst*1000) / 1000
+	rndDecodedRes := math.Round(decodedRes*1000) / 1000
+	assert.Equal(t, rndAnsToTestAgainst, rndDecodedRes)
 }
