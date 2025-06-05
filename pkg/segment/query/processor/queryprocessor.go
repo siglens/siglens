@@ -246,9 +246,12 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		parallelism = runtime.GOMAXPROCS(0)
 	}
 
+	var firstDpChain []*DataProcessor
 	for i := 0; i < parallelism; i++ {
 		dataProcessors := AggsToDataProcessors(firstProcessorAgg, queryInfo)
-		if i > 0 {
+		if i == 0 {
+			firstDpChain = dataProcessors
+		} else {
 			// Merge the chains once parallelism is no longer possible.
 			// e.g., if we merge into dp3 and parallelism=3, we eventually want
 			// to get to this structure:
@@ -258,7 +261,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			//          \                /
 			//             dp1 -> dp2 ->/
 			dataProcessors = dataProcessors[:mergeIndex]
-			mergingDp := dataProcessorChains[0][mergeIndex]
+			mergingDp := firstDpChain[mergeIndex]
 
 			if len(dataProcessors) > 0 {
 				// We need this to be a single-threaded stream because we may
