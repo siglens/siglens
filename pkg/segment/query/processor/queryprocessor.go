@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"runtime"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -118,6 +119,44 @@ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	return sortExpr
 }
 
+func AggsToDataProcessors(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) []*DataProcessor {
+	dataProcessors := make([]*DataProcessor, 0)
+	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		dataProcessor := asDataProcessor(curAgg, queryInfo)
+		if dataProcessor == nil {
+			break
+		}
+		dataProcessors = append(dataProcessors, dataProcessor)
+	}
+
+	return dataProcessors
+}
+
+func CanParallelSearch(dataProcessors []*DataProcessor) (bool, int) {
+	canSplit := false
+	for i, dp := range dataProcessors {
+		if dp.DoesInputOrderMatter() {
+			return false, 0
+		}
+
+		if dp.GeneratesData() {
+			// TODO: in principle we could parallelize (so delete the early
+			// "return false" but don't add an early "return true"), but it's
+			// not implemented yet.
+			return false, 0
+		}
+
+		if dp.IgnoresInputOrder() {
+			canSplit = true
+		}
+
+		if dp.IsBottleneckCmd() {
+			return canSplit, i
+		}
+	}
+	return false, 0
+}
+
 func canUseSortIndex(queryAgg *structs.QueryAggregators, sorterAgg *structs.QueryAggregators) bool {
 	queryCols := make(map[string]struct{})
 	createdCols := make(map[string]struct{})
@@ -140,8 +179,24 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
 	}
 
-	sortMode := recentFirst // TODO: compute this from the query.
 	sortExpr := MutateForSearchSorter(firstAgg)
+	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstAgg, queryInfo))
+	if firstAgg.HasStatsBlock() {
+		// There's a different flow when the first agg is stats compared to
+		// when when a later agg is stats. At some point we may want to unify
+		// these two flows, but for now we can't use parallelism because the
+		// first agg gets skipped (and handled in the different flow) when it's
+		// stats.
+		canParallelize = false
+		mergeIndex = 0
+	}
+	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
+	if canParallelize {
+		// If we can parallelize, we don't need to sort
+		sortMode = anyOrder
+		sortExpr = nil
+	}
+
 	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
 	if err != nil {
 		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
@@ -184,48 +239,79 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		firstProcessorAgg = firstProcessorAgg.Next
 	}
 
-	dataProcessors := make([]*DataProcessor, 0)
-	for curAgg := firstProcessorAgg; curAgg != nil; curAgg = curAgg.Next {
-		dataProcessor := asDataProcessor(curAgg, queryInfo)
-		if dataProcessor == nil {
-			break
+	searcherStream := NewCachedStream(searcher)
+	dataProcessorChains := make([][]*DataProcessor, 0)
+	parallelism := 1
+	if canParallelize {
+		parallelism = runtime.GOMAXPROCS(0)
+	}
+
+	for i := 0; i < parallelism; i++ {
+		dataProcessors := AggsToDataProcessors(firstProcessorAgg, queryInfo)
+		if i > 0 {
+			// Merge the chains once parallelism is no longer possible.
+			// e.g., if we merge into dp3 and parallelism=3, we eventually want
+			// to get to this structure:
+			//             dp1 -> dp2 ->\
+			//          /                \
+			// searcher -> dp1 -> dp2 -> dp3 -> dp4
+			//          \                /
+			//             dp1 -> dp2 ->/
+			dataProcessors = dataProcessors[:mergeIndex]
+			mergingDp := dataProcessorChains[0][mergeIndex]
+
+			if len(dataProcessors) > 0 {
+				// We need this to be a single-threaded stream because we may
+				// Fetch() from it in parallel.
+				lastStream := NewSingleThreadedStream(dataProcessors[len(dataProcessors)-1])
+				mergingDp.streams = append(mergingDp.streams, NewCachedStream(lastStream))
+			}
 		}
-		dataProcessors = append(dataProcessors, dataProcessor)
-	}
 
-	if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
-		query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
-		dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
-		dataProcessors[0].SetLimitForDataGenerator(sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
-	}
-
-	// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
-	if len(dataProcessors) > 0 && !dataProcessors[0].IsDataGenerator() {
-		dataProcessors[0].streams = append(dataProcessors[0].streams, NewCachedStream(searcher))
-	}
-	for i := 1; i < len(dataProcessors); i++ {
-		dataProcessors[i].streams = append(dataProcessors[i].streams, NewCachedStream(dataProcessors[i-1]))
-	}
-
-	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
-		chainedDPAsAny, err := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
-		if err != nil {
-			return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook failed; err=%v", err)
+		if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
+			query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
+			dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
+			dataProcessors[0].SetLimitForDataGenerator(sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
 		}
 
-		chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
-		if !ok {
-			log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
-		} else {
-			dataProcessors = chainedDp
+		// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
+		if len(dataProcessors) > 0 && !dataProcessors[0].IsDataGenerator() {
+			dataProcessors[0].streams = append(dataProcessors[0].streams, searcherStream)
 		}
+		for m := 1; m < len(dataProcessors); m++ {
+			var stream Streamer = dataProcessors[m-1]
+			if canParallelize && m == mergeIndex {
+				stream = NewSingleThreadedStream(stream)
+			}
+
+			dataProcessors[m].streams = append(dataProcessors[m].streams, NewCachedStream(stream))
+		}
+
+		if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
+			chainedDPAsAny, err := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
+			if err != nil {
+				return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook failed; err=%v", err)
+			}
+
+			chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
+			if !ok {
+				log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
+			} else {
+				dataProcessors = chainedDp
+			}
+		}
+
+		dataProcessorChains = append(dataProcessorChains, dataProcessors)
 	}
+
+	dataProcessors := dataProcessorChains[0]
 
 	var lastStreamer Streamer = searcher
 	if len(dataProcessors) > 0 {
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
+	// TODO: pass all the dataProcessorChains so cleanup happens properly.
 	queryProcessor, err := newQueryProcessorHelper(fullQueryType, lastStreamer,
 		dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls, shouldDistribute, sizeLimit)
 	if err != nil {
@@ -271,13 +357,13 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 			return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create head data processor")
 		}
 
-		headDP.streams = append(headDP.streams, &CachedStream{input, nil, false})
+		headDP.streams = append(headDP.streams, NewCachedStream(input))
 
 		scrollerDP := NewScrollerDP(uint64(scrollFrom), qid)
 		if scrollerDP == nil {
 			return nil, utils.TeeErrorf("newQueryProcessorHelper: failed to create scroller data processor")
 		}
-		scrollerDP.streams = append(scrollerDP.streams, &CachedStream{headDP, nil, false})
+		scrollerDP.streams = append(scrollerDP.streams, NewCachedStream(headDP))
 
 		fetchDp = scrollerDP
 	}
