@@ -20,6 +20,7 @@ package utils
 import (
 	"fmt"
 	"math"
+	"strconv"
 )
 
 func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CValueEnclosure, error) {
@@ -302,4 +303,10 @@ func AppendWithLimit(dest []string, src []string, limit int) []string {
 		return append(dest, src[:remainingCapacity]...)
 	}
 	return append(dest, src...)
+}
+
+// ParseStringToFloat64 tries to parse a string to a float64
+func ParseStringToFloat64(s string) (float64, error) {
+	// Implementation that parses the string to float64
+	return strconv.ParseFloat(s, 64)
 }

@@ -2772,8 +2772,27 @@ func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]sutils.CVal
 		return handleCaseFunction(expr, fieldToValue)
 	case "coalesce":
 		return handleCoalesceFunction(expr, fieldToValue)
+		// Inside EvaluateCondition method in evaluationstructs.go
 	case "nullif":
-		return handleNullIfFunction(expr, fieldToValue)
+		if len(expr.ValueList) != 2 {
+			return nil, fmt.Errorf("nullif function requires exactly 2 arguments")
+		}
+
+		val1, err := expr.ValueList[0].EvaluateValueExpr(fieldToValue)
+		if err != nil {
+			return nil, utils.WrapErrorf(err, "handleNullIfFunction: Error while evaluating value1, err: %v", err)
+		}
+
+		val2, err := expr.ValueList[1].EvaluateValueExpr(fieldToValue)
+		if err != nil {
+			return nil, utils.WrapErrorf(err, "handleNullIfFunction: Error while evaluating value2, err: %v", err)
+		}
+
+		if fmt.Sprintf("%v", val1) == fmt.Sprintf("%v", val2) {
+			return nil, nil
+		}
+
+		return val1, nil
 	case "null":
 		return nil, nil
 	default:
