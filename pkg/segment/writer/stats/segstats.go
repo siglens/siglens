@@ -72,6 +72,39 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 }
 
+func AddSegStatsUNIXTime(segstats map[string]*SegStats, cname string, val uint64, rawValue interface{}, updateLatest bool) {
+	var stats *SegStats
+	var ok bool
+	stats, ok = segstats[cname]
+	if !ok {
+		var latestTs uint64 = 0
+		var isNumeric bool = false
+		switch rawValue.(type) {
+		case string:
+			isNumeric = false
+		case int64, float64:
+			isNumeric = true
+		}
+		stats = &SegStats{
+			IsNumeric: isNumeric,
+			Count:     0,
+			NumStats:  GetDefaultNumStats(),
+			LatestTs:  CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: latestTs},
+		}
+		stats.CreateNewHll()
+		segstats[cname] = stats
+	}
+
+	if updateLatest {
+		nonEncVal, err := stats.LatestTs.GetUIntValue()
+		if err == nil {
+			if nonEncVal < val {
+				stats.LatestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+			}
+		}
+	}
+}
+
 func AddSegStatsCount(segstats map[string]*SegStats, cname string,
 	count uint64) {
 

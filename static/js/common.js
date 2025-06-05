@@ -135,6 +135,9 @@ function resetDashboard() {
 
     $('#LogResultsGrid').html('');
     $('#measureAggGrid').html('');
+
+    $('.json-popup').removeClass('active');
+
     columnCount = 0;
     gridDiv = null;
     eGridDiv = null;

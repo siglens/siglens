@@ -22,7 +22,6 @@ import (
 	"math"
 	"sort"
 
-	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -273,7 +272,7 @@ func GetFloatValueAfterEvaluation(measureAgg *structs.MeasureAggregator, fieldTo
 		return 0, "", false, fmt.Errorf("GetFloatValueAfterEvaluation: Error while evaluating eval function: %v", err)
 	}
 
-	floatVal, err = dtypeutils.ConvertToFloat(valueStr, 64)
+	floatVal, err = utils.FastParseFloat([]byte(valueStr))
 	if err != nil {
 		return 0, valueStr, false, nil
 	}

@@ -287,6 +287,16 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 			return incomingSegStat, nil
 		}
 		return runningSegStat, nil
+	case sutils.LatestTime:
+		res, err := segread.GetSegLatestTs(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+		if runningSegStat == nil {
+			return incomingSegStat, nil
+		}
+		return runningSegStat, nil
 	case sutils.Range:
 		res, err := segread.GetSegRange(runningSegStat, incomingSegStat)
 		if err != nil {
@@ -365,10 +375,14 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 		if aggOp != sutils.Count && aggCol == "*" {
 			return fmt.Errorf("UpdateSegmentStats: aggOp: %v cannot be applied with *, qid=%v", aggOp, sr.qid)
 		}
+		var currSst *structs.SegStats
 		currSst, ok := sstMap[aggCol]
 		if !ok && measureAgg.ValueColRequest == nil {
-			log.Debugf("UpdateSegmentStats: sstMap was nil for aggCol %v, qid=%v", aggCol, sr.qid)
-			continue
+			currSst, ok = sstMap[config.GetTimeStampKey()]
+			if !ok {
+				log.Debugf("UpdateSegmentStats: sstMap was nil for aggCol %v, qid=%v", aggCol, sr.qid)
+				continue
+			}
 		}
 
 		if measureAgg.ValueColRequest == nil {
@@ -523,6 +537,27 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*sutils.RecordR
 	return finalLogs, allCols, nil
 }
 
+func humanizeUints(v uint64) string {
+	if v < 1000 {
+		return strconv.FormatUint(v, 10)
+	}
+	parts := []string{"", "", "", "", "", "", ""}
+	j := len(parts) - 1
+	for v > 999 {
+		parts[j] = strconv.FormatUint(v%1000, 10)
+		switch len(parts[j]) {
+		case 2:
+			parts[j] = "0" + parts[j]
+		case 1:
+			parts[j] = "00" + parts[j]
+		}
+		v = v / 1000
+		j--
+	}
+	parts[j] = strconv.FormatUint(v, 10)
+	return strings.Join(parts[j:], ",")
+}
+
 func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues bool) ([]*structs.BucketHolder, []string, []string, []string, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
@@ -541,6 +576,11 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues boo
 		case sutils.SS_DT_FLOAT:
 			if humanizeValues {
 				measureVal = humanize.CommafWithDigits(measureVal.(float64), 3)
+			}
+			bucketHolder.MeasureVal[mfName] = measureVal
+		case sutils.SS_DT_UNSIGNED_NUM:
+			if humanizeValues {
+				measureVal = humanizeUints(aggVal.CVal.(uint64))
 			}
 			bucketHolder.MeasureVal[mfName] = measureVal
 		case sutils.SS_DT_SIGNED_NUM:
