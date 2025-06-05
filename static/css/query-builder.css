@@ -289,6 +289,7 @@ input.form-control {
 
 #custom-code-tab.ui-widget.ui-widget-content {
     width: 100% !important;
+    z-index: 1;
 }
 
 .custom-code-tab {
