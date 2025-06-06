@@ -280,14 +280,52 @@ func GetSegLatestTs(runningSegStat *structs.SegStats, currSegStat *structs.SegSt
 	}
 
 	if runningSegStat == nil {
-		return &currSegStat.LatestTs, nil
+		return &currSegStat.TimeStats.LatestTs, nil
 	}
-	result, err := sutils.ReduceMinMax(runningSegStat.LatestTs, currSegStat.LatestTs, false)
+	result, err := sutils.ReduceMinMax(runningSegStat.TimeStats.LatestTs, currSegStat.TimeStats.LatestTs, false)
 	if err != nil {
-		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegMax: error in ReduceMinMax, err: %v", err)
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestTs: error in ReduceMinMax, err: %v", err)
 	}
-	runningSegStat.LatestTs = result
-	return &runningSegStat.LatestTs, nil
+	runningSegStat.TimeStats.LatestTs = result
+	return &runningSegStat.TimeStats.LatestTs, nil
+}
+
+func GetSegEarliestTs(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*sutils.CValueEnclosure, error) {
+	if currSegStat == nil {
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegEarliestTs: currSegStat is nil")
+	}
+
+	if runningSegStat == nil {
+		return &currSegStat.TimeStats.EarliestTs, nil
+	}
+	result, err := sutils.ReduceMinMax(runningSegStat.TimeStats.EarliestTs, currSegStat.TimeStats.EarliestTs, true)
+	if err != nil {
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegEarliestTs: error in ReduceMinMax, err: %v", err)
+	}
+	runningSegStat.TimeStats.EarliestTs = result
+	return &runningSegStat.TimeStats.EarliestTs, nil
+}
+
+func GetSegLatestVal(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*sutils.CValueEnclosure, error) {
+	if currSegStat == nil {
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestVal: currSegStat is nil")
+	}
+
+	if runningSegStat == nil {
+		return &currSegStat.TimeStats.LatestVal, nil
+	}
+	result, err := sutils.ReduceMinMax(runningSegStat.TimeStats.LatestTs, currSegStat.TimeStats.LatestTs, true)
+	if err != nil {
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestVal: error in ReduceMinMax, err: %v", err)
+	}
+	var latestVal sutils.CValueEnclosure
+	if runningSegStat.TimeStats.LatestTs.CVal.(uint64) == result.CVal.(uint64) {
+		latestVal = runningSegStat.TimeStats.LatestVal
+	} else {
+		latestVal = currSegStat.TimeStats.LatestVal
+	}
+	runningSegStat.TimeStats.LatestVal = latestVal
+	return &runningSegStat.TimeStats.LatestVal, nil
 }
 
 func getRange(max sutils.CValueEnclosure, min sutils.CValueEnclosure) (*sutils.CValueEnclosure, error) {

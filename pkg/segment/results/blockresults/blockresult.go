@@ -170,6 +170,15 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 				idx = curId
 				continue
 			}
+		case sutils.Latest:
+			if m.ValueColRequest == nil {
+				curId, err := aggregations.AddMeasureAggInRunningStatsForLatest(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for range, err: %v", err)
+				}
+				idx = curId
+				continue
+			}
 		case sutils.Count:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.AddMeasureAggInRunningStatsForCount(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
