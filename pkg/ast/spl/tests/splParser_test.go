@@ -11663,30 +11663,27 @@ func Test_eqOperator_doubleEquals_numeric(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("%v", comp.Comparison.Values), "200")
 }
 
-func Test_where_doubleEquals_shouldPass(t *testing.T) {
+func Test_where_doubleEquals(t *testing.T) {
 	query := []byte(`* | where status == 200`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 
 	qs := res.(ast.QueryStruct)
 	whereExpr := qs.PipeCommands.WhereExpr
+
 	assert.NotNil(t, whereExpr)
 	assert.True(t, whereExpr.IsTerminal)
-
 	assert.Equal(t, "=", whereExpr.ValueOp)
 
-	if whereExpr.LeftValue.NumericExpr != nil && whereExpr.LeftValue.NumericExpr.ValueIsField {
-		assert.Equal(t, "status", whereExpr.LeftValue.NumericExpr.Value)
-	} else {
-		t.Fatalf("Expected LeftValue.NumericExpr to contain field 'status'")
-	}
+	assert.NotNil(t, whereExpr.LeftValue.NumericExpr)
+	assert.True(t, whereExpr.LeftValue.NumericExpr.ValueIsField)
+	assert.Equal(t, "status", whereExpr.LeftValue.NumericExpr.Value)
 
-	if whereExpr.RightValue.NumericExpr != nil && !whereExpr.RightValue.NumericExpr.ValueIsField {
-		assert.Equal(t, "200", whereExpr.RightValue.NumericExpr.Value)
-	} else {
-		t.Fatalf("Expected RightValue.NumericExpr to contain literal '200'")
-	}
+	assert.NotNil(t, whereExpr.RightValue.NumericExpr)
+	assert.False(t, whereExpr.RightValue.NumericExpr.ValueIsField)
+	assert.Equal(t, "200", whereExpr.RightValue.NumericExpr.Value)
 }
+
 
 func Test_evalDoubleEqualsWithoutAssignment(t *testing.T) {
 	query := []byte(`* | eval status == 200`)
