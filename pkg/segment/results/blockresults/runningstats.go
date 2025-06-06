@@ -293,9 +293,12 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				if err != nil {
 					batchErr.AddError("RunningBucketResults.mergeRunningStats:Latest", err)
 				}
-				if (*runningStats)[latestTsIdx].rawVal.CVal.(uint64) == toJoinRunningStats[latestTsIdx].rawVal.CVal.(uint64) {
-					(*runningStats)[latestIdx].rawVal = toJoinRunningStats[latestIdx].rawVal
+				if (*runningStats)[latestTsIdx].rawVal.Dtype != sutils.SS_INVALID {
+					if (*runningStats)[latestTsIdx].rawVal.CVal.(uint64) == toJoinRunningStats[latestTsIdx].rawVal.CVal.(uint64) {
+						(*runningStats)[latestIdx].rawVal = toJoinRunningStats[latestIdx].rawVal
+					}
 				}
+
 				i += 1
 			}
 		case sutils.Range:
