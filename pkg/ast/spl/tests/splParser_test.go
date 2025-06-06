@@ -11731,3 +11731,45 @@ func Test_term_uppercase(t *testing.T) {
 	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, "value1", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }
+
+func Test_term_singleWildcard(t *testing.T) {
+	query := []byte(`search city=TERM("An*")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, `"an*"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"An*"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "city", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "an*", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_term_multipleWildcard(t *testing.T) {
+	query := []byte(`search city=TERM("*to*")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, `"*to*"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"*to*"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "city", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "*to*", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
