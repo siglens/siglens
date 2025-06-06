@@ -11684,7 +11684,6 @@ func Test_where_doubleEquals(t *testing.T) {
 	assert.Equal(t, "200", whereExpr.RightValue.NumericExpr.Value)
 }
 
-
 func Test_evalDoubleEqualsWithoutAssignment(t *testing.T) {
 	query := []byte(`* | eval status == 200`)
 	_, err := spl.Parse("", query)
