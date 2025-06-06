@@ -319,6 +319,15 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				}
 				i += (len(fields) - 1)
 			}
+		case sutils.Perc:
+			err := (*runningStats)[i].tDigest.MergeTDigest(toJoinRunningStats[i].tDigest)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.mergeRunningStats:Perc", err)
+			}
+			if rr.currStats[i].ValueColRequest != nil {
+				fields := rr.currStats[i].ValueColRequest.GetFields()
+				i += (len(fields) - 1)
+			}
 		case sutils.List:
 			if rr.currStats[i].ValueColRequest == nil {
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
