@@ -119,6 +119,8 @@ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	return sortExpr
 }
 
+// Note: this has side-effects; see asDataProcessor().
+// TODO: remove the side-effects.
 func AggsToDataProcessors(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) []*DataProcessor {
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
@@ -179,34 +181,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
 	}
 
-	sortExpr := MutateForSearchSorter(firstAgg)
-	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstAgg, queryInfo))
-	if firstAgg.HasStatsBlock() {
-		// There's a different flow when the first agg is stats compared to
-		// when when a later agg is stats. At some point we may want to unify
-		// these two flows, but for now we can't use parallelism because the
-		// first agg gets skipped (and handled in the different flow) when it's
-		// stats.
-		canParallelize = false
-		mergeIndex = 0
-	}
-	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
-	if canParallelize {
-		// If we can parallelize, we don't need to sort
-		sortMode = anyOrder
-		sortExpr = nil
-	}
-
-	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
-	if err != nil {
-		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
-	}
-
-	err = query.InitScrollFrom(searcher.qid, uint64(scrollFrom))
-	if err != nil {
-		return nil, utils.TeeErrorf("NewQueryProcessor: failed to init scroll from; err=%v", err)
-	}
-
 	firstProcessorAgg := firstAgg
 
 	isLogsQuery := query.IsLogsQuery(firstAgg)
@@ -237,6 +211,41 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 		// skip the first agg
 		firstProcessorAgg = firstProcessorAgg.Next
+	}
+
+	sortExpr := MutateForSearchSorter(firstAgg)
+
+	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstProcessorAgg, queryInfo))
+	if firstAgg.HasStatsBlock() {
+		// There's a different flow when the first agg is stats compared to
+		// when when a later agg is stats. At some point we may want to unify
+		// these two flows, but for now we can't use parallelism because the
+		// first agg gets skipped (and handled in the different flow) when it's
+		// stats.
+		canParallelize = false
+		mergeIndex = 0
+	}
+	if hooks.GlobalHooks.GetDistributedStreamsHook != nil {
+		// TODO: remove this check once we have a way to handle parallelism
+		// in this case.
+		canParallelize = false
+		mergeIndex = 0
+	}
+	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
+	if canParallelize {
+		// If we can parallelize, we don't need to sort
+		sortMode = anyOrder
+		sortExpr = nil
+	}
+
+	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
+	if err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
+	}
+
+	err = query.InitScrollFrom(searcher.qid, uint64(scrollFrom))
+	if err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: failed to init scroll from; err=%v", err)
 	}
 
 	searcherStream := NewCachedStream(searcher)
@@ -385,6 +394,8 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	}, nil
 }
 
+// Note: this has side-effects for a NewStatisticExprDP.
+// TODO: remove the side-effects.
 func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
 	if queryAgg == nil {
 		return nil
