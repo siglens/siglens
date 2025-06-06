@@ -309,6 +309,7 @@ func convertASTConditionToSearchCondition(condition *structs.Condition, qid uint
 			currSearch.SearchNode = append(currSearch.SearchNode, searchNodes)
 		}
 	}
+	log.Infof("convertASTConditionToSearchCondition returns %+v", currSearch)
 	return currSearch
 }
 
@@ -318,6 +319,7 @@ func convertFilterCriteraToSearchQuery(conditions []*structs.FilterCriteria, qid
 		currQuery := structs.GetSearchQueryFromFilterCriteria(filter, qid)
 		finalSearchQueries = append(finalSearchQueries, currQuery)
 	}
+	log.Infof("convertFilterCriteriaToSearchQuery returns %+v", finalSearchQueries)
 	return finalSearchQueries
 }
 

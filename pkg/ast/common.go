@@ -40,6 +40,7 @@ import (
 type CaseConversionInfo struct {
 	dualCaseCheckEnabled bool
 	caseInsensitive      bool
+	isTerm               bool // isTerm is true if the query is a TERM() query
 	valueIsRegex         bool
 	IsString             bool
 	colValue             interface{}
@@ -82,14 +83,15 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		}
 	}
 
-	if isTerm {
-		log.Error("TERM() queries are currently a work-in-progress")
-		return nil, errors.New("TERM() is not yet supported")
-	}
+	// if isTerm {
+	// 	log.Error("TERM() queries are currently a work-in-progress")
+	// 	return nil, errors.New("TERM() is not yet supported")
+	// }
 
 	caseConversion := &CaseConversionInfo{
 		dualCaseCheckEnabled: config.IsDualCaseCheckEnabled(),
 		caseInsensitive:      caseInsensitive,
+		isTerm:               isTerm,
 		valueIsRegex:         valueIsRegex,
 		colValue:             colValue,
 		originalColValue:     originalColValue,
@@ -178,6 +180,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
 	andFilterCondition[0].FilterIsCaseInsensitive = caseInsensitive
+	andFilterCondition[0].FilterIsTerm = isTerm
 	return andFilterCondition, nil
 }
 
@@ -263,12 +266,13 @@ func createMatchFilterCriteria(colName, colValue interface{}, opr LogicalOperato
 }
 
 func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOperator, qid uint64, cci *CaseConversionInfo) *FilterCriteria {
+	log.Infof("CreateTermFilterCriteria: colValue=%+v", colValue)
 	cVal, err := CreateDtypeEnclosure(colValue, qid)
 	if err != nil {
 		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for ColValue=%v. Error=%+v", qid, colValue, err)
 	} else {
 		if cci != nil && !cci.valueIsRegex {
-			cVal.UpdateRegexp(cci.caseInsensitive)
+			cVal.UpdateRegexp(cci.caseInsensitive, cci.isTerm)
 		}
 	}
 

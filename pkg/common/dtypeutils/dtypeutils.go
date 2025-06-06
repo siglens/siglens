@@ -619,6 +619,11 @@ func ReplaceWildcardStarWithRegex(input string) string {
 	return result.String()
 }
 
+func GetTermRegex(input string) string {
+	const singleMajorBreakerRegex = `(?:[\[\]<>()\{\}\|!;,'"*\s&\?\+]|--|%21|%26|%2526|%3B|%7C|%20|%2B|%3D|%2520|%5D|%5B|%3A|%0A|%2C|%28|%29)`
+	return fmt.Sprintf("^(.*%s)?%s(%s.*)?$", singleMajorBreakerRegex, input[1:len(input)-1], singleMajorBreakerRegex)
+}
+
 func AlmostEquals(left, right float64) bool {
 	tolerance := 0.0001
 	if difference := math.Abs(left - right); difference < tolerance {
