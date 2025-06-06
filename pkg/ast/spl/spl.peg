@@ -4110,7 +4110,7 @@ CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
 // https://docs.splunk.com/Documentation/SplunkCloud/latest/Search/UseCASEandTERMtomatchphrases
 CaseInsensitiveString <- "TERM" L_PAREN value:String R_PAREN {
     return &StringSearchRequest{
-        value: value,
+        value: strings.ToLower(value.(string)),
         originalValue: value,
         caseInsensitive: true,
         isTerm: true,
