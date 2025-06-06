@@ -19,6 +19,7 @@ package structs
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -2372,6 +2373,54 @@ func parseTime(dateStr, format string) (time.Time, error) {
 func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
+
+	case "getfields":
+		if fieldToValue == nil {
+			return "[]", nil
+		}
+		var filter string
+		if self.Val != nil {
+			filterValue, err := self.Val.EvaluateToString(fieldToValue)
+			if err == nil {
+				filter = filterValue
+			}
+		}
+		fields := make([]map[string]interface{}, 0, len(fieldToValue))
+		for fieldName, fieldValue := range fieldToValue {
+			if fieldName == "_raw" {
+				continue
+			}
+			if filter != "" && !matchesFilter(fieldName, filter) {
+				continue
+			}
+			valueStr := ""
+			if fieldValue.CVal != nil {
+				var err error
+				valueStr, err = fieldValue.GetString()
+				if err != nil {
+					valueStr = fmt.Sprintf("%v", fieldValue.CVal)
+				}
+			}
+			fieldEntry := map[string]interface{}{
+				"name":  fieldName,
+				"value": valueStr,
+			}
+			if filter != "" && strings.Contains(filter, "*") {
+				segments := extractSegments(fieldName, filter)
+				if len(segments) > 0 {
+					fieldEntry["segments"] = segments
+				}
+			}
+
+			fields = append(fields, fieldEntry)
+		}
+		// Marshal to JSON string
+		jsonData, err := json.Marshal(fields)
+		if err != nil {
+			return "[]", utils.WrapErrorf(err, "TextExpr.EvaluateText: failed to marshal fields to JSON: %v", err)
+		}
+		return string(jsonData), nil
+
 	case "strftime":
 		timestamp, err := self.Val.EvaluateToFloat(fieldToValue)
 		if err != nil {
@@ -2484,8 +2533,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 		fallthrough
 	case "cluster":
 		fallthrough
-	case "getfields":
-		fallthrough
+
 	case "typeof":
 		if self.Val.NumericExpr != nil && self.Val.NumericExpr.ValueIsField {
 			val, ok := fieldToValue[self.Val.NumericExpr.Value]
@@ -2773,6 +2821,30 @@ func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]sutils.CVal
 	}
 }
 
+// Helper function to match field names against wildcard patterns
+func matchesFilter(fieldName, pattern string) bool {
+	regexPattern := "^" + regexp.QuoteMeta(pattern)
+	regexPattern = strings.ReplaceAll(regexPattern, "\\*", ".*?")
+	regexPattern += "$"
+
+	matched, _ := regexp.MatchString(regexPattern, fieldName)
+	return matched
+}
+
+// Helper function to extract segments that match wildcards
+func extractSegments(fieldName, pattern string) []string {
+	regexPattern := "^" + regexp.QuoteMeta(pattern)
+	regexPattern = strings.ReplaceAll(regexPattern, "\\*", "(.*?)")
+	regexPattern += "$"
+
+	re := regexp.MustCompile(regexPattern)
+	matches := re.FindStringSubmatch(fieldName)
+
+	if len(matches) <= 1 {
+		return nil
+	}
+	return matches[1:]
+}
 func (self *TextExpr) GetFields() []string {
 	if self == nil {
 		return nil

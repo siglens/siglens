@@ -1479,7 +1479,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"printf":           {},
 	"tojson":           {},
 	"cluster":          {},
-	"getfields":        {},
 	"isnum":            {},
 	"isnotnull":        {},
 	"spath":            {},
