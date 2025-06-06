@@ -230,7 +230,10 @@ func Test_EncodeDecodeTDigest_LessThanCompression_PercentileCheck(t *testing.T) 
 	percentileToCalc := rand.Intn(101)
 	ansToTestAgainst := tutils.FindPercentileData(valArr, percentileToCalc)
 	unEncodedRes := originalTDigest.GetQuantile(float64(percentileToCalc) / 100)
-	assert.Equal(t, ansToTestAgainst, unEncodedRes)
+	rndAnsToTestAgainst := math.Round(ansToTestAgainst*1000) / 1000
+	rndUnEncodedRes := math.Round(unEncodedRes*1000) / 1000
+
+	assert.Equal(t, rndAnsToTestAgainst, rndUnEncodedRes)
 
 	encoded, err := originalTDigest.GobEncode()
 	assert.NoError(t, err)
@@ -243,7 +246,7 @@ func Test_EncodeDecodeTDigest_LessThanCompression_PercentileCheck(t *testing.T) 
 	ansToTestAgainst = tutils.FindPercentileData(valArr, percentileToCalc)
 	decodedRes := decoded.GetQuantile(float64(percentileToCalc) / 100)
 	// round to three decimal places to avoid rounding errors
-	rndAnsToTestAgainst := math.Round(ansToTestAgainst*1000) / 1000
+	rndAnsToTestAgainst = math.Round(ansToTestAgainst*1000) / 1000
 	rndDecodedRes := math.Round(decodedRes*1000) / 1000
 	assert.Equal(t, rndAnsToTestAgainst, rndDecodedRes)
 }

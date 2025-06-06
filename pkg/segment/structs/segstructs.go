@@ -780,6 +780,12 @@ func (ss *SegStats) Merge(other *SegStats) {
 			log.Errorf("SegStats.Merge: Failed to merge segmentio hll stats. error: %v", err)
 		}
 	}
+	if ss.TDigest != nil && other.TDigest != nil {
+		err := ss.TDigest.MergeTDigest(other.TDigest)
+		if err != nil {
+			log.Errorf("SegStats.Merge: Failed to merge segment tdigest stats. error: %v", err)
+		}
+	}
 
 	UpdateMinMax(ss, other.Min)
 	UpdateMinMax(ss, other.Max)
