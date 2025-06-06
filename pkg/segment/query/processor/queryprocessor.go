@@ -215,6 +215,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	sortExpr := MutateForSearchSorter(firstAgg)
 
+	firstDpChain := AggsToDataProcessors(firstProcessorAgg, queryInfo)
 	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstProcessorAgg, queryInfo))
 	if firstAgg.HasStatsBlock() {
 		// There's a different flow when the first agg is stats compared to
@@ -255,12 +256,12 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		parallelism = runtime.GOMAXPROCS(0)
 	}
 
-	var firstDpChain []*DataProcessor
 	for i := 0; i < parallelism; i++ {
-		dataProcessors := AggsToDataProcessors(firstProcessorAgg, queryInfo)
+		var dataProcessors []*DataProcessor
 		if i == 0 {
-			firstDpChain = dataProcessors
+			dataProcessors = firstDpChain
 		} else {
+			dataProcessors = AggsToDataProcessors(firstProcessorAgg, queryInfo)
 			// Merge the chains once parallelism is no longer possible.
 			// e.g., if we merge into dp3 and parallelism=3, we eventually want
 			// to get to this structure:
