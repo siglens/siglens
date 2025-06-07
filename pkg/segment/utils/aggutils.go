@@ -77,10 +77,10 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Sum, Count:
 			e1.CVal = e1.CVal.(uint64) + e2.CVal.(uint64)
 			return e1, nil
-		case Min:
+		case Min, EarliestTime:
 			e1.CVal = min(e1.CVal.(uint64), e2.CVal.(uint64))
 			return e1, nil
-		case Max:
+		case Max, LatestTime:
 			e1.CVal = max(e1.CVal.(uint64), e2.CVal.(uint64))
 			return e1, nil
 		default:
