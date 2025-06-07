@@ -19,6 +19,7 @@ package processor
 
 import (
 	"io"
+	"sync"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 )
@@ -34,6 +35,11 @@ type CachedStream struct {
 	stream                  Streamer
 	unusedDataFromLastFetch *iqr.IQR
 	isExhausted             bool
+}
+
+type SingleThreadedStream struct {
+	stream Streamer
+	lock   *sync.Mutex
 }
 
 func NewCachedStream(stream Streamer) *CachedStream {
@@ -84,4 +90,36 @@ func (cs *CachedStream) Cleanup() {
 
 func (cs CachedStream) String() string {
 	return cs.stream.String()
+}
+
+func NewSingleThreadedStream(stream Streamer) *SingleThreadedStream {
+	return &SingleThreadedStream{
+		stream: stream,
+		lock:   &sync.Mutex{},
+	}
+}
+
+func (sts *SingleThreadedStream) Fetch() (*iqr.IQR, error) {
+	sts.lock.Lock()
+	defer sts.lock.Unlock()
+
+	return sts.stream.Fetch()
+}
+
+func (sts *SingleThreadedStream) Rewind() {
+	sts.lock.Lock()
+	defer sts.lock.Unlock()
+
+	sts.stream.Rewind()
+}
+
+func (sts *SingleThreadedStream) Cleanup() {
+	sts.lock.Lock()
+	defer sts.lock.Unlock()
+
+	sts.stream.Cleanup()
+}
+
+func (sts SingleThreadedStream) String() string {
+	return sts.stream.String()
 }
