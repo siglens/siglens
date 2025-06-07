@@ -23,6 +23,7 @@ import (
 	"encoding/gob"
 	"regexp"
 
+	"github.com/caio/go-tdigest/v4"
 	"github.com/siglens/go-hll"
 	log "github.com/sirupsen/logrus"
 )
@@ -105,6 +106,65 @@ func (self *GobbableList) GobDecode(data []byte) error {
 	self.Init()
 	for _, element := range elements {
 		self.PushBack(element)
+	}
+
+	return nil
+}
+
+type GobbableTDigest struct {
+	*tdigest.TDigest
+}
+
+// splunk uses nearest rank for less than 1000 cardinality and tdigest for > 1000 cardinality
+// https://docs.splunk.com/Documentation/Splunk/9.1.1/SearchReference/Aggregatefunctions#Usage_12
+const TDIGEST_COMPRESSION float64 = 1000
+
+func CreateNewTDigest() (*GobbableTDigest, error) {
+	ntd, err := tdigest.New(tdigest.Compression(TDIGEST_COMPRESSION))
+	return &GobbableTDigest{TDigest: ntd}, err
+}
+
+func (td *GobbableTDigest) InsertIntoTDigest(val float64) error {
+	err := td.Add(val)
+	return err
+}
+
+func (td *GobbableTDigest) MergeTDigest(toMerge *GobbableTDigest) error {
+	err := td.Merge(toMerge.TDigest)
+	return err
+}
+
+func (td *GobbableTDigest) GetQuantile(quantVal float64) float64 {
+	val := td.Quantile(quantVal)
+	return val
+}
+
+func (self *GobbableTDigest) GobEncode() ([]byte, error) {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	bytes := self.ToBytes([]byte{})
+
+	if err := encoder.Encode(bytes); err != nil {
+		log.Errorf("GobbableTDigest.GobEncode: failed to encode; err=%v", err)
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (self *GobbableTDigest) GobDecode(data []byte) error {
+	var err error
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+
+	var bytes []byte
+	if err = decoder.Decode(&bytes); err != nil {
+		log.Errorf("GobbableTDigest.GobDecode: failed to decode; err=%v", err)
+		return err
+	}
+
+	err = self.TDigest.FromBytes(bytes)
+	if err != nil {
+		log.Errorf("GobbableTDigest.GobDecode: failed to create TDigest struct from bytes; err=%v", err)
 	}
 
 	return nil
