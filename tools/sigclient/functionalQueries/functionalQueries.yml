@@ -1,5 +1,4 @@
 ## Currently implemented in the new pipline
-simple_term.json
 simple_where.json
 simple_sort.json
 complex_search.json
@@ -50,6 +49,8 @@ streamstats_multi_resets_grpby.json
 streamstats_eval.json
 streamstats_after_stats.json
 streamstats_after_grpby.json
+simple_term.json
+wildcard_term.json
 
 # Variable column based queries
 variable_col_tests/var_simple_where.json
