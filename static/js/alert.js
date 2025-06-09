@@ -213,6 +213,9 @@ async function initializeFromUrl() {
     const params = new URLSearchParams(window.location.search);
     let alertType = params.get('type') || 'logs';
 
+    await toggleAlertTypeUI(alertType);
+    handleFormValidationTooltip(alertType);
+
     // Edit Mode
     if (params.has('id')) {
         alertType = await loadExistingAlert(params.get('id'));
@@ -242,9 +245,6 @@ async function initializeFromUrl() {
     if (!isEditMode && !isFromMetrics && alertType !== 'logs') {
         addQueryElement();
     }
-
-    handleFormValidationTooltip(alertType);
-    toggleAlertTypeUI(alertType);
 }
 
 async function loadExistingAlert(alertId) {
@@ -408,6 +408,7 @@ async function fillAlertForm(res) {
         if (index === '') {
             setIndexDisplayValue('*');
         } else {
+            selectedSearchIndex = index;
             setIndexDisplayValue(index);
         }
 
@@ -847,7 +848,7 @@ function prepareLogsChartData(res, hits) {
 function handleErrors(error) {
     const logsExplorer = document.getElementById('logs-explorer');
     const errorText = error.responseJSON?.error || error.statusText || 'Failed to fetch logs data';
-    
+
     logsExplorer.style.display = 'flex';
     logsExplorer.innerHTML = `
         <div style="color: #666; text-align: center; padding: 20px; font-size: 16px; font-style: italic;">
