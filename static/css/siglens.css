@@ -1469,6 +1469,7 @@ progress.hidden {
     justify-content: center;
     align-items: center;
     padding: 0px;
+    z-index: 0;
 }
 
 #log-opt-single-btn {
@@ -7342,8 +7343,6 @@ p#versionInfo {
     border-top: 1px solid var(--panel-table-line-color);
     border-radius: 4px 0 0 0;
     display: block !important;
-    opacity: 0;
-    visibility: hidden;
 }
 
 .json-popup.active {
@@ -7351,8 +7350,6 @@ p#versionInfo {
     margin-left: 5px;
     border-left: 1px solid var(--panel-table-line-color);
     border-bottom: 1px solid var(--panel-table-line-color);
-    opacity: 1;
-    visibility: visible;
 }
 
 .json-popup-header {
@@ -7881,6 +7878,7 @@ p#versionInfo {
     background-color: var(--white-1) !important;
     color: var(--white-4);
     border: none;
+    z-index: 0;
 }
 
 .ace_string {
