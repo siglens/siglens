@@ -195,7 +195,7 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 		return nil
 	}
 
-	// When there is only one agg and agg is values(), we can not score that based on the sum of the values in the aggregation
+	// When there are only values() or latest() aggs, we can not score these aggs based on the sum of the values in the aggregation
 	onlyUsedByUnscorableFuncs := true
 	for idx := range measureOperations {
 		if measureOperations[idx].MeasureFunc != sutils.Values && measureOperations[idx].MeasureFunc != sutils.Latest {
@@ -374,6 +374,10 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 	case sutils.Max:
 		fallthrough
 	case sutils.Range:
+		fallthrough
+	case sutils.LatestTime:
+		fallthrough
+	case sutils.EarliestTime:
 		fallthrough
 	case sutils.Sum:
 		aggFunc = sutils.Sum
