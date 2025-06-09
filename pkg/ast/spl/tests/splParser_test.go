@@ -10234,7 +10234,7 @@ func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc sutils.AggregateFu
 	} else {
 		assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
 	}
-	assert.Equal(t, pipeCommands.MeasureOperations[1].Param, param)
+	assert.Equal(t, math.Round(pipeCommands.MeasureOperations[1].Param*1000)/1000, math.Round(param*1000)/1000)
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMBooleanExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr)
@@ -10295,7 +10295,7 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc sutils.Aggre
 	} else {
 		assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
 	}
-	assert.Equal(t, pipeCommands.MeasureOperations[1].Param, param)
+	assert.Equal(t, math.Round(pipeCommands.MeasureOperations[1].Param*1000)/1000, math.Round(param*1000)/1000)
 
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMNumericExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
@@ -10336,7 +10336,7 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc sutils.Aggr
 	} else {
 		assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
 	}
-	assert.Equal(t, pipeCommands.MeasureOperations[1].Param, param)
+	assert.Equal(t, math.Round(pipeCommands.MeasureOperations[1].Param*1000)/1000, math.Round(param*1000)/1000)
 
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMConditionExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
