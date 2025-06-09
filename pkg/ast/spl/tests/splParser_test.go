@@ -41,6 +41,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const TestPercAlternate sutils.AggregateFunctions = sutils.END_OF_AGGREGATE_FUNCS + 5
+
+var alternateAggTestingMap = map[sutils.AggregateFunctions]sutils.AggregateFunctions{
+	TestPercAlternate: sutils.Perc,
+}
+
 // Helper functions
 
 func parseWithoutError(t *testing.T, query string) (*structs.ASTNode, *structs.QueryAggregators) {
@@ -10368,12 +10374,6 @@ func getAggFunctions() []sutils.AggregateFunctions {
 	}
 }
 
-const TestPercAlternate sutils.AggregateFunctions = 100
-
-var alternateAggTestingMap = map[sutils.AggregateFunctions]sutils.AggregateFunctions{
-	TestPercAlternate: sutils.Perc,
-}
-
 func Test_Aggs(t *testing.T) {
 	aggFuncs := getAggFunctions()
 
@@ -10432,10 +10432,6 @@ func Test_MVExpand_MissingField(t *testing.T) {
 	query := `* | mvexpand`
 	_, err := spl.Parse("", []byte(query))
 	assert.NotNil(t, err)
-}
-
-func Test_Percentile_Alternative(t *testing.T) {
-
 }
 
 func getTimeAfterOffsetAndSnapDay(t *testing.T, offset int, currTime time.Time) (uint64, error) {
