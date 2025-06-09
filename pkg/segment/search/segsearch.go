@@ -456,7 +456,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		if aggs != nil && aggs.GroupByRequest != nil {
 			recIT := InitIteratorFromPQMR(pqmr, numRecsInBlock)
 			aggsKeyWorkingBuf = addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram,
-				measureInfo, len(internalMops), multiReader, blockNum, recIT, blkResults,
+				measureInfo, internalMops, multiReader, blockNum, recIT, blkResults,
 				qid, aggsKeyWorkingBuf, timeRangeBuckets, nodeRes)
 		}
 		numRecsMatched := uint64(pqmr.GetNumberOfSetBits())

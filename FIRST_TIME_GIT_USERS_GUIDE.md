@@ -1,12 +1,14 @@
 # First Time Github Users Guide
 
- * [Fork the repository](#fork-the-repository)
- * [Clone the repository](#clone-the-repository)
- * [Make changes and commit them](#make-changes-and-commit-them)
- * [Push changes to your forked repository](#push-changes-to-your-forked-repository)
- * [Create a pull request](#create-a-pull-request)
+- [First Time Github Users Guide](#first-time-github-users-guide)
+- [Github Docs](#github-docs)
+- [Fork the repository](#fork-the-repository)
+- [Clone the repository](#clone-the-repository)
+- [Make changes and commit them](#make-changes-and-commit-them)
+- [Push changes to your forked repository](#push-changes-to-your-forked-repository)
+- [Create a pull request](#create-a-pull-request)
 
- # [Github Docs]
+ # Github Docs
 
  * [Get Started](https://docs.github.com/en/get-started)
  * [Quick Start](https://docs.github.com/en/get-started/quickstart/fork-a-repo)
@@ -23,23 +25,23 @@ Steps to create a fork, clone and create a PR in Github:
 # Clone the repository:
 
 1. Open a command window on your local computer.
-2. Use the git clone command followed by the URL of your forked repository to clone it to your local machine.
-   For example: git clone https://github.com/<your-username>/<siglens>.
+2. Use the `git clone` command followed by the URL of your forked repository to clone it to your local machine.
+   For example: `git clone https://github.com/<your-username>/<siglens>`.
 
 # Make changes and commit them:
 
 1. Navigate to the cloned repository on your local machine.
 2. Make the desired changes to the code or files.
-3. Stage your changes using the git add command.
-   For example: git add .
-4. Commit your changes using the git commit command.
-   For example: git commit -m "commit message"
+3. Stage your changes using the `git add` command.
+   For example: `git add .`
+4. Commit your changes using the `git commit` command.
+   For example: `git commit -m "commit message"`
 
 
 # Push changes to your forked repository:
 
-1. Use the git push command to push your changes to your forked repository on GitHub.
-   For example: git push origin branch-name.
+1. Use the `git push` command to push your changes to your forked repository on GitHub.
+   For example: `git push origin branch-name`
 
 
 # Create a pull request:

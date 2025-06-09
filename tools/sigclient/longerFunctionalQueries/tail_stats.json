@@ -1,27 +1,24 @@
 {
     "queryText": "* | tail 30000 | stats count, sum(latency) as sum, avg(latency) as avg_latency",
     "expectedResult": {
-        "totalMatched": {
-            "value": 1,
-            "relation": "eq"
-        },
-        "qtype": "logs-query",
-        "records": [
+        "bucketCount": 1,
+        "measure": [
             {
-                "avg_latency": 5002125.981666666,
-                "count(*)": 30000,
-                "sum": 150063779450
+                "GroupByValues": ["*"],
+                "IGroupByValues": [
+                    {
+                        "CVal": "*",
+                        "Dtype": 5
+                    }
+                ],
+                "MeasureVal": {
+                    "avg_latency": 5002125.981666666,
+                    "count(*)": 30000,
+                    "sum": 150063779450.0
+                }
             }
         ],
-        "allColumns": [
-            "avg_latency",
-            "count(*)",
-            "sum"
-        ],
-        "columnsOrder": [
-            "avg_latency",
-            "count(*)",
-            "sum"
-        ]
+        "measureFunctions": ["avg_latency", "sum", "count(*)"],
+        "qtype": "segstats-query"
     }
 }
