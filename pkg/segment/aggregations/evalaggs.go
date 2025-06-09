@@ -895,6 +895,44 @@ func AddMeasureAggInRunningStatsForLatest(m *structs.MeasureAggregator, allConve
 	return idx, nil
 }
 
+func AddMeasureAggInRunningStatsForEarliest(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+	measureCol := m.MeasureCol
+	if m.ValueColRequest != nil {
+		fields := m.ValueColRequest.GetFields()
+		if len(fields) != 1 {
+			return idx, fmt.Errorf("AddMeasureAggInRunningStatsForEarliest: Incorrect number  of fields for aggCol: %v", m.String())
+		}
+		measureCol = fields[0]
+	}
+
+	if _, ok := colToIdx[measureCol]; !ok {
+		colToIdx[measureCol] = make([]int, 0)
+	}
+
+	*allReverseIndex = append(*allReverseIndex, idx)
+	colToIdx[measureCol] = append(colToIdx[measureCol], idx)
+	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+		MeasureCol:      measureCol,
+		MeasureFunc:     sutils.Earliest,
+		ValueColRequest: m.ValueColRequest,
+		StrEnc:          m.StrEnc,
+	})
+	idx++
+
+	*allReverseIndex = append(*allReverseIndex, idx)
+	colToIdx[measureCol] = append(colToIdx[measureCol], idx)
+	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+		MeasureCol:      measureCol,
+		MeasureFunc:     sutils.EarliestTime,
+		ValueColRequest: m.ValueColRequest,
+		StrEnc:          m.StrEnc,
+	})
+	idx++
+
+	return idx, nil
+
+}
+
 func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
 
 	fields := m.ValueColRequest.GetFields()

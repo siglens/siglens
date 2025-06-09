@@ -262,7 +262,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 	var hasTsBasedOperations bool
 	allAggs := p.searchResults.GetAggs().MeasureOperations
 	for operation := range allAggs {
-		if allAggs[operation].MeasureFunc == sutils.LatestTime || allAggs[operation].MeasureFunc == sutils.EarliestTime || allAggs[operation].MeasureFunc == sutils.Latest {
+		if allAggs[operation].MeasureFunc == sutils.LatestTime || allAggs[operation].MeasureFunc == sutils.EarliestTime || allAggs[operation].MeasureFunc == sutils.Latest || allAggs[operation].MeasureFunc == sutils.Earliest {
 			hasTsBasedOperations = true
 		}
 	}

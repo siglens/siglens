@@ -198,7 +198,7 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 	// When there are only values() or latest() aggs, we can not score these aggs based on the sum of the values in the aggregation
 	onlyUsedByUnscorableFuncs := true
 	for idx := range measureOperations {
-		if measureOperations[idx].MeasureFunc != sutils.Values && measureOperations[idx].MeasureFunc != sutils.Latest {
+		if measureOperations[idx].MeasureFunc != sutils.Values && measureOperations[idx].MeasureFunc != sutils.Latest && measureOperations[idx].MeasureFunc != sutils.Earliest {
 			onlyUsedByUnscorableFuncs = false
 			break
 		}
@@ -397,8 +397,11 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 				batchErr.AddError("MergeVal:HLL_STATS", errHllMerge)
 			}
 		}
+	case sutils.Earliest:
+		fallthrough
 	case sutils.Latest:
 		if useAdditionForMerge {
+			// can add more complex logic to check dtype and see if addition is possible or not
 			return
 		}
 		if eVal.Dtype == sutils.SS_INVALID {
@@ -408,8 +411,14 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 			castedEValToMerge := eValToMerge.CVal.(map[string]interface{})
 			ts := castedEVal["timestamp"].(uint64)
 			tsToMerge := castedEValToMerge["timestamp"].(uint64)
-			if tsToMerge > ts {
-				eVal = &eValToMerge
+			if aggFunc == sutils.Latest {
+				if tsToMerge > ts {
+					eVal = &eValToMerge
+				}
+			} else {
+				if tsToMerge < ts {
+					eVal = &eValToMerge
+				}
 			}
 		}
 		return

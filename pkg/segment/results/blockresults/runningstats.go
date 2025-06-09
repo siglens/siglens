@@ -181,6 +181,12 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Latest", err)
 			}
 			i += step
+		case sutils.Earliest:
+			step, err := rr.AddEvalResultsForEarliest(runningStats, measureResults, i, fieldToValue)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Earliest", err)
+			}
+			i += step
 		case sutils.Range:
 			step, err := rr.AddEvalResultsForRange(runningStats, measureResults, i, fieldToValue)
 			if err != nil {
@@ -298,7 +304,21 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 						(*runningStats)[latestIdx].rawVal = toJoinRunningStats[latestIdx].rawVal
 					}
 				}
-
+				i += 1
+			}
+		case sutils.Earliest:
+			if rr.currStats[i].ValueColRequest == nil {
+				earliestTsIdx := i + 1
+				earliestIdx := i
+				err := rr.ProcessReduce(runningStats, toJoinRunningStats[earliestTsIdx].rawVal, earliestTsIdx)
+				if err != nil {
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Latest", err)
+				}
+				if (*runningStats)[earliestTsIdx].rawVal.Dtype != sutils.SS_INVALID {
+					if (*runningStats)[earliestTsIdx].rawVal.CVal.(uint64) == toJoinRunningStats[earliestTsIdx].rawVal.CVal.(uint64) {
+						(*runningStats)[earliestIdx].rawVal = toJoinRunningStats[earliestIdx].rawVal
+					}
+				}
 				i += 1
 			}
 		case sutils.Range:
@@ -570,7 +590,7 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	return numFields - 1, nil
 }
 
-func (rr *RunningBucketResults) AddEvalResultsForLatest(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToVale map[string]sutils.CValueEnclosure) (int, error) {
+func (rr *RunningBucketResults) AddEvalResultsForLatest(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
 	if rr.currStats[i].ValueColRequest == nil {
 		latestTsIdx := i + 1
 		latestIdx := i
@@ -593,6 +613,36 @@ func (rr *RunningBucketResults) AddEvalResultsForLatest(runningStats *[]runningS
 			if latestTsChanged {
 				(*runningStats)[latestIdx].rawVal = measureResults[latestIdx]
 				(*runningStats)[latestIdx].number = nil
+			}
+		}
+		return 1, nil
+	}
+	return 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForEarliest(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+	if rr.currStats[i].ValueColRequest == nil {
+		earliestTsIdx := i + 1
+		earliestIdx := i
+		(*runningStats)[earliestTsIdx].syncRawValue()
+		(*runningStats)[earliestIdx].syncRawValue()
+		earliestTsChanged := false
+		retVal, err := sutils.Reduce((*runningStats)[earliestTsIdx].rawVal, measureResults[earliestTsIdx], rr.currStats[earliestTsIdx].MeasureFunc)
+		if err != nil {
+			return 1, ErrReduceCVal
+		} else {
+			if (*runningStats)[earliestIdx].rawVal.Dtype != sutils.SS_INVALID {
+				if retVal.CVal.(uint64) != (*runningStats)[earliestTsIdx].rawVal.CVal.(uint64) {
+					earliestTsChanged = true
+				}
+			} else {
+				earliestTsChanged = true
+			}
+			(*runningStats)[earliestTsIdx].rawVal = retVal
+			(*runningStats)[earliestTsIdx].number = nil
+			if earliestTsChanged {
+				(*runningStats)[earliestIdx].rawVal = measureResults[earliestIdx]
+				(*runningStats)[earliestIdx].number = nil
 			}
 		}
 		return 1, nil

@@ -1505,7 +1505,6 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.Varp:       {},
 	sutils.First:      {},
 	sutils.Last:       {},
-	sutils.Earliest:   {},
 	sutils.StatsRate:  {},
 }
 

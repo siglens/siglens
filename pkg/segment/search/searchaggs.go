@@ -900,10 +900,6 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 		idx := 0
 		var latestTs uint64
 		var earliestTs uint64 = uint64(math.MaxUint64)
-		/* if isBlkFullyEncosed {
-			latestTs = blockSummaries[blockStatus.BlockNum].HighTs
-			earliestTs = blockSummaries[blockStatus.BlockNum].LowTs
-		} */
 		for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 			if !recIT.ShouldProcessRecord(i) {
 				continue

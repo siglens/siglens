@@ -328,6 +328,28 @@ func GetSegLatestVal(runningSegStat *structs.SegStats, currSegStat *structs.SegS
 	return &runningSegStat.TimeStats.LatestVal, nil
 }
 
+func GetSegEarliestVal(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*sutils.CValueEnclosure, error) {
+	if currSegStat == nil {
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestVal: currSegStat is nil")
+	}
+
+	if runningSegStat == nil {
+		return &currSegStat.TimeStats.EarliestVal, nil
+	}
+	result, err := sutils.ReduceMinMax(runningSegStat.TimeStats.EarliestTs, currSegStat.TimeStats.EarliestTs, false)
+	if err != nil {
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestVal: error in ReduceMinMax, err: %v", err)
+	}
+	var earliestVal sutils.CValueEnclosure
+	if runningSegStat.TimeStats.EarliestTs.CVal.(uint64) == result.CVal.(uint64) {
+		earliestVal = runningSegStat.TimeStats.EarliestVal
+	} else {
+		earliestVal = currSegStat.TimeStats.EarliestVal
+	}
+	runningSegStat.TimeStats.EarliestVal = earliestVal
+	return &runningSegStat.TimeStats.EarliestVal, nil
+}
+
 func getRange(max sutils.CValueEnclosure, min sutils.CValueEnclosure) (*sutils.CValueEnclosure, error) {
 	result := sutils.CValueEnclosure{}
 	if !max.IsNumeric() && !min.IsNumeric() {
