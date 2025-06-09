@@ -83,11 +83,6 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		}
 	}
 
-	// if isTerm {
-	// 	log.Error("TERM() queries are currently a work-in-progress")
-	// 	return nil, errors.New("TERM() is not yet supported")
-	// }
-
 	caseConversion := &CaseConversionInfo{
 		dualCaseCheckEnabled: config.IsDualCaseCheckEnabled(),
 		caseInsensitive:      caseInsensitive,
@@ -266,7 +261,6 @@ func createMatchFilterCriteria(colName, colValue interface{}, opr LogicalOperato
 }
 
 func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOperator, qid uint64, cci *CaseConversionInfo) *FilterCriteria {
-	log.Infof("CreateTermFilterCriteria: colValue=%+v", colValue)
 	cVal, err := CreateDtypeEnclosure(colValue, qid)
 	if err != nil {
 		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for ColValue=%v. Error=%+v", qid, colValue, err)

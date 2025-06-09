@@ -485,12 +485,6 @@ type StringSearchRequest struct {
 }
 
 Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
-    log.Infof("Start: indexBlock is %v, initialSearch is %+v, filterBlocks is %v, queryAggBlocks is %v", indexBlock, initialSearch, filterBlocks, queryAggBlocks)
-    log.Infof("Initial search is: %+v", initialSearch.(*ast.Node))
-    // log.Infof("filterBlocks[0] is: %+v", filterBlocks.([]interface{})[0].(*ast.Node))
-    for i, block := range filterBlocks.([]any) {
-        log.Infof("filterBlocks[%d] is: %+v", i, block.(*ast.Node))
-    }
     var q ast.QueryStruct
     q.SearchFilter = initialSearch.(*ast.Node)
 
@@ -779,7 +773,6 @@ GenTimesOptionList <- first:GenTimesOption rest:(SPACE GenTimesOption)* {
 }
 
 InitialSearchBlock <- CMD_SEARCH? clause:ClauseLevel4 {
-    log.Infof("InitialSearchBlock: clause is %+v", clause)
     return clause, nil
 }
 
@@ -1210,7 +1203,6 @@ RegexAggBlock <- PIPE node:RegexBlock {
 }
 
 ClauseLevel4 <- first:ClauseLevel3 rest:((AND / SPACE) ClauseLevel3)* {
-    log.Infof("ClauseLevel4: first is %+v, rest is %+v", first, rest)
     if rest == nil {
         return first, nil
     }
@@ -1229,7 +1221,6 @@ ClauseLevel4 <- first:ClauseLevel3 rest:((AND / SPACE) ClauseLevel3)* {
 }
 
 ClauseLevel3 <- first:ClauseLevel2 rest:(OR ClauseLevel2)* {
-    log.Infof("ClauseLevel3: first is %+v, rest is %+v", first, rest)
     if rest == nil {
         return first, nil
     }
@@ -1248,7 +1239,6 @@ ClauseLevel3 <- first:ClauseLevel2 rest:(OR ClauseLevel2)* {
 }
 
 ClauseLevel2 <- notList:NOT+ first:ClauseLevel1 {
-    log.Infof("ClauseLevel2: notList is %+v, first is %+v", notList, first)
     // There's an issue with how queries with AST Not nodes are run, so use
     // De Morgan's law to manipulate the expression.
     node := first.(*ast.Node)
@@ -1264,17 +1254,14 @@ ClauseLevel2 <- notList:NOT+ first:ClauseLevel1 {
 }
 
 ClauseLevel1 <- L_PAREN clause:ClauseLevel4 R_PAREN {
-    log.Infof("ClauseLevel1: clause is %+v", clause)
     return clause, nil
 } / term:SearchTerm {
-    log.Infof("ClauseLevel1: term is %+v", term)
     return term, nil
 }
 
 // Parsing the text of a Number as a String would succeed, so we need to try
 // parsing as a FieldWithNumberValue first.
 SearchTerm <- term:(FieldWithNumberValue / FieldWithBooleanValue / FieldWithStringValue) {
-    log.Infof("SearchTerm: term is %+v", term)
     return term, nil
 }
 
@@ -4060,12 +4047,10 @@ FieldWithBooleanValue <- key:FieldName op:EqualityOperator value:Boolean {
 }
 
 FieldWithStringValue <- keyValuePair:(NamedFieldWithStringValue / UnnamedFieldWithStringValue) {
-    log.Infof("FieldWithStringValue: keyValuePair is %+v", keyValuePair)
     return keyValuePair, nil
 }
 
 NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(CaseSensitiveString / CaseInsensitiveString) {
-    log.Infof("NamedFieldWithStringValue: key is %+v, op is %+v, stringSearchReq is %+v", key, op, stringSearchReq)
     ssr := stringSearchReq.(*StringSearchRequest)
     node := &ast.Node{
         NodeType: ast.NodeTerminal,
@@ -4082,7 +4067,6 @@ NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(
 }
 
 UnnamedFieldWithStringValue <- stringSearchReq:(CaseSensitiveString / CaseInsensitiveString) {
-    log.Infof("UnnamedFieldWithStringValue: stringSearchReq is %+v",  stringSearchReq)
     ssr := stringSearchReq.(*StringSearchRequest)
     node := &ast.Node{
         NodeType: ast.NodeTerminal,
@@ -4117,7 +4101,6 @@ CaseInsensitiveString <- "TERM" L_PAREN value:String R_PAREN {
     }, nil
 }
 
-// searches for strings
 / value:String {
     return &StringSearchRequest{
         value: strings.ToLower(value.(string)),

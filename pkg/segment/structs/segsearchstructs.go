@@ -341,7 +341,6 @@ func getSearchInputFromFilterInput(filter *FilterInput, isCaseInsensitive bool, 
 }
 
 func GetSearchQueryFromFilterCriteria(criteria *FilterCriteria, qid uint64) *SearchQuery {
-	log.Infof("GetSearchQueryFromFilterCriteria called with params %+v: %+v", criteria, criteria.ExpressionFilter)
 	var sq *SearchQuery
 
 	if criteria.MatchFilter != nil {
@@ -351,7 +350,6 @@ func GetSearchQueryFromFilterCriteria(criteria *FilterCriteria, qid uint64) *Sea
 	}
 	sq.FilterIsCaseInsensitive = criteria.FilterIsCaseInsensitive
 	sq.FilterIsTerm = criteria.FilterIsTerm
-	log.Infof("GetSearchQueryFromFilterCriteria returns %+v: %+v", sq, sq.ExpressionFilter)
 	return sq
 }
 
@@ -427,11 +425,8 @@ func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInsensi
 				cval = "(?i)" + cval
 			} else if !isCaseInsensitive && isTerm { // should not be reachable
 				cval = dtu.GetTermRegex(cval)
-			} else { // CASE()
-				// Nothing needs to be done here
-			}
+			} // else it is CASE(), nothing more needs to be done
 
-			log.Infof("UpdateRegexp: Converted pattern %s to regex %s", sq.ExpressionFilter.LeftSearchInput.ColumnValue.StringVal, cval)
 			if isCaseInsensitive {
 				cval = "(?i)" + cval
 			}

@@ -60,7 +60,6 @@ func GetLiteralFromString(identifier string) (v interface{}) {
 }
 
 func CreateDtypeEnclosure(inVal interface{}, qid uint64) (*DtypeEnclosure, error) {
-	log.Infof("CreateDtypeEnclosure: inVal=%+v", inVal)
 	var dte DtypeEnclosure
 
 	if inVal == nil {
@@ -183,11 +182,7 @@ func (dte *DtypeEnclosure) UpdateRegexp(caseInsensitive bool, isTerm bool) {
 			rawRegex = "(?i)" + rawRegex
 		} else if !caseInsensitive && isTerm { // should not be reachable
 			rawRegex = dtu.GetTermRegex(rawRegex)
-		} else { // CASE()
-			// Nothing needs to be done here
-		}
-
-		log.Infof("UpdateRegexp: Converted pattern %s to regex %s", dte.StringVal, rawRegex)
+		} // else it is CASE(), nothing more needs to be done
 
 		compiledRegex, err := regexp.Compile(rawRegex)
 		if err != nil {
