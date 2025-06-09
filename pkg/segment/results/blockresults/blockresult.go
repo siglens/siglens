@@ -638,7 +638,15 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 
 		shouldAddRes := aggregations.ShouldAddRes(timechart, tmLimitResult, index, eVal, hllToMerge, strSetToMerge, mInfo.MeasureFunc, groupByColVal, isOtherCol, batchErr)
 		if shouldAddRes {
-			currRes[mInfoStr] = eVal
+			if mInfo.MeasureFunc == sutils.Latest {
+				castedEVal, ok := eVal.CVal.(map[string]interface{})
+				if ok {
+					latestVal := castedEVal["val"].(sutils.CValueEnclosure)
+					currRes[mInfoStr] = latestVal
+				}
+			} else {
+				currRes[mInfoStr] = eVal
+			}
 		}
 	}
 }
@@ -756,6 +764,23 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 				eVal.CVal = avg
 				eVal.Dtype = sutils.SS_DT_FLOAT
 			}
+		}
+	case sutils.Latest:
+		if mInfo.ValueColRequest == nil {
+			incrementIdxBy = 2
+			latestTsIdx := gb.reverseMeasureIndex[idx+1]
+			latestIdx := gb.reverseMeasureIndex[idx]
+			runningStats[latestTsIdx].syncRawValue()
+			latestTsVal, err := runningStats[latestTsIdx].rawVal.GetUIntValue()
+			if err != nil {
+				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
+				return
+			}
+			runningStats[latestIdx].syncRawValue()
+			latestVal := runningStats[latestIdx].rawVal
+
+			eVal.CVal = map[string]any{"timestamp": latestTsVal, "val": latestVal}
+			eVal.Dtype = sutils.SS_DT_ARRAY_DICT
 		}
 	case sutils.Range:
 		if mInfo.ValueColRequest != nil {
