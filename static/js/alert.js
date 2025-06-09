@@ -430,6 +430,7 @@ async function fillAlertForm(res) {
             queryLanguage: 'Splunk QL',
         };
 
+        showLogsLoading();
         fetchLogsPanelData(data, -1)
             .then((res) => {
                 alertChart(res);
@@ -516,6 +517,7 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
         indexName: selectedSearchIndex,
         queryLanguage: queryLanguage,
     };
+    showLogsLoading();
     fetchLogsPanelData(data, -1)
         .then((res) => {
             alertChart(res);
@@ -906,4 +908,10 @@ function showEmptyChart(logsExplorer) {
             },
         },
     });
+}
+
+function showLogsLoading() {
+    const logsExplorer = document.getElementById('logs-explorer');
+    logsExplorer.style.display = 'flex';
+    logsExplorer.innerHTML = '<div class="panel-loading"></div>';
 }
