@@ -1009,23 +1009,34 @@ func mergeMetadata(iqrs []*IQR, allocateForAllRecords bool) (*IQR, error) {
 // The bool return value indicates whether the result should be a stats result.
 func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) (bool, error) {
 
-	statsType := iqrs[0].statsResults.statsType
-	if statsType.IsRRCCmd() {
-		// This should never be the case. The statsResults were initialized while creating the IQR.
-		// The default stats type should be Invalid.
-		return false, fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: stats type is not supported (%v)",
-			iqr.qid, statsType)
-	}
+	// Filter out IQRs with no stats or invalid stats types
+	validIqrs := make([]*IQR, 0, len(iqrs))
+	var statsType structs.QueryType
+	statsTypeFound := false
 
-	for _, iqr := range iqrs {
-		if iqr.statsResults.statsType != statsType {
-			return false, fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: inconsistent stats types (%v and %v)",
-				iqr.qid, statsType, iqr.statsResults.statsType)
+	for _, iqrToCheck := range iqrs {
+		currentStatsType := iqrToCheck.statsResults.statsType
+
+		// Skip IQRs with no stats or invalid stats types
+		if currentStatsType.IsNotStatsType() || currentStatsType.IsRRCCmd() {
+			continue
 		}
+
+		// Set the stats type from the first valid IQR
+		if !statsTypeFound {
+			statsType = currentStatsType
+			statsTypeFound = true
+		} else if currentStatsType != statsType {
+			// Check consistency among valid IQRs
+			return false, fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: inconsistent stats types (%v and %v)",
+				iqr.qid, statsType, currentStatsType)
+		}
+
+		validIqrs = append(validIqrs, iqrToCheck)
 	}
 
-	if statsType.IsNotStatsType() {
-		// This means that the IQRs don't have any stats results.
+	// If no valid IQRs found, return no stats
+	if len(validIqrs) == 0 {
 		return false, nil
 	}
 
@@ -1033,7 +1044,7 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) (bool, error) {
 	var searchResults *segresults.SearchResults
 	var err error
 
-	for _, iqrToMerge := range iqrs {
+	for _, iqrToMerge := range validIqrs {
 
 		statsRes := iqrToMerge.statsResults
 
