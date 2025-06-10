@@ -435,6 +435,7 @@ loop:
 	numFetchedFrom := 0
 	responders := make(map[int]struct{}, len(dp.streams))
 	var finalErr error
+	waitGroup := sync.WaitGroup{}
 
 	for i := range dp.streams {
 		if dp.streams[i].IsExhausted() {
@@ -443,7 +444,10 @@ loop:
 
 		numFetchedFrom++
 
+		waitGroup.Add(1)
 		go func(i int) {
+			defer waitGroup.Done()
+
 			iqr, err := dp.streams[i].Fetch()
 			if err != nil && err != io.EOF {
 				finalErr = fmt.Errorf("DP.fetchFromAnyStream: failed to fetch from stream %d: %v", i, err)
@@ -460,6 +464,7 @@ loop:
 			dp.streamDataChan <- streamResponse{streamId: i, iqr: iqr}
 		}(i)
 	}
+	waitGroup.Wait()
 
 	if numFetchedFrom == 0 {
 		return nil, io.EOF

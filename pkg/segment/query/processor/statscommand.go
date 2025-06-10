@@ -50,6 +50,8 @@ type statsProcessor struct {
 	errorData            *ErrorData
 	hasFinalResult       bool
 	setAsIqrStatsResults bool
+
+	gaveResults bool
 }
 
 func NewStatsProcessor(options *structs.StatsExpr) *statsProcessor {
@@ -73,6 +75,11 @@ func (p *statsProcessor) SetAsIqrStatsResults() {
 }
 
 func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
+	if p.gaveResults {
+		return nil, io.EOF
+	}
+
+	p.SetAsIqrStatsResults()
 	// Initialize error data
 	if p.errorData == nil {
 		p.errorData = &ErrorData{
@@ -84,6 +91,7 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 
 	// If inputIQR is nil, we are done with the input
 	if inputIQR == nil {
+		defer func() { p.gaveResults = true }()
 		return p.extractFinalStatsResults()
 	} else {
 		p.qid = inputIQR.GetQID()
