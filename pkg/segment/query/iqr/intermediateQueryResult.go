@@ -1018,7 +1018,7 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) (bool, error) {
 		currentStatsType := iqrToCheck.statsResults.statsType
 
 		// Skip IQRs with no stats or invalid stats types
-		if currentStatsType.IsNotStatsType() || currentStatsType.IsRRCCmd() {
+		if currentStatsType.IsNotStatsType() {
 			continue
 		}
 
@@ -1027,7 +1027,6 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) (bool, error) {
 			statsType = currentStatsType
 			statsTypeFound = true
 		} else if currentStatsType != statsType {
-			// Check consistency among valid IQRs
 			return false, fmt.Errorf("qid=%v, IQR.mergeIQRStatsResults: inconsistent stats types (%v and %v)",
 				iqr.qid, statsType, currentStatsType)
 		}
@@ -1035,7 +1034,6 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) (bool, error) {
 		validIqrs = append(validIqrs, iqrToCheck)
 	}
 
-	// If no valid IQRs found, return no stats
 	if len(validIqrs) == 0 {
 		return false, nil
 	}
