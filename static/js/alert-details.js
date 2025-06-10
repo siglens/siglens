@@ -18,6 +18,8 @@
  */
 let alertID;
 let alertHistoryData = [];
+let autoRefreshInterval = null;
+
 let mapIndexToConditionType = new Map([
     [0, 'Is above'],
     [1, 'Is below'],
@@ -46,18 +48,32 @@ $(document).ready(async function () {
 
     await getAlertIdFromURl();
     alertDetailsFunctions();
+
+    startAutoRefresh();
 });
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+
+    autoRefreshInterval = setInterval(() => {
+        if (alertID) {
+            fetchAlertHistory();
+        }
+    }, 30000); // 30 seconds
+}
 
 async function getAlertIdFromURl() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
         alertID = id;
-        await getAlertForEdit(id);
+        await getAlert(id);
     }
 }
 
-async function getAlertForEdit(id) {
+async function getAlert(id) {
     const res = await $.ajax({
         method: 'get',
         url: 'api/alerts/' + id,
@@ -68,16 +84,13 @@ async function getAlertForEdit(id) {
         dataType: 'json',
         crossDomain: true,
     });
-    if (window.location.href.includes('alert-details.html')) {
-        initializeBreadcrumbs([
-            { name: 'Alerting', url: './alerting.html' },
-            { name: 'Alert Rules', url: './all-alerts.html' },
-            { name: res.alert.alert_name, url: '#' },
-        ]);
-        fetchAlertProperties(res);
-        fetchAlertHistory();
-        return false;
-    }
+    initializeBreadcrumbs([
+        { name: 'Alerting', url: './alerting.html' },
+        { name: 'Alert Rules', url: './all-alerts.html' },
+        { name: res.alert.alert_name, url: '#' },
+    ]);
+    fetchAlertProperties(res);
+    fetchAlertHistory();
 }
 
 const propertiesBtn = document.getElementById('properties-btn');
@@ -224,8 +237,12 @@ function fetchAlertHistory() {
                     state: mapIndexToAlertState.get(item.alert_state),
                 }));
 
-                // Display the history data initially
-                displayHistoryData();
+                const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
+                if (searchTerm) {
+                    filterHistoryData(searchTerm);
+                } else {
+                    displayHistoryData();
+                }
             })
             .catch(function (err) {
                 console.error('Error fetching alert history:', err);
@@ -248,7 +265,7 @@ function filterHistoryData(searchTerm) {
 }
 
 function alertDetailsFunctions() {
-    function getAlertForEdit(event) {
+    function getAlert(event) {
         var queryString = '?id=' + alertID;
         window.location.href = '../alert.html' + queryString;
         event.stopPropagation();
@@ -286,7 +303,7 @@ function alertDetailsFunctions() {
         $('#delete-btn').click(deleteAlert);
     }
 
-    $('#edit-alert-btn').on('click', getAlertForEdit);
+    $('#edit-alert-btn').on('click', getAlert);
     $('#delete-alert').on('click', showPrompt);
     $('#cancel-alert-details').on('click', function () {
         window.location.href = '../all-alerts.html';
