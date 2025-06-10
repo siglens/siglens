@@ -3198,7 +3198,6 @@ BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
 // than parsing it as a NumericExpr or ConcatExpr and forcing it to be a float
 // or string respectively.
 ValueExpr <- condition:ConditionExpr {
-    log.Infof("ValueExpr: condition: %#v", condition)
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMConditionExpr,
         ConditionExpr: condition.(*structs.ConditionExpr),
@@ -3207,7 +3206,6 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / L_PAREN (condition:ConditionExpr) R_PAREN {
-    log.Infof("ValueExpr: condition in parens: %#v", condition)
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMConditionExpr,
         ConditionExpr: condition.(*structs.ConditionExpr),
@@ -3216,7 +3214,6 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / numeric:NumericExpr {
-    log.Infof("ValueExpr: numeric: %#v", numeric)
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMNumericExpr,
         NumericExpr: numeric.(*structs.NumericExpr),
@@ -3225,7 +3222,6 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / str:StringExpr {
-    log.Infof("ValueExpr: str: %#v", str)
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMStringExpr,
         StringExpr: str.(*structs.StringExpr),
@@ -3234,7 +3230,6 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / L_PAREN (str:StringExpr) R_PAREN {
-    log.Infof("ValueExpr: str in parens: %#v", str)
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMStringExpr,
         StringExpr: str.(*structs.StringExpr),
@@ -3243,7 +3238,6 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / L_PAREN boolean:BoolExpr R_PAREN {
-    log.Infof("ValueExpr: boolean: %#v", boolean)
     expr := &structs.ValueExpr{
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolean.(*structs.BoolExpr),
@@ -3252,8 +3246,6 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / multiValueExpr:MultiValueExpr {
-    log.Infof("ValueExpr: mvexpr: %#v", multiValueExpr)
-
     expr := &structs.ValueExpr{
         ValueExprMode: structs.VEMMultiValueExpr,
         MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
@@ -3350,13 +3342,11 @@ ConcatAtom <- text:TextExpr {
 
 // Returns *structs.NumericExpr
 NumericExpr <- expr:NumericExprLevel3 !(EVAL_CONCAT / "\"" ) {
-    log.Infof("NumericExpr: expr: %#v", expr)
     return expr, nil
 }
 
 // Returns *structs.NumericExpr
 NumericExprLevel3 <- first:NumericExprLevel2 rest:((OpPlus / OpMinus) NumericExprLevel2)* {
-    log.Infof("NumericExprLevel3: first: %#v, rest: %#v", first, rest)
     if rest == nil {
         return first, nil
     }
@@ -3378,7 +3368,6 @@ NumericExprLevel3 <- first:NumericExprLevel2 rest:((OpPlus / OpMinus) NumericExp
 
 // Returns *structs.NumericExpr
 NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv / OpMod) NumericExprLevel1)* {
-    log.Infof("NumericExprLevel2: first: %#v, rest: %#v", first, rest)
     if rest == nil {
         return first, nil
     }
@@ -3409,15 +3398,12 @@ NumericParamExpr <- COMMA expr:NumericExprLevel3 {
 
 // Returns *structs.NumericExpr
 NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
-    log.Infof("NumericExprLevel1: expr in parens: %#v", expr)
     return expr, nil
 }
 / numericEvalExpr: NumericEvalExpr {
-    log.Infof("NumericExprLevel1: numericEvalExpr: %#v", numericEvalExpr)
     return numericEvalExpr, nil
 }
 / field:EvalFieldToRead {
-    log.Infof("NumericExprLevel1: field: %#v", field)
     expr := &structs.NumericExpr {
         IsTerminal: true,
         ValueIsField: true,
@@ -3428,7 +3414,6 @@ NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
     return expr, nil
 }
 / number:NumberAsString {
-    log.Infof("NumericExprLevel1: number: %#v", number)
     expr := &structs.NumericExpr {
         IsTerminal: true,
         ValueIsField: false,
@@ -3524,7 +3509,6 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
     return node, nil
 }
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
-    log.Infof("NumericExpr: lenExpr: %#v", lenExpr)
     return expr, nil
 }
 / (opName:("pow" / "atan2" / "hypot") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
@@ -3604,7 +3588,6 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
 }
 
 LenExpr <- str:QuotedString !(EVAL_CONCAT) {
-    log.Infof("LenExpr: str: %#v", str)
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
         ValueIsField: false,
@@ -3620,7 +3603,6 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
     return node, nil
 }
 / field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / OpMod / EVAL_CONCAT / "(") {
-    log.Infof("LenExpr: field: %#v", field)
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
         ValueIsField: true,
