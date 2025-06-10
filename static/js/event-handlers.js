@@ -425,7 +425,6 @@ function runLiveTailBtnHandler(evt) {
     if ($('#live-tail-btn').text() === 'Live Tail') {
         resetDashboard();
         $('#live-tail-btn').html('Cancel Live Tail');
-        logsRowData = [];
         total_liveTail_searched = 0;
         wsState = 'query';
         data = getLiveTailFilter(false, false, 1800);
@@ -471,7 +470,6 @@ function runFilterBtnHandler(evt) {
                 hasSearchSinceHistogramClosed = true;
             }
             resetDashboard();
-            logsRowData = [];
             accumulatedRecords = [];
             lastColumnsOrder = [];
             totalLoadedRecords = 0;

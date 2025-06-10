@@ -72,13 +72,15 @@ const METRICS_BLK_FLUSH_SLEEP_DURATION = 2 * 60 * 60 // 2 hours
 
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
 
-const METRICS_INSTRUMENTATION_FLUSH_DURATION = 60     // 60 seconds
-const WAL_DPS_FLUSH_SLEEP_DURATION = 1                // 1 sec
-const METRICS_NAME_WAL_FLUSH_SLEEP_DURATION = 1       // 1 sec
-const METRICS_META_ENTRY_WAL_FLUSH_SLEEP_DURATION = 1 // 1 sec
-const METRICS_NAME_WAL_DIR = "mname"
-const META_ENTRY_WAL_DIR = "metaentry"
-const METRICS_META_ENTRY_WAL_FILE = "metricsMetaEntry.wal"
+const (
+	METRICS_INSTRUMENTATION_FLUSH_DURATION      = 60 // 60 seconds
+	WAL_DPS_FLUSH_SLEEP_DURATION                = 1  // 1 sec
+	METRICS_NAME_WAL_FLUSH_SLEEP_DURATION       = 1  // 1 sec
+	METRICS_META_ENTRY_WAL_FLUSH_SLEEP_DURATION = 1  // 1 sec
+	METRICS_NAME_WAL_DIR                        = "mname"
+	META_ENTRY_WAL_DIR                          = "metaentry"
+	METRICS_META_ENTRY_WAL_FILE                 = "metricsMetaEntry.wal"
+)
 
 var dateTimeLayouts = []string{
 	time.RFC3339,
@@ -1240,7 +1242,6 @@ Wrapper function to check and rotate the current metrics block or the metrics se
 Caller is responsible for acquiring locks
 */
 func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
-
 	totalEncSize := atomic.LoadUint64(&ms.mSegEncodedSize)
 	blkEncSize := atomic.LoadUint64(&ms.mBlock.blkEncodedSize)
 	if blkEncSize > sutils.MAX_BYTES_METRICS_BLOCK || (blkEncSize > 0 && forceRotate) ||
@@ -1645,14 +1646,20 @@ func ForceFlushMetricsBlock() {
 	wg.Wait()
 }
 
-func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid int64) (map[string][]*structs.MetricsSearchRequest, error) {
+func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid utils.Option[int64]) (map[string][]*structs.MetricsSearchRequest, error) {
 	sTime := time.Now()
 	retVal := make(map[string][]*structs.MetricsSearchRequest)
 	retLock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
+	org, orgPresent := orgid.Get()
 
 	parallelism := int(config.GetParallelism())
-	allMetricsSegments := GetMetricSegments(orgid)
+	var allMetricsSegments []*MetricsSegment
+	if orgPresent {
+		allMetricsSegments = GetMetricSegments(org)
+	} else {
+		allMetricsSegments = GetAllMetricsSegments()
+	}
 	idxCtr := 0
 	for _, metricSeg := range allMetricsSegments {
 		wg.Add(1)
@@ -1660,11 +1667,12 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 			defer wg.Done()
 			mSeg.rwLock.RLock()
 			defer mSeg.rwLock.RUnlock()
-			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) || mSeg.Orgid != orgid {
+			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) || (orgPresent && mSeg.Orgid != org) {
 				return
 			}
 			retBlocks := make(map[uint16]bool)
-			blockSummaryFile := mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix) + ".mbsu"
+			// blockSummaryFile := mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix) + ".mbsu"
+			blockSummaryFile := filepath.Join(mSeg.metricsKeyBase, fmt.Sprintf("%d.mbsu", mSeg.Suffix))
 			blockSummaries, err := microreader.ReadMetricsBlockSummaries(blockSummaryFile)
 			if err != nil {
 				// Regardless of the error, we continue execution as we need to consider the unrotated block for this segment.
@@ -1682,11 +1690,12 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 			}
 
 			tKeys := make(map[string]bool)
-			allTrees := GetTagsTreeHolder(orgid, mSeg.Mid).allTrees
-			for k := range allTrees {
-				tKeys[k] = true
+			tagTreeHolders := getAllTagsTreeHolders(orgid, mSeg.Mid)
+			for _, tt := range tagTreeHolders {
+				for k := range tt.allTrees {
+					tKeys[k] = true
+				}
 			}
-
 			finalReq := &structs.MetricsSearchRequest{
 				Mid:                  mSeg.Mid,
 				UnrotatedBlkToSearch: make(map[uint16]bool),
@@ -1707,18 +1716,20 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 				return
 			}
 
-			tt := GetTagsTreeHolder(orgid, mSeg.Mid)
-			if tt == nil {
-				return
+			tagTreeHolders = getAllTagsTreeHolders(orgid, mSeg.Mid)
+			for _, tt := range tagTreeHolders {
+				if tt == nil {
+					return
+				}
+				baseTTDir := tt.tagstreeBase
+				retLock.Lock()
+				_, ok := retVal[baseTTDir]
+				if !ok {
+					retVal[baseTTDir] = make([]*structs.MetricsSearchRequest, 0)
+				}
+				retVal[baseTTDir] = append(retVal[baseTTDir], finalReq)
+				retLock.Unlock()
 			}
-			baseTTDir := tt.tagstreeBase
-			retLock.Lock()
-			_, ok := retVal[baseTTDir]
-			if !ok {
-				retVal[baseTTDir] = make([]*structs.MetricsSearchRequest, 0)
-			}
-			retVal[baseTTDir] = append(retVal[baseTTDir], finalReq)
-			retLock.Unlock()
 		}(metricSeg)
 		if idxCtr%parallelism == 0 {
 			wg.Wait()
@@ -1731,12 +1742,42 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 	return retVal, nil
 }
 
+func getAllTagsTreeHolders(orgid utils.Option[int64], metricsId string) []*TagsTreeHolder {
+	org, orgPresent := orgid.Get()
+	var tagTreeHolders []*TagsTreeHolder
+	if orgPresent {
+		tagTreeHolders = []*TagsTreeHolder{}
+		tth := GetTagsTreeHolder(org, metricsId)
+		if tth != nil {
+			tagTreeHolders = append(tagTreeHolders, tth)
+		}
+	} else {
+		tagTreeHolders = GetTagsTreeHolderForAllOrgs(metricsId)
+	}
+
+	return tagTreeHolders
+}
+
 func GetUnrotatedMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid int64) ([]*MetricsSegment, error) {
 	allMetricsSegments := GetMetricSegments(orgid)
 	resultMetricSegments := make([]*MetricsSegment, 0)
 
 	for _, metricSeg := range allMetricsSegments {
 		if !tRange.CheckRangeOverLap(metricSeg.lowTS, metricSeg.highTS) || metricSeg.Orgid != orgid {
+			continue
+		}
+		resultMetricSegments = append(resultMetricSegments, metricSeg)
+	}
+
+	return resultMetricSegments, nil
+}
+
+func GetUnrotatedMetricSegmentsOverTheTimeRangeForAllOrgs(tRange *dtu.MetricsTimeRange) ([]*MetricsSegment, error) {
+	allMetricsSegments := GetAllMetricsSegments()
+	resultMetricSegments := make([]*MetricsSegment, 0)
+
+	for _, metricSeg := range allMetricsSegments {
+		if !tRange.CheckRangeOverLap(metricSeg.lowTS, metricSeg.highTS) {
 			continue
 		}
 		resultMetricSegments = append(resultMetricSegments, metricSeg)
@@ -1877,9 +1918,22 @@ func GetTagsTreeHolder(orgid int64, mid string) *TagsTreeHolder {
 	return tt
 }
 
-func CountUnrotatedTSIDsForTagKeys(tRange *dtu.MetricsTimeRange, myid int64,
-	seriesCardMap map[string]*utils.GobbableHll) error {
+func GetTagsTreeHolderForAllOrgs(mid string) []*TagsTreeHolder {
+	tagsTreeHolders := []*TagsTreeHolder{}
+	orgMetricsAndTagsLock.RLock()
+	defer orgMetricsAndTagsLock.RUnlock()
+	for _, metricsAndTags := range OrgMetricsAndTags {
+		tt, ok := metricsAndTags.TagHolders[mid]
+		if ok {
+			tagsTreeHolders = append(tagsTreeHolders, tt)
+		}
+	}
+	return tagsTreeHolders
+}
 
+func CountUnrotatedTSIDsForTagKeys(tRange *dtu.MetricsTimeRange, myid int64,
+	seriesCardMap map[string]*utils.GobbableHll,
+) error {
 	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
 	if err != nil {
 		log.Errorf("CountUnrotatedTSIDsForTagKeys: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
@@ -1903,8 +1957,8 @@ func CountUnrotatedTSIDsForTagKeys(tRange *dtu.MetricsTimeRange, myid int64,
 }
 
 func CountUnrotatedTSIDsForTagPairs(tRange *dtu.MetricsTimeRange, myid int64,
-	tagPairsCardMap map[string]map[string]*utils.GobbableHll) error {
-
+	tagPairsCardMap map[string]map[string]*utils.GobbableHll,
+) error {
 	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
 	if err != nil {
 		log.Errorf("CountUnrotatedTSIDsForTagKeys: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
@@ -1928,8 +1982,8 @@ func CountUnrotatedTSIDsForTagPairs(tRange *dtu.MetricsTimeRange, myid int64,
 }
 
 func GetUnrotatedTagPairs(tRange *dtu.MetricsTimeRange,
-	myid int64, tagPairsMap map[string]map[string]struct{}) error {
-
+	myid int64, tagPairsMap map[string]map[string]struct{},
+) error {
 	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
 	if err != nil {
 		log.Errorf("GetUnrotatedTagPairs: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
@@ -1960,8 +2014,8 @@ func GetUnrotatedTagPairs(tRange *dtu.MetricsTimeRange,
 }
 
 func FindTagValuesUnrotated(tRange *dtu.MetricsTimeRange, mQuery *structs.MetricsQuery,
-	resTagValues map[string]map[string]struct{}) error {
-
+	resTagValues map[string]map[string]struct{},
+) error {
 	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, mQuery.OrgId)
 	if err != nil {
 		log.Errorf("FindTagValuesUnrotated: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, mQuery.OrgId, err)
@@ -2140,6 +2194,7 @@ func (ms *MetricsSegment) cleanAndInitNewMNameWal(forceRotate bool) error {
 	}
 	return nil
 }
+
 func (ms *MetricsSegment) deleteMNameWALFile() {
 	if ms.mNameWalState.wal != nil {
 		err := ms.mNameWalState.wal.DeleteWAL()
@@ -2238,7 +2293,6 @@ func RecoverMNameWALData() {
 					break
 				}
 				if mName == nil {
-
 					break
 				}
 

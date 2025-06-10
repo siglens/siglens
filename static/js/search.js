@@ -20,12 +20,11 @@
 let lastQType = '';
 let lastColumnsOrder = [];
 //eslint-disable-next-line no-unused-vars
-let timechartComplete= null;
-let isHistogramViewActive= false;
-let isSearchButtonTriggered= false;
+let timechartComplete = null;
+let isHistogramViewActive = false;
+let isSearchButtonTriggered = false;
 //eslint-disable-next-line no-unused-vars
-let hasSearchSinceHistogramClosed= false;
-
+let hasSearchSinceHistogramClosed = false;
 
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -93,7 +92,7 @@ function doSearch(data) {
                 <div id="percent-value">1%</div>
             `);
             $('#record-searched').html(`<div><span>Starting search...</span></div>`);
-            
+
             try {
                 socket.send(JSON.stringify(data));
             } catch (e) {
@@ -441,7 +440,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         sFrom = scrollFrom;
     }
 
-    const runTimechartValue = isSearchButtonTriggered && isHistogramViewActive ;
+    const runTimechartValue = isSearchButtonTriggered && isHistogramViewActive;
 
     return {
         state: 'query',
@@ -830,7 +829,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         } else if (res.qtype === 'logs-query' && accumulatedRecords.length > 0) {
             renderLogsGrid(lastColumnsOrder, accumulatedRecords);
             //eslint-disable-next-line no-undef
-           initializeAvailableFieldsSidebar(lastColumnsOrder);
+            initializeAvailableFieldsSidebar(lastColumnsOrder);
         }
         timeChart(res.qtype, res.measure, res.isTimechart);
     }
@@ -840,7 +839,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         if (isHistogramViewActive && $('.histo-container').is(':visible')) {
             //eslint-disable-next-line no-undef
             renderHistogram(res.timechartComplete);
-            hasSearchSinceHistogramClosed = false; 
+            hasSearchSinceHistogramClosed = false;
         }
     } else if (isSearchButtonTriggered && isHistogramViewActive && $('.histo-container').is(':visible')) {
         timechartComplete = null;
@@ -892,7 +891,7 @@ function processEmptyQueryResults() {
 
     $('#save-query-div').children().hide();
     $('#custom-chart-tab').show().css({ height: 'auto' });
-    $('.json-popup').hide();
+    $('.json-popup').removeClass('active');
 
     $('#show-record-intro-btn').show();
     $('#empty-response').empty().show();
@@ -908,7 +907,7 @@ function showErrorResponse(res) {
 
     $('#save-query-div').children().hide();
     $('#custom-chart-tab').hide();
-    $('.json-popup').hide();
+    $('.json-popup').removeClass('active');
 
     $('#empty-response').empty().show();
     if (res && res.no_data_err && res.no_data_err.includes('No data found')) {
@@ -1174,9 +1173,11 @@ function renderLogsGrid(columnOrder, hits) {
         }
     });
     if (hits.length !== 0) {
-        logsRowData = hits;
         totalLoadedRecords = hits.length;
-        updateGridView();
+        //eslint-disable-next-line no-undef
+        if (!isLoadMoreOperation) {
+            updateGridView();
+        }
     }
 
     const logsColumnDefsMap = new Map(logsColumnDefs.map((logCol) => [logCol.field, logCol]));
@@ -1196,8 +1197,6 @@ function renderLogsGrid(columnOrder, hits) {
         allColumnIds.push(column.getId());
     });
     gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
-
-    gridOptions.api.setRowData(logsRowData);
 
     //eslint-disable-next-line no-undef
     handleLogOptionChange(logView);

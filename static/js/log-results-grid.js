@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let logsRowData = [];
 let logsColumnDefs = [
     {
         field: 'timestamp',
@@ -42,7 +41,6 @@ let total_liveTail_searched = 0;
 //eslint-disable-next-line no-unused-vars
 const gridOptions = {
     columnDefs: logsColumnDefs,
-    rowData: logsRowData,
     readOnlyEdit: true,
     singleClickEdit: true,
     headerHeight: 26,

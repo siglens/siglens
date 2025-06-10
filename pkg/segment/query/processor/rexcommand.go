@@ -73,7 +73,7 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		})
 	}
 
-	for i, value := range values {
+	for idx, value := range values {
 		valueStr, err := value.GetValueAsString()
 		if err != nil {
 			log.Errorf("rex.Process: cannot convert value %v to string; err=%v",
@@ -81,15 +81,11 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			return nil, err
 		}
 
-		rexResultMap, err := structs.MatchAndExtractNamedGroups(valueStr, p.compiledRegex)
+		err = structs.MatchAndPopulateNamedGroups(valueStr, p.compiledRegex, newColValues,
+			idx)
 		if err != nil {
 			// If there are no matches we will skip this row
 			continue
-		}
-
-		for rexColName, rexValue := range rexResultMap {
-			newColValues[rexColName][i].Dtype = sutils.SS_DT_STRING
-			newColValues[rexColName][i].CVal = rexValue
 		}
 	}
 
