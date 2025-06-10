@@ -79,7 +79,6 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		return nil, io.EOF
 	}
 
-	p.SetAsIqrStatsResults()
 	// Initialize error data
 	if p.errorData == nil {
 		p.errorData = &ErrorData{

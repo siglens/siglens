@@ -286,6 +286,22 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			}
 		}
 
+		if mergeIndex > 0 {
+			switch dataProcessors[mergeIndex-1].processor.(type) {
+			case *statsProcessor:
+				// We'll likely want to set this for other stats-like commands
+				// as well when we implement parallelizing those. But I'm not
+				// sure why this is an option because I'm not sure when we ever
+				// need this flag to be false.
+				err := dataProcessors[mergeIndex-1].SetStatsAsIqrStatsResults()
+				if err != nil {
+					return nil, utils.TeeErrorf("NewQueryProcessor: failed to set stats as IQR stats results; err=%v", err)
+				}
+			default:
+				// Do nothing.
+			}
+		}
+
 		if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
 			query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
 			dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
