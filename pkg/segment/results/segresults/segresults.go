@@ -313,6 +313,8 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		sstResult, err = segread.GetSegCount(runningSegStat, incomingSegStat)
 	case sutils.Sum:
 		sstResult, err = segread.GetSegSum(runningSegStat, incomingSegStat)
+	case sutils.Sumsq:
+		sstResult, err = segread.GetSegSumsq(runningSegStat, incomingSegStat)
 	case sutils.Avg:
 		sstResult, err = segread.GetSegAvg(runningSegStat, incomingSegStat)
 	case sutils.Values:
@@ -406,6 +408,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			err = aggregations.ComputeAggEvalForCount(measureAgg, sstMap, sr.segStatsResults.measureResults)
 		case sutils.Sum:
 			err = aggregations.ComputeAggEvalForSum(measureAgg, sstMap, sr.segStatsResults.measureResults)
+		case sutils.Sumsq:
+			err = aggregations.ComputeAggEvalForSumsq(measureAgg, sstMap, sr.segStatsResults.measureResults)
 		case sutils.Avg:
 			err = aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Values:
