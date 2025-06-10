@@ -311,6 +311,9 @@ function saveAlert() {
 
     const url = isEditMode && !isFromMetrics ? 'api/alerts/update' : 'api/alerts/create';
 
+    const saveButton = $('#save-alert-btn');
+    const originalText = saveButton.text();
+
     $.ajax({
         method: 'post',
         url: url,
@@ -323,10 +326,14 @@ function saveAlert() {
         crossDomain: true,
     })
         .then(() => {
+            saveButton.text('Saving...');
+            setTimeout(() => {
+                window.location.href = '../all-alerts.html';
+            }, 1000);
             $('#alert-form')[0].reset();
-            window.location.href = '../all-alerts.html';
         })
         .catch((err) => {
+            saveButton.prop('disabled', false).text(originalText);
             showToast(err.responseJSON?.error || 'Failed to save alert', 'error');
         });
 }
