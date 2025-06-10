@@ -4407,10 +4407,13 @@ PositiveInteger <- intStr:PositiveIntegerAsString {
     return num, nil
 }
 
-EqualityOperator <- EMPTY_OR_SPACE op:("=" / "!=") EMPTY_OR_SPACE {
+EqualityOperator <- EMPTY_OR_SPACE op:("==" / "=" / "!=") EMPTY_OR_SPACE {
     opStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: EqualityOperator: %v", err)
+    }
+    if opStr == "==" {
+        opStr = "="
     }
     return opStr, nil
 }
