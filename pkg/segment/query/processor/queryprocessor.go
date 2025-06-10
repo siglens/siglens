@@ -256,6 +256,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		parallelism = runtime.GOMAXPROCS(0)
 	}
 
+	if canParallelize && firstDpChain[mergeIndex].IsMergeableBottleneckCmd() {
+		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergeBottleneckDP())
+		mergeIndex++
+	}
+
 	for i := 0; i < parallelism; i++ {
 		var dataProcessors []*DataProcessor
 		if i == 0 {

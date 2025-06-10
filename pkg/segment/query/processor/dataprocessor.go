@@ -968,3 +968,19 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 		processorLock:     &sync.Mutex{},
 	}
 }
+
+func NewMergeBottleneckDP() *DataProcessor {
+	return &DataProcessor{
+		name:                  "merge-bottleneck",
+		streams:               make([]*CachedStream, 0),
+		processor:             &mergeProcessor{},
+		inputOrderMatters:     false,
+		ignoresInputOrder:     true,
+		isPermutingCmd:        false,
+		isBottleneckCmd:       true,
+		isTransformingCmd:     false,
+		isTwoPassCmd:          false,
+		isMergeableBottleneck: true,
+		processorLock:         &sync.Mutex{},
+	}
+}
