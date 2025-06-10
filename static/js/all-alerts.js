@@ -19,6 +19,7 @@
 
 let alertGridDiv = null;
 let alertRowData = [];
+let autoRefreshInterval = null;
 
 let mapIndexToAlertState = new Map([
     [0, 'Inactive'],
@@ -48,9 +49,22 @@ $(document).ready(function () {
         window.location.href = './alert.html?type=metrics';
     });
 
+    startAutoRefresh();
+
     //eslint-disable-next-line no-undef
     lucide.createIcons();
 });
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+
+    // Set up 30-second auto-refresh
+    autoRefreshInterval = setInterval(() => {
+        getAllAlerts();
+    }, 30000);
+}
 
 function handlePageDisplay() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -81,9 +95,13 @@ function getAllAlerts() {
         },
         dataType: 'json',
         crossDomain: true,
-    }).then(function (res) {
-        displayAllAlerts(res.alerts);
-    });
+    })
+        .then(function (res) {
+            displayAllAlerts(res.alerts);
+        })
+        .catch(function (error) {
+            console.error('Failed to fetch alerts:', error);
+        });
 }
 // Custom cell renderer for State field
 function getCssVariableValue(variableName) {
@@ -548,6 +566,7 @@ function displayAllAlerts(res) {
         alertGridDiv = document.querySelector('#ag-grid');
         new agGrid.Grid(alertGridDiv, alertGridOptions);
     }
+    alertRowData = [];
     alertGridOptions.api.setColumnDefs(alertColumnDefs);
     let newRow = new Map();
     let hasMutedAlerts = false;
@@ -580,11 +599,13 @@ function displayAllAlerts(res) {
         newRow.set('alertType', mapIndexToAlertType.get(value.alert_type));
         newRow.set('silenceMinutes', value.silence_minutes);
         newRow.set('silenceEndTime', value.silence_end_time);
+
         //eslint-disable-next-line no-undef
         const mutedFor = calculateMutedFor(value.silence_end_time);
         newRow.set('mutedFor', mutedFor);
         if (mutedFor) hasMutedAlerts = true;
-        alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
+
+        alertRowData.push(Object.fromEntries(newRow));
     });
 
     // Update the count displays in the UI
