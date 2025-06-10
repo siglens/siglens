@@ -17,9 +17,15 @@ func (p *mergeProcessor) Process(nextIQR *iqr.IQR) (*iqr.IQR, error) {
 
 	if p.currentResults == nil {
 		p.currentResults = nextIQR
-		return nil, nil
+
+		// TODO: handle merging non-stats IQRs.
+		// The stats don't get output correctly if there's only one non-nil
+		// IQR and MergeIQRStatsResults is called on it, so call it now.
+		_, err := p.currentResults.MergeIQRStatsResults([]*iqr.IQR{p.currentResults})
+		return nil, err
 	}
 
+	// TODO: handle merging non-stats IQRs.
 	// The IQR that MergeIQRStatsResults is called on isn't automatically
 	// included in the merge, so we need to include it explicitly.
 	_, err := p.currentResults.MergeIQRStatsResults([]*iqr.IQR{p.currentResults, nextIQR})
