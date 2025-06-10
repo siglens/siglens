@@ -3198,6 +3198,7 @@ BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
 // than parsing it as a NumericExpr or ConcatExpr and forcing it to be a float
 // or string respectively.
 ValueExpr <- condition:ConditionExpr {
+
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMConditionExpr,
         ConditionExpr: condition.(*structs.ConditionExpr),
@@ -3206,6 +3207,7 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / L_PAREN (condition:ConditionExpr) R_PAREN {
+
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMConditionExpr,
         ConditionExpr: condition.(*structs.ConditionExpr),
@@ -3214,6 +3216,7 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / numeric:NumericExpr {
+    
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMNumericExpr,
         NumericExpr: numeric.(*structs.NumericExpr),
@@ -3222,6 +3225,7 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / str:StringExpr {
+
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMStringExpr,
         StringExpr: str.(*structs.StringExpr),
@@ -3230,6 +3234,7 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / L_PAREN (str:StringExpr) R_PAREN {
+
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMStringExpr,
         StringExpr: str.(*structs.StringExpr),
@@ -3238,6 +3243,7 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / L_PAREN boolean:BoolExpr R_PAREN {
+
     expr := &structs.ValueExpr{
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolean.(*structs.BoolExpr),
@@ -3246,6 +3252,7 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / multiValueExpr:MultiValueExpr {
+
     expr := &structs.ValueExpr{
         ValueExprMode: structs.VEMMultiValueExpr,
         MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
@@ -3588,6 +3595,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
 }
 
 LenExpr <- str:QuotedString !(EVAL_CONCAT) {
+
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
         ValueIsField: false,
@@ -3603,6 +3611,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
     return node, nil
 }
 / field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / OpMod / EVAL_CONCAT / "(") {
+    
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
         ValueIsField: true,
