@@ -3595,7 +3595,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
 }
 
 LenExpr <- str:QuotedString !(EVAL_CONCAT) {
-
+    log.Infof("LenExpr: str: %v", str)
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
         ValueIsField: false,
@@ -3611,7 +3611,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
     return node, nil
 }
 / field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / OpMod / EVAL_CONCAT / "(") {
-
+    log.Infof("LenExpr: field: %v", field)
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
         ValueIsField: true,

@@ -1336,6 +1336,7 @@ func (valueExpr *ValueExpr) EvaluateToNumber(fieldToValue map[string]sutils.CVal
 func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
 	var value interface{}
 	var err error
+	log.Infof("EvaluateValueExpr: evaluating value expr %#v with numericExpr %#v", valueExpr, valueExpr.NumericExpr)
 	switch valueExpr.ValueExprMode {
 	case VEMConditionExpr:
 		value, err = valueExpr.ConditionExpr.EvaluateCondition(fieldToValue)
@@ -2100,12 +2101,17 @@ func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue m
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (float64, error) {
+	log.Infof("NumericExpr.Evaluate: evaluating numeric expr %#v on field %#v", self, fieldToValue)
 	if self.IsTerminal {
 		if self.ValueIsField {
 			switch self.NumericExprMode {
 			case NEMNumberField:
 				return getValueAsFloat(fieldToValue, self.Value)
 			case NEMLenField:
+				_, ok := fieldToValue[self.Value].CVal.(string)
+				if !ok {
+					return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert %v to string", self.Value)
+				}
 				return float64(len(fieldToValue[self.Value].CVal.(string))), nil
 			}
 		} else {
