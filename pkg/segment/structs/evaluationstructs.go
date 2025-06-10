@@ -368,6 +368,12 @@ type SPathExpr struct {
 	OutputColName   string // the name of the column in the output table to which the extracted values will be written. By Default it is set the same as the path.
 }
 
+type SigfigInfo struct {
+	Value        float64 // result of mathematical operation
+	SigFigs      int
+	DecimalPlace int
+}
+
 type BoolOperator uint8
 
 const (
@@ -2062,74 +2068,150 @@ func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue m
 	}
 }
 
-func adjustResultToReqSigFigs(left float64, right float64, op string, byDecimalPlace bool) (float64, error) {
-	if byDecimalPlace {
-		leftArr := strings.Split(strconv.FormatFloat(left, 'f', -1, 64), ".")
-		rightArr := strings.Split(strconv.FormatFloat(right, 'f', -1, 64), ".")
-		var lenDecLeft int
-		var lenDecRight int
-		if len(leftArr) > 1 {
-			lenDecLeft = len(leftArr[1])
-		} else {
-			lenDecLeft = 0
+func applySigfigToRes(fltVal float64, sigfigs int) float64 {
+	strArr := strings.Split(strconv.FormatFloat(fltVal, 'f', -1, 64), ".")
+	var lenDecPart int = 0
+	if len(strArr) > 1 {
+		lenDecPart = len(strArr[1])
+	}
+	lenMantPart := len(strArr[0])
+	totalResLen := lenDecPart + lenMantPart
+	if totalResLen < sigfigs {
+		return fltVal
+	}
+	if strArr[0] == "0" {
+		offset := 0
+		for _, char := range strArr[1] {
+			if char != '0' {
+				break
+			}
+			offset++
 		}
-		if len(rightArr) > 1 {
-			lenDecRight = len(rightArr[1])
-		} else {
-			lenDecRight = 0
-		}
-		var precision int
-		if lenDecLeft < lenDecRight {
-			precision = lenDecLeft
-		} else if lenDecLeft > lenDecRight {
-			precision = lenDecRight
-		} else {
-			precision = lenDecRight
-		}
-		switch op {
-		case "+":
-			return round(left+right, precision), nil
-		case "-":
-			return round(left-right, precision), nil
-		default:
-			return 0.0, fmt.Errorf("adjustResultToReqSigFigs: Invalid operand received; op: %v", op)
-		}
+		return round(fltVal, sigfigs+offset)
+	}
+	return round(fltVal, sigfigs-lenMantPart)
+}
+
+func (self *NumericExpr) getSigDecimals(strVal string, fltVal float64) int {
+	if len(strVal) == 0 {
+		strVal = strconv.FormatFloat(fltVal, 'f', -1, 64)
+	}
+	clnArr := strings.Split(strings.Split(strVal, "e")[0], ".")
+	if len(clnArr) > 1 {
+		return len(clnArr[1])
 	} else {
-		leftLen := len(strconv.FormatFloat(left, 'f', -1, 64))
-		rightLen := len(strconv.FormatFloat(right, 'f', -1, 64))
-		var resLen int
-		if leftLen > rightLen {
-			resLen = rightLen
-		} else if leftLen < rightLen {
-			resLen = leftLen
-		} else {
-			resLen = rightLen
-		}
-		switch op {
-		case "*":
-			return mulDivSigFigHelper(left*right, resLen), nil
-		case "/":
-			return mulDivSigFigHelper(left/right, resLen), nil
-		default:
-			return 0.0, fmt.Errorf("adjustResultToReqSigFigs: Invalid operand received; op: %v", op)
-		}
+		return 0
 	}
 }
 
-func mulDivSigFigHelper(res float64, reqResLen int) float64 {
-	// can do strings.Replace and convert to int to get manteissa length
-	// don't know which is faster
-	resArr := strings.Split(strconv.FormatFloat(res, 'f', -1, 64), ".")
-	var lenDecPart int = 0
-	if len(resArr) > 1 {
-		lenDecPart = len(resArr[1])
+func (self *NumericExpr) getSigFigs(strVal string, fltVal float64) int {
+	if len(strVal) == 0 {
+		strVal = strconv.FormatFloat(fltVal, 'f', -1, 64)
 	}
-	lenMantPart := len(resArr[0])
-	totalResLen := lenDecPart + lenMantPart
-	if totalResLen < reqResLen {
-		return res
+	strVal = strings.Split(strVal, "e")[0]
+	sigfigs := 0
+	if strings.Contains(strVal, ".") {
+		valArr := strings.Split(strVal, ".")
+		mantPart := valArr[0]
+		decPart := valArr[1]
+		mantPartNum, err := utils.FastParseFloat([]byte(mantPart))
+		if err == nil {
+			if mantPartNum == 0 {
+				// all leading 0s are not significant
+				sigfigs += len(strings.TrimLeft(decPart, "0"))
+			} else {
+				sigfigs += len(mantPart) + len(decPart)
+			}
+		}
+	} else {
+		// all trailing 0s are not significant
+		sigfigs += len(strings.TrimRight(strVal, "0"))
 	}
-	return round(res, reqResLen-lenMantPart)
+	return sigfigs
+}
+
+func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[string]sutils.CValueEnclosure, sigfigArr *[]SigfigInfo) (float64, error, string) {
+	if expr.IsTerminal {
+		value, err := expr.Evaluate(fieldToValue)
+		if err != nil {
+			return 0, err, ""
+		}
+		return value, nil, ""
+	} else {
+		var leftInfo, rightInfo SigfigInfo
+		if expr.Left != nil {
+			leftValue, err, _ := self.evaluateWithSigfig(expr.Left, fieldToValue, sigfigArr)
+			if err != nil {
+				return 0, err, ""
+			}
+			leftInfo = SigfigInfo{
+				Value:        leftValue,
+				SigFigs:      self.getSigFigs(expr.Left.Value, leftValue),
+				DecimalPlace: self.getSigDecimals(expr.Left.Value, leftValue),
+			}
+		}
+
+		if expr.Right != nil {
+			rightValue, err, _ := self.evaluateWithSigfig(expr.Right, fieldToValue, sigfigArr)
+			if err != nil {
+				return 0, err, ""
+			}
+			rightInfo = SigfigInfo{
+				Value:        rightValue,
+				SigFigs:      self.getSigFigs(expr.Right.Value, rightValue),
+				DecimalPlace: self.getSigDecimals(expr.Right.Value, rightValue),
+			}
+		}
+
+		resultInfo := SigfigInfo{
+			SigFigs:      min(leftInfo.SigFigs, rightInfo.SigFigs),
+			DecimalPlace: min(leftInfo.DecimalPlace, rightInfo.DecimalPlace),
+		}
+		switch expr.Op {
+		case "+", "-":
+			var result float64
+			if expr.Op == "+" {
+				result = leftInfo.Value + rightInfo.Value
+			} else {
+				result = leftInfo.Value - rightInfo.Value
+			}
+			resultInfo.Value = result
+			// convert to sigfigs -> usefull if the last operations is either * or /
+			resArr := strings.Split(strconv.FormatFloat(result, 'f', -1, 64), ".")
+			// required due to floating point error
+			var resStr string
+			if len(resArr) > 1 {
+				resStr = resArr[0] + "." + resArr[1][:resultInfo.DecimalPlace]
+			} else {
+				resStr = resArr[0]
+			}
+			resultInfo.SigFigs = expr.getSigFigs(resStr, 0.0)
+			*sigfigArr = append(*sigfigArr, resultInfo)
+			return result, nil, expr.Op
+		case "*", "/":
+			var result float64
+			if expr.Op == "*" {
+				result = leftInfo.Value * rightInfo.Value
+			} else {
+				result = leftInfo.Value / rightInfo.Value
+			}
+			resultInfo.Value = result
+			// convert to decimal places -> usefull if the last operations is either + or -
+			tempRes := applySigfigToRes(result, resultInfo.SigFigs)
+			tempResStr := strconv.FormatFloat(tempRes, 'f', -1, 64)
+			tempResArr := strings.Split(tempResStr, ".")
+			if len(tempResArr) > 1 {
+				resultInfo.DecimalPlace = len(tempResArr[1])
+			} else {
+				resultInfo.DecimalPlace = 0
+			}
+			*sigfigArr = append(*sigfigArr, resultInfo)
+			return result, nil, expr.Op
+		default:
+			result, err := expr.Evaluate(fieldToValue)
+			return result, err, ""
+		}
+	}
 }
 
 // Evaluate this NumericExpr to a float, replacing each field in the expression
@@ -2200,35 +2282,27 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 		case "ceil":
 			return math.Ceil(left), nil
 		case "sigfig":
-			toDo := self.Left
-			sigfigMainOperation := toDo.Op
-			if sigfigMainOperation == "" {
-				return toDo.Evaluate(fieldToValue)
-			}
-			sigfigLeftResult, err := toDo.Left.Evaluate(fieldToValue)
+			var sigfigArr []SigfigInfo
+			result, err, op := self.evaluateWithSigfig(self.Left, fieldToValue, &sigfigArr)
 			if err != nil {
-				return 0, utils.WrapErrorf(err, "NumericExpr.Evaluate: Error in sigfig operation: %v", err)
+				return -1, fmt.Errorf("NumericExpr.Evaluate: error while evaluating sigfig; err: %v", err)
 			}
-			sigfigRightResult, err := toDo.Right.Evaluate(fieldToValue)
-			if err != nil {
-				return 0, utils.WrapErrorf(err, "NumericExpr.Evaluate: Error in sigfig operation: %v", err)
-			}
-			var sigfigFinalResult float64
-			switch sigfigMainOperation {
+			switch op {
 			case "+", "-":
-				sigfigFinalResult, err = adjustResultToReqSigFigs(sigfigLeftResult, sigfigRightResult, sigfigMainOperation, true)
-				if err != nil {
-					return 0, utils.WrapErrorf(err, "NumericExpr.Evaluate: Error in sigfig operation: %v", err)
+				minDecPlace := math.MaxInt
+				for idx := range sigfigArr {
+					minDecPlace = min(minDecPlace, sigfigArr[idx].DecimalPlace)
 				}
+				return round(result, minDecPlace), nil
 			case "*", "/":
-				sigfigFinalResult, err = adjustResultToReqSigFigs(sigfigLeftResult, sigfigRightResult, sigfigMainOperation, false)
-				if err != nil {
-					return 0, utils.WrapErrorf(err, "NumericExpr.Evaluate: Error in sigfig operation: %v", err)
+				minSigFig := math.MaxInt
+				for idx := range sigfigArr {
+					minSigFig = min(minSigFig, sigfigArr[idx].SigFigs)
 				}
+				return applySigfigToRes(result, minSigFig), nil
 			default:
-				return 0, fmt.Errorf("NumericExpr.Evaluate: invalid operand received in sigfig; op: %v", sigfigMainOperation)
+				return result, nil
 			}
-			return sigfigFinalResult, nil
 		case "acosh":
 			if left < 1 {
 				return -1, fmt.Errorf("NumericExpr.Evaluate: acosh requires values >= 1, got: %v", left)
