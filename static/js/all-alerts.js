@@ -244,7 +244,7 @@ class btnRenderer {
         const now = new Date();
 
         if (endDateTime <= now) {
-            showToast('End time must be in the future', 'error');
+            showToast('End time must be in the future', 'error', 5000);
             return;
         }
 
@@ -626,38 +626,3 @@ function onRowClicked(event) {
     event.stopPropagation();
 }
 
-function updateMutedForValues() {
-    let hasMutedAlerts = false;
-    const currentTime = Math.floor(Date.now() / 1000);
-    alertGridOptions.api.forEachNode((node) => {
-        if (node.data.silenceEndTime) {
-            //eslint-disable-next-line no-undef
-            const mutedFor = calculateMutedFor(node.data.silenceEndTime);
-            node.setDataValue('mutedFor', mutedFor);
-
-            if (node.data.silenceEndTime > currentTime) {
-                hasMutedAlerts = true;
-            } else {
-                // Silence period has ended
-                node.setDataValue('silenceEndTime', null);
-                node.setDataValue('silenceMinutes', 0);
-                node.setDataValue('mutedFor', '');
-
-                // Update the mute icon
-                const cellRenderer = alertGridOptions.api.getCellRendererInstances({
-                    rowNodes: [node],
-                    columns: ['Actions'],
-                })[0];
-                if (cellRenderer && cellRenderer.instance instanceof btnRenderer) {
-                    cellRenderer.instance.updateMuteIcon(false);
-                }
-            }
-        }
-    });
-
-    alertGridOptions.columnApi.setColumnVisible('mutedFor', hasMutedAlerts);
-    alertGridOptions.api.sizeColumnsToFit();
-}
-
-// Update muted for column every 1 minutes
-setInterval(updateMutedForValues, 60000);
