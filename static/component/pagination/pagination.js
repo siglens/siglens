@@ -93,13 +93,13 @@ class Pagination {
     }
 
     updateDisplay() {
-        const pagesContainer = this.container.querySelector('.pagination-right');
-    
         if (!this.totalRecords) {
-            pagesContainer.innerHTML = '<span class="pagination-info">No results found</span>';
+            this.hide();
             return;
         }
-        
+        this.show();
+
+        const pagesContainer = this.container.querySelector('.pagination-right');
         const totalPages = Math.ceil(this.totalRecords / this.config.pageSize);
         const startRecord = (this.currentPage - 1) * this.config.pageSize + 1;
         const endRecord = Math.min(this.currentPage * this.config.pageSize, this.totalRecords);
