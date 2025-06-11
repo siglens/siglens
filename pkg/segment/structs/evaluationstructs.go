@@ -2130,19 +2130,19 @@ func (self *NumericExpr) getSigFigs(strVal string, fltVal float64) int {
 	return sigfigs
 }
 
-func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[string]sutils.CValueEnclosure, sigfigArr *[]SigfigInfo) (float64, error, string) {
+func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[string]sutils.CValueEnclosure, sigfigArr *[]SigfigInfo) (float64, string, error) {
 	if expr.IsTerminal {
 		value, err := expr.Evaluate(fieldToValue)
 		if err != nil {
-			return 0, err, ""
+			return 0, "", err
 		}
-		return value, nil, ""
+		return value, "", nil
 	} else {
 		var leftInfo, rightInfo SigfigInfo
 		if expr.Left != nil {
-			leftValue, err, _ := self.evaluateWithSigfig(expr.Left, fieldToValue, sigfigArr)
+			leftValue, _, err := self.evaluateWithSigfig(expr.Left, fieldToValue, sigfigArr)
 			if err != nil {
-				return 0, err, ""
+				return 0, "", err
 			}
 			leftInfo = SigfigInfo{
 				Value:        leftValue,
@@ -2152,9 +2152,9 @@ func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[
 		}
 
 		if expr.Right != nil {
-			rightValue, err, _ := self.evaluateWithSigfig(expr.Right, fieldToValue, sigfigArr)
+			rightValue, _, err := self.evaluateWithSigfig(expr.Right, fieldToValue, sigfigArr)
 			if err != nil {
-				return 0, err, ""
+				return 0, "", err
 			}
 			rightInfo = SigfigInfo{
 				Value:        rightValue,
@@ -2187,7 +2187,7 @@ func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[
 			}
 			resultInfo.SigFigs = expr.getSigFigs(resStr, 0.0)
 			*sigfigArr = append(*sigfigArr, resultInfo)
-			return result, nil, expr.Op
+			return result, expr.Op, nil
 		case "*", "/":
 			var result float64
 			if expr.Op == "*" {
@@ -2206,10 +2206,10 @@ func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[
 				resultInfo.DecimalPlace = 0
 			}
 			*sigfigArr = append(*sigfigArr, resultInfo)
-			return result, nil, expr.Op
+			return result, expr.Op, nil
 		default:
 			result, err := expr.Evaluate(fieldToValue)
-			return result, err, ""
+			return result, "", err
 		}
 	}
 }
@@ -2283,7 +2283,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 			return math.Ceil(left), nil
 		case "sigfig":
 			var sigfigArr []SigfigInfo
-			result, err, op := self.evaluateWithSigfig(self.Left, fieldToValue, &sigfigArr)
+			result, op, err := self.evaluateWithSigfig(self.Left, fieldToValue, &sigfigArr)
 			if err != nil {
 				return -1, fmt.Errorf("NumericExpr.Evaluate: error while evaluating sigfig; err: %v", err)
 			}
