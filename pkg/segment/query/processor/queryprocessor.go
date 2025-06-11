@@ -472,7 +472,7 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 	} else if queryAgg.MVExpandExpr != nil {
 		return NewMVExpandDP(queryAgg.MVExpandExpr)
 	} else if queryAgg.StatisticExpr != nil {
-		return NewStatisticExprDP(queryAgg, queryInfo.IsDistributed())
+		return NewStatisticExprDP(queryAgg)
 	} else if queryAgg.RegexExpr != nil {
 		return NewRegexDP(queryAgg.RegexExpr)
 	} else if queryAgg.RexExpr != nil {

@@ -829,7 +829,7 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	}
 }
 
-func NewStatisticExprDP(options *structs.QueryAggregators, isDistributed bool) *DataProcessor {
+func NewStatisticExprDP(options *structs.QueryAggregators) *DataProcessor {
 	statsExpr := &structs.StatsExpr{GroupByRequest: options.GroupByRequest}
 	options.StatsExpr = statsExpr
 
