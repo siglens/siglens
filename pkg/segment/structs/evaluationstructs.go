@@ -2107,6 +2107,10 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 			case NEMNumberField:
 				return getValueAsFloat(fieldToValue, self.Value)
 			case NEMLenField:
+				_, ok := fieldToValue[self.Value].CVal.(string)
+				if !ok {
+					return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert %v to string", self.Value)
+				}
 				return float64(len(fieldToValue[self.Value].CVal.(string))), nil
 			}
 		} else {

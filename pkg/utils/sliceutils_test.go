@@ -355,3 +355,9 @@ func Test_ProcessWithParallelism(t *testing.T) {
 		assert.Contains(t, results, original*2)
 	}
 }
+
+func Test_Insert(t *testing.T) {
+	assert.Equal(t, []int{5, 100, 200}, Insert([]int{100, 200}, 0, 5))
+	assert.Equal(t, []int{100, 5, 200}, Insert([]int{100, 200}, 1, 5))
+	assert.Equal(t, []int{100, 200, 5}, Insert([]int{100, 200}, 2, 5))
+}

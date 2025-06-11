@@ -614,3 +614,51 @@ func Test_ProcessGroupByRequestFullBuffer(t *testing.T) {
 	// the p.bucketKeyWorkingBuf should be at least the size of the estimated buffer
 	assert.GreaterOrEqual(t, len(processor.bucketKeyWorkingBuf), estimatedSizeOfBuffer, "bucketKeyWorkingBuf size is less than estimated buffer size")
 }
+
+func Test_MergeIQRStatsResults_EmptyIQR(t *testing.T) {
+	config.InitializeTestingConfig(t.TempDir())
+	config.GetRunningConfig().UseNewPipelineConverted = true
+
+	// Create IQR1 with data
+	iqr1 := iqr.NewIQR(0)
+	iqr1Data := map[string][]sutils.CValueEnclosure{
+		"category": {{Dtype: sutils.SS_DT_STRING, CVal: "A"}},
+		"value":    {{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(42)}},
+	}
+	err := iqr1.AppendKnownValues(iqr1Data)
+	assert.NoError(t, err)
+
+	processor1 := NewStatsProcessor(&structs.StatsExpr{
+		GroupByRequest: &structs.GroupByRequest{
+			GroupByColumns: []string{"category"},
+			MeasureOperations: []*structs.MeasureAggregator{
+				{MeasureCol: "value", MeasureFunc: sutils.Count},
+				{MeasureCol: "value", MeasureFunc: sutils.Sum},
+			},
+		},
+	})
+	processor1.setAsIqrStatsResults = true
+	_, err = processor1.Process(iqr1)
+	assert.NoError(t, err)
+	resultIqr1, err := processor1.Process(nil)
+	assert.Equal(t, io.EOF, err)
+
+	// Create empty IQR2
+	emptyIqr := iqr.NewIQR(0)
+
+	// Merge IQRs
+	mergedIqr := iqr.NewIQR(0)
+	iqrs := []*iqr.IQR{resultIqr1, emptyIqr}
+	statsExists, err := mergedIqr.MergeIQRStatsResults(iqrs)
+	assert.NoError(t, err)
+	assert.True(t, statsExists)
+
+	// Verify result is same as IQR1
+	knownValues, err := mergedIqr.ReadAllColumns()
+	assert.NoError(t, err)
+
+	assert.Len(t, knownValues["category"], 1)
+	assert.Equal(t, "A", knownValues["category"][0].CVal.(string))
+	assert.Equal(t, uint64(1), knownValues["count(value)"][0].CVal.(uint64))
+	assert.Equal(t, int64(42), knownValues["sum(value)"][0].CVal.(int64))
+}

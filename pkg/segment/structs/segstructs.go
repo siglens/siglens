@@ -551,6 +551,7 @@ type SegStats struct {
 type NumericStats struct {
 	NumericCount uint64                  `json:"numericCount,omitempty"`
 	Sum          sutils.NumTypeEnclosure `json:"sum,omitempty"`
+	Sumsq        float64                 `json:"sumsq,omitempty"` // sum of squares, use float64 since we expect large values
 }
 
 type StringStats struct {
@@ -851,6 +852,7 @@ func (ss *NumericStats) Merge(other *NumericStats) {
 			ss.Sum.IntgrVal = ss.Sum.IntgrVal + other.Sum.IntgrVal
 		}
 	}
+	ss.Sumsq = ss.Sumsq + other.Sumsq
 }
 
 func (nr *NodeResult) ApplyScroll(scroll int) {
@@ -1176,6 +1178,15 @@ func HasValueColRequestInMeasureAggs(measureAggs []*MeasureAggregator) bool {
 	return false
 }
 
+func (qa *QueryAggregators) HasSumsqFunc() bool {
+	for _, agg := range qa.MeasureOperations {
+		if agg.MeasureFunc == sutils.Sumsq {
+			return true
+		}
+	}
+	return false
+}
+
 // To determine whether it contains Aggregate Func: Values()
 func (qa *QueryAggregators) HasValuesFunc() bool {
 	for _, agg := range qa.MeasureOperations {
@@ -1460,7 +1471,6 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.Mode:         {},
 	sutils.Stdev:        {},
 	sutils.Stdevp:       {},
-	sutils.Sumsq:        {},
 	sutils.Var:          {},
 	sutils.Varp:         {},
 	sutils.First:        {},

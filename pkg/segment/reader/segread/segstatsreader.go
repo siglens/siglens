@@ -18,6 +18,7 @@
 package segread
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -26,6 +27,11 @@ import (
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+)
+
+var (
+	ErrGetSegSumsqCurrSegStatNil        = errors.New("GetSegSumsq: currSegStat is nil")
+	ErrGetSegSumsqCurrSegStatNonNumeric = errors.New("GetSegSumsq: current segStats is non-numeric")
 )
 
 func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, error) {
@@ -429,6 +435,35 @@ func GetSegPerc(runningSegStat *structs.SegStats, currSegStat *structs.SegStats,
 	}
 	res.FloatVal = runningSegStat.TDigest.GetQuantile(fltPercentileVal)
 	return &res, nil
+}
+
+func GetSegSumsq(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
+
+	if currSegStat == nil {
+		return nil, ErrGetSegSumsqCurrSegStatNil
+	}
+
+	if !currSegStat.IsNumeric {
+		return nil, ErrGetSegSumsqCurrSegStatNonNumeric
+	}
+
+	rSst := sutils.NumTypeEnclosure{
+		Ntype:    sutils.SS_DT_FLOAT,
+		FloatVal: 0,
+	}
+
+	// if this is the first segment, then running will be nil, and we return the first seg's stats
+	if runningSegStat == nil {
+		rSst.FloatVal = currSegStat.NumStats.Sumsq
+		return &rSst, nil
+	}
+
+	// both running and curr seg stats are float64, so we can add them directly
+	runningSegStat.NumStats.Sumsq += currSegStat.NumStats.Sumsq
+	rSst.FloatVal = runningSegStat.NumStats.Sumsq
+
+	return &rSst, nil
 }
 
 func GetSegCardinality(runningSegStat *structs.SegStats,

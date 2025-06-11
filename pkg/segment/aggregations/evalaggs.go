@@ -18,6 +18,7 @@
 package aggregations
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -26,6 +27,10 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+)
+
+var (
+	ErrPerformEvalAggForSumsqFloatEnclosureHasNonFloatValue = errors.New("PerformEvalAggForSumsq: Float type enclosure does not have a float value")
 )
 
 func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResultExists bool, currResult sutils.CValueEnclosure, fieldToValue map[string]sutils.CValueEnclosure, isMin bool) (sutils.CValueEnclosure, error) {
@@ -380,6 +385,98 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 			result, err := PerformEvalAggForSum(measureAgg, uint64(length), currResultExists, currResult, fieldToValue)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForSum: Error while performing eval agg for sum, err: %v", err)
+			}
+			measureResults[measureAgg.String()] = result
+		}
+	}
+
+	return nil
+}
+
+func PerformEvalAggForSumsq(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult sutils.CValueEnclosure, fieldToValue map[string]sutils.CValueEnclosure) (sutils.CValueEnclosure, error) {
+	finalValueSquared := float64(0)
+
+	if len(fieldToValue) == 0 {
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		// We cannot compute sumsq if constant is not numeric
+		if err != nil || !isNumeric {
+			return currResult, err
+		}
+		finalValueSquared = floatValue * floatValue * float64(count)
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return currResult, err
+			}
+			if boolResult {
+				finalValueSquared = float64(1)
+			}
+		} else {
+			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+			if err != nil {
+				return currResult, err
+			}
+			if isNumeric {
+				finalValueSquared = floatValue * floatValue
+			}
+		}
+	}
+
+	finalResult := sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
+		CVal:  float64(0),
+	}
+
+	if !currResultExists {
+		finalResult.CVal = finalValueSquared
+		return finalResult, nil
+	}
+
+	currValue, isFloat := currResult.CVal.(float64)
+	if !isFloat {
+		return currResult, ErrPerformEvalAggForSumsqFloatEnclosureHasNonFloatValue
+	}
+
+	// Current value is already a sum of squares, so we add the new square to it
+	finalResult.CVal = currValue + finalValueSquared
+
+	return finalResult, nil
+}
+
+func ComputeAggEvalForSumsq(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure) error {
+	fields := measureAgg.ValueColRequest.GetFields()
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+
+	if len(fields) == 0 {
+		countStat, exist := sstMap["*"]
+		if !exist {
+			return fmt.Errorf("ComputeAggEvalForSumsq: sstMap did not have count when constant was used for measureAgg: %v", measureAgg.String())
+		}
+		currResult, currResultExists := measureResults[measureAgg.String()]
+		result, err := PerformEvalAggForSumsq(measureAgg, countStat.Count, currResultExists, currResult, fieldToValue)
+		if err != nil {
+			return err
+		}
+		measureResults[measureAgg.String()] = result
+	} else {
+		sst, ok := sstMap[fields[0]]
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForSumsq: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
+		}
+
+		numRecords := len(sst.Records)
+		for i := 0; i < numRecords; i++ {
+			fieldToValue = make(map[string]sutils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return err
+			}
+
+			currResult, currResultExists := measureResults[measureAgg.String()]
+			result, err := PerformEvalAggForSumsq(measureAgg, uint64(numRecords), currResultExists, currResult, fieldToValue)
+			if err != nil {
+				return err
 			}
 			measureResults[measureAgg.String()] = result
 		}

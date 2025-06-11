@@ -68,6 +68,7 @@ let aggGridOptions = {
     columnDefs: aggsColumnDefs,
     rowData: [],
     animateRows: true,
+    suppressDragLeaveHidesColumns: true,
     defaultColDef: {
         flex: 1,
         minWidth: 100,
