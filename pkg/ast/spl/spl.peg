@@ -169,7 +169,7 @@ func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
         return sutils.LatestTime
     case "rate":
         return sutils.StatsRate
-    case "perc":
+    case "perc", "p":
         return sutils.Perc
     case "exactperc":
         return sutils.ExactPerc
@@ -3870,7 +3870,7 @@ CommonAggName <- ("values" / "varp" / "var" / "sumsq" / "sum" / "stdevp" / "stde
     return string(c.text), nil
 }
 
-CommonPercAggName <- ("upperperc" / "exactperc" / "perc") {
+CommonPercAggName <- ("upperperc" / "exactperc" / "perc" / "p") {
     return string(c.text), nil
 }
 
@@ -3958,8 +3958,8 @@ AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     return agg, nil
 }
 
-PercentileStr <- numStr:(FloatAsString / IntegerAsString) {
-    floatVal, err := strconv.ParseFloat(numStr.(string), 64)
+PercentileVal <- numStr:(FloatAsString / IntegerAsString) {
+    floatVal, err := utils.FastParseFloat([]byte(numStr.(string)))
     if err != nil {
         return nil, fmt.Errorf("Invalid percentage value: %v", numStr.(string))
     }
@@ -3967,10 +3967,10 @@ PercentileStr <- numStr:(FloatAsString / IntegerAsString) {
         return nil, fmt.Errorf("Invalid percentage value must be between 0 and 100: %v", numStr.(string))
     }
 
-    return numStr.(string), nil
+    return floatVal, nil
 }
 
-AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
     if measureFunc == sutils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
@@ -3981,12 +3981,12 @@ AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "
         MeasureFunc: measureFunc,
         StrEnc: string(c.text),
         ValueColRequest: valueExpr.(*structs.ValueExpr),
-        Param: percentileStr.(string),
+        Param: percentileVal.(float64),
     }
 
     return agg, nil
 }
-/ aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN field:FieldName R_PAREN {
+/ aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN field:FieldName R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
     if measureFunc == sutils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
@@ -3995,12 +3995,11 @@ AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: measureFunc,
-        Param: percentileStr.(string),
+        Param: percentileVal.(float64),
     }
 
     return agg, nil
 }
-
 
 FieldWithNumberValue <- keyValuePair:(NamedFieldWithNumberValue / UnnamedFieldWithNumberValue) {
     return keyValuePair, nil

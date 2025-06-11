@@ -355,6 +355,7 @@ type TMLimitResult struct {
 	ValIsInLimit     map[string]bool
 	GroupValScoreMap map[string]*sutils.CValueEnclosure
 	Hll              *utils.GobbableHll
+	TDigest          *utils.GobbableTDigest
 	StrSet           map[string]struct{}
 	OtherCValArr     []*sutils.CValueEnclosure
 }
