@@ -40,7 +40,7 @@ import (
 type CaseConversionInfo struct {
 	dualCaseCheckEnabled bool
 	caseInsensitive      bool
-	isTerm               bool // isTerm is true if the query is a TERM() query
+	isTerm               bool // isTerm is true if the filter is a TERM() filter
 	valueIsRegex         bool
 	IsString             bool
 	colValue             interface{}

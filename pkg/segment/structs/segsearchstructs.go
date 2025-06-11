@@ -427,9 +427,6 @@ func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInsensi
 				cval = dtu.GetTermRegex(cval)
 			} // else it is CASE(), nothing more needs to be done
 
-			if isCaseInsensitive {
-				cval = "(?i)" + cval
-			}
 			rexpC, err := regexp.Compile(cval)
 			if err != nil {
 				log.Errorf("extractSearchQueryFromExpressionFilter: regexp compile failed for exp: %v, err: %v", cval, err)

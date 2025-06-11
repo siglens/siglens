@@ -620,6 +620,8 @@ func ReplaceWildcardStarWithRegex(input string) string {
 }
 
 func GetTermRegex(input string) string {
+	// regex that matches a single occurrence of any major breaker
+	// for a complete list of major breakers, see https://docs.splunk.com/Documentation/Splunk/9.4.2/Admin/Segmentersconf
 	const singleMajorBreakerRegex = `(?:[\[\]<>()\{\}\|!;,'"*\s&\?\+]|--|%21|%26|%2526|%3B|%7C|%20|%2B|%3D|%2520|%5D|%5B|%3A|%0A|%2C|%28|%29)`
 	return fmt.Sprintf("^(.*%s)?%s(%s.*)?$", singleMajorBreakerRegex, input[1:len(input)-1], singleMajorBreakerRegex)
 }
