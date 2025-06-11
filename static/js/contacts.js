@@ -732,6 +732,7 @@ const contactGridOptions = {
     animateRows: true,
     rowHeight: 34,
     headerHeight: 26,
+    suppressDragLeaveHidesColumns: true,
     defaultColDef: {
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',

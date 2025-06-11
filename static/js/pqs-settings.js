@@ -184,6 +184,7 @@ function createTable(data) {
         headerHeight: 26,
         rowHeight: 34,
         pinnedBottomRowData: [aggregationTotalRow],
+        suppressDragLeaveHidesColumns: true,
     };
 
     const searchRowData = data.promoted_searches.map((item) => ({
@@ -215,6 +216,7 @@ function createTable(data) {
         headerHeight: 26,
         rowHeight: 34,
         pinnedBottomRowData: [searchTotalRow],
+        suppressDragLeaveHidesColumns: true,
     };
 
     $('#ag-grid-promoted-aggregations').empty();

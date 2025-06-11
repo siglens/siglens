@@ -256,6 +256,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		parallelism = runtime.GOMAXPROCS(0)
 	}
 
+	if canParallelize && firstDpChain[mergeIndex].IsMergeableBottleneckCmd() {
+		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergeBottleneckDP())
+		mergeIndex++
+	}
+
 	for i := 0; i < parallelism; i++ {
 		var dataProcessors []*DataProcessor
 		if i == 0 {
@@ -278,6 +283,22 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 				// Fetch() from it in parallel.
 				lastStream := NewSingleThreadedStream(dataProcessors[len(dataProcessors)-1])
 				mergingDp.streams = append(mergingDp.streams, NewCachedStream(lastStream))
+			}
+		}
+
+		if mergeIndex > 0 {
+			switch dataProcessors[mergeIndex-1].processor.(type) {
+			case *statsProcessor:
+				// We'll likely want to set this for other stats-like commands
+				// as well when we implement parallelizing those. But I'm not
+				// sure why this is an option because I'm not sure when we ever
+				// need this flag to be false.
+				err := dataProcessors[mergeIndex-1].SetStatsAsIqrStatsResults()
+				if err != nil {
+					return nil, utils.TeeErrorf("NewQueryProcessor: failed to set stats as IQR stats results; err=%v", err)
+				}
+			default:
+				// Do nothing.
 			}
 		}
 

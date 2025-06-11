@@ -134,6 +134,7 @@ const propertiesGridOptions = {
     domLayout: 'autoHeight',
     headerHeight: 26,
     rowHeight: 34,
+    suppressDragLeaveHidesColumns: true,
 };
 
 const historyGridOptions = {
@@ -151,6 +152,7 @@ const historyGridOptions = {
     rowData: [],
     headerHeight: 26,
     rowHeight: 34,
+    suppressDragLeaveHidesColumns: true,
 };
 
 $('#history-filter-input').on('input', performSearch);
