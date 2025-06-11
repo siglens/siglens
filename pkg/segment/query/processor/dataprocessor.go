@@ -830,8 +830,7 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 }
 
 func NewStatisticExprDP(options *structs.QueryAggregators) *DataProcessor {
-	statsExpr := &structs.StatsExpr{GroupByRequest: options.GroupByRequest}
-	options.StatsExpr = statsExpr
+	options.StatsExpr = &structs.StatsExpr{GroupByRequest: options.GroupByRequest}
 
 	if options.HasTopExpr() {
 		return NewTopDP(options)
