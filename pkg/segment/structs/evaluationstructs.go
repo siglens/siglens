@@ -367,6 +367,11 @@ type SPathExpr struct {
 	OutputColName   string // the name of the column in the output table to which the extracted values will be written. By Default it is set the same as the path.
 }
 
+type RunningLatestOrEarliestVal struct {
+	Value     sutils.CValueEnclosure
+	Timestamp uint64
+}
+
 type BoolOperator uint8
 
 const (

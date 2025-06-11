@@ -22,6 +22,7 @@ import (
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	log "github.com/sirupsen/logrus"
 
 	bbp "github.com/valyala/bytebufferpool"
 )
@@ -36,7 +37,7 @@ func GetDefaultNumStats() *NumericStats {
 
 func GetDefaultTimeStats() *TimeStats {
 	return &TimeStats{
-		LatestTs:    CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: uint64(0)},
+		LatestTs:    CValueEnclosure{Dtype: SS_DT_BACKFILL},
 		EarliestTs:  CValueEnclosure{Dtype: SS_DT_BACKFILL},
 		LatestVal:   CValueEnclosure{Dtype: SS_DT_BACKFILL},
 		EarliestVal: CValueEnclosure{Dtype: SS_DT_BACKFILL},
@@ -156,10 +157,16 @@ func AddSegStatsUNIXTime(segstats map[string]*SegStats, cname string, val uint64
 	}
 
 	if updateLatest {
-		nonEncVal, err := stats.TimeStats.LatestTs.GetUIntValue()
-		if err == nil {
-			if nonEncVal < val {
-				stats.TimeStats.LatestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+		if stats.TimeStats.LatestTs.Dtype == SS_DT_BACKFILL {
+			stats.TimeStats.LatestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+		} else {
+			nonEncVal, err := stats.TimeStats.LatestTs.GetUIntValue()
+			if err == nil {
+				if nonEncVal < val {
+					stats.TimeStats.LatestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+				}
+			} else {
+				log.Errorf("AddSegStatsUNIXTime: unable to get uint value from TimeStats.LatestTs; err: %v", err)
 			}
 		}
 	} else {
@@ -171,6 +178,8 @@ func AddSegStatsUNIXTime(segstats map[string]*SegStats, cname string, val uint64
 				if nonEncVal > val {
 					stats.TimeStats.EarliestTs.CVal = val
 				}
+			} else {
+				log.Errorf("AddSegStatsUNIXTime: unable to get uint value from TimeStats.EarliestTs; err: %v", err)
 			}
 		}
 	}

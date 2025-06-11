@@ -968,19 +968,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 					nodeRes.StoreGlobalSearchError(fmt.Sprintf("segmentStatsWorker: Failed to extract value for cname %+v", cname), log.ErrorLevel, err)
 					continue
 				}
-				stats.AddSegStatsUNIXTime(localStats, cname, latestTs, cValEnc.CVal, true)
-				stats.AddSegStatsUNIXTime(localStats, cname, earliestTs, cValEnc.CVal, false)
-				if needLatestOrEarliest {
-					tsCVal := sutils.CValueEnclosure{}
-					timestampIdx := -1
-					err := multiReader.ExtractValueFromColumnFile(timestampIdx, blockStatus.BlockNum, recNum, qid, true, &tsCVal)
-					if err != nil {
-						log.Errorf("qid=%d, segmentStatsWorker failed to get timestamp values for dict encoded column; col: %v", qid, cname)
-					} else {
-						stats.AddSegStatsLatestEarliestVal(localStats, cname, &tsCVal, cValEnc.CVal, true)
-						stats.AddSegStatsLatestEarliestVal(localStats, cname, &tsCVal, cValEnc.CVal, false)
-					}
-				}
+				addValsToTimeStats(localStats, cname, latestTs, earliestTs, cValEnc.CVal, multiReader, needLatestOrEarliest, blockStatus.BlockNum, recNum, qid)
 				hasValuesFunc, exists := valuesUsage[cname]
 				if !exists {
 					hasValuesFunc = false
@@ -1031,6 +1019,23 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 	statRes.MergeSegStats(localStats)
 }
 
+func addValsToTimeStats(localStats map[string]*structs.SegStats, colName string, latestTs uint64, earliestTs uint64, rawVal interface{}, mcr *segread.MultiColSegmentReader, needLatestOrEarliest bool, blockNum, recNum uint16, qid uint64) {
+	stats.AddSegStatsUNIXTime(localStats, colName, latestTs, rawVal, true)
+	stats.AddSegStatsUNIXTime(localStats, colName, earliestTs, rawVal, false)
+	if needLatestOrEarliest {
+		tsCVal := sutils.CValueEnclosure{}
+		timestampIdx := -1
+		err := mcr.ExtractValueFromColumnFile(timestampIdx, blockNum, recNum, qid, true, &tsCVal)
+		if err != nil {
+			log.Errorf("qid=%d, segmentStatsWorker failed to get timestamp values for dict encoded column; col: %v", qid, colName)
+		} else {
+			stats.AddSegStatsLatestEarliestVal(localStats, colName, &tsCVal, rawVal, true)
+			stats.AddSegStatsLatestEarliestVal(localStats, colName, &tsCVal, rawVal, false)
+		}
+	}
+
+}
+
 // returns all columns that are not dict encoded
 func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filterdRecNums []uint16, mCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool,
 	blockNum uint16, bri *BlockRecordIterator, lStats map[string]*structs.SegStats, bb *bbp.ByteBuffer, qid uint64, latestTs uint64, earliestTs uint64, needLatestOrEarliest bool) map[string]bool {
@@ -1061,19 +1066,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 		}
 		for recNum, cMap := range results {
 			for colName, rawVal := range cMap {
-				stats.AddSegStatsUNIXTime(lStats, colName, latestTs, rawVal, true)
-				stats.AddSegStatsUNIXTime(lStats, colName, earliestTs, rawVal, false)
-				if needLatestOrEarliest {
-					tsCVal := sutils.CValueEnclosure{}
-					timestampIdx := -1
-					err := mcr.ExtractValueFromColumnFile(timestampIdx, blockNum, recNum, qid, true, &tsCVal)
-					if err != nil {
-						log.Errorf("qid=%d, segmentStatsWorker failed to get timestamp values for dict encoded column; col: %v", qid, colName)
-					} else {
-						stats.AddSegStatsLatestEarliestVal(lStats, colName, &tsCVal, rawVal, true)
-						stats.AddSegStatsLatestEarliestVal(lStats, colName, &tsCVal, rawVal, false)
-					}
-				}
+				addValsToTimeStats(lStats, colName, latestTs, earliestTs, rawVal, mcr, needLatestOrEarliest, blockNum, recNum, qid)
 				colUsage, exists := aggColUsage[colName]
 				if !exists {
 					colUsage = sutils.NoEvalUsage

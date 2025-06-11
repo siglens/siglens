@@ -172,19 +172,16 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			isLatestTime := measureFunc == sutils.LatestTime
 			step, err := rr.AddEvalResultsForMinMax(runningStats, measureResults, i, isLatestTime, fieldToValue)
 			if err != nil {
-				batchErr.AddError("RunningBucketResults.AddMeasureResults:MinMax", err)
-			}
-			i += step
-		case sutils.Latest:
-			step, err := rr.AddEvalResultsForLatest(runningStats, measureResults, i, fieldToValue)
-			if err != nil {
-				batchErr.AddError("RunningBucketResults.AddMeasureResults:Latest", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:LatestTime/EarliestTime", err)
 			}
 			i += step
 		case sutils.Earliest:
-			step, err := rr.AddEvalResultsForEarliest(runningStats, measureResults, i, fieldToValue)
+			fallthrough
+		case sutils.Latest:
+			isLatest := sutils.Latest == measureFunc
+			step, err := rr.AddEvalResultsForLatestOrEarliest(runningStats, measureResults, i, fieldToValue, isLatest)
 			if err != nil {
-				batchErr.AddError("RunningBucketResults.AddMeasureResults:Earliest", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Latest/Earliest", err)
 			}
 			i += step
 		case sutils.Range:
@@ -590,59 +587,32 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	return numFields - 1, nil
 }
 
-func (rr *RunningBucketResults) AddEvalResultsForLatest(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+func (rr *RunningBucketResults) AddEvalResultsForLatestOrEarliest(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure, isLatest bool) (int, error) {
 	if rr.currStats[i].ValueColRequest == nil {
-		latestTsIdx := i + 1
-		latestIdx := i
-		(*runningStats)[latestTsIdx].syncRawValue()
-		(*runningStats)[latestIdx].syncRawValue()
-		latestTsChanged := false
-		retVal, err := sutils.Reduce((*runningStats)[latestTsIdx].rawVal, measureResults[latestTsIdx], rr.currStats[latestTsIdx].MeasureFunc)
+		// order should be the same as defined in evalaggs.go -> @AddMeasureAggInRunningStatsForLatestOrEarliest
+		// timestamp is present at index i+1
+		// the value (can be any dtype) present at index i
+		elTsIdx := i + 1
+		elIdx := i
+		(*runningStats)[elTsIdx].syncRawValue()
+		(*runningStats)[elIdx].syncRawValue()
+		elTsChanged := false
+		retVal, err := sutils.Reduce((*runningStats)[elTsIdx].rawVal, measureResults[elTsIdx], rr.currStats[elTsIdx].MeasureFunc)
 		if err != nil {
 			return 1, ErrReduceCVal
 		} else {
-			if (*runningStats)[latestIdx].rawVal.Dtype != sutils.SS_INVALID {
-				if retVal.CVal.(uint64) != (*runningStats)[latestTsIdx].rawVal.CVal.(uint64) {
-					latestTsChanged = true
+			if (*runningStats)[elIdx].rawVal.Dtype != sutils.SS_INVALID {
+				if retVal.CVal.(uint64) != (*runningStats)[elTsIdx].rawVal.CVal.(uint64) {
+					elTsChanged = true
 				}
 			} else {
-				latestTsChanged = true
+				elTsChanged = true
 			}
-			(*runningStats)[latestTsIdx].rawVal = retVal
-			(*runningStats)[latestTsIdx].number = nil
-			if latestTsChanged {
-				(*runningStats)[latestIdx].rawVal = measureResults[latestIdx]
-				(*runningStats)[latestIdx].number = nil
-			}
-		}
-		return 1, nil
-	}
-	return 1, nil
-}
-
-func (rr *RunningBucketResults) AddEvalResultsForEarliest(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
-	if rr.currStats[i].ValueColRequest == nil {
-		earliestTsIdx := i + 1
-		earliestIdx := i
-		(*runningStats)[earliestTsIdx].syncRawValue()
-		(*runningStats)[earliestIdx].syncRawValue()
-		earliestTsChanged := false
-		retVal, err := sutils.Reduce((*runningStats)[earliestTsIdx].rawVal, measureResults[earliestTsIdx], rr.currStats[earliestTsIdx].MeasureFunc)
-		if err != nil {
-			return 1, ErrReduceCVal
-		} else {
-			if (*runningStats)[earliestIdx].rawVal.Dtype != sutils.SS_INVALID {
-				if retVal.CVal.(uint64) != (*runningStats)[earliestTsIdx].rawVal.CVal.(uint64) {
-					earliestTsChanged = true
-				}
-			} else {
-				earliestTsChanged = true
-			}
-			(*runningStats)[earliestTsIdx].rawVal = retVal
-			(*runningStats)[earliestTsIdx].number = nil
-			if earliestTsChanged {
-				(*runningStats)[earliestIdx].rawVal = measureResults[earliestIdx]
-				(*runningStats)[earliestIdx].number = nil
+			(*runningStats)[elTsIdx].rawVal = retVal
+			(*runningStats)[elTsIdx].number = nil
+			if elTsChanged {
+				(*runningStats)[elIdx].rawVal = measureResults[elIdx]
+				(*runningStats)[elIdx].number = nil
 			}
 		}
 		return 1, nil

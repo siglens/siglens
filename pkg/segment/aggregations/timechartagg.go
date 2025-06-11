@@ -195,13 +195,10 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 		return nil
 	}
 
-	// When there are only values() or latest() aggs, we can not score these aggs based on the sum of the values in the aggregation
-	onlyUsedByUnscorableFuncs := true
-	for idx := range measureOperations {
-		if measureOperations[idx].MeasureFunc != sutils.Values && measureOperations[idx].MeasureFunc != sutils.Latest && measureOperations[idx].MeasureFunc != sutils.Earliest {
-			onlyUsedByUnscorableFuncs = false
-			break
-		}
+	// When there is only one agg and agg is values(), we can not score that based on the sum of the values in the aggregation	onlyUsedByUnscorableFuncs := true
+	onlyUseByValuesFunc := false
+	if len(measureOperations) == 1 && measureOperations[0].MeasureFunc == sutils.Values {
+		onlyUseByValuesFunc = true
 	}
 
 	index := 0
@@ -209,7 +206,7 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 	isRankBySum := IsRankBySum(timechart)
 
 	// When there is only one aggregator and aggregator is values(), we can not score that based on the sum of the values in the aggregation
-	if isRankBySum && !onlyUsedByUnscorableFuncs {
+	if isRankBySum && !onlyUseByValuesFunc {
 		scorePairs := make([]scorePair, 0)
 		// []float64, 0: score; 1: index
 		for groupByColVal, cVal := range groupValScoreMap {
@@ -401,27 +398,30 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 		fallthrough
 	case sutils.Latest:
 		if useAdditionForMerge {
-			// can add more complex logic to check dtype and see if addition is possible or not
-			return
-		}
-		if eVal.Dtype == sutils.SS_INVALID {
-			eVal = &eValToMerge
+			// sutils.Reduce already handles unsupported dtypes
+			aggFunc = sutils.Sum
+			// calculate score based on the columns value
+			eValToMerge = eValToMerge.CVal.(structs.RunningLatestOrEarliestVal).Value
 		} else {
-			castedEVal := eVal.CVal.(map[string]interface{})
-			castedEValToMerge := eValToMerge.CVal.(map[string]interface{})
-			ts := castedEVal["timestamp"].(uint64)
-			tsToMerge := castedEValToMerge["timestamp"].(uint64)
-			if aggFunc == sutils.Latest {
-				if tsToMerge > ts {
-					eVal = &eValToMerge
-				}
+			if eVal.Dtype == sutils.SS_INVALID {
+				eVal = &eValToMerge
 			} else {
-				if tsToMerge < ts {
-					eVal = &eValToMerge
+				castedEVal := eVal.CVal.(structs.RunningLatestOrEarliestVal)
+				castedEValToMerge := eValToMerge.CVal.(structs.RunningLatestOrEarliestVal)
+				ts := castedEVal.Timestamp
+				tsToMerge := castedEValToMerge.Timestamp
+				if aggFunc == sutils.Latest {
+					if tsToMerge > ts {
+						eVal = &eValToMerge
+					}
+				} else {
+					if tsToMerge < ts {
+						eVal = &eValToMerge
+					}
 				}
 			}
+			return
 		}
-		return
 	case sutils.Values:
 		// Can not do addition for values func
 		if useAdditionForMerge {
