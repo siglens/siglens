@@ -918,8 +918,9 @@ func canUseSSTForStats(searchType structs.SearchNodeType, segmentFullyEnclosed b
 	aggHasEvalFunc := aggs.HasValueColRequest()
 	aggHasValuesFunc := aggs.HasValuesFunc()
 	aggHasListFunc := aggs.HasListFunc()
+	aggHasSumsqFunc := aggs.HasSumsqFunc()
 	return searchType == structs.MatchAllQuery && segmentFullyEnclosed &&
-		!aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc
+		!aggHasEvalFunc && !aggHasValuesFunc && !aggHasListFunc && !aggHasSumsqFunc
 
 }
 
