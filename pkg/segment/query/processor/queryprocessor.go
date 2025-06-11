@@ -119,8 +119,6 @@ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	return sortExpr
 }
 
-// Note: this has side-effects; see asDataProcessor().
-// TODO: remove the side-effects.
 func AggsToDataProcessors(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) []*DataProcessor {
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
@@ -444,8 +442,6 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	}, nil
 }
 
-// Note: this has side-effects for a NewStatisticExprDP.
-// TODO: remove the side-effects.
 func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
 	if queryAgg == nil {
 		return nil
