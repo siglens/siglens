@@ -65,6 +65,10 @@ type DataProcessor struct {
 	isTwoPassCmd      bool // A subset of bottleneck commands.
 	finishedFirstPass bool // Only used for two-pass commands.
 
+	// If true, it means it's possible to merge results from multiple instances
+	// of this type of command into once instance.
+	isMergeableBottleneck bool
+
 	processorLock   *sync.Mutex
 	isCleanupCalled bool
 
@@ -92,6 +96,10 @@ func (dp *DataProcessor) IsPermutingCmd() bool {
 
 func (dp *DataProcessor) IsBottleneckCmd() bool {
 	return dp.isBottleneckCmd
+}
+
+func (dp *DataProcessor) IsMergeableBottleneckCmd() bool {
+	return dp.isMergeableBottleneck
 }
 
 func (dp *DataProcessor) IsTwoPassCmd() bool {
@@ -427,6 +435,7 @@ loop:
 	numFetchedFrom := 0
 	responders := make(map[int]struct{}, len(dp.streams))
 	var finalErr error
+	waitGroup := sync.WaitGroup{}
 
 	for i := range dp.streams {
 		if dp.streams[i].IsExhausted() {
@@ -435,7 +444,10 @@ loop:
 
 		numFetchedFrom++
 
+		waitGroup.Add(1)
 		go func(i int) {
+			defer waitGroup.Done()
+
 			iqr, err := dp.streams[i].Fetch()
 			if err != nil && err != io.EOF {
 				finalErr = fmt.Errorf("DP.fetchFromAnyStream: failed to fetch from stream %d: %v", i, err)
@@ -452,6 +464,7 @@ loop:
 			dp.streamDataChan <- streamResponse{streamId: i, iqr: iqr}
 		}(i)
 	}
+	waitGroup.Wait()
 
 	if numFetchedFrom == 0 {
 		return nil, io.EOF
@@ -551,30 +564,32 @@ func sortByTimestampLess(r1, r2 *iqr.Record) bool {
 func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
 	hasSpan := options.BinSpanOptions != nil
 	return &DataProcessor{
-		name:              "bin",
-		streams:           make([]*CachedStream, 0),
-		processor:         &binProcessor{options: options},
-		inputOrderMatters: false,
-		ignoresInputOrder: false,
-		isPermutingCmd:    false,
-		isBottleneckCmd:   !hasSpan,
-		isTwoPassCmd:      !hasSpan,
-		processorLock:     &sync.Mutex{},
+		name:                  "bin",
+		streams:               make([]*CachedStream, 0),
+		processor:             &binProcessor{options: options},
+		inputOrderMatters:     false,
+		ignoresInputOrder:     false,
+		isPermutingCmd:        false,
+		isBottleneckCmd:       !hasSpan,
+		isTwoPassCmd:          !hasSpan,
+		isMergeableBottleneck: false, // TODO: implement merging, then set to true.
+		processorLock:         &sync.Mutex{},
 	}
 }
 
 func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
 	hasSort := len(options.DedupSortEles) > 0
 	return &DataProcessor{
-		name:              "dedup",
-		streams:           make([]*CachedStream, 0),
-		processor:         &dedupProcessor{options: options},
-		inputOrderMatters: true,
-		ignoresInputOrder: false,
-		isPermutingCmd:    false,
-		isBottleneckCmd:   hasSort,
-		isTwoPassCmd:      false,
-		processorLock:     &sync.Mutex{},
+		name:                  "dedup",
+		streams:               make([]*CachedStream, 0),
+		processor:             &dedupProcessor{options: options},
+		inputOrderMatters:     true,
+		ignoresInputOrder:     false,
+		isPermutingCmd:        false,
+		isBottleneckCmd:       hasSort,
+		isTwoPassCmd:          false,
+		isMergeableBottleneck: false, // TODO: implement merging, then set to true.
+		processorLock:         &sync.Mutex{},
 	}
 }
 
@@ -685,15 +700,16 @@ func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
 
 func NewTailDP(options *structs.TailExpr) *DataProcessor {
 	return &DataProcessor{
-		name:              "tail",
-		streams:           make([]*CachedStream, 0),
-		processor:         &tailProcessor{options: options},
-		inputOrderMatters: true,
-		ignoresInputOrder: false,
-		isPermutingCmd:    true,
-		isBottleneckCmd:   true, // TODO: depends on the previous DPs in the chain.
-		isTwoPassCmd:      false,
-		processorLock:     &sync.Mutex{},
+		name:                  "tail",
+		streams:               make([]*CachedStream, 0),
+		processor:             &tailProcessor{options: options},
+		inputOrderMatters:     true,
+		ignoresInputOrder:     false,
+		isPermutingCmd:        true,
+		isBottleneckCmd:       true, // TODO: depends on the previous DPs in the chain.
+		isTwoPassCmd:          false,
+		isMergeableBottleneck: false,
+		processorLock:         &sync.Mutex{},
 	}
 }
 
@@ -783,31 +799,33 @@ func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 
 func NewTimechartDP(options *timechartOptions) *DataProcessor {
 	return &DataProcessor{
-		name:              "timechart",
-		streams:           make([]*CachedStream, 0),
-		processor:         NewTimechartProcessor(options),
-		inputOrderMatters: false,
-		ignoresInputOrder: true,
-		isPermutingCmd:    false,
-		isBottleneckCmd:   true,
-		isTransformingCmd: true,
-		isTwoPassCmd:      false,
-		processorLock:     &sync.Mutex{},
+		name:                  "timechart",
+		streams:               make([]*CachedStream, 0),
+		processor:             NewTimechartProcessor(options),
+		inputOrderMatters:     false,
+		ignoresInputOrder:     true,
+		isPermutingCmd:        false,
+		isBottleneckCmd:       true,
+		isTransformingCmd:     true,
+		isTwoPassCmd:          false,
+		isMergeableBottleneck: false, // TODO: implement merging, then set to true.
+		processorLock:         &sync.Mutex{},
 	}
 }
 
 func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	return &DataProcessor{
-		name:              "stats",
-		streams:           make([]*CachedStream, 0),
-		processor:         NewStatsProcessor(options),
-		inputOrderMatters: false,
-		ignoresInputOrder: true,
-		isPermutingCmd:    false,
-		isBottleneckCmd:   true,
-		isTransformingCmd: true,
-		isTwoPassCmd:      false,
-		processorLock:     &sync.Mutex{},
+		name:                  "stats",
+		streams:               make([]*CachedStream, 0),
+		processor:             NewStatsProcessor(options),
+		inputOrderMatters:     false,
+		ignoresInputOrder:     true,
+		isPermutingCmd:        false,
+		isBottleneckCmd:       true,
+		isTransformingCmd:     true,
+		isTwoPassCmd:          false,
+		isMergeableBottleneck: true,
+		processorLock:         &sync.Mutex{},
 	}
 }
 
@@ -842,31 +860,33 @@ func NewStatisticExprDP(options *structs.QueryAggregators, isDistributed bool) *
 
 func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 	return &DataProcessor{
-		name:              "top",
-		streams:           make([]*CachedStream, 0),
-		processor:         NewTopProcessor(options),
-		inputOrderMatters: false,
-		ignoresInputOrder: true,
-		isPermutingCmd:    true,
-		isBottleneckCmd:   true,
-		isTransformingCmd: true,
-		isTwoPassCmd:      false,
-		processorLock:     &sync.Mutex{},
+		name:                  "top",
+		streams:               make([]*CachedStream, 0),
+		processor:             NewTopProcessor(options),
+		inputOrderMatters:     false,
+		ignoresInputOrder:     true,
+		isPermutingCmd:        true,
+		isBottleneckCmd:       true,
+		isTransformingCmd:     true,
+		isTwoPassCmd:          false,
+		isMergeableBottleneck: false,
+		processorLock:         &sync.Mutex{},
 	}
 }
 
 func NewRareDP(options *structs.QueryAggregators) *DataProcessor {
 	return &DataProcessor{
-		name:              "rare",
-		streams:           make([]*CachedStream, 0),
-		processor:         NewRareProcessor(options),
-		inputOrderMatters: false,
-		ignoresInputOrder: true,
-		isPermutingCmd:    true,
-		isBottleneckCmd:   true,
-		isTransformingCmd: true,
-		isTwoPassCmd:      false,
-		processorLock:     &sync.Mutex{},
+		name:                  "rare",
+		streams:               make([]*CachedStream, 0),
+		processor:             NewRareProcessor(options),
+		inputOrderMatters:     false,
+		ignoresInputOrder:     true,
+		isPermutingCmd:        true,
+		isBottleneckCmd:       true,
+		isTransformingCmd:     true,
+		isTwoPassCmd:          false,
+		isMergeableBottleneck: false,
+		processorLock:         &sync.Mutex{},
 	}
 }
 
@@ -886,15 +906,16 @@ func NewTransactionDP(options *structs.TransactionArguments) *DataProcessor {
 
 func NewSortDP(options *structs.SortExpr) *DataProcessor {
 	return &DataProcessor{
-		name:              "sort",
-		streams:           make([]*CachedStream, 0),
-		processor:         &sortProcessor{options: options},
-		inputOrderMatters: false,
-		ignoresInputOrder: true,
-		isPermutingCmd:    true,
-		isBottleneckCmd:   true,
-		isTwoPassCmd:      false,
-		processorLock:     &sync.Mutex{},
+		name:                  "sort",
+		streams:               make([]*CachedStream, 0),
+		processor:             &sortProcessor{options: options},
+		inputOrderMatters:     false,
+		ignoresInputOrder:     true,
+		isPermutingCmd:        true,
+		isBottleneckCmd:       true,
+		isTwoPassCmd:          false,
+		isMergeableBottleneck: false, // TODO: implement merging, then set to true.
+		processorLock:         &sync.Mutex{},
 	}
 }
 
@@ -950,5 +971,21 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
 		processorLock:     &sync.Mutex{},
+	}
+}
+
+func NewMergeBottleneckDP() *DataProcessor {
+	return &DataProcessor{
+		name:                  "merge-bottleneck",
+		streams:               make([]*CachedStream, 0),
+		processor:             &mergeProcessor{},
+		inputOrderMatters:     false,
+		ignoresInputOrder:     true,
+		isPermutingCmd:        false,
+		isBottleneckCmd:       true,
+		isTransformingCmd:     false,
+		isTwoPassCmd:          false,
+		isMergeableBottleneck: true,
+		processorLock:         &sync.Mutex{},
 	}
 }
