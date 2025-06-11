@@ -19,6 +19,7 @@
 
 let alertGridDiv = null;
 let alertRowData = [];
+let autoRefreshInterval = null;
 
 let mapIndexToAlertState = new Map([
     [0, 'Inactive'],
@@ -48,9 +49,22 @@ $(document).ready(function () {
         window.location.href = './alert.html?type=metrics';
     });
 
+    startAutoRefresh();
+
     //eslint-disable-next-line no-undef
     lucide.createIcons();
 });
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+
+    // Set up 30-second auto-refresh
+    autoRefreshInterval = setInterval(() => {
+        getAllAlerts();
+    }, 30000);
+}
 
 function handlePageDisplay() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -81,9 +95,13 @@ function getAllAlerts() {
         },
         dataType: 'json',
         crossDomain: true,
-    }).then(function (res) {
-        displayAllAlerts(res.alerts);
-    });
+    })
+        .then(function (res) {
+            displayAllAlerts(res.alerts);
+        })
+        .catch(function (error) {
+            console.error('Failed to fetch alerts:', error);
+        });
 }
 // Custom cell renderer for State field
 function getCssVariableValue(variableName) {
@@ -226,7 +244,7 @@ class btnRenderer {
         const now = new Date();
 
         if (endDateTime <= now) {
-            showToast('End time must be in the future', 'error');
+            showToast('End time must be in the future', 'error', 5000);
             return;
         }
 
@@ -524,6 +542,7 @@ const alertGridOptions = {
     animateRows: true,
     rowHeight: 34,
     headerHeight: 26,
+    suppressDragLeaveHidesColumns: true,
     defaultColDef: {
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
@@ -548,6 +567,7 @@ function displayAllAlerts(res) {
         alertGridDiv = document.querySelector('#ag-grid');
         new agGrid.Grid(alertGridDiv, alertGridOptions);
     }
+    alertRowData = [];
     alertGridOptions.api.setColumnDefs(alertColumnDefs);
     let newRow = new Map();
     let hasMutedAlerts = false;
@@ -580,11 +600,13 @@ function displayAllAlerts(res) {
         newRow.set('alertType', mapIndexToAlertType.get(value.alert_type));
         newRow.set('silenceMinutes', value.silence_minutes);
         newRow.set('silenceEndTime', value.silence_end_time);
+
         //eslint-disable-next-line no-undef
         const mutedFor = calculateMutedFor(value.silence_end_time);
         newRow.set('mutedFor', mutedFor);
         if (mutedFor) hasMutedAlerts = true;
-        alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
+
+        alertRowData.push(Object.fromEntries(newRow));
     });
 
     // Update the count displays in the UI
@@ -605,38 +627,3 @@ function onRowClicked(event) {
     event.stopPropagation();
 }
 
-function updateMutedForValues() {
-    let hasMutedAlerts = false;
-    const currentTime = Math.floor(Date.now() / 1000);
-    alertGridOptions.api.forEachNode((node) => {
-        if (node.data.silenceEndTime) {
-            //eslint-disable-next-line no-undef
-            const mutedFor = calculateMutedFor(node.data.silenceEndTime);
-            node.setDataValue('mutedFor', mutedFor);
-
-            if (node.data.silenceEndTime > currentTime) {
-                hasMutedAlerts = true;
-            } else {
-                // Silence period has ended
-                node.setDataValue('silenceEndTime', null);
-                node.setDataValue('silenceMinutes', 0);
-                node.setDataValue('mutedFor', '');
-
-                // Update the mute icon
-                const cellRenderer = alertGridOptions.api.getCellRendererInstances({
-                    rowNodes: [node],
-                    columns: ['Actions'],
-                })[0];
-                if (cellRenderer && cellRenderer.instance instanceof btnRenderer) {
-                    cellRenderer.instance.updateMuteIcon(false);
-                }
-            }
-        }
-    });
-
-    alertGridOptions.columnApi.setColumnVisible('mutedFor', hasMutedAlerts);
-    alertGridOptions.api.sizeColumnsToFit();
-}
-
-// Update muted for column every 1 minutes
-setInterval(updateMutedForValues, 60000);

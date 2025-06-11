@@ -38,6 +38,7 @@ class DashboardGrid {
             rowMultiSelectWithClick: true,
             suppressRowDeselection: false,
             suppressRowClickSelection: true,
+            suppressDragLeaveHidesColumns: true,
             getRowId: (params) => params.data.rowId,
             localeText: {
                 noRowsToShow: "This folder doesn't have any dashboards/folders yet ",

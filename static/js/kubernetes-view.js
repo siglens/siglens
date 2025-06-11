@@ -251,6 +251,7 @@ class KubernetesView {
             },
             enableCellTextSelection: true,
             suppressCopyRowsToClipboard: true,
+            suppressDragLeaveHidesColumns: true,
             onBodyScroll: (params) => {
                 if (this.type === 'events') {
                     const lastRow = params.api.getLastDisplayedRow();

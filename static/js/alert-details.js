@@ -18,6 +18,9 @@
  */
 let alertID;
 let alertHistoryData = [];
+let autoRefreshInterval = null;
+let historyPagination;
+
 let mapIndexToConditionType = new Map([
     [0, 'Is above'],
     [1, 'Is below'],
@@ -46,18 +49,44 @@ $(document).ready(async function () {
 
     await getAlertIdFromURl();
     alertDetailsFunctions();
+
+    startAutoRefresh();
+    
+    //eslint-disable-next-line no-undef
+    historyPagination = createPagination('history-pagination', {
+        pageSize: 20,
+        pageSizeOptions: [10, 20, 50, 100],
+        onPageChange: (page, pageSize) => {
+            displayHistoryDataPaginated(page, pageSize);
+        },
+        onPageSizeChange: (pageSize) => {
+            displayHistoryDataPaginated(1, pageSize);
+        },
+    });
 });
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+
+    autoRefreshInterval = setInterval(() => {
+        if (alertID) {
+            fetchAlertHistory();
+        }
+    }, 30000); // 30 seconds
+}
 
 async function getAlertIdFromURl() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
         alertID = id;
-        await getAlertForEdit(id);
+        await getAlert(id);
     }
 }
 
-async function getAlertForEdit(id) {
+async function getAlert(id) {
     const res = await $.ajax({
         method: 'get',
         url: 'api/alerts/' + id,
@@ -68,16 +97,13 @@ async function getAlertForEdit(id) {
         dataType: 'json',
         crossDomain: true,
     });
-    if (window.location.href.includes('alert-details.html')) {
-        initializeBreadcrumbs([
-            { name: 'Alerting', url: './alerting.html' },
-            { name: 'Alert Rules', url: './all-alerts.html' },
-            { name: res.alert.alert_name, url: '#' },
-        ]);
-        fetchAlertProperties(res);
-        fetchAlertHistory();
-        return false;
-    }
+    initializeBreadcrumbs([
+        { name: 'Alerting', url: './alerting.html' },
+        { name: 'Alert Rules', url: './all-alerts.html' },
+        { name: res.alert.alert_name, url: '#' },
+    ]);
+    fetchAlertProperties(res);
+    fetchAlertHistory();
 }
 
 const propertiesBtn = document.getElementById('properties-btn');
@@ -88,20 +114,24 @@ if (propertiesBtn) {
         document.getElementById('properties-grid').style.display = 'block';
         document.getElementById('history-grid').style.display = 'none';
         document.getElementById('history-search-container').style.display = 'none';
+        document.getElementById('history-pagination').style.display = 'none';
         propertiesBtn.classList.add('active');
         historyBtn.classList.remove('active');
+        historyPagination.hide();
         $('#alert-details .btn-container').show();
     });
 }
-
 if (historyBtn) {
     historyBtn.addEventListener('click', function () {
         document.getElementById('properties-grid').style.display = 'none';
         document.getElementById('history-grid').style.display = 'block';
         document.getElementById('history-search-container').style.display = 'block';
+        document.getElementById('history-pagination').style.display = 'block';
         historyBtn.classList.add('active');
         propertiesBtn.classList.remove('active');
-        displayHistoryData();
+
+        displayHistoryDataPaginated(1, historyPagination.getPageSize());
+
         $('#alert-details .btn-container').hide();
     });
 }
@@ -121,6 +151,7 @@ const propertiesGridOptions = {
     domLayout: 'autoHeight',
     headerHeight: 26,
     rowHeight: 34,
+    suppressDragLeaveHidesColumns: true,
 };
 
 const historyGridOptions = {
@@ -138,9 +169,9 @@ const historyGridOptions = {
     rowData: [],
     headerHeight: 26,
     rowHeight: 34,
+    suppressDragLeaveHidesColumns: true,
 };
 
-$('#history-filter-input').on('input', performSearch);
 $('#history-filter-input').on('keypress', function (e) {
     if (e.which === 13) {
         performSearch();
@@ -149,17 +180,20 @@ $('#history-filter-input').on('keypress', function (e) {
 
 $('#history-filter-input').on('input', function () {
     if ($(this).val().trim() === '') {
-        displayHistoryData();
+        historyPagination.updateState(alertHistoryData.length, 1);
+        displayHistoryDataPaginated(1, historyPagination.getPageSize());
+    } else {
+        performSearch();
     }
 });
 
 function performSearch() {
     const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
-    if (searchTerm) {
-        filterHistoryData(searchTerm);
-    } else {
-        displayHistoryData();
-    }
+    const dataToShow = searchTerm ? getFilteredHistoryData(searchTerm) : alertHistoryData;
+
+    // Update pagination with filtered data count
+    historyPagination.updateState(dataToShow.length, 1);
+    displayHistoryDataPaginated(1, historyPagination.getPageSize());
 }
 
 function fetchAlertProperties(res) {
@@ -199,11 +233,19 @@ function fetchAlertProperties(res) {
     }
 }
 
-function displayHistoryData() {
+function displayHistoryDataPaginated(page, pageSize) {
+    const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
+    const dataToShow = searchTerm ? getFilteredHistoryData(searchTerm) : alertHistoryData;
+
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const pageData = dataToShow.slice(startIndex, endIndex);
+
     if (historyGridOptions.api) {
-        historyGridOptions.api.setRowData(alertHistoryData);
+        historyGridOptions.api.setRowData(pageData);
     }
 }
+
 function fetchAlertHistory() {
     if (alertID) {
         $.ajax({
@@ -224,31 +266,25 @@ function fetchAlertHistory() {
                     state: mapIndexToAlertState.get(item.alert_state),
                 }));
 
-                // Display the history data initially
-                displayHistoryData();
+                const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
+                const dataToShow = searchTerm ? getFilteredHistoryData(searchTerm) : alertHistoryData;
+                historyPagination.updateState(dataToShow.length, historyPagination.getCurrentPage());
+                displayHistoryDataPaginated(historyPagination.getCurrentPage(), historyPagination.getPageSize());
             })
             .catch(function (err) {
                 console.error('Error fetching alert history:', err);
             });
     }
 }
-
-function filterHistoryData(searchTerm) {
-    const filteredData = alertHistoryData.filter((item) => {
+function getFilteredHistoryData(searchTerm) {
+    return alertHistoryData.filter((item) => {
         const action = item.action.toLowerCase();
         const state = item.state.toLowerCase();
         return action.includes(searchTerm) || state.includes(searchTerm);
     });
-
-    if (historyGridOptions.api) {
-        historyGridOptions.api.setRowData(filteredData);
-    } else {
-        console.error('historyGridOptions.api is not defined');
-    }
 }
-
 function alertDetailsFunctions() {
-    function getAlertForEdit(event) {
+    function getAlert(event) {
         var queryString = '?id=' + alertID;
         window.location.href = '../alert.html' + queryString;
         event.stopPropagation();
@@ -286,7 +322,7 @@ function alertDetailsFunctions() {
         $('#delete-btn').click(deleteAlert);
     }
 
-    $('#edit-alert-btn').on('click', getAlertForEdit);
+    $('#edit-alert-btn').on('click', getAlert);
     $('#delete-alert').on('click', showPrompt);
     $('#cancel-alert-details').on('click', function () {
         window.location.href = '../all-alerts.html';

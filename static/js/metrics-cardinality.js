@@ -67,6 +67,7 @@ var tagKeysGridOptions = {
     onGridReady: function (params) {
         params.api.sizeColumnsToFit();
     },
+    suppressDragLeaveHidesColumns: true,
 };
 
 var tagPairsGridOptions = {
@@ -99,6 +100,7 @@ var tagPairsGridOptions = {
     onGridReady: function (params) {
         params.api.sizeColumnsToFit();
     },
+    suppressDragLeaveHidesColumns: true,
 };
 
 var tagKeysValuesGridOptions = {
@@ -130,6 +132,7 @@ var tagKeysValuesGridOptions = {
     onGridReady: function (params) {
         params.api.sizeColumnsToFit();
     },
+    suppressDragLeaveHidesColumns: true,
 };
 //eslint-disable-next-line no-undef
 new agGrid.Grid(document.getElementById('tagKeysGrid'), tagKeysGridOptions);

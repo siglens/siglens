@@ -472,3 +472,10 @@ func Transform[T any, R any](slice []T, transform func(T) R) []R {
 
 	return result
 }
+
+func Insert[T any](slice []T, index int, value T) []T {
+	slice = append(slice, value)         // Increment length
+	copy(slice[index+1:], slice[index:]) // Shift elements to the right
+	slice[index] = value
+	return slice
+}

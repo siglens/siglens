@@ -443,6 +443,9 @@ function runFilterBtnHandler(evt) {
     var currentPage = window.location.pathname;
     if (currentPage === '/alert.html') {
         let data = getQueryParamsData();
+        
+        //eslint-disable-next-line no-undef
+        showLogsLoading();
         fetchLogsPanelData(data, -1)
             .then((res) => {
                 alertChart(res);
