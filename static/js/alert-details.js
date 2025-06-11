@@ -19,6 +19,7 @@
 let alertID;
 let alertHistoryData = [];
 let autoRefreshInterval = null;
+let historyPagination;
 
 let mapIndexToConditionType = new Map([
     [0, 'Is above'],
@@ -50,6 +51,17 @@ $(document).ready(async function () {
     alertDetailsFunctions();
 
     startAutoRefresh();
+
+    historyPagination = createSimplePagination('history-pagination', {
+        pageSize: 20,
+        pageSizeOptions: [10, 20, 50, 100],
+        onPageChange: (page, pageSize) => {
+            displayHistoryDataPaginated(page, pageSize);
+        },
+        onPageSizeChange: (pageSize) => {
+            displayHistoryDataPaginated(1, pageSize);
+        },
+    });
 });
 
 function startAutoRefresh() {
@@ -101,20 +113,24 @@ if (propertiesBtn) {
         document.getElementById('properties-grid').style.display = 'block';
         document.getElementById('history-grid').style.display = 'none';
         document.getElementById('history-search-container').style.display = 'none';
+        document.getElementById('history-pagination').style.display = 'none';
         propertiesBtn.classList.add('active');
         historyBtn.classList.remove('active');
+        historyPagination.hide();
         $('#alert-details .btn-container').show();
     });
 }
-
 if (historyBtn) {
     historyBtn.addEventListener('click', function () {
         document.getElementById('properties-grid').style.display = 'none';
         document.getElementById('history-grid').style.display = 'block';
         document.getElementById('history-search-container').style.display = 'block';
+        document.getElementById('history-pagination').style.display = 'block';
         historyBtn.classList.add('active');
         propertiesBtn.classList.remove('active');
-        displayHistoryData();
+
+        displayHistoryDataPaginated(1, historyPagination.getPageSize());
+
         $('#alert-details .btn-container').hide();
     });
 }
@@ -155,7 +171,6 @@ const historyGridOptions = {
     suppressDragLeaveHidesColumns: true,
 };
 
-$('#history-filter-input').on('input', performSearch);
 $('#history-filter-input').on('keypress', function (e) {
     if (e.which === 13) {
         performSearch();
@@ -164,17 +179,20 @@ $('#history-filter-input').on('keypress', function (e) {
 
 $('#history-filter-input').on('input', function () {
     if ($(this).val().trim() === '') {
-        displayHistoryData();
+        historyPagination.updateState(alertHistoryData.length, 1);
+        displayHistoryDataPaginated(1, historyPagination.getPageSize());
+    } else {
+        performSearch();
     }
 });
 
 function performSearch() {
     const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
-    if (searchTerm) {
-        filterHistoryData(searchTerm);
-    } else {
-        displayHistoryData();
-    }
+    const dataToShow = searchTerm ? getFilteredHistoryData(searchTerm) : alertHistoryData;
+
+    // Update pagination with filtered data count
+    historyPagination.updateState(dataToShow.length, 1);
+    displayHistoryDataPaginated(1, historyPagination.getPageSize());
 }
 
 function fetchAlertProperties(res) {
@@ -214,11 +232,19 @@ function fetchAlertProperties(res) {
     }
 }
 
-function displayHistoryData() {
+function displayHistoryDataPaginated(page, pageSize) {
+    const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
+    const dataToShow = searchTerm ? getFilteredHistoryData(searchTerm) : alertHistoryData;
+
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const pageData = dataToShow.slice(startIndex, endIndex);
+
     if (historyGridOptions.api) {
-        historyGridOptions.api.setRowData(alertHistoryData);
+        historyGridOptions.api.setRowData(pageData);
     }
 }
+
 function fetchAlertHistory() {
     if (alertID) {
         $.ajax({
@@ -240,32 +266,22 @@ function fetchAlertHistory() {
                 }));
 
                 const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
-                if (searchTerm) {
-                    filterHistoryData(searchTerm);
-                } else {
-                    displayHistoryData();
-                }
+                const dataToShow = searchTerm ? getFilteredHistoryData(searchTerm) : alertHistoryData;
+                historyPagination.updateState(dataToShow.length, historyPagination.getCurrentPage());
+                displayHistoryDataPaginated(historyPagination.getCurrentPage(), historyPagination.getPageSize());
             })
             .catch(function (err) {
                 console.error('Error fetching alert history:', err);
             });
     }
 }
-
-function filterHistoryData(searchTerm) {
-    const filteredData = alertHistoryData.filter((item) => {
+function getFilteredHistoryData(searchTerm) {
+    return alertHistoryData.filter((item) => {
         const action = item.action.toLowerCase();
         const state = item.state.toLowerCase();
         return action.includes(searchTerm) || state.includes(searchTerm);
     });
-
-    if (historyGridOptions.api) {
-        historyGridOptions.api.setRowData(filteredData);
-    } else {
-        console.error('historyGridOptions.api is not defined');
-    }
 }
-
 function alertDetailsFunctions() {
     function getAlert(event) {
         var queryString = '?id=' + alertID;
