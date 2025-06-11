@@ -191,7 +191,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	sortExpr := MutateForSearchSorter(firstAgg)
 
 	firstDpChain := AggsToDataProcessors(firstProcessorAgg, queryInfo)
-	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstProcessorAgg, queryInfo))
+	canParallelize, mergeIndex := CanParallelSearch(firstDpChain)
 	if firstAgg.HasStatsBlock() {
 		// There's a different flow when the first agg is stats compared to
 		// when when a later agg is stats. At some point we may want to unify
