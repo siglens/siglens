@@ -19,6 +19,7 @@ package structs
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
@@ -657,7 +658,7 @@ func getBoolCValueEnclosure(boolVal bool) *sutils.CValueEnclosure {
 // with the value specified by fieldToValue. if the field is not present in the fieldToValue map
 // then NULL is returned.
 func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.CValueEnclosure) (*sutils.CValueEnclosure, error) {
-
+	log.Infof("BoolExpr.Evaluate: Evaluating BoolExpr: %v", self)
 	if self.IsTerminal {
 		switch self.ValueOp {
 		case "in":
@@ -892,6 +893,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (
 // with the value specified by fieldToValue.
 // Will be evaluated to either true, false, or NULL.
 func (self *BoolExpr) EvaluateWithNull(fieldToValue map[string]sutils.CValueEnclosure) (sutils.CValueEnclosure, error) {
+	log.Infof("BoolExpr.EvaluateWithNull: Evaluating BoolExpr: %v", self)
 	if self.IsTerminal {
 		cValEnc, err := self.evaluateToCValueEnclosure(fieldToValue)
 		if err != nil {
@@ -1055,6 +1057,7 @@ func isIPInCIDR(cidrStr, ipStr string) (bool, error) {
 }
 
 func isInValueList(fieldToValue map[string]sutils.CValueEnclosure, value *ValueExpr, valueList []*ValueExpr) (bool, error) {
+	log.Infof("isInValueList: Evaluating if value is in valueList: %v", valueList)
 	valueStr, err := value.EvaluateToString(fieldToValue)
 	if utils.IsNonNilValueError(err) {
 		return false, utils.WrapErrorf(err, "isInValueList: can not evaluate to String: %v", err)
@@ -1213,6 +1216,7 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 // A ValueExpr can be evaluated to a string or float, so if this fails you may
 // want to call ValueExpr.EvaluateToFloat().
 func (self *ValueExpr) EvaluateToString(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
+	log.Infof("ValueExpr.EvaluateToString: fieldToValue %#v, self: %#v", fieldToValue, self)
 	switch self.ValueExprMode {
 	case VEMStringExpr:
 		str, err := self.StringExpr.Evaluate(fieldToValue)
@@ -1274,6 +1278,8 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]sutils.CValueEnc
 }
 
 func (self *StringExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
+	log.Infof("StringExpr.Evaluate: Evaluating StringExpr %#v", self)
+	log.Infof("StringExpr.Evaluate: has textexpr %#v", self.TextExpr)
 	switch self.StringExprMode {
 	case SEMRawString:
 		return self.RawString, nil
@@ -1364,7 +1370,7 @@ func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]sutils.CVa
 // fails, it will try to evaluate it to a string. If that fails, it will return
 // an error.
 func (expr *ValueExpr) EvaluateValueExprToNumberOrString(fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
-
+	log.Infof("ValueExpr.EvaluateValueExprToNumberOrString: Evaluating ValueExpr %#v", expr)
 	switch expr.ValueExprMode {
 	case VEMNumericExpr, VEMStringExpr:
 		// Nothing to do
@@ -1447,6 +1453,18 @@ func (self *RexExpr) GetFields() []string {
 	return fields
 }
 
+func (self *SPathExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
+	var fields []string
+	fields = append(fields, self.InputColName)
+	if self.IsPathFieldName {
+		fields = append(fields, self.Path)
+	}
+	return fields
+}
+
 func (self *RenameExpr) GetFields() []string {
 	if self == nil {
 		return nil
@@ -1486,6 +1504,7 @@ func (self *StringExpr) GetFields() []string {
 // values specified by fieldToValue. Each field listed by GetFields() must be in
 // fieldToValue.
 func (self *ConcatExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
+	log.Infof("ConcatExpr.Evaluate: Evaluating ConcatExpr %#v", self)
 	result := ""
 	for _, atom := range self.Atoms {
 		if atom.IsField {
@@ -2404,6 +2423,8 @@ func parseTime(dateStr, format string) (time.Time, error) {
 }
 
 func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
+	log.Infof("Called evaluateText for TextExpr: %#v and field %#v", self, fieldToValue)
+
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
 	case "strftime":
@@ -2554,6 +2575,49 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 				return "Invalid", nil
 			}
 		}
+
+	case "spath":
+		if self.SPathExpr == nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: SPathExpr is nil for 'spath' operation")
+		}
+
+		inputColName := self.SPathExpr.InputColName
+		path := self.SPathExpr.Path
+		isPathFieldName := self.SPathExpr.IsPathFieldName
+
+		var inputValue string
+		var err error
+
+		if isPathFieldName {
+			// Path is a field name, so get the value of that field
+			inputValue, err = getValueAsString(fieldToValue, path)
+			if err != nil {
+				return "", utils.WrapErrorf(err, "TextExpr.EvaluateText: cannot get path from field %s", path)
+			}
+			path = inputValue // Use the value of the field as the actual path
+		}
+
+		log.Infof("TextExpr.EvaluateText: fieldToValue: %#v, inputColName: %s, path: %s", fieldToValue, inputColName, path)
+		// Get the input column value
+		inputVal, err := getValueAsString(fieldToValue, inputColName)
+		// inputVal, ok := fieldToValue[inputColName]
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: input column '%s' not found", inputColName)
+		}
+
+		// Convert the input value to a string
+		inputStr := inputVal
+
+		// Now you have the input string and the path, you can implement the logic to extract the value from the structured data (JSON, XML, etc.)
+		// This part depends on how your structured data extraction works.
+		// For example, if it's JSON, you might use the `jsonparser` library:
+		log.Infof("Extract value from JSON: inputStr: %s, path: %s", inputStr, path)
+		extractedValue, err := extractValueFromJSON(inputStr, path)
+		if err != nil {
+			return "", utils.WrapErrorf(err, "TextExpr.EvaluateText: error extracting value from JSON: %v", err)
+		}
+
+		return extractedValue, nil
 	}
 	if self.Op == "max" {
 		if len(self.ValueList) == 0 {
@@ -2628,6 +2692,8 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 			return valueStr, nil
 		}
 	}
+
+	log.Infof("TextExpr.EvaluateText: Evaluating text expression with Op: %s, Param: %v, Val: %v", self.Op, self.Param, self.Val)
 	cellValueStr, err := self.Param.Evaluate(fieldToValue)
 	if err != nil {
 		return "", utils.WrapErrorf(err, "TextExpr.EvaluateText: can not evaluate text as a str: %v", err)
@@ -2708,6 +2774,77 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]sutils.
 		}
 	}
 	return str, nil
+}
+
+func extractValueFromJSON(inputStr, path string) (string, error) {
+
+	var value interface{} // this stores the current value as we go deeper into the JSON structure
+
+	err := json.Unmarshal([]byte(inputStr), &value)
+	if err != nil {
+		return "", fmt.Errorf("extractValueFromJSON: error unmarshalling input string: %v", err)
+	}
+
+	newPath := strings.ReplaceAll(path, "{", ".{") // this makes it easier to parse arrays
+	if newPath[0] == '.' {
+		newPath = newPath[1:] // remove leading dot if present
+	}
+	parts := strings.Split(newPath, ".") // separate field names, array indices
+	// e.g. "field1.field2.array{0}{1}.field3" -> "field1.field2.array.{0}.{1}.field3" -> ["field1", "field2", "array", "{0}", "{1}", "field3"]
+
+	// This also means that malformed queries such as "*|eval field1=spath(field2.array.{0})" will work, since we are not performing validation
+
+	for _, part := range parts {
+		if len(part) >= 2 && part[0] == '{' && part[len(part)-1] == '}' {
+			// part is an array index, e.g. "{5}", "{}"
+
+			switch value.(type) {
+			case []interface{}:
+				if len(part) == 2 {
+					// If the part is just "{}", it means we want to access the whole array
+					// We can skip this part
+					// note that this means "array.{}.{}.{0}" is the same as "array{0}"
+					continue
+				}
+
+				index, err := strconv.Atoi(part[1 : len(part)-1]) // remove the curly braces and convert to int
+				if err != nil {
+					return "", fmt.Errorf("extractValueFromJSON: could not convert index to integer '%s' in path '%s': %v", part, path, err)
+				}
+
+				if index < 0 || index >= len(value.([]interface{})) {
+					return "", fmt.Errorf("extractValueFromJSON: index '%d' out of bounds for array at path '%s'", index, path)
+				}
+				value = value.([]interface{})[index] // update value
+
+			default:
+				return "", fmt.Errorf("extractValueFromJSON: expected an array at path '%s', but found a different type", path)
+			}
+		} else {
+			// part is a field name
+			switch value.(type) {
+			case map[string]interface{}:
+
+				_, ok := value.(map[string]interface{})[part]
+				if !ok {
+					return "", fmt.Errorf("extractValueFromJSON: key '%s' not found in JSON object at path '%s'", part, path)
+				}
+				value = value.(map[string]interface{})[part] // update value
+			default:
+				return "", fmt.Errorf("extractValueFromJSON: expected a JSON object at path '%s', but found a different type", path)
+			}
+		}
+	}
+
+	jsonBytes, err := json.Marshal(value)
+	if err != nil {
+		return "", fmt.Errorf("extractValueFromJSON: error marshalling value to string: %v", err)
+	}
+
+	valueStr := string(jsonBytes)
+
+	return valueStr, nil
+
 }
 
 func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
@@ -2840,12 +2977,17 @@ func (self *TextExpr) GetFields() []string {
 		if self.MultiValueExpr != nil {
 			fields = append(fields, self.MultiValueExpr.GetFields()...)
 		}
+		if self.SPathExpr != nil {
+			fields = append(fields, self.SPathExpr.GetFields()...)
+		}
 
+		log.Infof("getFIelds() returns %#v when called on TextExpr %#v", fields, self)
 		return fields
 	}
 	for _, expr := range self.ValueList {
 		fields = append(fields, expr.GetFields()...)
 	}
+	log.Infof("getFIelds() returns %#v when called on TextExpr %#v", fields, self)
 	return fields
 
 }
