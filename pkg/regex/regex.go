@@ -46,6 +46,12 @@ func New(pattern string) (Regex, error) {
 		return regexp.Compile(pattern)
 	}
 
+	// Check if the pattern contains a single '.' (not part of '.*') which indicates
+	// a single-character wildcard that our simple regex can't handle
+	if containsSingleDotWildcard(pattern) {
+		return regexp.Compile(pattern)
+	}
+
 	matches := simpleRe.FindStringSubmatch(pattern)
 	if len(matches) == 0 {
 		return regexp.Compile(pattern)
@@ -58,6 +64,22 @@ func New(pattern string) (Regex, error) {
 		wildcardAfter:  matches[5] == ".*" || matches[6] != "$",
 		fullPattern:    pattern,
 	}, nil
+}
+
+// containsSingleDotWildcard checks if the pattern contains a '.' that isn't part of '.*',
+// which indicates a single-character wildcard that our simple regex can't handle
+func containsSingleDotWildcard(pattern string) bool {
+	for i := 0; i < len(pattern); i++ {
+		if pattern[i] == '.' {
+			// Check if this dot is followed by '*' (making it '.*')
+			if i+1 < len(pattern) && pattern[i+1] == '*' {
+				continue // This is a .* wildcard, which our simple regex can handle
+			}
+			// This is a single dot wildcard, which our simple regex can't handle
+			return true
+		}
+	}
+	return false
 }
 
 func (r *simpleRegex) Match(buf []byte) bool {
