@@ -214,35 +214,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		return nil, utils.TeeErrorf("NewQueryProcessor: failed to init scroll from; err=%v", err)
 	}
 
-	searcherStream := NewCachedStream(searcher)
-
-	for i, dataProcessors := range dataProcessorChains {
-		if len(dataProcessors) == 0 {
-			continue
-		}
-
-		if dataProcessors[0].IsDataGenerator() {
-			if i == 0 { // Only need to do this once.
-				query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
-			}
-
-			dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
-			dataProcessors[0].SetLimitForDataGenerator(sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
-		} else {
-			// Connect the searcher.
-			dataProcessors[0].streams = append(dataProcessors[0].streams, searcherStream)
-		}
-
-		// Connect the other DataProcessors in the chain.
-		for m := 1; m < len(dataProcessors); m++ {
-			var stream Streamer = dataProcessors[m-1]
-			if canParallelize := len(dataProcessorChains) > 1; canParallelize && m == len(dataProcessors)-1 {
-				stream = NewSingleThreadedStream(stream)
-			}
-
-			dataProcessors[m].streams = append(dataProcessors[m].streams, NewCachedStream(stream))
-		}
-	}
+	ConnectEachDpChain(dataProcessorChains, searcher, scrollFrom)
 
 	dataProcessors := dataProcessorChains[0]
 
@@ -469,6 +441,40 @@ func setupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataPro
 	}
 
 	return dataProcessorChains, nil
+}
+
+// This connects the DataProcessors within each chain, but doesn't connect them
+// across chains (unless chains have a pointer to the same DataProcessor).
+func ConnectEachDpChain(dataProcessorChains [][]*DataProcessor, searcher *Searcher, scrollFrom int) {
+	searcherStream := NewCachedStream(searcher)
+
+	for i, dataProcessors := range dataProcessorChains {
+		if len(dataProcessors) == 0 {
+			continue
+		}
+
+		if dataProcessors[0].IsDataGenerator() {
+			if i == 0 { // Only need to do this once.
+				query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
+			}
+
+			dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
+			dataProcessors[0].SetLimitForDataGenerator(sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
+		} else {
+			// Connect the searcher.
+			dataProcessors[0].streams = append(dataProcessors[0].streams, searcherStream)
+		}
+
+		// Connect the other DataProcessors in the chain.
+		for m := 1; m < len(dataProcessors); m++ {
+			var stream Streamer = dataProcessors[m-1]
+			if canParallelize := len(dataProcessorChains) > 1; canParallelize && m == len(dataProcessors)-1 {
+				stream = NewSingleThreadedStream(stream)
+			}
+
+			dataProcessors[m].streams = append(dataProcessors[m].streams, NewCachedStream(stream))
+		}
+	}
 }
 
 func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
