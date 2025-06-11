@@ -38,15 +38,14 @@ type simpleRegex struct {
 	fullPattern string
 }
 
-var simpleRe = regexp.MustCompile(`^(\(\?i\))?` + // Optional case-insensitive flag
-	`(\^)?` + // Optional anchor
-	`(\.\*)?` + // Optional wildcard
-	`([a-zA-Z0-9_]+)` + // Main word to find
-	`(\.\*)?` + // Optional wildcard
-	`(\$)?$`, // Optional anchor
-)
+var simpleRe = regexp.MustCompile(`^(\(\?i\))?(\^)?(\.\*)?([a-zA-Z0-9_:/.\-]+)(\.\*)?(\$)?$`)
 
 func New(pattern string) (Regex, error) {
+	// fallback if pattern contains newline — multiline match not supported by simpleRegex
+	if bytes.Contains([]byte(pattern), []byte("\n")) {
+		return regexp.Compile(pattern)
+	}
+
 	matches := simpleRe.FindStringSubmatch(pattern)
 	if len(matches) == 0 {
 		return regexp.Compile(pattern)
@@ -62,6 +61,9 @@ func New(pattern string) (Regex, error) {
 }
 
 func (r *simpleRegex) Match(buf []byte) bool {
+	// Normalize line breaks to a space for matching
+	normalized := bytes.ReplaceAll(buf, []byte("\n"), []byte(" "))
+
 	var contains func([]byte, []byte) bool
 	var equal func([]byte, []byte) bool
 	if r.caseSensitive {
@@ -73,18 +75,18 @@ func (r *simpleRegex) Match(buf []byte) bool {
 	}
 
 	if r.wildcardBefore && r.wildcardAfter {
-		return contains(buf, r.word)
+		return contains(normalized, r.word)
 	}
 
 	if r.wildcardBefore {
-		return len(buf) >= len(r.word) && contains(buf[len(buf)-len(r.word):], r.word)
+		return len(normalized) >= len(r.word) && contains(normalized[len(normalized)-len(r.word):], r.word)
 	}
 
 	if r.wildcardAfter {
-		return len(buf) >= len(r.word) && contains(buf[:len(r.word)], r.word)
+		return len(normalized) >= len(r.word) && contains(normalized[:len(r.word)], r.word)
 	}
 
-	return equal(buf, r.word)
+	return equal(normalized, r.word)
 }
 
 func (r *simpleRegex) String() string {
