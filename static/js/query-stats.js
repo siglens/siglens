@@ -49,6 +49,7 @@ const activeGridOptions = {
     defaultColDef: {
         resizable: true,
     },
+    suppressDragLeaveHidesColumns: true,
 };
 
 const waitingGridOptions = {
@@ -71,6 +72,7 @@ const waitingGridOptions = {
     defaultColDef: {
         resizable: true,
     },
+    suppressDragLeaveHidesColumns: true,
 };
 
 // eslint-disable-next-line no-unused-vars, no-undef
@@ -149,10 +151,6 @@ function processQueryStats(res) {
         if (key === 'queryStats') {
             let table = $('#query-table');
             _.forEach(value, (v, k) => {
-                if (k === 'Query Count Since Restart' && !{{ .ShowSLO }}) {
-                    return;
-                }
-
                 let tr = $('<tr>');
                 tr.append('<td>' + k + '</td>');
 

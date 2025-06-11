@@ -96,6 +96,7 @@ var gridOptions = {
     rowHeight: 34,
     pagination: true,
     paginationAutoPageSize: true,
+    suppressDragLeaveHidesColumns: true,
     defaultColDef: {
         sortable: true,
         filter: false,
