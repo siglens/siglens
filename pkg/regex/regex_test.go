@@ -36,6 +36,10 @@ func Test_Match(t *testing.T) {
 	assertMatches(t, `(?i).*bar$`, `abcBaR`)
 	assertMatches(t, `.*bar$`, `abcBaR`)
 
+	assertMatches(t, `.*google.*`, "visit\nwww.google.com")
+	assertMatches(t, `(?i).*GOOGLE.*`, "some\ntext\nGoogle\nhere")
+	assertMatches(t, `.*foo.*`, "line1\nline2fooinfo")
+
 }
 
 func assertMatches(t *testing.T, pattern string, str string) {
