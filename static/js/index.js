@@ -44,7 +44,6 @@ async function getListIndices() {
         });
 }
 
-// Dashboards Index Dropdown
 // Function to initialize autocomplete with original index values
 //eslint-disable-next-line no-unused-vars
 async function initializeIndexAutocomplete() {
