@@ -144,7 +144,7 @@ func getStaticUserColumnValue(f *gofakeit.Faker, m map[string]interface{}, accou
 	m["gender"] = p.Gender
 	m["ssn"] = p.SSN
 	m["image"] = p.Image
-	m["hobby"] = "watching\nhttps://google.com"
+	m["hobby"] = p.Hobby
 
 	m["job_description"] = p.Job.Descriptor
 	m["job_level"] = p.Job.Level
