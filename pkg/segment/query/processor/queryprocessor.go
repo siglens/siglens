@@ -174,23 +174,13 @@ func canUseSortIndex(queryAgg *structs.QueryAggregators, sorterAgg *structs.Quer
 	return true
 }
 
-func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
-	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time, shouldDistribute bool, sizeLimit uint64) (*QueryProcessor, error) {
-
-	if err := validateStreamStatsTimeWindow(firstAgg); err != nil {
-		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
-	}
-
-	firstProcessorAgg := firstAgg
-
-	isLogsQuery := query.IsLogsQuery(firstAgg)
+func postProcessQueryAggs(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) (*structs.QueryAggregators, error) {
 	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
-	fullQueryType := query.GetQueryTypeOfFullChain(firstAgg)
 
 	if queryType != structs.RRCCmd {
 		// If query Type is GroupByCmd/SegmentStatsCmd, this agg must be a Stats Agg and will be processed by the searcher.
 		if !firstAgg.HasStatsBlock() {
-			return nil, utils.TeeErrorf("NewQueryProcessor: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
+			return nil, utils.TeeErrorf("postProcessQueryAggs: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
 		}
 
 		if queryType == structs.GroupByCmd {
@@ -210,8 +200,46 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		}
 
 		// skip the first agg
-		firstProcessorAgg = firstProcessorAgg.Next
+		firstAgg = firstAgg.Next
 	}
+
+	isDistributed := queryInfo.IsDistributed()
+	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		if isDistributed && curAgg.StatisticExpr != nil && !curAgg.StatisticExpr.ExprSplitDone {
+			// Split the Aggs into two data processors, the first one is the stats processor
+			// and the second one will perform the actual statisticExpr.
+			nextAgg := &structs.QueryAggregators{
+				GroupByRequest: curAgg.GroupByRequest,
+				StatisticExpr:  curAgg.StatisticExpr,
+			}
+			nextAgg.Next = curAgg.Next
+			curAgg.Next = nextAgg
+			nextAgg.StatisticExpr.ExprSplitDone = true
+
+			// Convert this to a stats command.
+			curAgg.StatisticExpr = nil
+			curAgg.StatsExpr = &structs.StatsExpr{GroupByRequest: curAgg.GroupByRequest}
+		}
+	}
+
+	return firstAgg, nil
+}
+
+func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
+	querySummary *summary.QuerySummary, scrollFrom int, includeNulls bool, startTime time.Time, shouldDistribute bool, sizeLimit uint64) (*QueryProcessor, error) {
+
+	if err := validateStreamStatsTimeWindow(firstAgg); err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: %v", err)
+	}
+
+	firstProcessorAgg := firstAgg
+	firstProcessorAgg, err := postProcessQueryAggs(firstProcessorAgg, queryInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	isLogsQuery := query.IsLogsQuery(firstAgg)
+	fullQueryType := query.GetQueryTypeOfFullChain(firstAgg)
 
 	sortExpr := MutateForSearchSorter(firstAgg)
 
