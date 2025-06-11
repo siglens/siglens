@@ -160,7 +160,7 @@ $(document).mouseup(function (e) {
         ThirdCancelInfo(e);
     }
 });
-var calculations = ['min', 'max', 'count', 'avg', 'sum'];
+var calculations = ['min', 'max', 'count', 'avg', 'sum', 'sumsq'];
 var ifCurIsNum = false;
 var availSymbol = [];
 
