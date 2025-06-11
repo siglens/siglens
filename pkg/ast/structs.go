@@ -275,7 +275,9 @@ func AggTypeToAggregateFunction(aggType string) (sutils.AggregateFunctions, erro
 		aggFunc = sutils.Count
 	} else if aggType == "cardinality" {
 		aggFunc = sutils.Cardinality
-	} else {
+	} else if aggType == "rate" {
+    aggFunc = sutils.StatsRate 
+	}else {
 		return aggFunc, fmt.Errorf("AggTypeToAggregateFunction: unsupported statistic aggregation type %v", aggType)
 	}
 	return aggFunc, nil
