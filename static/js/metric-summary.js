@@ -30,7 +30,8 @@ $(document).ready(() => {
     $('.range-item').on('click', fetchAllMetrics);
     $('#customrange-btn').on('dateRangeValid', fetchAllMetrics);
 
-    metricsPagination = createSimplePagination('metrics-pagination', {
+    //eslint-disable-next-line no-undef
+    metricsPagination = createPagination('metrics-pagination', {
         pageSize: 50,
         pageSizeOptions: [25, 50, 100, 200],
         onPageChange: (page, pageSize) => {

@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-class SimplePagination {
+class Pagination {
     constructor(containerId, options = {}) {
         this.containerId = containerId;
         this.container = document.getElementById(containerId);
@@ -103,11 +103,11 @@ class SimplePagination {
 
         let html = `
             <button class="page-btn" ${this.currentPage === 1 ? 'disabled' : ''} 
-                    onclick="window.simplePaginationInstances['${this.containerId}'].goToPage(1)">
+                    onclick="window.paginationInstances['${this.containerId}'].goToPage(1)">
                 <i class="fa fa-angle-double-left"></i>
             </button>
             <button class="page-btn" ${this.currentPage === 1 ? 'disabled' : ''} 
-                    onclick="window.simplePaginationInstances['${this.containerId}'].goToPage(${this.currentPage - 1})">
+                    onclick="window.paginationInstances['${this.containerId}'].goToPage(${this.currentPage - 1})">
                 <i class="fa fa-angle-left"></i>
             </button>
             <div class="page-numbers">`;
@@ -130,11 +130,11 @@ class SimplePagination {
 
         html += `</div>
         <button class="page-btn" ${this.currentPage === totalPages ? 'disabled' : ''} 
-                onclick="window.simplePaginationInstances['${this.containerId}'].goToPage(${this.currentPage + 1})">
+                onclick="window.paginationInstances['${this.containerId}'].goToPage(${this.currentPage + 1})">
             <i class="fa fa-angle-right"></i>
         </button>
         <button class="page-btn" ${this.currentPage === totalPages ? 'disabled' : ''} 
-                onclick="window.simplePaginationInstances['${this.containerId}'].goToPage(${totalPages})">
+                onclick="window.paginationInstances['${this.containerId}'].goToPage(${totalPages})">
             <i class="fa fa-angle-double-right"></i>
         </button>
         <span class="pagination-info">
@@ -146,7 +146,7 @@ class SimplePagination {
 
     createPageButton(pageNum) {
         return `<button class="page-number ${pageNum === this.currentPage ? 'active' : ''}" 
-                onclick="window.simplePaginationInstances['${this.containerId}'].goToPage(${pageNum})">${pageNum}</button>`;
+                onclick="window.paginationInstances['${this.containerId}'].goToPage(${pageNum})">${pageNum}</button>`;
     }
 
     show() {
@@ -175,10 +175,10 @@ class SimplePagination {
     }
 }
 
-window.simplePaginationInstances = window.simplePaginationInstances || {};
+window.paginationInstances = window.paginationInstances || {};
 
-function createSimplePagination(containerId, options = {}) {
-    const instance = new SimplePagination(containerId, options);
-    window.simplePaginationInstances[containerId] = instance;
+function createPagination(containerId, options = {}) {
+    const instance = new Pagination(containerId, options);
+    window.paginationInstances[containerId] = instance;
     return instance;
 }

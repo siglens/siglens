@@ -51,8 +51,9 @@ $(document).ready(async function () {
     alertDetailsFunctions();
 
     startAutoRefresh();
-
-    historyPagination = createSimplePagination('history-pagination', {
+    
+    //eslint-disable-next-line no-undef
+    historyPagination = createPagination('history-pagination', {
         pageSize: 20,
         pageSizeOptions: [10, 20, 50, 100],
         onPageChange: (page, pageSize) => {
