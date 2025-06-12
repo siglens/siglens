@@ -56,6 +56,7 @@ type runningStats struct {
 	hll       *utils.GobbableHll
 	rangeStat *structs.RangeStat
 	avgStat   *structs.AvgStat
+	tDigest   *utils.GobbableTDigest
 }
 
 func (rs *runningStats) syncRawValue() {
@@ -97,6 +98,11 @@ func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []running
 			retVal[i] = runningStats{avgStat: &structs.AvgStat{}}
 		} else if internalMeasureFns[i].MeasureFunc == sutils.Range {
 			retVal[i] = runningStats{rangeStat: agg.InitRangeStat()}
+		} else if internalMeasureFns[i].MeasureFunc == sutils.Perc {
+			t, err := utils.CreateNewTDigest()
+			if err == nil {
+				retVal[i] = runningStats{tDigest: t}
+			}
 		}
 	}
 	return retVal
@@ -194,6 +200,20 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			step, err := rr.AddEvalResultsForCount(runningStats, measureResults, i, usedByTimechart, cnt, fieldToValue)
 			if err != nil {
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Count", err)
+			}
+			i += step
+		case sutils.Perc:
+			if rr.currStats[i].ValueColRequest == nil {
+				err := tDigestAddCval((*runningStats)[i].tDigest, &measureResults[i])
+				if err != nil {
+					batchErr.AddError("RunningBucketResults.AddMeasureResults:Perc", err)
+					continue
+				}
+				continue
+			}
+			step, err := rr.AddEvalResultsForPerc(runningStats, measureResults, i, fieldToValue)
+			if err != nil {
+				batchErr.AddError("RunningBuckketResults.AddMeasureResults:Percentile", err)
 			}
 			i += step
 		case sutils.Cardinality:
@@ -338,6 +358,15 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				if err != nil {
 					batchErr.AddError("RunningBucketResults.mergeRunningStats:Values", err)
 				}
+				i += (len(fields) - 1)
+			}
+		case sutils.Perc:
+			err := (*runningStats)[i].tDigest.MergeTDigest(toJoinRunningStats[i].tDigest)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.mergeRunningStats:Perc", err)
+			}
+			if rr.currStats[i].ValueColRequest != nil {
+				fields := rr.currStats[i].ValueColRequest.GetFields()
 				i += (len(fields) - 1)
 			}
 		case sutils.List:
@@ -704,6 +733,24 @@ func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningSt
 	return len(fieldToValue) - 1, nil
 }
 
+func (rr *RunningBucketResults) AddEvalResultsForPerc(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+	if (*runningStats)[i].tDigest == nil {
+		td, err := utils.CreateNewTDigest()
+		if err != nil {
+			return 0, fmt.Errorf("RunningBuckets.AddEvalResultsForPerc: unable to initialize the digest tree; err: %v", err)
+		}
+		(*runningStats)[i].tDigest = td
+	}
+	td := (*runningStats)[i].tDigest
+	err := agg.PerformEvalAggForPerc(rr.currStats[i], 0, td, fieldToValue)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBuckets.AddEvalResultsForPerc: failed to evaluate ValueColRequest to string, err: %v", err)
+	}
+	(*runningStats)[i].tDigest = td
+	(*runningStats)[i].number = nil
+	return len(fieldToValue) - 1, nil
+}
+
 func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
 
 	(*runningStats)[i].syncRawValue()
@@ -1011,6 +1058,26 @@ func GetRunningBucketResultsSliceForTest() []*RunningBucketResults {
 	})
 
 	return runningBucketResults
+}
+
+func tDigestAddCval(td *utils.GobbableTDigest, cval *sutils.CValueEnclosure) error {
+	var err error
+	switch cval.Dtype {
+	case sutils.SS_DT_FLOAT:
+		err = td.Add(cval.CVal.(float64))
+	case sutils.SS_DT_SIGNED_NUM:
+		err = td.Add(float64(cval.CVal.(int64)))
+	case sutils.SS_DT_UNSIGNED_NUM:
+		err = td.Add(float64(cval.CVal.(uint64)))
+	case sutils.SS_DT_BACKFILL:
+		return utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetString: nil value"))
+	default:
+		return fmt.Errorf("tDigestAddCval: Works only on numerical columns. Received: %v", cval.Dtype)
+	}
+	if err != nil {
+		return fmt.Errorf("tDigestAddCval: Unable to add value to digest tree; val: %v, err: %v", cval.CVal, err)
+	}
+	return nil
 }
 
 func hllAddRawCval(hll *utils.GobbableHll, cval *sutils.CValueEnclosure) error {

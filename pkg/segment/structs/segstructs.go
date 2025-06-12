@@ -322,7 +322,7 @@ type MeasureAggregator struct {
 	StrEnc             string                    `json:"strEnc,omitempty"`
 	ValueColRequest    *ValueExpr                `json:"valueColRequest,omitempty"`
 	OverrodeMeasureAgg *MeasureAggregator        `json:"overrideFunc,omitempty"`
-	Param              string
+	Param              float64
 }
 
 type MathEvaluator struct {
@@ -545,6 +545,7 @@ type SegStats struct {
 	StringStats *StringStats
 	TimeStats   *TimeStats
 	Records     []*sutils.CValueEnclosure
+	TDigest     *utils.GobbableTDigest
 }
 
 type NumericStats struct {
@@ -794,6 +795,12 @@ func (ss *SegStats) Merge(other *SegStats) {
 		err := ss.Hll.StrictUnion(other.Hll.Hll)
 		if err != nil {
 			log.Errorf("SegStats.Merge: Failed to merge segmentio hll stats. error: %v", err)
+		}
+	}
+	if ss.TDigest != nil && other.TDigest != nil {
+		err := ss.TDigest.MergeTDigest(other.TDigest)
+		if err != nil {
+			log.Errorf("SegStats.Merge: Failed to merge segment tdigest stats. error: %v", err)
 		}
 	}
 
@@ -1498,7 +1505,6 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.Estdc:      {},
 	sutils.EstdcError: {},
 	sutils.ExactPerc:  {},
-	sutils.Perc:       {},
 	sutils.UpperPerc:  {},
 	sutils.Median:     {},
 	sutils.Mode:       {},
