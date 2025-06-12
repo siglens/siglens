@@ -79,6 +79,7 @@ function createPanelGridOptions(currentPanel) {
         suppressScrollOnNewData: true,
         suppressAnimationFrame: true,
         suppressFieldDotNotation: true,
+        suppressDragLeaveHidesColumns: true,
         onBodyScroll(evt) {
             if (panelID == -1 || panelID == null || panelID == undefined) {
                 //eslint-disable-next-line no-undef
@@ -335,6 +336,7 @@ function renderPanelAggsGrid(columnOrder, hits, panelId) {
         },
         enableCellTextSelection: true,
         suppressRowClickSelection: true,
+        suppressDragLeaveHidesColumns: true,
         ensureDomOrder: true
     };
     $(`.panelDisplay .big-number-display-container`).hide();

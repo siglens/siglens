@@ -2613,6 +2613,7 @@ input[type="text"].active {
     color: var(--table-or-regular-text-color);
     display: block;
     padding: 8px;
+    z-index: 2;
 }
 
 #daterangepicker.active {
@@ -5485,7 +5486,6 @@ p#versionInfo {
 
 #alert-details {
     height: 100%;
-    overflow: hidden;
 }
 
 #history-grid {
@@ -6691,6 +6691,7 @@ p#versionInfo {
     padding: 8px;
     display: none;
     padding-top: 0;
+    position: relative;
 }
 
 .total-unique-series {

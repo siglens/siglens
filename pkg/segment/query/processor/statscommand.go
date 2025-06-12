@@ -50,6 +50,8 @@ type statsProcessor struct {
 	errorData            *ErrorData
 	hasFinalResult       bool
 	setAsIqrStatsResults bool
+
+	gaveResults bool
 }
 
 func NewStatsProcessor(options *structs.StatsExpr) *statsProcessor {
@@ -73,6 +75,10 @@ func (p *statsProcessor) SetAsIqrStatsResults() {
 }
 
 func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
+	if p.gaveResults {
+		return nil, io.EOF
+	}
+
 	// Initialize error data
 	if p.errorData == nil {
 		p.errorData = &ErrorData{
@@ -84,6 +90,7 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 
 	// If inputIQR is nil, we are done with the input
 	if inputIQR == nil {
+		defer func() { p.gaveResults = true }()
 		return p.extractFinalStatsResults()
 	} else {
 		p.qid = inputIQR.GetQID()
@@ -257,7 +264,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 
 	segStatsMap := make(map[string]*structs.SegStats)
 
-	measureColsMap, aggColUsage, valuesUsage, listUsage := search.GetSegStatsMeasureCols(p.options.MeasureOperations)
+	measureColsMap, aggColUsage, valuesUsage, listUsage, percUsage := search.GetSegStatsMeasureCols(p.options.MeasureOperations)
 	timestampKey := config.GetTimeStampKey()
 	var hasTsBasedOperations, hasOtherOperations bool
 	allAggs := p.searchResults.GetAggs().MeasureOperations
@@ -295,9 +302,10 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 		for i := range values {
 			hasValuesFunc := valuesUsage[colName]
 			hasListFunc := listUsage[colName]
+			hasPercFunc := percUsage[colName]
 
 			if values[i].IsString() {
-				stats.AddSegStatsStr(segStatsMap, colName, values[i].CVal.(string), p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+				stats.AddSegStatsStr(segStatsMap, colName, values[i].CVal.(string), p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 			} else if values[i].IsNumeric() {
 				stringVal, err := values[i].GetString()
 				if err != nil {
@@ -307,7 +315,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 
 				if values[i].IsFloat() {
 					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_FLOAT64, 0, 0, values[i].CVal.(float64),
-						stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+						stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				} else {
 					if colName == timestampKey {
 						uintVal, err := values[i].GetUIntValue()
@@ -324,7 +332,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 						intVal = 0
 					}
 
-					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				}
 			} else {
 				p.errorData.notSupportedStatsType[colName] = struct{}{}
