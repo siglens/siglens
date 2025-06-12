@@ -728,6 +728,7 @@ func GetAggColsAndTimestamp(aggs *structs.QueryAggregators) (map[string]bool, ma
 	// Determine if current col used by agg values() func
 	valuesUsage := make(map[string]bool)
 	listUsage := make(map[string]bool)
+	percUsage := make(map[string]bool)
 	if aggs.Sort != nil {
 		aggCols[aggs.Sort.ColName] = true
 	}
@@ -736,7 +737,7 @@ func GetAggColsAndTimestamp(aggs *structs.QueryAggregators) (map[string]bool, ma
 			aggCols[cName] = true
 		}
 		for _, mOp := range aggs.GroupByRequest.MeasureOperations {
-			aggregations.DetermineAggColUsage(mOp, aggCols, aggColUsage, valuesUsage, listUsage)
+			aggregations.DetermineAggColUsage(mOp, aggCols, aggColUsage, valuesUsage, listUsage, percUsage)
 		}
 	}
 	if aggs.TimeHistogram != nil && aggs.TimeHistogram.Timechart != nil && len(aggs.TimeHistogram.Timechart.ByField) > 0 {
@@ -817,7 +818,7 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 	var blkWG sync.WaitGroup
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
 
-	measureColAndTS, aggColUsage, valuesUsage, listUsage := GetSegStatsMeasureCols(ops)
+	measureColAndTS, aggColUsage, valuesUsage, listUsage, percUsage := GetSegStatsMeasureCols(ops)
 	sharedReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, measureColAndTS, searchReq.AllBlocksToSearch,
 		blockSummaries, int(fileParallelism), searchReq.ConsistentCValLenMap, qid, nodeRes)
 	if err != nil {
@@ -833,7 +834,7 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 	}
 	for i := int64(0); i < fileParallelism; i++ {
 		blkWG.Add(1)
-		go segmentStatsWorker(statRes, measureColAndTS, aggColUsage, valuesUsage, listUsage, sharedReader.MultiColReaders[i], allBlocksChan,
+		go segmentStatsWorker(statRes, measureColAndTS, aggColUsage, valuesUsage, listUsage, percUsage, sharedReader.MultiColReaders[i], allBlocksChan,
 			searchReq, blockSummaries, queryRange, &blkWG, queryMetrics, qid, nodeRes)
 	}
 
@@ -854,22 +855,23 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 }
 
 // returns all columns (+timestamp) in the measure operations
-func GetSegStatsMeasureCols(ops []*structs.MeasureAggregator) (map[string]bool, map[string]sutils.AggColUsageMode, map[string]bool, map[string]bool) {
+func GetSegStatsMeasureCols(ops []*structs.MeasureAggregator) (map[string]bool, map[string]sutils.AggColUsageMode, map[string]bool, map[string]bool, map[string]bool) {
 	// Determine if current col used by eval statements
 	aggColUsage := make(map[string]sutils.AggColUsageMode)
 	// Determine if current col used by agg values() func
 	valuesUsage := make(map[string]bool)
 	listUsage := make(map[string]bool)
+	percUsage := make(map[string]bool)
 	aggCols := make(map[string]bool)
 	timestampKey := config.GetTimeStampKey()
 	aggCols[timestampKey] = true
 	for _, op := range ops {
-		aggregations.DetermineAggColUsage(op, aggCols, aggColUsage, valuesUsage, listUsage)
+		aggregations.DetermineAggColUsage(op, aggCols, aggColUsage, valuesUsage, listUsage, percUsage)
 	}
-	return aggCols, aggColUsage, valuesUsage, listUsage
+	return aggCols, aggColUsage, valuesUsage, listUsage, percUsage
 }
 
-func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool,
+func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool, percUsage map[string]bool,
 	multiReader *segread.MultiColSegmentReader, blockChan chan *BlockSearchStatus, searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary,
 	queryRange *dtu.TimeRange, wg *sync.WaitGroup, queryMetrics *structs.QueryProcessingMetrics, qid uint64, nodeRes *structs.NodeResult) {
 
@@ -919,7 +921,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			idx++
 		}
 		sortedMatchedRecs = sortedMatchedRecs[:idx]
-		nonDeCols := applySegmentStatsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, listUsage, blockStatus.BlockNum, recIT, localStats, bb, qid, latestTs)
+		nonDeCols := applySegmentStatsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, listUsage, percUsage, blockStatus.BlockNum, recIT, localStats, bb, qid, latestTs)
 
 		timestampKey := config.GetTimeStampKey()
 		timestampColKeyIdx := -1
@@ -971,6 +973,12 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 				if !exists {
 					hasListFunc = false
 				}
+
+				hasPercFunc, exists := percUsage[cname]
+				if !exists {
+					hasPercFunc = false
+				}
+
 				if cValEnc.Dtype == sutils.SS_DT_BACKFILL {
 					continue
 				}
@@ -981,7 +989,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 						log.Errorf("qid=%d, segmentStatsWorker failed to extract value for string although type check passed %+v. Err: %v", qid, cname, err)
 						continue
 					}
-					stats.AddSegStatsStr(localStats, cname, str, bb, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsStr(localStats, cname, str, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				} else {
 					var floatVal float64
 					var intVal int64
@@ -1003,7 +1011,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 						continue
 					}
 
-					stats.AddSegStatsNums(localStats, cname, valueType, intVal, 0, floatVal, numStr, bb, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(localStats, cname, valueType, intVal, 0, floatVal, numStr, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				}
 			}
 		}
@@ -1013,7 +1021,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 }
 
 // returns all columns that are not dict encoded
-func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filterdRecNums []uint16, mCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool,
+func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filterdRecNums []uint16, mCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool, percUsage map[string]bool,
 	blockNum uint16, bri *BlockRecordIterator, lStats map[string]*structs.SegStats, bb *bbp.ByteBuffer, qid uint64, latestTs uint64) map[string]bool {
 	retVal := make(map[string]bool)
 	for colName := range mCols {
@@ -1093,13 +1101,18 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 				if !exists {
 					hasListFunc = false
 				}
+				hasPercFunc, exists := percUsage[colName]
+				if !exists {
+					hasPercFunc = false
+				}
+
 				switch val := rawVal.(type) {
 				case string:
-					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				case int64:
-					stats.AddSegStatsNums(lStats, colName, sutils.SS_INT64, val, 0, 0, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(lStats, colName, sutils.SS_INT64, val, 0, 0, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				case float64:
-					stats.AddSegStatsNums(lStats, colName, sutils.SS_FLOAT64, 0, 0, val, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(lStats, colName, sutils.SS_FLOAT64, 0, 0, val, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				default:
 					// This means the column is not dict encoded. So add it to the return value
 					retVal[colName] = true

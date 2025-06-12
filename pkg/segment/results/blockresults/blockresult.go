@@ -20,6 +20,7 @@ package blockresults
 import (
 	"encoding/base64"
 	"fmt"
+	"math"
 	"sort"
 
 	"github.com/siglens/siglens/pkg/segment/aggregations"
@@ -203,6 +204,17 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 				mFunc = sutils.Sum
 				overrodeMeasureAgg = m
 			}
+		case sutils.Perc:
+			if m.ValueColRequest != nil {
+				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, sutils.Perc, &allReverseIndex, colToIdx, idx)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: Erroro while adding measure agg in running stats for perc, err: %v", err)
+				}
+				idx = curId
+				continue
+			} else {
+				mFunc = sutils.Perc
+			}
 		case sutils.Cardinality:
 			fallthrough
 		case sutils.Values:
@@ -231,6 +243,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 			ValueColRequest:    m.ValueColRequest,
 			StrEnc:             m.StrEnc,
 			OverrodeMeasureAgg: overrodeMeasureAgg,
+			Param:              m.Param,
 		})
 		idx++
 	}
@@ -547,6 +560,11 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 	results := make([]*structs.BucketResult, len(gb.AllRunningBuckets))
 	tmLimitResult.Hll = structs.CreateNewHll()
 	tmLimitResult.StrSet = make(map[string]struct{}, 0)
+	td, err := utils.CreateNewTDigest()
+	if err != nil {
+		batchErr.AddError("GroupByBuckets.ConvertToAggregationResult:INITIALIZING_A_DIGEST_TREE", fmt.Errorf("failed to create a new digest tree: err: %v", err))
+	}
+	tmLimitResult.TDigest = td
 	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap, req.MeasureOperations, batchErr)
 	for key, idx := range gb.StringBucketIdx {
 		bucket := gb.AllRunningBuckets[idx]
@@ -623,11 +641,12 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 
 		var hllToMerge *utils.GobbableHll
 		var strSetToMerge map[string]struct{}
+		var tdToMerge *utils.GobbableTDigest
 		var eVal sutils.CValueEnclosure
 
-		gb.updateEValFromRunningBuckets(mInfo, runningStats, usedByTimechart, mInfoStr, currRes, bucket, &idx, &eVal, &hllToMerge, &strSetToMerge, batchErr)
+		gb.updateEValFromRunningBuckets(mInfo, runningStats, usedByTimechart, mInfoStr, currRes, bucket, &idx, &eVal, &hllToMerge, &strSetToMerge, &tdToMerge, batchErr)
 
-		shouldAddRes := aggregations.ShouldAddRes(timechart, tmLimitResult, index, eVal, hllToMerge, strSetToMerge, mInfo.MeasureFunc, groupByColVal, isOtherCol, batchErr)
+		shouldAddRes := aggregations.ShouldAddRes(timechart, tmLimitResult, index, eVal, hllToMerge, strSetToMerge, tdToMerge, mInfo.MeasureFunc, mInfo.Param, groupByColVal, isOtherCol, batchErr)
 		if shouldAddRes {
 			currRes[mInfoStr] = eVal
 		}
@@ -636,7 +655,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 
 func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAggregator, runningStats []runningStats, usedByTimechart bool, mInfoStr string,
 	currRes map[string]sutils.CValueEnclosure, bucket *RunningBucketResults, idxPtr *int, eVal *sutils.CValueEnclosure, hllToMerge **utils.GobbableHll,
-	strSetToMerge *map[string]struct{}, batchErr *utils.BatchError) {
+	strSetToMerge *map[string]struct{}, tdToMerge **utils.GobbableTDigest, batchErr *utils.BatchError) {
 	if hllToMerge == nil || strSetToMerge == nil {
 		// This should never happen
 		log.Errorf("GroupByBuckets.AddResultToStatRes: hllToMerge or strSetToMerge is nil. hllToMerge: %v, strSetToMerge: %v", hllToMerge, strSetToMerge)
@@ -816,6 +835,29 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 
 			*hllToMerge = runningStats[valIdx].hll
 		}
+	case sutils.Perc:
+		incrementIdxBy = 1
+		valIdx := gb.reverseMeasureIndex[idx]
+		fltPercentileVal := mInfo.Param / 100
+		if fltPercentileVal < 0 || fltPercentileVal > 1 {
+			batchErr.AddError("GroupByBuckets.AddResultToStatRes:PERCENTILE", fmt.Errorf("percentile param out of range"))
+			return
+		}
+		if mInfo.ValueColRequest != nil {
+			if len(mInfo.ValueColRequest.GetFields()) == 0 {
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:PERCENTILE", fmt.Errorf("zerofields of ValueColRequest for percentile: %v", mInfoStr))
+				return
+			}
+		}
+		td := runningStats[valIdx].tDigest
+		mQuantile := td.GetQuantile(fltPercentileVal)
+		if math.IsNaN(mQuantile) {
+			eVal.CVal = 0.0
+		} else {
+			eVal.CVal = td.GetQuantile(fltPercentileVal)
+		}
+		eVal.Dtype = sutils.SS_DT_FLOAT
+		*tdToMerge = runningStats[valIdx].tDigest
 	case sutils.Values:
 		incrementIdxBy = 1
 

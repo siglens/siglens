@@ -309,6 +309,8 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		return runningSegStat, nil
 	case sutils.Cardinality:
 		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
+	case sutils.Perc:
+		sstResult, err = segread.GetSegPerc(runningSegStat, incomingSegStat, measureAgg.Param)
 	case sutils.Count:
 		sstResult, err = segread.GetSegCount(runningSegStat, incomingSegStat)
 	case sutils.Sum:
@@ -416,6 +418,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			err = aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.List:
 			err = aggregations.ComputeAggEvalForList(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		case sutils.Perc:
+			err = aggregations.ComputeAggEvalForPerc(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		default:
 			return fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", aggOp, sr.qid)
 		}
