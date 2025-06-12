@@ -175,14 +175,8 @@ func (dte *DtypeEnclosure) UpdateRegexp(caseInsensitive bool, isTerm bool) {
 	}
 
 	if strings.Contains(dte.StringVal, "*") || isTerm {
-		rawRegex := dtu.ReplaceWildcardStarWithRegex(dte.StringVal)
-		if caseInsensitive && isTerm { // TERM()
-			rawRegex = "(?i)" + dtu.GetTermRegex(rawRegex)
-		} else if caseInsensitive && !isTerm { // normal case-insensitive string search e.g. fieldName="value*"
-			rawRegex = "(?i)" + rawRegex
-		} else if !caseInsensitive && isTerm { // should not be reachable
-			rawRegex = dtu.GetTermRegex(rawRegex)
-		} // else it is CASE(), nothing more needs to be done
+
+		rawRegex := dtu.GetRegex(dte.StringVal, caseInsensitive, isTerm)
 
 		compiledRegex, err := regexp.Compile(rawRegex)
 		if err != nil {

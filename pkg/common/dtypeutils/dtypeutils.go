@@ -619,11 +619,46 @@ func ReplaceWildcardStarWithRegex(input string) string {
 	return result.String()
 }
 
-func GetTermRegex(input string) string {
+// gives the equivalent regex for a given SPL pattern
+func GetRegex(splPattern string, caseInsensitive bool, isTerm bool) string {
 	// regex that matches a single occurrence of any major breaker
 	// for a complete list of major breakers, see https://docs.splunk.com/Documentation/Splunk/9.4.2/Admin/Segmentersconf
 	const singleMajorBreakerRegex = `(?:[\[\]<>()\{\}\|!;,'"*\s&\?\+]|--|%21|%26|%2526|%3B|%7C|%20|%2B|%3D|%2520|%5D|%5B|%3A|%0A|%2C|%28|%29)`
-	return fmt.Sprintf("^(.*%s)?%s(%s.*)?$", singleMajorBreakerRegex, input[1:len(input)-1], singleMajorBreakerRegex)
+
+	var result strings.Builder
+	if caseInsensitive {
+		result.WriteString("(?i)")
+	}
+
+	result.WriteString("^") // Start of string
+
+	if isTerm {
+		// If the input is a term, it is delimited by major breakers
+		// so we check for the form "(.*<major_breaker>)?pattern(<major_breaker>.*)?"
+		result.WriteString("(.*" + singleMajorBreakerRegex + "%s)?")
+	}
+
+	for i, literal := range strings.Split(splPattern, "*") {
+
+		// Replace * with .*
+		if i > 0 {
+			result.WriteString(".*")
+		}
+
+		// Quote any regular expression meta characters in the
+		// literal text.
+		result.WriteString(regexp.QuoteMeta(literal))
+	}
+
+	if isTerm {
+		// If the input is a term, it is delimited by major breakers
+		// so we check for the form "(.*<major_breaker>)?pattern(<major_breaker>.*)?"
+		result.WriteString(fmt.Sprintf("(%s.*)?", singleMajorBreakerRegex))
+	}
+
+	result.WriteString("$") // End of string
+
+	return result.String()
 }
 
 func AlmostEquals(left, right float64) bool {
