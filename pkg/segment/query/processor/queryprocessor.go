@@ -431,7 +431,7 @@ func setupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataPro
 				// need this flag to be false.
 				err := dataProcessors[mergeIndex-1].SetStatsAsIqrStatsResults()
 				if err != nil {
-					return nil, utils.TeeErrorf("NewQueryProcessor: failed to set stats as IQR stats results; err=%v", err)
+					return nil, utils.TeeErrorf("setupQueryParallelism: failed to set stats as IQR stats results; err=%v", err)
 				}
 			default:
 				// Do nothing.
