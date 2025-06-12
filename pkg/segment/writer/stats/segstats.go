@@ -22,6 +22,8 @@ import (
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 
 	bbp "github.com/valyala/bytebufferpool"
 )
@@ -36,7 +38,7 @@ func GetDefaultNumStats() *NumericStats {
 
 func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	inNumType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
-	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
+	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool, hasPercFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -67,7 +69,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	bb.Reset()
 	_, _ = bb.WriteString(numstr)
 	stats.InsertIntoHll(bb.B)
-	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc)
+	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 }
 
 func AddSegStatsUNIXTime(segstats map[string]*SegStats, cname string, val uint64, rawValue interface{}, updateLatest bool) {
@@ -122,7 +124,7 @@ func AddSegStatsCount(segstats map[string]*SegStats, cname string,
 }
 
 func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
-	uintVal uint64, fltVal float64, colUsage AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
+	uintVal uint64, fltVal float64, colUsage AggColUsageMode, hasValuesFunc bool, hasListFunc bool, hasPercFunc bool) {
 
 	stats.Count++
 	stats.NumStats.NumericCount++
@@ -153,6 +155,15 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		}
 	}
 
+	if hasPercFunc {
+		if stats.TDigest == nil {
+			t, err := utils.CreateNewTDigest()
+			if err == nil {
+				stats.TDigest = t
+			}
+		}
+	}
+
 	// we just use the Min stats for stored val comparison but apply the same
 	// logic to max and sum
 	switch inNumType {
@@ -175,6 +186,12 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 					CVal:  fltVal,
 				})
 			}
+			if hasPercFunc {
+				err := stats.TDigest.InsertIntoTDigest(fltVal)
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
+			}
 		} else {
 			stats.NumStats.Sum.FloatVal = float64(stats.NumStats.Sum.IntgrVal) + fltVal
 			stats.NumStats.Sum.Ntype = SS_DT_FLOAT
@@ -191,6 +208,12 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 					Dtype: SS_DT_FLOAT,
 					CVal:  fltVal,
 				})
+			}
+			if hasPercFunc {
+				err := stats.TDigest.InsertIntoTDigest(fltVal)
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
 			}
 		}
 	// incoming is NON-float
@@ -212,6 +235,12 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 					CVal:  float64(inIntgrVal),
 				})
 			}
+			if hasPercFunc {
+				err := stats.TDigest.InsertIntoTDigest(float64(inIntgrVal))
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
+			}
 		} else {
 			stats.NumStats.Sum.IntgrVal = stats.NumStats.Sum.IntgrVal + inIntgrVal
 
@@ -228,13 +257,19 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 					CVal:  inIntgrVal,
 				})
 			}
+			if hasPercFunc {
+				err := stats.TDigest.InsertIntoTDigest(float64(inIntgrVal))
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
+			}
 		}
 	}
 
 }
 
 func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
-	bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
+	bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool, hasPercFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -252,7 +287,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 
 	floatVal, err := strconv.ParseFloat(strVal, 64)
 	if err == nil {
-		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, strVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
+		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, strVal, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 		return
 	}
 
