@@ -119,8 +119,6 @@ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	return sortExpr
 }
 
-// Note: this has side-effects; see asDataProcessor().
-// TODO: remove the side-effects.
 func AggsToDataProcessors(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) []*DataProcessor {
 	dataProcessors := make([]*DataProcessor, 0)
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
@@ -182,36 +180,13 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	firstProcessorAgg := firstAgg
+	firstProcessorAgg, err := postProcessQueryAggs(firstProcessorAgg, queryInfo)
+	if err != nil {
+		return nil, err
+	}
 
 	isLogsQuery := query.IsLogsQuery(firstAgg)
-	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 	fullQueryType := query.GetQueryTypeOfFullChain(firstAgg)
-
-	if queryType != structs.RRCCmd {
-		// If query Type is GroupByCmd/SegmentStatsCmd, this agg must be a Stats Agg and will be processed by the searcher.
-		if !firstAgg.HasStatsBlock() {
-			return nil, utils.TeeErrorf("NewQueryProcessor: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
-		}
-
-		if queryType == structs.GroupByCmd {
-			// If query Type is GroupByCmd and the StatisticExpr is not nil
-			// Then the GroupByRequest will be processed by the searcher and
-			// the StatisticExpr should be processed by the next DataProcessor
-			// Note: The StatisticExpr will create a GroupByRequest
-			if firstAgg.StatisticExpr != nil {
-				nextAgg := &structs.QueryAggregators{
-					GroupByRequest: firstAgg.GroupByRequest,
-					StatisticExpr:  firstAgg.StatisticExpr,
-				}
-				nextAgg.Next = firstAgg.Next
-				nextAgg.StatisticExpr.ExprSplitDone = true
-				firstAgg.Next = nextAgg
-			}
-		}
-
-		// skip the first agg
-		firstProcessorAgg = firstProcessorAgg.Next
-	}
 
 	sortExpr := MutateForSearchSorter(firstAgg)
 
@@ -416,8 +391,57 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	}, nil
 }
 
-// Note: this has side-effects for a NewStatisticExprDP.
-// TODO: remove the side-effects.
+func postProcessQueryAggs(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) (*structs.QueryAggregators, error) {
+	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
+
+	if queryType != structs.RRCCmd {
+		// If query Type is GroupByCmd/SegmentStatsCmd, this agg must be a Stats Agg and will be processed by the searcher.
+		if !firstAgg.HasStatsBlock() {
+			return nil, utils.TeeErrorf("postProcessQueryAggs: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
+		}
+
+		if queryType == structs.GroupByCmd {
+			// If query Type is GroupByCmd and the StatisticExpr is not nil
+			// Then the GroupByRequest will be processed by the searcher and
+			// the StatisticExpr should be processed by the next DataProcessor
+			// Note: The StatisticExpr will create a GroupByRequest
+			if firstAgg.StatisticExpr != nil {
+				nextAgg := &structs.QueryAggregators{
+					GroupByRequest: firstAgg.GroupByRequest,
+					StatisticExpr:  firstAgg.StatisticExpr,
+				}
+				nextAgg.Next = firstAgg.Next
+				nextAgg.StatisticExpr.ExprSplitDone = true
+				firstAgg.Next = nextAgg
+			}
+		}
+
+		// skip the first agg
+		firstAgg = firstAgg.Next
+	}
+
+	isDistributed := queryInfo.IsDistributed()
+	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		if isDistributed && curAgg.StatisticExpr != nil && !curAgg.StatisticExpr.ExprSplitDone {
+			// Split the Aggs into two data processors, the first one is the stats processor
+			// and the second one will perform the actual statisticExpr.
+			nextAgg := &structs.QueryAggregators{
+				GroupByRequest: curAgg.GroupByRequest,
+				StatisticExpr:  curAgg.StatisticExpr,
+			}
+			nextAgg.Next = curAgg.Next
+			curAgg.Next = nextAgg
+			nextAgg.StatisticExpr.ExprSplitDone = true
+
+			// Convert this to a stats command.
+			curAgg.StatisticExpr = nil
+			curAgg.StatsExpr = &structs.StatsExpr{GroupByRequest: curAgg.GroupByRequest}
+		}
+	}
+
+	return firstAgg, nil
+}
+
 func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
 	if queryAgg == nil {
 		return nil
@@ -448,7 +472,7 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 	} else if queryAgg.MVExpandExpr != nil {
 		return NewMVExpandDP(queryAgg.MVExpandExpr)
 	} else if queryAgg.StatisticExpr != nil {
-		return NewStatisticExprDP(queryAgg, queryInfo.IsDistributed())
+		return NewStatisticExprDP(queryAgg)
 	} else if queryAgg.RegexExpr != nil {
 		return NewRegexDP(queryAgg.RegexExpr)
 	} else if queryAgg.RexExpr != nil {

@@ -829,25 +829,8 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	}
 }
 
-// Note: this has side-effects.
-// TODO: remove the side-effects.
-func NewStatisticExprDP(options *structs.QueryAggregators, isDistributed bool) *DataProcessor {
-	statsExpr := &structs.StatsExpr{GroupByRequest: options.GroupByRequest}
-	options.StatsExpr = statsExpr
-
-	if isDistributed && !options.StatisticExpr.ExprSplitDone {
-		// Split the Aggs into two data processors, the first one is the stats processor
-		// and the second one will perform the actual statisticExpr.
-		nextAgg := &structs.QueryAggregators{
-			GroupByRequest: options.GroupByRequest,
-			StatisticExpr:  options.StatisticExpr,
-		}
-		nextAgg.Next = options.Next
-		options.Next = nextAgg
-		nextAgg.StatisticExpr.ExprSplitDone = true
-
-		return NewStatsDP(statsExpr)
-	}
+func NewStatisticExprDP(options *structs.QueryAggregators) *DataProcessor {
+	options.StatsExpr = &structs.StatsExpr{GroupByRequest: options.GroupByRequest}
 
 	if options.HasTopExpr() {
 		return NewTopDP(options)
