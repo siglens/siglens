@@ -34,20 +34,16 @@ type simpleRegex struct {
 	word           []byte
 	caseSensitive  bool
 	wildcardAfter  bool
-
-	fullPattern string
+	fullPattern    string
 }
 
-var simpleRe = regexp.MustCompile(`^(\(\?i\))?(\^)?(\.\*)?([a-zA-Z0-9_:/.\-]+)(\.\*)?(\$)?$`)
+var simpleRe = regexp.MustCompile(`^(\(\?i\))?(\^)?(\.\*)?([a-zA-Z0-9_:/\-]+)(\.\*)?(\$)?$`) // Optional case-insensitive flag
 
 func New(pattern string) (Regex, error) {
-	// fallback if pattern contains newline — multiline match not supported by simpleRegex
 	if bytes.Contains([]byte(pattern), []byte("\n")) {
 		return regexp.Compile(pattern)
 	}
 
-	// Check if the pattern contains a single '.' (not part of '.*') which indicates
-	// a single-character wildcard that our simple regex can't handle
 	if containsSingleDotWildcard(pattern) {
 		return regexp.Compile(pattern)
 	}
@@ -66,16 +62,25 @@ func New(pattern string) (Regex, error) {
 	}, nil
 }
 
-// containsSingleDotWildcard checks if the pattern contains a '.' that isn't part of '.*',
-// which indicates a single-character wildcard that our simple regex can't handle
 func containsSingleDotWildcard(pattern string) bool {
+	escaped := false
 	for i := 0; i < len(pattern); i++ {
-		if pattern[i] == '.' {
-			// Check if this dot is followed by '*' (making it '.*')
+		char := pattern[i]
+
+		if escaped {
+			escaped = false
+			continue
+		}
+
+		if char == '\\' {
+			escaped = true
+			continue
+		}
+
+		if char == '.' {
 			if i+1 < len(pattern) && pattern[i+1] == '*' {
-				continue // This is a .* wildcard, which our simple regex can handle
+				continue
 			}
-			// This is a single dot wildcard, which our simple regex can't handle
 			return true
 		}
 	}
@@ -83,9 +88,6 @@ func containsSingleDotWildcard(pattern string) bool {
 }
 
 func (r *simpleRegex) Match(buf []byte) bool {
-	// Normalize line breaks to a space for matching
-	normalized := bytes.ReplaceAll(buf, []byte("\n"), []byte(" "))
-
 	var contains func([]byte, []byte) bool
 	var equal func([]byte, []byte) bool
 	if r.caseSensitive {
@@ -97,18 +99,18 @@ func (r *simpleRegex) Match(buf []byte) bool {
 	}
 
 	if r.wildcardBefore && r.wildcardAfter {
-		return contains(normalized, r.word)
+		return contains(buf, r.word)
 	}
 
 	if r.wildcardBefore {
-		return len(normalized) >= len(r.word) && contains(normalized[len(normalized)-len(r.word):], r.word)
+		return len(buf) >= len(r.word) && equal(buf[len(buf)-len(r.word):], r.word)
 	}
 
 	if r.wildcardAfter {
-		return len(normalized) >= len(r.word) && contains(normalized[:len(r.word)], r.word)
+		return len(buf) >= len(r.word) && equal(buf[:len(r.word)], r.word)
 	}
 
-	return equal(normalized, r.word)
+	return equal(buf, r.word)
 }
 
 func (r *simpleRegex) String() string {
