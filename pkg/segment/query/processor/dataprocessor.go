@@ -39,9 +39,11 @@ type processor interface {
 }
 
 type mergeSettings struct {
-	less  func(*iqr.Record, *iqr.Record) bool
-	limit utils.Option[uint64]
+	mergingStats bool
 
+	// Only used if mergingStats is false.
+	less        func(*iqr.Record, *iqr.Record) bool
+	limit       utils.Option[uint64]
 	numReturned uint64
 }
 
@@ -136,6 +138,8 @@ func (dp *DataProcessor) SetMergeSettingsBasedOnStream(stream Streamer) {
 			sorter := streamDP.processor.(*sortProcessor)
 			dp.mergeSettings.less = sorter.lessDirectRead
 			dp.mergeSettings.limit.Set(sorter.GetLimit())
+		case *mergeProcessor:
+			dp.mergeSettings = streamDP.processor.(*mergeProcessor).mergeSettings
 		default:
 			dp.setDefaultMergeSettings()
 		}
@@ -957,18 +961,18 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 	}
 }
 
-func NewMergeBottleneckDP() *DataProcessor {
+func NewMergeBottleneckDP(mergeSettings mergeSettings) *DataProcessor {
 	return &DataProcessor{
 		name:                  "merge-bottleneck",
 		streams:               make([]*CachedStream, 0),
-		processor:             &mergeProcessor{},
-		inputOrderMatters:     false,
-		ignoresInputOrder:     true,
+		processor:             &mergeProcessor{mergeSettings: mergeSettings},
+		inputOrderMatters:     !mergeSettings.mergingStats,
+		ignoresInputOrder:     mergeSettings.mergingStats,
 		isPermutingCmd:        false,
-		isBottleneckCmd:       true,
+		isBottleneckCmd:       mergeSettings.mergingStats,
 		isTransformingCmd:     false,
 		isTwoPassCmd:          false,
-		isMergeableBottleneck: true,
+		isMergeableBottleneck: mergeSettings.mergingStats,
 		processorLock:         &sync.Mutex{},
 	}
 }

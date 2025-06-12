@@ -393,7 +393,18 @@ func SetupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataPro
 	}
 
 	if canParallelize && firstDpChain[mergeIndex].IsMergeableBottleneckCmd() {
-		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergeBottleneckDP())
+		var settings mergeSettings
+		switch firstDpChain[mergeIndex].processor.(type) {
+		case *statsProcessor, *timechartProcessor: // TODO: should top/rare be included?
+			settings = mergeSettings{mergingStats: true}
+		default:
+			settings = mergeSettings{
+				mergingStats: false,
+				less:         firstDpChain[mergeIndex].mergeSettings.less,
+				limit:        firstDpChain[mergeIndex].mergeSettings.limit,
+			}
+		}
+		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergeBottleneckDP(settings))
 		mergeIndex++
 	}
 
