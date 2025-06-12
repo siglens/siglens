@@ -635,7 +635,7 @@ func GetRegex(splPattern string, caseInsensitive bool, isTerm bool) string {
 	if isTerm {
 		// If the input is a term, it is delimited by major breakers
 		// so we check for the form "(.*<major_breaker>)?pattern(<major_breaker>.*)?"
-		result.WriteString("(.*" + singleMajorBreakerRegex + "%s)?")
+		result.WriteString("(.*" + singleMajorBreakerRegex + ")?")
 	}
 
 	for i, literal := range strings.Split(splPattern, "*") {
@@ -653,7 +653,7 @@ func GetRegex(splPattern string, caseInsensitive bool, isTerm bool) string {
 	if isTerm {
 		// If the input is a term, it is delimited by major breakers
 		// so we check for the form "(.*<major_breaker>)?pattern(<major_breaker>.*)?"
-		result.WriteString(fmt.Sprintf("(%s.*)?", singleMajorBreakerRegex))
+		result.WriteString("(" + singleMajorBreakerRegex + ".*)?")
 	}
 
 	result.WriteString("$") // End of string
