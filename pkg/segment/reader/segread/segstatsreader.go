@@ -35,12 +35,10 @@ var (
 
 	ErrGetSegVarCurrSegStatNil    = errors.New("GetSegVar: currSegStat is nil")
 	ErrGetSegVarSegStatNonNumeric = errors.New("GetSegVar: current segStats is non-numeric")
-	ErrGetVarianceInsuffRecords   = errors.New("getVariance: insufficient records, cannot divide by 0")
 	ErrGetVarianceInvalidDtype    = errors.New("getVariance: invalid data type")
 
 	ErrGetSegVarpCurrSegStatNil    = errors.New("GetSegVarp: currSegStat is nil")
 	ErrGetSegVarpSegStatNonNumeric = errors.New("GetSegVarp: current segStats is non-numeric")
-	ErrGetVarpNoRecords            = errors.New("getVarp: no records found, expression has form 0/0")
 	ErrGetVarpInvalidDtype         = errors.New("getVarp: invalid data type")
 )
 
@@ -589,8 +587,8 @@ func GetSegVar(runningSegStat *structs.SegStats,
 
 // Helper function to calculate the sample variance
 func getVariance(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64, error) {
-	if count < 2 {
-		return 0, ErrGetVarianceInsuffRecords
+	if count < 2 { // sample variance requires at least 2 records
+		return 0, nil
 	}
 
 	var variance float64
@@ -646,8 +644,8 @@ func GetSegVarp(runningSegStat *structs.SegStats,
 
 // Helper function to calculate the variance
 func getVarp(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64, error) {
-	if count == 0 {
-		return 0, ErrGetVarpNoRecords
+	if count == 0 { // population variance requires at least 1 record
+		return 0, nil
 	}
 
 	var variance float64

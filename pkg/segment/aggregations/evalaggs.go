@@ -733,9 +733,13 @@ func ComputeAggEvalForVar(measureAgg *structs.MeasureAggregator, sstMap map[stri
 
 	runningEvalStats[measureAgg.String()] = &varStat
 
-	// If count is 0, we cannot compute variance
-	if varStat.Count == 0 {
-		return fmt.Errorf("ComputeAggEvalForVar: Count is 0 for measureAgg: %v, cannot compute variance", measureAgg.String())
+	// If count is 0 or 1, we cannot compute sample variance. However, for compatibility with other statistics, we return 0.
+	if varStat.Count < 2 {
+		measureResults[measureAgg.String()] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_FLOAT,
+			CVal:  0,
+		}
+		return nil
 	}
 
 	// population variance = sumsq / n - sum^2 / n^2
@@ -793,9 +797,13 @@ func ComputeAggEvalForVarp(measureAgg *structs.MeasureAggregator, sstMap map[str
 
 	runningEvalStats[measureAgg.String()] = &varStat
 
-	// If count is 0, we cannot compute variance
+	// If count is 0, we cannot compute population variance. However, for compatibility with other statistics, we return 0.
 	if varStat.Count == 0 {
-		return fmt.Errorf("ComputeAggEvalForVarp: Count is 0 for measureAgg: %v, cannot compute variance", measureAgg.String())
+		measureResults[measureAgg.String()] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_FLOAT,
+			CVal:  0,
+		}
+		return nil
 	}
 
 	// population variance = sumsq / n - sum^2 / n^2
