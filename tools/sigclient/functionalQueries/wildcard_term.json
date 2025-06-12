@@ -1,0 +1,47 @@
+{
+    "queryText": "address=TERM(*th)|app_name=Mooseam|fields first_name, app_name, address, account.balance",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 3,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "account.balance": 2218.11,
+                "address": "8705 South Greens chester, Stockton, Nevada 90062",
+                "app_name": "Mooseam",
+                "first_name": "Dorothea",
+                "timestamp": 1749473999362
+            },
+            {
+                "account.balance": 7752.98,
+                "address": "530 Pass mouth, Orlando, Utah 59468",
+                "app_name": "Mooseam",
+                "first_name": "Coralie",
+                "timestamp": 1749473942226
+            },
+            {
+                "account.balance": 8073.9,
+                "address": "6094 East Mountains port, Phoenix, South Dakota 45673",
+                "app_name": "Mooseam",
+                "first_name": "Dominique",
+                "timestamp": 1749473908098
+            }
+        ],
+        "allColumns": [
+            "account.balance",
+            "first_name",
+            "address",
+            "app_name",
+            "timestamp"
+        ],
+        "columnsOrder": [
+            "timestamp",
+            "first_name",
+            "app_name",
+            "address",
+            "account.balance"
+        ]
+    }
+}

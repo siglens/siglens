@@ -59,6 +59,7 @@ type SearchQuery struct {
 	SearchType              SearchQueryType // type of query
 	QueryInfo               *QueryInfo      // query info
 	FilterIsCaseInsensitive bool            // whether the filter is case sensitive
+	FilterIsTerm            bool            // whether the filter is a TERM() filter
 }
 
 type QueryInfo struct {

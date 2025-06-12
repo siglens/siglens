@@ -479,6 +479,7 @@ type StringSearchRequest struct {
     value interface{}
     originalValue interface{}
     caseInsensitive bool
+    isTerm bool // used to match TERM() from SPL
 }
 
 }
@@ -4058,6 +4059,7 @@ NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(
             Values: ssr.value,
             OriginalValues: ssr.originalValue,
             CaseInsensitive: ssr.caseInsensitive,
+            IsTerm: ssr.isTerm,
         },
     }
     return node, nil
@@ -4073,11 +4075,13 @@ UnnamedFieldWithStringValue <- stringSearchReq:(CaseSensitiveString / CaseInsens
             Values: ssr.value,
             OriginalValues: ssr.originalValue,
             CaseInsensitive: ssr.caseInsensitive,
+            IsTerm: ssr.isTerm,
         },
     }
     return node, nil
 }
 
+// https://docs.splunk.com/Documentation/SplunkCloud/latest/Search/UseCASEandTERMtomatchphrases
 CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
     return &StringSearchRequest{
         value: value,
@@ -4086,7 +4090,17 @@ CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
     }, nil
 }
 
-CaseInsensitiveString <- value:String {
+// https://docs.splunk.com/Documentation/SplunkCloud/latest/Search/UseCASEandTERMtomatchphrases
+CaseInsensitiveString <- "TERM" L_PAREN value:String R_PAREN {
+    return &StringSearchRequest{
+        value: strings.ToLower(value.(string)),
+        originalValue: value,
+        caseInsensitive: true,
+        isTerm: true,
+    }, nil
+}
+
+/ value:String {
     return &StringSearchRequest{
         value: strings.ToLower(value.(string)),
         originalValue: value,
