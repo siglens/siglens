@@ -192,7 +192,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	firstAggHasStats := firstAgg.HasStatsBlock()
 	chainFactory := func() []*DataProcessor { return AggsToDataProcessors(firstProcessorAgg, queryInfo) }
-	dataProcessorChains, err := setupQueryParallelism(firstAggHasStats, chainFactory)
+	dataProcessorChains, err := SetupQueryParallelism(firstAggHasStats, chainFactory)
 	if err != nil {
 		return nil, utils.TeeErrorf("NewQueryProcessor: failed to setup query parallelism; err=%v", err)
 	}
@@ -367,7 +367,7 @@ func postProcessQueryAggs(firstAgg *structs.QueryAggregators, queryInfo *query.Q
 //
 // The DataProcessors in a chain don't get hooked up to each other; that's the
 // caller's responsibility.
-func setupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataProcessor) ([][]*DataProcessor, error) {
+func SetupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataProcessor) ([][]*DataProcessor, error) {
 	firstDpChain := chainFactory()
 	canParallelize, mergeIndex := CanParallelSearch(firstDpChain)
 	if firstAggHasStats {
@@ -431,7 +431,7 @@ func setupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataPro
 				// need this flag to be false.
 				err := dataProcessors[mergeIndex-1].SetStatsAsIqrStatsResults()
 				if err != nil {
-					return nil, utils.TeeErrorf("setupQueryParallelism: failed to set stats as IQR stats results; err=%v", err)
+					return nil, utils.TeeErrorf("SetupQueryParallelism: failed to set stats as IQR stats results; err=%v", err)
 				}
 			default:
 				// Do nothing.
