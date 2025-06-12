@@ -605,6 +605,15 @@ func init() {
 	initHllDefaultSettings()
 }
 
+var nonIngestStats = map[sutils.AggregateFunctions]string{
+	sutils.LatestTime:   "",
+	sutils.EarliestTime: "",
+	sutils.Latest:       "",
+	sutils.Earliest:     "",
+	sutils.Sumsq:        "",
+	sutils.Perc:         "",
+}
+
 // init SegStats from raw bytes of SegStatsJSON
 func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	var segStatJson *SegStatsJSON
@@ -1178,9 +1187,9 @@ func HasValueColRequestInMeasureAggs(measureAggs []*MeasureAggregator) bool {
 	return false
 }
 
-func (qa *QueryAggregators) HasSumsqFunc() bool {
+func (qa *QueryAggregators) HasNonIngestStats() bool {
 	for _, agg := range qa.MeasureOperations {
-		if agg.MeasureFunc == sutils.Sumsq {
+		if _, ok := nonIngestStats[agg.MeasureFunc]; ok {
 			return true
 		}
 	}
@@ -1467,7 +1476,6 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.EstdcError:   {},
 	sutils.ExactPerc:    {},
 	sutils.UpperPerc:    {},
-	sutils.Median:       {},
 	sutils.Mode:         {},
 	sutils.Stdev:        {},
 	sutils.Stdevp:       {},
