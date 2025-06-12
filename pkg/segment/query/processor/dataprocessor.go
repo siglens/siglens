@@ -150,6 +150,10 @@ func (dp *DataProcessor) SetMergeSettingsBasedOnStream(stream Streamer) {
 	dp.setDefaultMergeSettings()
 }
 
+func (dp *DataProcessor) GetMergeSettings() mergeSettings {
+	return dp.mergeSettings
+}
+
 func (dp *DataProcessor) CleanupInputStreams() {
 	streams := dp.streams
 	for _, CachedStream := range streams {
@@ -961,10 +965,11 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 	}
 }
 
-func NewMergeBottleneckDP(mergeSettings mergeSettings) *DataProcessor {
+func NewMergerDP(mergeSettings mergeSettings) *DataProcessor {
 	return &DataProcessor{
-		name:                  "merge-bottleneck",
+		name:                  "merger",
 		streams:               make([]*CachedStream, 0),
+		mergeSettings:         mergeSettings,
 		processor:             &mergeProcessor{mergeSettings: mergeSettings},
 		inputOrderMatters:     !mergeSettings.mergingStats,
 		ignoresInputOrder:     mergeSettings.mergingStats,

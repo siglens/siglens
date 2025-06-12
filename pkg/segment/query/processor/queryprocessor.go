@@ -220,17 +220,18 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	dataProcessors := dataProcessorChains[0]
 
 	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
-		chainedDPAsAny, err := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
+		chainFactory := func() any { return chainFactory() }
+		chainedDPAsAny, err := hook(chainFactory, searcher, queryInfo, shouldDistribute)
 		if err != nil {
 			return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook failed; err=%v", err)
 		}
 
 		chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
 		if !ok {
-			log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
-		} else {
-			dataProcessors = chainedDp
+			return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
 		}
+
+		dataProcessors = chainedDp
 	}
 
 	var lastStreamer Streamer = searcher
@@ -404,7 +405,7 @@ func SetupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataPro
 				limit:        firstDpChain[mergeIndex].mergeSettings.limit,
 			}
 		}
-		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergeBottleneckDP(settings))
+		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergerDP(settings))
 		mergeIndex++
 	}
 
