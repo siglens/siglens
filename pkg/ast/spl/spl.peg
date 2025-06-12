@@ -169,7 +169,7 @@ func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
         return sutils.LatestTime
     case "rate":
         return sutils.StatsRate
-    case "perc":
+    case "perc", "p":
         return sutils.Perc
     case "exactperc":
         return sutils.ExactPerc
@@ -3864,13 +3864,13 @@ AggFunction <- agg:(AggCount / AggPercCommon / AggCommon) {
     return agg, nil
 }
 
-// TODO Processing Logic: varp, var, sumsq, stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
+// TODO Processing Logic: varp, var, stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
 CommonAggName <- ("values" / "varp" / "var" / "sumsq" / "sum" / "stdevp" / "stdev" / "rate" / "range" / "mode" / "min" / "median" / "mean" / "max" / 
 "list" / "latest_time" / "latest" / "last" / "first" / "estdc_error" / "estdc" / "earliest_time" / "earliest" / "distinct_count" / "dc" / "avg") {
     return string(c.text), nil
 }
 
-CommonPercAggName <- ("upperperc" / "exactperc" / "perc") {
+CommonPercAggName <- ("upperperc" / "exactperc" / "perc" / "p") {
     return string(c.text), nil
 }
 
@@ -3935,16 +3935,31 @@ AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
     }
 
+    var valueColRequest *structs.ValueExpr
+    if measureFunc == sutils.Sumsq {
+        // This ensures that sumsq is computed using the raw records
+        valueColRequest = &structs.ValueExpr{
+            ValueExprMode: structs.VEMNumericExpr,
+            NumericExpr: &structs.NumericExpr{
+                IsTerminal:      true,
+                ValueIsField:    true,
+                Value:           field.(string),
+                NumericExprMode: structs.NEMNumberField,
+            },
+        }
+    }
+
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: measureFunc,
+        ValueColRequest: valueColRequest,
     }
 
     return agg, nil
 }
 
-PercentileStr <- numStr:(FloatAsString / IntegerAsString) {
-    floatVal, err := strconv.ParseFloat(numStr.(string), 64)
+PercentileVal <- numStr:(FloatAsString / IntegerAsString) {
+    floatVal, err := utils.FastParseFloat([]byte(numStr.(string)))
     if err != nil {
         return nil, fmt.Errorf("Invalid percentage value: %v", numStr.(string))
     }
@@ -3952,10 +3967,10 @@ PercentileStr <- numStr:(FloatAsString / IntegerAsString) {
         return nil, fmt.Errorf("Invalid percentage value must be between 0 and 100: %v", numStr.(string))
     }
 
-    return numStr.(string), nil
+    return floatVal, nil
 }
 
-AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
     if measureFunc == sutils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
@@ -3966,12 +3981,12 @@ AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "
         MeasureFunc: measureFunc,
         StrEnc: string(c.text),
         ValueColRequest: valueExpr.(*structs.ValueExpr),
-        Param: percentileStr.(string),
+        Param: percentileVal.(float64),
     }
 
     return agg, nil
 }
-/ aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN field:FieldName R_PAREN {
+/ aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN field:FieldName R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
     if measureFunc == sutils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
@@ -3980,12 +3995,11 @@ AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: measureFunc,
-        Param: percentileStr.(string),
+        Param: percentileVal.(float64),
     }
 
     return agg, nil
 }
-
 
 FieldWithNumberValue <- keyValuePair:(NamedFieldWithNumberValue / UnnamedFieldWithNumberValue) {
     return keyValuePair, nil
@@ -4407,10 +4421,13 @@ PositiveInteger <- intStr:PositiveIntegerAsString {
     return num, nil
 }
 
-EqualityOperator <- EMPTY_OR_SPACE op:("=" / "!=") EMPTY_OR_SPACE {
+EqualityOperator <- EMPTY_OR_SPACE op:("==" / "=" / "!=") EMPTY_OR_SPACE {
     opStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: EqualityOperator: %v", err)
+    }
+    if opStr == "==" {
+        opStr = "="
     }
     return opStr, nil
 }

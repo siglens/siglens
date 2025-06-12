@@ -18,14 +18,19 @@
 package aggregations
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
 
-	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
+)
+
+var (
+	ErrPerformEvalAggForSumsqFloatEnclosureHasNonFloatValue = errors.New("PerformEvalAggForSumsq: Float type enclosure does not have a float value")
 )
 
 func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResultExists bool, currResult sutils.CValueEnclosure, fieldToValue map[string]sutils.CValueEnclosure, isMin bool) (sutils.CValueEnclosure, error) {
@@ -272,7 +277,7 @@ func GetFloatValueAfterEvaluation(measureAgg *structs.MeasureAggregator, fieldTo
 		return 0, "", false, fmt.Errorf("GetFloatValueAfterEvaluation: Error while evaluating eval function: %v", err)
 	}
 
-	floatVal, err = dtypeutils.ConvertToFloat(valueStr, 64)
+	floatVal, err = utils.FastParseFloat([]byte(valueStr))
 	if err != nil {
 		return 0, valueStr, false, nil
 	}
@@ -380,6 +385,98 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 			result, err := PerformEvalAggForSum(measureAgg, uint64(length), currResultExists, currResult, fieldToValue)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForSum: Error while performing eval agg for sum, err: %v", err)
+			}
+			measureResults[measureAgg.String()] = result
+		}
+	}
+
+	return nil
+}
+
+func PerformEvalAggForSumsq(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult sutils.CValueEnclosure, fieldToValue map[string]sutils.CValueEnclosure) (sutils.CValueEnclosure, error) {
+	finalValueSquared := float64(0)
+
+	if len(fieldToValue) == 0 {
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		// We cannot compute sumsq if constant is not numeric
+		if err != nil || !isNumeric {
+			return currResult, err
+		}
+		finalValueSquared = floatValue * floatValue * float64(count)
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return currResult, err
+			}
+			if boolResult {
+				finalValueSquared = float64(1)
+			}
+		} else {
+			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+			if err != nil {
+				return currResult, err
+			}
+			if isNumeric {
+				finalValueSquared = floatValue * floatValue
+			}
+		}
+	}
+
+	finalResult := sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
+		CVal:  float64(0),
+	}
+
+	if !currResultExists {
+		finalResult.CVal = finalValueSquared
+		return finalResult, nil
+	}
+
+	currValue, isFloat := currResult.CVal.(float64)
+	if !isFloat {
+		return currResult, ErrPerformEvalAggForSumsqFloatEnclosureHasNonFloatValue
+	}
+
+	// Current value is already a sum of squares, so we add the new square to it
+	finalResult.CVal = currValue + finalValueSquared
+
+	return finalResult, nil
+}
+
+func ComputeAggEvalForSumsq(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure) error {
+	fields := measureAgg.ValueColRequest.GetFields()
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+
+	if len(fields) == 0 {
+		countStat, exist := sstMap["*"]
+		if !exist {
+			return fmt.Errorf("ComputeAggEvalForSumsq: sstMap did not have count when constant was used for measureAgg: %v", measureAgg.String())
+		}
+		currResult, currResultExists := measureResults[measureAgg.String()]
+		result, err := PerformEvalAggForSumsq(measureAgg, countStat.Count, currResultExists, currResult, fieldToValue)
+		if err != nil {
+			return err
+		}
+		measureResults[measureAgg.String()] = result
+	} else {
+		sst, ok := sstMap[fields[0]]
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForSumsq: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
+		}
+
+		numRecords := len(sst.Records)
+		for i := 0; i < numRecords; i++ {
+			fieldToValue = make(map[string]sutils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return err
+			}
+
+			currResult, currResultExists := measureResults[measureAgg.String()]
+			result, err := PerformEvalAggForSumsq(measureAgg, uint64(numRecords), currResultExists, currResult, fieldToValue)
+			if err != nil {
+				return err
 			}
 			measureResults[measureAgg.String()] = result
 		}
@@ -769,6 +866,113 @@ func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[str
 	return nil
 }
 
+func ComputeAggEvalForPerc(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
+	fields := measureAgg.ValueColRequest.GetFields()
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+	var err error
+	var td *utils.GobbableTDigest
+	_, ok := runningEvalStats[measureAgg.String()]
+	if !ok {
+		td, err = utils.CreateNewTDigest()
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForPerc: can not create a new digest tree; measureAgg: %v, err: %v", measureAgg.String(), err)
+		}
+		runningEvalStats[measureAgg.String()] = td
+	} else {
+		td, ok = runningEvalStats[measureAgg.String()].(*utils.GobbableTDigest)
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForPerc: can not convert to utils.GobbableTDigest for measureAgg: %v; err: %v", measureAgg.String(), err)
+		}
+	}
+
+	if len(fields) == 0 {
+		countStat, exist := sstMap["*"]
+		if !exist {
+			return fmt.Errorf("ComputeAggEvalForPerc: sstMap did not have c")
+		}
+		err = PerformEvalAggForPerc(measureAgg, countStat.Count, td, fieldToValue)
+		if err != nil {
+			return fmt.Errorf("PerformEvalAggForPerc: Error while performing eval agg for perc, err: %v", err)
+		}
+	} else {
+		sst, ok := sstMap[fields[0]]
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForPerc: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
+		}
+		numRecords := len(sst.Records)
+		for i := 0; i < numRecords; i++ {
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForPerc: Error while populating fieldToValue from sstMap, err: %v", err)
+			}
+			err = PerformEvalAggForPerc(measureAgg, uint64(numRecords), td, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("PerformEvalAggForPerc: Error while performing eval agg for perc, err: %v", err)
+			}
+			fieldToValue = make(map[string]sutils.CValueEnclosure)
+		}
+	}
+
+	runningEvalStats[measureAgg.String()] = td
+	percValFlt := measureAgg.Param / 100
+	if percValFlt < 0 || percValFlt > 1 {
+		return fmt.Errorf("ComputeAggEvalForPerc: percentile value not within valid range; val: %v", percValFlt)
+	}
+	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
+		CVal:  td.GetQuantile(percValFlt),
+	}
+	return nil
+}
+
+func PerformEvalAggForPerc(measureAgg *structs.MeasureAggregator, count uint64, td *utils.GobbableTDigest, fieldToValue map[string]sutils.CValueEnclosure) (err error) {
+	if len(fieldToValue) == 0 {
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		if err != nil || !isNumeric {
+			return fmt.Errorf("PerformEvalAggForPerc: Error while evaluating value col request to a numeric value, err: %v", err)
+		}
+		// can just be reduced to a floatValue, but there is a variable called runningEvalStats (multiple routines? unable to verify)
+		for i := uint64(0); i < count; i++ {
+			err = td.InsertIntoTDigest(floatValue)
+			if err != nil {
+				return fmt.Errorf("PerformEvalAggForPerc: can't insert value into digest tree; err: %v", err)
+			}
+		}
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return fmt.Errorf("PerformEvalAggForPerc: there are some errors in the eval function that is inside the avg function: %v", err)
+			}
+			if boolResult {
+				err = td.InsertIntoTDigest(1)
+				if err != nil {
+					return fmt.Errorf("PerformEvalAggForPerc: can't insert value into digest tree; err: %v", err)
+				}
+			} else {
+				err = td.InsertIntoTDigest(0)
+				if err != nil {
+					return fmt.Errorf("PerformEvalAggForPerc: can't insert value into digest tree; err: %v", err)
+				}
+			}
+		} else {
+			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("PerformEvalAggForPerc:Error while evaluating value col request, err: %v", err)
+			}
+
+			if isNumeric {
+				err = td.InsertIntoTDigest(floatValue)
+				if err != nil {
+					return fmt.Errorf("PerformEvalAggForPerc: can't insert value into digest tree; err: %v", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func AddMeasureAggInRunningStatsForCount(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
 
 	fields := m.ValueColRequest.GetFields()
@@ -811,6 +1015,7 @@ func SetupMeasureAgg(measureAgg *structs.MeasureAggregator, allConvertedMeasureO
 			MeasureFunc:     measureFunc,
 			ValueColRequest: measureAgg.ValueColRequest,
 			StrEnc:          measureAgg.StrEnc,
+			Param:           measureAgg.Param,
 		})
 		idx++
 	}
@@ -884,7 +1089,7 @@ func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggrega
 }
 
 // Determine if cols used by eval statements or not
-func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool) {
+func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool, percUsage map[string]bool) {
 	if measureAgg.ValueColRequest != nil {
 		fields := measureAgg.ValueColRequest.GetFields()
 		for _, field := range fields {
@@ -926,6 +1131,10 @@ func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[str
 			}
 		} else {
 			aggColUsage[measureAgg.MeasureCol] = sutils.NoEvalUsage
+		}
+
+		if measureAgg.MeasureFunc == sutils.Perc {
+			percUsage[measureAgg.MeasureCol] = true
 		}
 	}
 }

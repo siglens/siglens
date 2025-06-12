@@ -425,7 +425,6 @@ function runLiveTailBtnHandler(evt) {
     if ($('#live-tail-btn').text() === 'Live Tail') {
         resetDashboard();
         $('#live-tail-btn').html('Cancel Live Tail');
-        logsRowData = [];
         total_liveTail_searched = 0;
         wsState = 'query';
         data = getLiveTailFilter(false, false, 1800);
@@ -444,9 +443,17 @@ function runFilterBtnHandler(evt) {
     var currentPage = window.location.pathname;
     if (currentPage === '/alert.html') {
         let data = getQueryParamsData();
-        fetchLogsPanelData(data, -1).then((res) => {
-            alertChart(res);
-        });
+        
+        //eslint-disable-next-line no-undef
+        showLogsLoading();
+        fetchLogsPanelData(data, -1)
+            .then((res) => {
+                alertChart(res);
+            })
+            .catch(function (xhr, _err) {
+                //eslint-disable-next-line no-undef
+                handleErrors(xhr);
+            });
     } else if (currentPage === '/dashboard.html') {
         runQueryBtnHandler();
     } else {
@@ -466,7 +473,6 @@ function runFilterBtnHandler(evt) {
                 hasSearchSinceHistogramClosed = true;
             }
             resetDashboard();
-            logsRowData = [];
             accumulatedRecords = [];
             lastColumnsOrder = [];
             totalLoadedRecords = 0;
@@ -476,7 +482,7 @@ function runFilterBtnHandler(evt) {
                 <div>Searching for matching records...</div>
                 <div></div>
             `);
-            
+
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;

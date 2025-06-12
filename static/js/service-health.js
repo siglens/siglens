@@ -54,6 +54,7 @@ const gridOptions = {
     onRowClicked: onRowClicked,
     headerHeight: 26,
     rowHeight: 34,
+    suppressDragLeaveHidesColumns: true,
     defaultColDef: {
         cellClass: 'align-center-grid',
         resizable: true,

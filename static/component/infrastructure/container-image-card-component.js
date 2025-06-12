@@ -86,6 +86,7 @@ class ContainerImagesCard {
             rowHeight: 40,
             suppressMovableColumns: true,
             suppressColumnVirtualisation: true,
+            suppressDragLeaveHidesColumns: true,
             defaultColDef: {
                 resizable: true,
                 cellClass: 'align-center-grid',
