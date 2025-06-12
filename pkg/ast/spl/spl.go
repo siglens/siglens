@@ -19050,7 +19050,7 @@ func (c *current) onLenExpr2(str any) (any, error) {
 	leftNumericExpr := &structs.NumericExpr{
 		IsTerminal:      true,
 		ValueIsField:    false,
-		Value:           str.(string),
+		Value:           removeQuotes(str.(string)),
 		NumericExprMode: structs.NEMLenString,
 	}
 
