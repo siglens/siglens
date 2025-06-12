@@ -217,8 +217,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	ConnectEachDpChain(dataProcessorChains, searcher)
 	InitDataGenerators(dataProcessorChains, searcher.qid, scrollFrom)
 
-	dataProcessors := dataProcessorChains[0]
-
 	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
 		chainFactory := func() any { return chainFactory() }
 		chainedDPAsAny, err := hook(chainFactory, searcher, queryInfo, shouldDistribute)
@@ -231,8 +229,10 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 			return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
 		}
 
-		dataProcessors = chainedDp
+		dataProcessorChains[0] = chainedDp
 	}
+
+	dataProcessors := dataProcessorChains[0]
 
 	var lastStreamer Streamer = searcher
 	if len(dataProcessors) > 0 {
