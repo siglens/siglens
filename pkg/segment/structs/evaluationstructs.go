@@ -1134,6 +1134,63 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 	return stringsList, nil
 }
 
+func handleMVDedup(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
+		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvdedup requires one multiValueExpr argument")
+	}
+	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
+		return []string{}, fmt.Errorf("TextExpr.EvaluateText -> handleMVDedup: %v", err)
+	}
+
+	seen := make(map[string]string, len(mvSlice))
+	dedupedSlice := []string{}
+	for _, val := range mvSlice {
+		if _, ok := seen[val]; ok {
+			continue
+		}
+		seen[val] = ""
+		dedupedSlice = append(dedupedSlice, val)
+	}
+
+	return dedupedSlice, nil
+}
+
+func handleMVAppend(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.ValueExprParams == nil || len(self.ValueExprParams) < 1 || self.ValueExprParams[0] == nil {
+		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvappend requires atleast one argument")
+	}
+
+	finalMVSlice := []string{}
+	for _, param := range self.ValueExprParams {
+		switch param.ValueExprMode {
+		case VEMMultiValueExpr:
+			mvSlice, err := param.MultiValueExpr.Evaluate(fieldToValue)
+			if utils.IsNilValueError(err) {
+				return nil, err
+			} else if err != nil {
+				return []string{}, fmt.Errorf("TextExpr.EvaluateText -> handleMVAppend: %v", err)
+			}
+			finalMVSlice = append(finalMVSlice, mvSlice...)
+		case VEMStringExpr:
+			if len(param.StringExpr.RawString) != 0 {
+				finalMVSlice = append(finalMVSlice, param.StringExpr.RawString)
+			} else {
+				result, err := param.StringExpr.ConcatExpr.Evaluate(fieldToValue)
+				if utils.IsNilValueError(err) {
+					return nil, err
+				} else if err != nil {
+					return []string{}, fmt.Errorf("TextExpr.EvaluateText -> handleMVAppend: %v", err)
+				}
+				finalMVSlice = append(finalMVSlice, result)
+			}
+		}
+	}
+	return finalMVSlice, nil
+}
+
 func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvindex requires one multiValueExpr argument")
@@ -1202,6 +1259,10 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 		return handleSplit(self, fieldToValue)
 	case "mvindex":
 		return handleMVIndex(self, fieldToValue)
+	case "mvdedup":
+		return handleMVDedup(self, fieldToValue)
+	case "mvappend":
+		return handleMVAppend(self, fieldToValue)
 	default:
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: invalid Op %v", self.Op)
 	}
