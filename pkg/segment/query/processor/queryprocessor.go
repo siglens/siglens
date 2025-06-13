@@ -190,25 +190,15 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	sortExpr := MutateForSearchSorter(firstAgg)
 
-	firstDpChain := AggsToDataProcessors(firstProcessorAgg, queryInfo)
-	canParallelize, mergeIndex := CanParallelSearch(AggsToDataProcessors(firstProcessorAgg, queryInfo))
-	if firstAgg.HasStatsBlock() {
-		// There's a different flow when the first agg is stats compared to
-		// when when a later agg is stats. At some point we may want to unify
-		// these two flows, but for now we can't use parallelism because the
-		// first agg gets skipped (and handled in the different flow) when it's
-		// stats.
-		canParallelize = false
-		mergeIndex = 0
+	firstAggHasStats := firstAgg.HasStatsBlock()
+	chainFactory := func() []*DataProcessor { return AggsToDataProcessors(firstProcessorAgg, queryInfo) }
+	dataProcessorChains, err := SetupQueryParallelism(firstAggHasStats, chainFactory)
+	if err != nil {
+		return nil, utils.TeeErrorf("NewQueryProcessor: failed to setup query parallelism; err=%v", err)
 	}
-	if hooks.GlobalHooks.GetDistributedStreamsHook != nil {
-		// TODO: remove this check once we have a way to handle parallelism
-		// in this case.
-		canParallelize = false
-		mergeIndex = 0
-	}
+
 	sortMode := recentFirst // TODO: use query to determine recentFirst or recentLast
-	if canParallelize {
+	if canParallelize := len(dataProcessorChains) > 1; canParallelize {
 		// If we can parallelize, we don't need to sort
 		sortMode = anyOrder
 		sortExpr = nil
@@ -224,96 +214,24 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		return nil, utils.TeeErrorf("NewQueryProcessor: failed to init scroll from; err=%v", err)
 	}
 
-	searcherStream := NewCachedStream(searcher)
-	dataProcessorChains := make([][]*DataProcessor, 0)
-	parallelism := 1
-	if canParallelize {
-		parallelism = runtime.GOMAXPROCS(0)
-	}
-
-	if canParallelize && firstDpChain[mergeIndex].IsMergeableBottleneckCmd() {
-		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergeBottleneckDP())
-		mergeIndex++
-	}
-
-	for i := 0; i < parallelism; i++ {
-		var dataProcessors []*DataProcessor
-		if i == 0 {
-			dataProcessors = firstDpChain
-		} else {
-			dataProcessors = AggsToDataProcessors(firstProcessorAgg, queryInfo)
-			// Merge the chains once parallelism is no longer possible.
-			// e.g., if we merge into dp3 and parallelism=3, we eventually want
-			// to get to this structure:
-			//             dp1 -> dp2 ->\
-			//          /                \
-			// searcher -> dp1 -> dp2 -> dp3 -> dp4
-			//          \                /
-			//             dp1 -> dp2 ->/
-			dataProcessors = dataProcessors[:mergeIndex]
-			mergingDp := firstDpChain[mergeIndex]
-
-			if len(dataProcessors) > 0 {
-				// We need this to be a single-threaded stream because we may
-				// Fetch() from it in parallel.
-				lastStream := NewSingleThreadedStream(dataProcessors[len(dataProcessors)-1])
-				mergingDp.streams = append(mergingDp.streams, NewCachedStream(lastStream))
-			}
-		}
-
-		if mergeIndex > 0 {
-			switch dataProcessors[mergeIndex-1].processor.(type) {
-			case *statsProcessor:
-				// We'll likely want to set this for other stats-like commands
-				// as well when we implement parallelizing those. But I'm not
-				// sure why this is an option because I'm not sure when we ever
-				// need this flag to be false.
-				err := dataProcessors[mergeIndex-1].SetStatsAsIqrStatsResults()
-				if err != nil {
-					return nil, utils.TeeErrorf("NewQueryProcessor: failed to set stats as IQR stats results; err=%v", err)
-				}
-			default:
-				// Do nothing.
-			}
-		}
-
-		if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
-			query.InitProgressForRRCCmd(math.MaxUint64, searcher.qid) // TODO: Find a good way to handle data generators for progress
-			dataProcessors[0].CheckAndSetQidForDataGenerator(searcher.qid)
-			dataProcessors[0].SetLimitForDataGenerator(sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
-		}
-
-		// Hook up the streams (searcher -> dataProcessors[0] -> ... -> dataProcessors[n-1]).
-		if len(dataProcessors) > 0 && !dataProcessors[0].IsDataGenerator() {
-			dataProcessors[0].streams = append(dataProcessors[0].streams, searcherStream)
-		}
-		for m := 1; m < len(dataProcessors); m++ {
-			var stream Streamer = dataProcessors[m-1]
-			if canParallelize && m == mergeIndex {
-				stream = NewSingleThreadedStream(stream)
-			}
-
-			dataProcessors[m].streams = append(dataProcessors[m].streams, NewCachedStream(stream))
-		}
-
-		if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
-			chainedDPAsAny, err := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
-			if err != nil {
-				return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook failed; err=%v", err)
-			}
-
-			chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
-			if !ok {
-				log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
-			} else {
-				dataProcessors = chainedDp
-			}
-		}
-
-		dataProcessorChains = append(dataProcessorChains, dataProcessors)
-	}
+	ConnectEachDpChain(dataProcessorChains, searcher)
+	InitDataGenerators(dataProcessorChains, searcher.qid, scrollFrom)
 
 	dataProcessors := dataProcessorChains[0]
+
+	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
+		chainedDPAsAny, err := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
+		if err != nil {
+			return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook failed; err=%v", err)
+		}
+
+		chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
+		if !ok {
+			log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
+		} else {
+			dataProcessors = chainedDp
+		}
+	}
 
 	var lastStreamer Streamer = searcher
 	if len(dataProcessors) > 0 {
@@ -440,6 +358,130 @@ func postProcessQueryAggs(firstAgg *structs.QueryAggregators, queryInfo *query.Q
 	}
 
 	return firstAgg, nil
+}
+
+// Returns a list of DataProcessor chains. The number of chains is the amount
+// of parallelism. Since parallelism is only possible up to a certain point,
+// the chains may have different lengths; the first chain is always the full
+// chain; the rest stop where they should be merged into the main chain.
+//
+// The DataProcessors in a chain don't get hooked up to each other; that's the
+// caller's responsibility.
+func SetupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataProcessor) ([][]*DataProcessor, error) {
+	firstDpChain := chainFactory()
+	canParallelize, mergeIndex := CanParallelSearch(firstDpChain)
+	if firstAggHasStats {
+		// There's a different flow when the first agg is stats compared to
+		// when when a later agg is stats. At some point we may want to unify
+		// these two flows, but for now we can't use parallelism because the
+		// first agg gets skipped (and handled in the different flow) when it's
+		// stats.
+		canParallelize = false
+		mergeIndex = 0
+	}
+	if hooks.GlobalHooks.GetDistributedStreamsHook != nil {
+		// TODO: remove this check once we have a way to handle parallelism
+		// in this case.
+		canParallelize = false
+		mergeIndex = 0
+	}
+
+	dataProcessorChains := make([][]*DataProcessor, 0)
+	parallelism := 1
+	if canParallelize {
+		parallelism = runtime.GOMAXPROCS(0)
+	}
+
+	if canParallelize && firstDpChain[mergeIndex].IsMergeableBottleneckCmd() {
+		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergeBottleneckDP())
+		mergeIndex++
+	}
+
+	for i := 0; i < parallelism; i++ {
+		var dataProcessors []*DataProcessor
+		if i == 0 {
+			dataProcessors = firstDpChain
+		} else {
+			dataProcessors = chainFactory()
+			// Merge the chains once parallelism is no longer possible.
+			// e.g., if we merge into dp3 and parallelism=3, we eventually want
+			// to get to this structure:
+			//             dp1 -> dp2 ->\
+			//          /                \
+			// searcher -> dp1 -> dp2 -> dp3 -> dp4
+			//          \                /
+			//             dp1 -> dp2 ->/
+			dataProcessors = dataProcessors[:mergeIndex]
+			mergingDp := firstDpChain[mergeIndex]
+
+			if len(dataProcessors) > 0 {
+				// We need this to be a single-threaded stream because we may
+				// Fetch() from it in parallel.
+				lastStream := NewSingleThreadedStream(dataProcessors[len(dataProcessors)-1])
+				mergingDp.streams = append(mergingDp.streams, NewCachedStream(lastStream))
+			}
+		}
+
+		if mergeIndex > 0 {
+			switch dataProcessors[mergeIndex-1].processor.(type) {
+			case *statsProcessor:
+				// We'll likely want to set this for other stats-like commands
+				// as well when we implement parallelizing those. But I'm not
+				// sure why this is an option because I'm not sure when we ever
+				// need this flag to be false.
+				err := dataProcessors[mergeIndex-1].SetStatsAsIqrStatsResults()
+				if err != nil {
+					return nil, utils.TeeErrorf("SetupQueryParallelism: failed to set stats as IQR stats results; err=%v", err)
+				}
+			default:
+				// Do nothing.
+			}
+		}
+
+		dataProcessorChains = append(dataProcessorChains, dataProcessors)
+	}
+
+	return dataProcessorChains, nil
+}
+
+// This connects the DataProcessors within each chain, but doesn't connect them
+// across chains (unless chains have a pointer to the same DataProcessor).
+func ConnectEachDpChain(dataProcessorChains [][]*DataProcessor, searcher *Searcher) {
+	searcherStream := NewCachedStream(searcher)
+
+	for _, dataProcessors := range dataProcessorChains {
+		if len(dataProcessors) == 0 {
+			continue
+		}
+
+		if !dataProcessors[0].IsDataGenerator() {
+			// Connect the searcher.
+			dataProcessors[0].streams = append(dataProcessors[0].streams, searcherStream)
+		}
+
+		// Connect the other DataProcessors in the chain.
+		for m := 1; m < len(dataProcessors); m++ {
+			var stream Streamer = dataProcessors[m-1]
+			if canParallelize := len(dataProcessorChains) > 1; canParallelize && m == len(dataProcessors)-1 {
+				stream = NewSingleThreadedStream(stream)
+			}
+
+			dataProcessors[m].streams = append(dataProcessors[m].streams, NewCachedStream(stream))
+		}
+	}
+}
+
+func InitDataGenerators(dataProcessorChains [][]*DataProcessor, qid uint64, scrollFrom int) {
+	for i, dataProcessors := range dataProcessorChains {
+		if len(dataProcessors) > 0 && dataProcessors[0].IsDataGenerator() {
+			if i == 0 { // Only need to do this once.
+				query.InitProgressForRRCCmd(math.MaxUint64, qid) // TODO: Find a good way to handle data generators for progress
+			}
+
+			dataProcessors[0].CheckAndSetQidForDataGenerator(qid)
+			dataProcessors[0].SetLimitForDataGenerator(sutils.QUERY_EARLY_EXIT_LIMIT + uint64(scrollFrom))
+		}
+	}
 }
 
 func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) *DataProcessor {
