@@ -20,7 +20,6 @@ package structs
 import (
 	"bytes"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"math"
 	"math/rand"
@@ -34,6 +33,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/antchfx/xmlquery"
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 
@@ -2858,39 +2858,42 @@ func extractValueFromJSON(inputStr, path string) (string, error) {
 }
 
 func extractValueFromXML(inputStr, path string) (string, error) {
-	var value interface{} // this stores the current value as we go deeper into the XML structure
-	log.Infof("extractValueFromXML: inputStr: %s, path: %s", inputStr, path)
 
-	// Unmarshal the XML input string into a map
-	err := xml.Unmarshal([]byte(inputStr), &value)
-	if err != nil {
-		return "", fmt.Errorf("extractValueFromXML: error unmarshalling input string: %v", err)
+	forbidden := []string{
+		"/",    // XPath node separator
+		"@",    // Attribute selection
+		"[",    // XPath predicate
+		"]",    // XPath predicate
+		"(",    // XPath function calls
+		")",    // XPath function calls
+		"..",   // XPath parent node
+		"*",    // XPath wildcard
+		"|",    // XPath union
+		"text", // XPath node types
+		"node", // XPath node types
 	}
 
-	// Split the path by dots to get individual elements
-	parts := strings.Split(path, ".")
-	for _, part := range parts {
-		_, ok := value.(map[string]interface{})
-		if !ok {
-			return "", fmt.Errorf("extractValueFromXML: expected a map at path '%s' in %s, but found a different type", path, inputStr)
+	// TODO: replace this with regex or some other faster alternative
+	for _, f := range forbidden {
+		if strings.Contains(path, f) {
+			return "", fmt.Errorf("validateSpathPath: path contains unsupported XPath syntax '%s'", f)
 		}
-
-		_, ok2 := value.(map[string]interface{})[part]
-		if !ok2 {
-			return "", fmt.Errorf("extractValueFromXML: key '%s' not found in XML object %s at path '%s'", part, inputStr, path)
-		}
-
-		value = value.(map[string]interface{})[part] // update value
 	}
 
-	xmlBytes, err := xml.Marshal(value)
+	doc, err := xmlquery.Parse(strings.NewReader(inputStr))
 	if err != nil {
-		return "", fmt.Errorf("extractValueFromXML: error marshalling value to string: %v", err)
+		return "", fmt.Errorf("extractValueFromXML: error parsing input XML: %v", err)
 	}
 
-	valueStr := string(xmlBytes)
+	// Convert dot notation path to XPath by replacing dots with slashes
+	xpath := "/" + strings.ReplaceAll(path, ".", "/")
 
-	return valueStr, nil
+	node := xmlquery.FindOne(doc, xpath)
+	if node == nil {
+		return "", fmt.Errorf("extractValueFromXML: node not found at path '%s'", path)
+	}
+
+	return node.InnerText(), nil
 }
 
 func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
@@ -3027,13 +3030,13 @@ func (self *TextExpr) GetFields() []string {
 			fields = append(fields, self.SPathExpr.GetFields()...)
 		}
 
-		log.Infof("getFIelds() returns %#v when called on TextExpr %#v", fields, self)
+		log.Infof("getFields() returns %#v when called on TextExpr %#v", fields, self)
 		return fields
 	}
 	for _, expr := range self.ValueList {
 		fields = append(fields, expr.GetFields()...)
 	}
-	log.Infof("getFIelds() returns %#v when called on TextExpr %#v", fields, self)
+	log.Infof("getFields() returns %#v when called on TextExpr %#v", fields, self)
 	return fields
 
 }
