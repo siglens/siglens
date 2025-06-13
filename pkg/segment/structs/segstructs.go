@@ -590,6 +590,12 @@ type AvgStat struct {
 	Sum   float64
 }
 
+type VarStat struct {
+	Count int64
+	Sum   float64
+	Sumsq float64
+}
+
 type FieldGetter interface {
 	GetFields() []string
 }
@@ -1178,9 +1184,9 @@ func HasValueColRequestInMeasureAggs(measureAggs []*MeasureAggregator) bool {
 	return false
 }
 
-func (qa *QueryAggregators) HasSumsqFunc() bool {
+func (qa *QueryAggregators) HasSumsqVarVarpFunc() bool {
 	for _, agg := range qa.MeasureOperations {
-		if agg.MeasureFunc == sutils.Sumsq {
+		if agg.MeasureFunc == sutils.Sumsq || agg.MeasureFunc == sutils.Var || agg.MeasureFunc == sutils.Varp {
 			return true
 		}
 	}
@@ -1471,8 +1477,6 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.Mode:         {},
 	sutils.Stdev:        {},
 	sutils.Stdevp:       {},
-	sutils.Var:          {},
-	sutils.Varp:         {},
 	sutils.First:        {},
 	sutils.Last:         {},
 	sutils.Earliest:     {},
