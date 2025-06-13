@@ -1,0 +1,24 @@
+{
+    "queryText": "city=Boston | eval names=\"Frank,Grace,123,Heidi,456,Ivan\" | makemv delim=\",\" names | head 5 | eval ans=mvfilter(isnum(names)) | fields ans",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 5,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": ["ans"],
+        "records": [
+            { "ans": ["123", "456"] },
+            { "ans": ["123", "456"] },
+            { "ans": ["123", "456"] },
+            { "ans": ["123", "456"] },
+            { "ans": ["123", "456"] }
+        ],
+        "allColumns": [
+            "ans"
+        ],
+        "columnsOrder": [
+            "ans"
+        ]
+    }
+}

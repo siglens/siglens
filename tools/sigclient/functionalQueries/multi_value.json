@@ -1,15 +1,28 @@
 {
-    "queryText": "app_name=Bracecould | eval multi_val = first_name.\",\".last_name.\",\".country.\",\".city.\" multi val\" | makemv delim=\",\" multi_val | eval mvindex2 = mvindex(multi_val, 2) | eval mvindex02 = mvindex(multi_val, 0, 2) | eval mvindex_1 = mvindex(multi_val, -1) | eval mvindex_3_1 = mvindex(multi_val, -3, -1) | eval mvcount = mvcount(multi_val) | eval mvjoin = mvjoin(multi_val, \":\") | eval mvfind = mvfind(multi_val, \"^N.*$\") | eval split = split(\"a:bc:123\", \":\") | eval split_join = mvjoin(split(\"a:bc:123\", \":\"), \"?\") | eval split_count = mvcount(split(\"a:bc:123\", \":\")) | eval split_index = mvindex(split(\"a:bc:123\", \":\"), -2, 2) | eval split_find = mvfind(split(\"a:bc:123\", \":\"), \"^b.*$\") | fields app_name, first_name, last_name, country, city, multi_val, mvindex2, mvindex02, mvindex_1, mvindex_3_1, mvcount, mvjoin, mvfind, split, split_join, split_count, split_index, split_find, ident",
+   "queryText": "app_name=Bracecould | eval multi_val = first_name.\",\".last_name.\",\".country.\",\".city.\" multi val\" | makemv delim=\",\" multi_val | eval mvindex2 = mvindex(multi_val, 2) | eval mvindex02 = mvindex(multi_val, 0, 2) | eval mvindex_1 = mvindex(multi_val, -1) | eval mvindex_3_1 = mvindex(multi_val, -3, -1) | eval mvcount = mvcount(multi_val) | eval mvjoin = mvjoin(multi_val, \":\") | eval mvfind = mvfind(multi_val, \"^N.*$\") | eval split = split(\"a:bc:123\", \":\") | eval split_join = mvjoin(split(\"a:bc:123\", \":\"), \"?\") | eval split_count = mvcount(split(\"a:bc:123\", \":\")) | eval split_index = mvindex(split(\"a:bc:123\", \":\"), -2, 2) | eval split_find = mvfind(split(\"a:bc:123\", \":\"), \"^b.*$\") | eval append_split = mvappend(multi_val, mvappend(\"new_val\", app_name.country, split(\"one:two\", \":\"))) | eval filtered_multi_val=mvfilter(multi_val, like(multi_val, \"%multi val\")) | fields app_name, first_name, last_name, country, city, multi_val, mvindex2, mvindex02, mvindex_1, mvindex_3_1, mvcount, mvjoin, mvfind, split, split_join, split_count, split_index, split_find, ident, append_split, filtered_multi_val",
     "expectedResult": {
-         "totalMatched": {
-             "value": 6,
-             "relation": "eq"
-         },
-         "qtype": "logs-query",
-         "uniqueKeyCols": ["ident"],
-         "records": [
-            {   
+        "totalMatched": {
+            "value": 6,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": [
+            "ident"
+        ],
+        "records": [
+            {
                 "app_name": "Bracecould",
+                "filtered_multi_val": ["Norfolk multi val"],
+                "append_split": [
+                    "Dalton",
+                    "Gottlieb",
+                    "Martinique",
+                    "Norfolk multi val",
+                    "new_val",
+                    "BracecouldMartinique",
+                    "one",
+                    "two"
+                ],
                 "city": "Norfolk",
                 "country": "Martinique",
                 "first_name": "Dalton",
@@ -51,10 +64,191 @@
                     "bc",
                     "123"
                 ],
-                "split_join": "a?bc?123"
+                "split_join": "a?bc?123",
+                "timestamp": 1749740369865
             },
             {
                 "app_name": "Bracecould",
+                "append_split": [
+                    "Jackson",
+                    "Marvin",
+                    "Dominican Republic",
+                    "Albuquerque multi val",
+                    "new_val",
+                    "BracecouldDominican Republic",
+                    "one",
+                    "two"
+                ],
+                "city": "Albuquerque",
+                "country": "Dominican Republic",
+                "first_name": "Jackson",
+                "ident": "46ea99d9-f3ff-4d1b-b6c1-85016484f1d9",
+                "last_name": "Marvin",
+                 "filtered_multi_val": ["Albuquerque multi val"],
+                "multi_val": [
+                    "Jackson",
+                    "Marvin",
+                    "Dominican Republic",
+                    "Albuquerque multi val"
+                ],
+                "mvcount": "4",
+                "mvindex02": [
+                    "Jackson",
+                    "Marvin",
+                    "Dominican Republic"
+                ],
+                "mvindex2": [
+                    "Dominican Republic"
+                ],
+                "mvindex_1": [
+                    "Albuquerque multi val"
+                ],
+                "mvindex_3_1": [
+                    "Marvin",
+                    "Dominican Republic",
+                    "Albuquerque multi val"
+                ],
+                "mvjoin": "Jackson:Marvin:Dominican Republic:Albuquerque multi val",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1749740359237
+            },
+            {
+                "app_name": "Bracecould",
+                "append_split": [
+                    "Hilton",
+                    "Kiehn",
+                    "Cuba",
+                    "Phoenix multi val",
+                    "new_val",
+                    "BracecouldCuba",
+                    "one",
+                    "two"
+                ],
+                "city": "Phoenix",
+                "country": "Cuba",
+                "first_name": "Hilton",
+                "ident": "9d833dd6-4e32-42b7-a108-1dfd35fc42fc",
+                "last_name": "Kiehn",
+                "filtered_multi_val": ["Phoenix multi val"],
+                "multi_val": [
+                    "Hilton",
+                    "Kiehn",
+                    "Cuba",
+                    "Phoenix multi val"
+                ],
+                "mvcount": "4",
+                "mvindex02": [
+                    "Hilton",
+                    "Kiehn",
+                    "Cuba"
+                ],
+                "mvindex2": [
+                    "Cuba"
+                ],
+                "mvindex_1": [
+                    "Phoenix multi val"
+                ],
+                "mvindex_3_1": [
+                    "Kiehn",
+                    "Cuba",
+                    "Phoenix multi val"
+                ],
+                "mvjoin": "Hilton:Kiehn:Cuba:Phoenix multi val",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                "split_join": "a?bc?123",
+                "timestamp": 1749740323510
+            },
+            {
+                "app_name": "Bracecould",
+                "append_split": [
+                    "Elwyn",
+                    "Waelchi",
+                    "Bonaire",
+                    " Sint Eustatius and Saba",
+                    "Cleveland multi val",
+                    "new_val",
+                    "BracecouldBonaire, Sint Eustatius and Saba",
+                    "one",
+                    "two"
+                ],
+                "city": "Cleveland",
+                "country": "Bonaire, Sint Eustatius and Saba",
+                "first_name": "Elwyn",
+                "ident": "9e2b2977-0ce9-42e1-b4d7-bf79cad9081b",
+                "last_name": "Waelchi",
+                "multi_val": [
+                    "Elwyn",
+                    "Waelchi",
+                    "Bonaire",
+                    " Sint Eustatius and Saba",
+                    "Cleveland multi val"
+                ],
+                "mvcount": "5",
+                "mvindex02": [
+                    "Elwyn",
+                    "Waelchi",
+                    "Bonaire"
+                ],
+                "mvindex2": [
+                    "Bonaire"
+                ],
+                "mvindex_1": [
+                    "Cleveland multi val"
+                ],
+                "mvindex_3_1": [
+                    "Bonaire",
+                    " Sint Eustatius and Saba",
+                    "Cleveland multi val"
+                ],
+                "mvjoin": "Elwyn:Waelchi:Bonaire: Sint Eustatius and Saba:Cleveland multi val",
+                "split": [
+                    "a",
+                    "bc",
+                    "123"
+                ],
+                "split_count": "3",
+                "split_find": "1",
+                "split_index": [
+                    "bc",
+                    "123"
+                ],
+                 "filtered_multi_val": ["Cleveland multi val"],
+                "split_join": "a?bc?123",
+                "timestamp": 1749740309413
+            },
+            {
+                "app_name": "Bracecould",
+                "append_split": [
+                    "Tad",
+                    "Bins",
+                    "French Guiana",
+                    "Nashville-Davidson multi val",
+                    "new_val",
+                    "BracecouldFrench Guiana",
+                    "one",
+                    "two"
+                ],
                 "city": "Nashville-Davidson",
                 "country": "French Guiana",
                 "first_name": "Tad",
@@ -96,10 +290,22 @@
                     "bc",
                     "123"
                 ],
-                "split_join": "a?bc?123"
+                "filtered_multi_val": ["Nashville-Davidson multi val"],
+                "split_join": "a?bc?123",
+                "timestamp": 1749740308116
             },
             {
                 "app_name": "Bracecould",
+                "append_split": [
+                    "Elijah",
+                    "Gaylord",
+                    "Jersey",
+                    "Denver multi val",
+                    "new_val",
+                    "BracecouldJersey",
+                    "one",
+                    "two"
+                ],
                 "city": "Denver",
                 "country": "Jersey",
                 "first_name": "Elijah",
@@ -112,7 +318,6 @@
                     "Denver multi val"
                 ],
                 "mvcount": "4",
-                "mvfind": "",
                 "mvindex02": [
                     "Elijah",
                     "Gaylord",
@@ -141,146 +346,12 @@
                     "bc",
                     "123"
                 ],
-                "split_join": "a?bc?123"
-            },
-            {
-                "app_name": "Bracecould",
-                "city": "Albuquerque",
-                "country": "Dominican Republic",
-                "first_name": "Jackson",
-                "ident": "46ea99d9-f3ff-4d1b-b6c1-85016484f1d9",
-                "last_name": "Marvin",
-                "multi_val": [
-                    "Jackson",
-                    "Marvin",
-                    "Dominican Republic",
-                    "Albuquerque multi val"
-                ],
-                "mvcount": "4",
-                "mvfind": "",
-                "mvindex02": [
-                    "Jackson",
-                    "Marvin",
-                    "Dominican Republic"
-                ],
-                "mvindex2": [
-                    "Dominican Republic"
-                ],
-                "mvindex_1": [
-                    "Albuquerque multi val"
-                ],
-                "mvindex_3_1": [
-                    "Marvin",
-                    "Dominican Republic",
-                    "Albuquerque multi val"
-                ],
-                "mvjoin": "Jackson:Marvin:Dominican Republic:Albuquerque multi val",
-                "split": [
-                    "a",
-                    "bc",
-                    "123"
-                ],
-                "split_count": "3",
-                "split_find": "1",
-                "split_index": [
-                    "bc",
-                    "123"
-                ],
-                "split_join": "a?bc?123"
-            },
-            {
-                "app_name": "Bracecould",
-                "city": "Cleveland",
-                "country": "Bonaire, Sint Eustatius and Saba",
-                "first_name": "Elwyn",
-                "ident": "9e2b2977-0ce9-42e1-b4d7-bf79cad9081b",
-                "last_name": "Waelchi",
-                "multi_val": [
-                    "Elwyn",
-                    "Waelchi",
-                    "Bonaire",
-                    " Sint Eustatius and Saba",
-                    "Cleveland multi val"
-                ],
-                "mvcount": "5",
-                "mvfind": "",
-                "mvindex02": [
-                    "Elwyn",
-                    "Waelchi",
-                    "Bonaire"
-                ],
-                "mvindex2": [
-                    "Bonaire"
-                ],
-                "mvindex_1": [
-                    "Cleveland multi val"
-                ],
-                "mvindex_3_1": [
-                    "Bonaire",
-                    " Sint Eustatius and Saba",
-                    "Cleveland multi val"
-                ],
-                "mvjoin": "Elwyn:Waelchi:Bonaire: Sint Eustatius and Saba:Cleveland multi val",
-                "split": [
-                    "a",
-                    "bc",
-                    "123"
-                ],
-                "split_count": "3",
-                "split_find": "1",
-                "split_index": [
-                    "bc",
-                    "123"
-                ],
-                "split_join": "a?bc?123"
-            },
-            {
-                "app_name": "Bracecould",
-                "city": "Phoenix",
-                "country": "Cuba",
-                "first_name": "Hilton",
-                "ident": "9d833dd6-4e32-42b7-a108-1dfd35fc42fc",
-                "last_name": "Kiehn",
-                "multi_val": [
-                    "Hilton",
-                    "Kiehn",
-                    "Cuba",
-                    "Phoenix multi val"
-                ],
-                "mvcount": "4",
-                "mvfind": "",
-                "mvindex02": [
-                    "Hilton",
-                    "Kiehn",
-                    "Cuba"
-                ],
-                "mvindex2": [
-                    "Cuba"
-                ],
-                "mvindex_1": [
-                    "Phoenix multi val"
-                ],
-                "mvindex_3_1": [
-                    "Kiehn",
-                    "Cuba",
-                    "Phoenix multi val"
-                ],
-                "mvjoin": "Hilton:Kiehn:Cuba:Phoenix multi val",
-                "split": [
-                    "a",
-                    "bc",
-                    "123"
-                ],
-                "split_count": "3",
-                "split_find": "1",
-                "split_index": [
-                    "bc",
-                    "123"
-                ],
-                "split_join": "a?bc?123"
+                  "filtered_multi_val": ["Denver multi val"],
+                "split_join": "a?bc?123",
+                "timestamp": 1749740304935
             }
         ],
-         "allColumns": [
+        "allColumns": [
             "app_name",
             "first_name",
             "last_name",
@@ -299,9 +370,11 @@
             "split_count",
             "split_index",
             "split_find",
-            "ident"
+            "ident",
+            "append_split",
+            "filtered_multi_val"
         ],
-         "columnsOrder": [
+        "columnsOrder": [
             "app_name",
             "first_name",
             "last_name",
@@ -320,8 +393,9 @@
             "split_count",
             "split_index",
             "split_find",
-            "ident"
+            "ident",
+            "append_split",
+            "filtered_multi_val"
         ]
-     }
- }
- 
+    }
+}
