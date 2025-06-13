@@ -3599,7 +3599,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
         ValueIsField: false,
-        Value: str.(string),
+        Value: removeQuotes(str.(string)),
         NumericExprMode: structs.NEMLenString,
     }
 
