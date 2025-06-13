@@ -20,6 +20,7 @@ package structs
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"math"
 	"math/rand"
@@ -2586,22 +2587,22 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 		isPathFieldName := self.SPathExpr.IsPathFieldName
 
 		var inputValue string
-		var err error
+		var errJSON error
 
 		if isPathFieldName {
 			// Path is a field name, so get the value of that field
-			inputValue, err = getValueAsString(fieldToValue, path)
-			if err != nil {
-				return "", utils.WrapErrorf(err, "TextExpr.EvaluateText: cannot get path from field %s", path)
+			inputValue, errJSON = getValueAsString(fieldToValue, path)
+			if errJSON != nil {
+				return "", utils.WrapErrorf(errJSON, "TextExpr.EvaluateText: cannot get path from field %s", path)
 			}
 			path = inputValue // Use the value of the field as the actual path
 		}
 
 		log.Infof("TextExpr.EvaluateText: fieldToValue: %#v, inputColName: %s, path: %s", fieldToValue, inputColName, path)
 		// Get the input column value
-		inputVal, err := getValueAsString(fieldToValue, inputColName)
+		inputVal, errJSON := getValueAsString(fieldToValue, inputColName)
 		// inputVal, ok := fieldToValue[inputColName]
-		if err != nil {
+		if errJSON != nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: input column '%s' not found", inputColName)
 		}
 
@@ -2612,12 +2613,18 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 		// This part depends on how your structured data extraction works.
 		// For example, if it's JSON, you might use the `jsonparser` library:
 		log.Infof("Extract value from JSON: inputStr: %s, path: %s", inputStr, path)
-		extractedValue, err := extractValueFromJSON(inputStr, path)
-		if err != nil {
-			return "", utils.WrapErrorf(err, "TextExpr.EvaluateText: error extracting value from JSON: %v", err)
+		extractedValue, errJSON := extractValueFromJSON(inputStr, path)
+		if errJSON == nil {
+			return extractedValue, nil
 		}
 
-		return extractedValue, nil
+		extractedValue, errXML := extractValueFromXML(inputStr, path)
+		if errXML == nil {
+			return extractedValue, nil
+		}
+
+		return "", fmt.Errorf("TextExpr.EvaluateText: error extracting value from JSON: %v, error extracting value from XML: %v", errJSON, errXML)
+
 	}
 	if self.Op == "max" {
 		if len(self.ValueList) == 0 {
@@ -2785,6 +2792,11 @@ func extractValueFromJSON(inputStr, path string) (string, error) {
 		return "", fmt.Errorf("extractValueFromJSON: error unmarshalling input string: %v", err)
 	}
 
+	if strings.Contains(path, ".{") {
+		// This is an invalid path; we check for this here since this would cause issues later on
+		return "", fmt.Errorf("extractValueFromJSON: invalid path '%s' contains '.{'", path)
+	}
+
 	newPath := strings.ReplaceAll(path, "{", ".{") // this makes it easier to parse arrays
 	if newPath[0] == '.' {
 		newPath = newPath[1:] // remove leading dot if present
@@ -2801,10 +2813,8 @@ func extractValueFromJSON(inputStr, path string) (string, error) {
 			switch value.(type) {
 			case []interface{}:
 				if len(part) == 2 {
-					// If the part is just "{}", it means we want to access the whole array
-					// We can skip this part
-					// note that this means "array.{}.{}.{0}" is the same as "array{0}"
-					continue
+					// TODO: support {}
+					return "", fmt.Errorf("{} is not yet supported in spath queries")
 				}
 
 				index, err := strconv.Atoi(part[1 : len(part)-1]) // remove the curly braces and convert to int
@@ -2845,6 +2855,42 @@ func extractValueFromJSON(inputStr, path string) (string, error) {
 
 	return valueStr, nil
 
+}
+
+func extractValueFromXML(inputStr, path string) (string, error) {
+	var value interface{} // this stores the current value as we go deeper into the XML structure
+	log.Infof("extractValueFromXML: inputStr: %s, path: %s", inputStr, path)
+
+	// Unmarshal the XML input string into a map
+	err := xml.Unmarshal([]byte(inputStr), &value)
+	if err != nil {
+		return "", fmt.Errorf("extractValueFromXML: error unmarshalling input string: %v", err)
+	}
+
+	// Split the path by dots to get individual elements
+	parts := strings.Split(path, ".")
+	for _, part := range parts {
+		_, ok := value.(map[string]interface{})
+		if !ok {
+			return "", fmt.Errorf("extractValueFromXML: expected a map at path '%s' in %s, but found a different type", path, inputStr)
+		}
+
+		_, ok2 := value.(map[string]interface{})[part]
+		if !ok2 {
+			return "", fmt.Errorf("extractValueFromXML: key '%s' not found in XML object %s at path '%s'", part, inputStr, path)
+		}
+
+		value = value.(map[string]interface{})[part] // update value
+	}
+
+	xmlBytes, err := xml.Marshal(value)
+	if err != nil {
+		return "", fmt.Errorf("extractValueFromXML: error marshalling value to string: %v", err)
+	}
+
+	valueStr := string(xmlBytes)
+
+	return valueStr, nil
 }
 
 func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
