@@ -1132,7 +1132,6 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 
 	return stringsList, nil
 }
-
 func handleMVFilter(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvfilter requires one multiValueExpr argument")
@@ -1149,18 +1148,20 @@ func handleMVFilter(self *MultiValueExpr, fieldToValue map[string]sutils.CValueE
 	}
 
 	filtered := []string{}
-	condFields := self.Condition.GetFields()
-	if len(condFields) == 0 {
-		return []string{}, fmt.Errorf("mvfilter: condition must reference a field")
+	elementField := self.MultiValueExprParams[0].FieldName
+	if elementField == "" && len(self.MultiValueExprParams[0].GetFields()) > 0 {
+		elementField = self.MultiValueExprParams[0].GetFields()[0]
 	}
-	condField := condFields[0]
+	if elementField == "" {
+		return []string{}, fmt.Errorf("mvfilter: cannot determine element variable name")
+	}
 
 	for _, val := range mvSlice {
 		tmpFieldToValue := make(map[string]sutils.CValueEnclosure, len(fieldToValue)+1)
 		for k, v := range fieldToValue {
 			tmpFieldToValue[k] = v
 		}
-		tmpFieldToValue[condField] = sutils.CValueEnclosure{
+		tmpFieldToValue[elementField] = sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_STRING,
 			CVal:  val,
 		}
