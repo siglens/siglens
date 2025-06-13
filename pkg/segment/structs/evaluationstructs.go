@@ -374,6 +374,11 @@ type SigfigInfo struct {
 	DecimalPlace int
 }
 
+type RunningLatestOrEarliestVal struct {
+	Value     sutils.CValueEnclosure
+	Timestamp uint64
+}
+
 type BoolOperator uint8
 
 const (

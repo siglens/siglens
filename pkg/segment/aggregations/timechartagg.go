@@ -372,6 +372,10 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 		fallthrough
 	case sutils.Range:
 		fallthrough
+	case sutils.LatestTime:
+		fallthrough
+	case sutils.EarliestTime:
+		fallthrough
 	case sutils.Sum:
 		aggFunc = sutils.Sum
 	case sutils.Cardinality:
@@ -405,6 +409,34 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 			}
 			eVal.CVal = td.GetQuantile(fltPercentileVal)
 			eVal.Dtype = sutils.SS_DT_FLOAT
+			return
+		}
+	case sutils.Earliest:
+		fallthrough
+	case sutils.Latest:
+		if useAdditionForMerge {
+			// sutils.Reduce already handles unsupported dtypes
+			aggFunc = sutils.Sum
+			// calculate score based on the columns value
+			eValToMerge = eValToMerge.CVal.(structs.RunningLatestOrEarliestVal).Value
+		} else {
+			if eVal.Dtype == sutils.SS_INVALID {
+				eVal = &eValToMerge
+			} else {
+				castedEVal := eVal.CVal.(structs.RunningLatestOrEarliestVal)
+				castedEValToMerge := eValToMerge.CVal.(structs.RunningLatestOrEarliestVal)
+				ts := castedEVal.Timestamp
+				tsToMerge := castedEValToMerge.Timestamp
+				if aggFunc == sutils.Latest {
+					if tsToMerge > ts {
+						eVal = &eValToMerge
+					}
+				} else {
+					if tsToMerge < ts {
+						eVal = &eValToMerge
+					}
+				}
+			}
 			return
 		}
 	case sutils.Values:

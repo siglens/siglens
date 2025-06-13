@@ -543,7 +543,7 @@ type SegStats struct {
 	Hll         *utils.GobbableHll
 	NumStats    *NumericStats
 	StringStats *StringStats
-	LatestTs    sutils.CValueEnclosure
+	TimeStats   *TimeStats
 	Records     []*sutils.CValueEnclosure
 	TDigest     *utils.GobbableTDigest
 }
@@ -552,6 +552,13 @@ type NumericStats struct {
 	NumericCount uint64                  `json:"numericCount,omitempty"`
 	Sum          sutils.NumTypeEnclosure `json:"sum,omitempty"`
 	Sumsq        float64                 `json:"sumsq,omitempty"` // sum of squares, use float64 since we expect large values
+}
+
+type TimeStats struct {
+	LatestTs    sutils.CValueEnclosure
+	EarliestTs  sutils.CValueEnclosure
+	LatestVal   sutils.CValueEnclosure
+	EarliestVal sutils.CValueEnclosure
 }
 
 type StringStats struct {
@@ -610,8 +617,8 @@ var nonIngestStats = map[sutils.AggregateFunctions]string{
 	sutils.EarliestTime: "",
 	sutils.Latest:       "",
 	sutils.Earliest:     "",
-	sutils.Sumsq:        "",
 	sutils.Perc:         "",
+	sutils.Sumsq:        "",
 }
 
 // init SegStats from raw bytes of SegStatsJSON
@@ -810,6 +817,11 @@ func (ss *SegStats) Merge(other *SegStats) {
 	} else {
 		ss.StringStats.Merge(other.StringStats)
 	}
+	if ss.TimeStats == nil {
+		ss.TimeStats = other.TimeStats
+	} else {
+		ss.TimeStats.Merge(other.TimeStats)
+	}
 }
 
 func (ss *StringStats) Merge(other *StringStats) {
@@ -836,6 +848,24 @@ func (ss *StringStats) Merge(other *StringStats) {
 		} else {
 			ss.StrList = make([]string, len(other.StrList))
 			copy(ss.StrList, other.StrList)
+		}
+	}
+}
+
+func (ss *TimeStats) Merge(other *TimeStats) {
+	if other == nil {
+		return
+	}
+	if ss.LatestTs.Dtype == sutils.SS_DT_UNSIGNED_NUM && other.LatestTs.Dtype == sutils.SS_DT_UNSIGNED_NUM {
+		if ss.LatestTs.CVal.(uint64) < other.LatestTs.CVal.(uint64) {
+			ss.LatestTs = other.LatestTs
+			ss.LatestVal = other.LatestVal
+		}
+	}
+	if ss.EarliestTs.Dtype == sutils.SS_DT_UNSIGNED_NUM && other.EarliestTs.Dtype == sutils.SS_DT_UNSIGNED_NUM {
+		if ss.EarliestTs.CVal.(uint64) > other.EarliestTs.CVal.(uint64) {
+			ss.EarliestTs = other.EarliestTs
+			ss.EarliestVal = other.EarliestVal
 		}
 	}
 }
@@ -1187,15 +1217,6 @@ func HasValueColRequestInMeasureAggs(measureAggs []*MeasureAggregator) bool {
 	return false
 }
 
-func (qa *QueryAggregators) HasNonIngestStats() bool {
-	for _, agg := range qa.MeasureOperations {
-		if _, ok := nonIngestStats[agg.MeasureFunc]; ok {
-			return true
-		}
-	}
-	return false
-}
-
 // To determine whether it contains Aggregate Func: Values()
 func (qa *QueryAggregators) HasValuesFunc() bool {
 	for _, agg := range qa.MeasureOperations {
@@ -1209,6 +1230,15 @@ func (qa *QueryAggregators) HasValuesFunc() bool {
 func (qa *QueryAggregators) HasListFunc() bool {
 	for _, agg := range qa.MeasureOperations {
 		if agg.MeasureFunc == sutils.List {
+			return true
+		}
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasNonIngestStats() bool {
+	for _, agg := range qa.MeasureOperations {
+		if _, ok := nonIngestStats[agg.MeasureFunc]; ok {
 			return true
 		}
 	}
@@ -1472,21 +1502,19 @@ func AddAllColumnsInStreamStatsOptions(cols map[string]struct{}, streamStatsOpti
 }
 
 var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
-	sutils.Estdc:        {},
-	sutils.EstdcError:   {},
-	sutils.ExactPerc:    {},
-	sutils.UpperPerc:    {},
-	sutils.Mode:         {},
-	sutils.Stdev:        {},
-	sutils.Stdevp:       {},
-	sutils.Var:          {},
-	sutils.Varp:         {},
-	sutils.First:        {},
-	sutils.Last:         {},
-	sutils.Earliest:     {},
-	sutils.EarliestTime: {},
-	sutils.Latest:       {},
-	sutils.StatsRate:    {},
+	sutils.Estdc:      {},
+	sutils.EstdcError: {},
+	sutils.ExactPerc:  {},
+	sutils.UpperPerc:  {},
+	sutils.Median:     {},
+	sutils.Mode:       {},
+	sutils.Stdev:      {},
+	sutils.Stdevp:     {},
+	sutils.Var:        {},
+	sutils.Varp:       {},
+	sutils.First:      {},
+	sutils.Last:       {},
+	sutils.StatsRate:  {},
 }
 
 var unsupportedEvalFuncs = map[string]struct{}{
