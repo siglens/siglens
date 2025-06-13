@@ -1133,6 +1133,48 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 	return stringsList, nil
 }
 
+func handleMVFilter(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
+		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvfilter requires one multiValueExpr argument")
+	}
+	if self.Condition == nil {
+		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvfilter requires a condition")
+	}
+
+	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
+		return []string{}, fmt.Errorf("handleMVFilter: %v", err)
+	}
+
+	filtered := []string{}
+	condFields := self.Condition.GetFields()
+	if len(condFields) == 0 {
+		return []string{}, fmt.Errorf("mvfilter: condition must reference a field")
+	}
+	condField := condFields[0]
+
+	for _, val := range mvSlice {
+		tmpFieldToValue := make(map[string]sutils.CValueEnclosure, len(fieldToValue)+1)
+		for k, v := range fieldToValue {
+			tmpFieldToValue[k] = v
+		}
+		tmpFieldToValue[condField] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING,
+			CVal:  val,
+		}
+		match, err := self.Condition.Evaluate(tmpFieldToValue)
+		if err != nil {
+			continue
+		}
+		if match {
+			filtered = append(filtered, val)
+		}
+	}
+	return filtered, nil
+}
+
 func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvindex requires one multiValueExpr argument")
@@ -1201,6 +1243,8 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 		return handleSplit(self, fieldToValue)
 	case "mvindex":
 		return handleMVIndex(self, fieldToValue)
+	case "mvfilter":
+		return handleMVFilter(self, fieldToValue)
 	default:
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: invalid Op %v", self.Op)
 	}
