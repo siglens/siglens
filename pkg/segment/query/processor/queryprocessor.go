@@ -786,15 +786,74 @@ func validateStreamStatsTimeWindow(firstAgg *structs.QueryAggregators) error {
 }
 
 // This analyzes the DataProcessor chain and sets the mergeSettings for each.
-// It returns the sortMode that the input (i.e., the searcher) should use.
+// It returns the sorting mode the input (i.e., the searcher) should use.
 //
 // Setting the mergeSettings uses info about the whole chain, so passing parts
 // of a chain in chunks and concatenating the result may lead to a different
 // outcome.
-func setMergeSettings(dpChain []*DataProcessor) sortMode {
-	for _, dp := range dpChain {
-		mode := recentFirst
-		dp.mergeSettings.sortMode = &mode
+func setMergeSettings(dpChain []*DataProcessor) mergeSettings {
+	defaultSortMode := recentFirst // Splunk default.
+	curMergeSettings := mergeSettings{sortMode: &defaultSortMode}
+	inputMergeSettings := mergeSettings{sortMode: &defaultSortMode}
+
+	for i, dp := range dpChain {
+		if dp.IgnoresInputOrder() {
+			mode := anyOrder
+			curMergeSettings.sortMode = &mode
+			curMergeSettings.sortExpr = nil
+			curMergeSettings.reverse = false
+			curMergeSettings.less = func(a, b *iqr.Record) bool { return true }
+
+			for k := i; k >= -1; k-- {
+				if k == -1 {
+					inputMergeSettings = curMergeSettings
+					break
+				}
+
+				dp := dpChain[k]
+				if dp.DoesInputOrderMatter() {
+					break
+				}
+
+				dp.mergeSettings = curMergeSettings
+			}
+		}
+
+		if dp.IsPermutingCmd() {
+			// The sort order changes here.
+			switch processor := dp.processor.(type) {
+			case *sortProcessor:
+				curMergeSettings.sortMode = nil
+				curMergeSettings.sortExpr = processor.options
+				curMergeSettings.reverse = false
+				curMergeSettings.less = processor.lessDirectRead
+			case *tailProcessor:
+				curMergeSettings.reverse = !curMergeSettings.reverse
+				if curMergeSettings.less != nil {
+					newLess := func(a, b *iqr.Record) bool {
+						return !curMergeSettings.less(a, b)
+					}
+					curMergeSettings.less = newLess
+				}
+			}
+
+			for k := i; k >= -1; k-- {
+				if k == -1 {
+					inputMergeSettings = curMergeSettings
+					break
+				}
+
+				dp := dpChain[k]
+				if dp.DoesInputOrderMatter() || dp.IsPermutingCmd() || dp.IgnoresInputOrder() {
+					break
+				}
+
+				dp.mergeSettings = curMergeSettings
+			}
+		}
+
+		dp.mergeSettings = curMergeSettings
 	}
-	return recentFirst
+
+	return inputMergeSettings
 }

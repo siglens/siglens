@@ -289,11 +289,36 @@ func Test_setMergeSettings(t *testing.T) {
 			NewWhereDP(nil),
 		}
 
-		searcherSortMode := setMergeSettings(dpChain)
-		assert.Equal(t, recentFirst, searcherSortMode)
+		searcherMergeSettings := setMergeSettings(dpChain)
+		assert.NotNil(t, searcherMergeSettings)
+		assert.Equal(t, recentFirst, *searcherMergeSettings.sortMode)
 		assert.NotNil(t, dpChain[0].mergeSettings.sortMode)
-		assert.Equal(t, *dpChain[0].mergeSettings.sortMode, recentFirst)
+		assert.Equal(t, recentFirst, *dpChain[0].mergeSettings.sortMode)
 		assert.NotNil(t, dpChain[1].mergeSettings.sortMode)
-		assert.Equal(t, *dpChain[1].mergeSettings.sortMode, recentFirst)
+		assert.Equal(t, recentFirst, *dpChain[1].mergeSettings.sortMode)
+	})
+
+	t.Run("Custom sort", func(t *testing.T) {
+		sortExpr := &structs.SortExpr{
+			SortEles: []*structs.SortElement{
+				{Field: "foo", Op: "", SortByAsc: true},
+			},
+		}
+
+		dpChain := []*DataProcessor{
+			NewEvalDP(nil),
+			NewSortDP(sortExpr),
+			NewWhereDP(nil),
+		}
+
+		searcherMergeSettings := setMergeSettings(dpChain)
+		assert.NotNil(t, searcherMergeSettings.sortMode)
+		assert.Equal(t, anyOrder, *searcherMergeSettings.sortMode)
+		assert.NotNil(t, dpChain[0].mergeSettings.sortMode)
+		assert.Equal(t, anyOrder, *dpChain[0].mergeSettings.sortMode)
+		assert.NotNil(t, dpChain[1].mergeSettings.sortExpr)
+		assert.True(t, sortExpr.Equal(dpChain[1].mergeSettings.sortExpr))
+		assert.NotNil(t, dpChain[2].mergeSettings.sortExpr)
+		assert.True(t, sortExpr.Equal(dpChain[2].mergeSettings.sortExpr))
 	})
 }
