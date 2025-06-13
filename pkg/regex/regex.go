@@ -34,19 +34,20 @@ type simpleRegex struct {
 	word           []byte
 	caseSensitive  bool
 	wildcardAfter  bool
-
-	fullPattern string
+	fullPattern    string
 }
 
-var simpleRe = regexp.MustCompile(`^(\(\?i\))?` + // Optional case-insensitive flag
-	`(\^)?` + // Optional anchor
-	`(\.\*)?` + // Optional wildcard
-	`([a-zA-Z0-9_]+)` + // Main word to find
-	`(\.\*)?` + // Optional wildcard
-	`(\$)?$`, // Optional anchor
-)
+var simpleRe = regexp.MustCompile(`^(\(\?i\))?(\^)?(\.\*)?([a-zA-Z0-9_:/\-]+)(\.\*)?(\$)?$`) // Optional case-insensitive flag
 
 func New(pattern string) (Regex, error) {
+	if bytes.Contains([]byte(pattern), []byte("\n")) {
+		return regexp.Compile(pattern)
+	}
+
+	if containsSingleDotWildcard(pattern) {
+		return regexp.Compile(pattern)
+	}
+
 	matches := simpleRe.FindStringSubmatch(pattern)
 	if len(matches) == 0 {
 		return regexp.Compile(pattern)
@@ -59,6 +60,31 @@ func New(pattern string) (Regex, error) {
 		wildcardAfter:  matches[5] == ".*" || matches[6] != "$",
 		fullPattern:    pattern,
 	}, nil
+}
+
+func containsSingleDotWildcard(pattern string) bool {
+	escaped := false
+	for i := 0; i < len(pattern); i++ {
+		char := pattern[i]
+
+		if escaped {
+			escaped = false
+			continue
+		}
+
+		if char == '\\' {
+			escaped = true
+			continue
+		}
+
+		if char == '.' {
+			if i+1 < len(pattern) && pattern[i+1] == '*' {
+				continue
+			}
+			return true
+		}
+	}
+	return false
 }
 
 func (r *simpleRegex) Match(buf []byte) bool {
@@ -77,11 +103,11 @@ func (r *simpleRegex) Match(buf []byte) bool {
 	}
 
 	if r.wildcardBefore {
-		return len(buf) >= len(r.word) && contains(buf[len(buf)-len(r.word):], r.word)
+		return len(buf) >= len(r.word) && equal(buf[len(buf)-len(r.word):], r.word)
 	}
 
 	if r.wildcardAfter {
-		return len(buf) >= len(r.word) && contains(buf[:len(r.word)], r.word)
+		return len(buf) >= len(r.word) && equal(buf[:len(r.word)], r.word)
 	}
 
 	return equal(buf, r.word)

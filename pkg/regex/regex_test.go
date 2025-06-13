@@ -36,6 +36,10 @@ func Test_Match(t *testing.T) {
 	assertMatches(t, `(?i).*bar$`, `abcBaR`)
 	assertMatches(t, `.*bar$`, `abcBaR`)
 
+	assertMatches(t, `.*google.*`, "visit\nwww.google.com")
+	assertMatches(t, `(?i).*GOOGLE.*`, "some\ntext\nGoogle\nhere")
+	assertMatches(t, `.*foo.*`, "line1\nline2fooinfo")
+
 }
 
 func assertMatches(t *testing.T, pattern string, str string) {
@@ -68,6 +72,7 @@ func Test_UsesOptimizedRegex(t *testing.T) {
 
 	assertUsesOptimizedRegex(t, `foo.*bar.*`, false) // TODO: maybe we'll want to handle this.
 	assertUsesOptimizedRegex(t, `(.*foo.*|.*bar.*)`, false)
+
 }
 
 func assertUsesOptimizedRegex(t *testing.T, pattern string, expected bool) {
