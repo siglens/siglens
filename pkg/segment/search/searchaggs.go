@@ -1035,7 +1035,7 @@ func addValsToTimeStats(localStats map[string]*structs.SegStats, colName string,
 		timestampIdx := -1
 		err := mcr.ExtractValueFromColumnFile(timestampIdx, blockNum, recNum, qid, true, &tsCVal)
 		if err != nil {
-			log.Errorf("qid=%d, segmentStatsWorker failed to get timestamp values for dict encoded column; col: %v", qid, colName)
+			log.Errorf("qid=%d, addValsToTimeStts failed to get timestamp values for dict/non-dict encoded column; col: %v", qid, colName)
 		} else {
 			stats.AddSegStatsLatestEarliestVal(localStats, colName, &tsCVal, rawVal, true)
 			stats.AddSegStatsLatestEarliestVal(localStats, colName, &tsCVal, rawVal, false)

@@ -195,7 +195,7 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 		return nil
 	}
 
-	// When there is only one agg and agg is values(), we can not score that based on the sum of the values in the aggregation	onlyUsedByUnscorableFuncs := true
+	// When there is only one agg and agg is values(), we can not score that based on the sum of the values in the aggregation
 	onlyUseByValuesFunc := false
 	if len(measureOperations) == 1 && measureOperations[0].MeasureFunc == sutils.Values {
 		onlyUseByValuesFunc = true
