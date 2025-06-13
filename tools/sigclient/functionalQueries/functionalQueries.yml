@@ -20,9 +20,11 @@ fillnull_with_eval.json
 stats_group_by_eval.json
 eval_groupby_2col_2stats.json
 eval_fields_timechart.json
-multi_value.json
 gentimes.json
 gentimes_2.json
+multi_value.json
+mvappend.json
+mvdedup.json
 mvexpand.json
 rex_stats_groupby_eval_stats.json
 eval_stats_sort_stats_groupby_where.json

@@ -1,0 +1,23 @@
+{
+    "queryText": "city=Boston | eval names=\"Frank,Frank,1,1,@,@,Grace,Grace,Heidi,Ivan\"| makemv delim=\",\" names | head 4 | eval ans=mvdedup(names) | fields ans",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 4,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": ["ans"],
+        "records": [
+            { "ans": ["Frank","1","@","Grace","Heidi","Ivan"] },
+            { "ans": ["Frank","1","@","Grace","Heidi","Ivan"] },
+            { "ans": ["Frank","1","@","Grace","Heidi","Ivan"] },
+            { "ans": ["Frank","1","@","Grace","Heidi","Ivan"] }
+        ],
+        "allColumns": [
+            "ans"
+        ],
+        "columnsOrder": [
+            "ans"
+        ]
+    }
+}
