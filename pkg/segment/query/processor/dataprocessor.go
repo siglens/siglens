@@ -39,12 +39,44 @@ type processor interface {
 }
 
 type mergeSettings struct {
-	mergingStats bool
+	mergingStats bool // Other fields don't matter when this is true.
 
-	// Only used if mergingStats is false.
-	less        func(*iqr.Record, *iqr.Record) bool
+	// Either sortMode or sortExpr must be set.
+	sortMode *sortMode
+	sortExpr *structs.SortExpr
+	reverse  bool // If true, sort by sortMode/sortExpr and then reverse.
+
+	// This must incorporate the reverse flag.
+	less func(*iqr.Record, *iqr.Record) bool
+
 	limit       utils.Option[uint64]
 	numReturned uint64
+}
+
+func (ms mergeSettings) Equal(other mergeSettings) bool {
+	if ms.mergingStats != other.mergingStats {
+		return false
+	}
+
+	if ms.reverse != other.reverse {
+		return false
+	}
+
+	if ms.sortMode != nil || other.sortMode != nil {
+		if ms.sortMode != other.sortMode {
+			return false
+		}
+	}
+
+	if !ms.sortExpr.Equal(other.sortExpr) {
+		return false
+	}
+
+	if !utils.EqualOptions(ms.limit, other.limit) {
+		return false
+	}
+
+	return true
 }
 
 type DataProcessor struct {

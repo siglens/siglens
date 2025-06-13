@@ -147,6 +147,31 @@ type SortExpr struct {
 	processedSegmentsLock sync.Mutex
 }
 
+func (e *SortExpr) Equal(other *SortExpr) bool {
+	if e == nil || other == nil {
+		return e == other
+	}
+
+	if len(e.SortEles) != len(other.SortEles) || len(e.SortAscending) != len(other.SortAscending) {
+		return false
+	}
+
+	for i, sortEle := range e.SortEles {
+		if sortEle.Field != other.SortEles[i].Field || sortEle.Op != other.SortEles[i].Op ||
+			sortEle.SortByAsc != other.SortEles[i].SortByAsc {
+			return false
+		}
+	}
+
+	for i, asc := range e.SortAscending {
+		if asc != other.SortAscending[i] {
+			return false
+		}
+	}
+
+	return e.Limit == other.Limit
+}
+
 func (e *SortExpr) ShallowCopy() *SortExpr {
 	return &SortExpr{
 		SortEles:      e.SortEles,

@@ -281,3 +281,19 @@ func TestIsLogsQuery_MixedRRCCmdAndGroupByCmd(t *testing.T) {
 	result := query.IsLogsQuery(agg)
 	assert.False(t, result)
 }
+
+func Test_setMergeSettings(t *testing.T) {
+	t.Run("Default order", func(t *testing.T) {
+		dpChain := []*DataProcessor{
+			NewEvalDP(nil),
+			NewWhereDP(nil),
+		}
+
+		searcherSortMode := setMergeSettings(dpChain)
+		assert.Equal(t, recentFirst, searcherSortMode)
+		assert.NotNil(t, dpChain[0].mergeSettings.sortMode)
+		assert.Equal(t, *dpChain[0].mergeSettings.sortMode, recentFirst)
+		assert.NotNil(t, dpChain[1].mergeSettings.sortMode)
+		assert.Equal(t, *dpChain[1].mergeSettings.sortMode, recentFirst)
+	})
+}

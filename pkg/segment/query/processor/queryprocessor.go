@@ -784,3 +784,17 @@ func validateStreamStatsTimeWindow(firstAgg *structs.QueryAggregators) error {
 	}
 	return nil
 }
+
+// This analyzes the DataProcessor chain and sets the mergeSettings for each.
+// It returns the sortMode that the input (i.e., the searcher) should use.
+//
+// Setting the mergeSettings uses info about the whole chain, so passing parts
+// of a chain in chunks and concatenating the result may lead to a different
+// outcome.
+func setMergeSettings(dpChain []*DataProcessor) sortMode {
+	for _, dp := range dpChain {
+		mode := recentFirst
+		dp.mergeSettings.sortMode = &mode
+	}
+	return recentFirst
+}
