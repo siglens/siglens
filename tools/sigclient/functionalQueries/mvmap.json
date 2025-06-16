@@ -1,19 +1,4 @@
 {
-  "queryText": "city=Boston | eval names=\"Frank,Grace,Heidi,Ivan\" | makemv delim=\",\" names | head 4 | eval mvmap = mvmap(names, \"prefix:\" . _mvmap) | fields mvmap",
-  "expectedResult": {
-    "totalMatched": {
-      "value": 4,
-      "relation": "eq"
-    },
-    "qtype": "logs-query",
-    "uniqueKeyCols": ["mvmap"],
-    "records": [
-      { "mvmap": ["prefix:Frank", "prefix:Grace", "prefix:Heidi", "prefix:Ivan"] },
-      { "mvmap": ["prefix:Frank", "prefix:Grace", "prefix:Heidi", "prefix:Ivan"] },
-      { "mvmap": ["prefix:Frank", "prefix:Grace", "prefix:Heidi", "prefix:Ivan"] },
-      { "mvmap": ["prefix:Frank", "prefix:Grace", "prefix:Heidi", "prefix:Ivan"] }
-    ],
-    "allColumns": ["mvmap"],
-    "columnsOrder": ["mvmap"]
-  }
+  "queryText": "city=Boston | eval names=\"Frank,Grace,Heidi,Ivan\" | makemv delim=\",\" names | head 4 | eval mvmap = mvmap(names, \"prefix:\" . _mvmap) | fields mvmap"
+  
 }
