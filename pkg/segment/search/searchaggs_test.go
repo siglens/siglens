@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"strconv"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -163,7 +164,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *testing.T
 		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
-			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
+			assert.Equal(t, 1, len(resultMap), "The Last Segment should return a resultMap with a single key.")
 			assert.True(t, resultMap["CHECK_NEXT_AGG"], "The Last Segment should return a resultMap with a key CHECK_NEXT_AGG set to true.")
 			assert.Equal(t, 1, len(recs), "MeasureAggs: Should return only a single record containing result of the aggregation.")
 			for _, record := range recs {
@@ -485,4 +486,81 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 			assert.Nil(t, resultMap, "The resultMap should be nil until the last segment is processed")
 		}
 	}
+}
+
+func Test_PerformGroupByAggsWithRexColumns(t *testing.T) {
+    // 1) Input records already have the rex_field extracted.
+    recs := map[string]map[string]interface{}{
+        "rec1": {"rex_field": "alpha", "other_field": "value1"},
+        "rec2": {"rex_field": "beta",  "other_field": "value2"},
+        "rec3": {"rex_field": "alpha", "other_field": "value3"},
+        "rec4": {"rex_field": "gamma", "other_field": "value4"},
+        "rec5": {"rex_field": "beta",  "other_field": "value5"},
+    }
+
+    // 2) Which columns we want in the final aggregated output:
+    finalCols := map[string]bool{
+        "rex_field":   true,
+        "other_field": true,
+        "count(*)":    true,
+    }
+
+    // 3) Build a NodeResult that will trigger the GroupBy path:
+    nodeResult := &structs.NodeResult{
+        RecsAggregator: structs.RecsAggregator{
+            PerformAggsOnRecs: true,
+            RecsAggsType:      structs.GroupByType,
+            GroupByRequest: &structs.GroupByRequest{
+                GroupByColumns: []string{"rex_field"},
+                MeasureOperations: []*structs.MeasureAggregator{{
+                    MeasureCol:  "*",
+                    MeasureFunc: sutils.Count,
+                    StrEnc:      "count(*)",
+                    // MUST supply a ValueColRequest so Count is registered:
+                    ValueColRequest: &structs.ValueExpr{
+                        ValueExprMode:  structs.VEMMultiValueExpr,
+                        MultiValueExpr: &structs.MultiValueExpr{FieldName: "rex_field"},
+                    },
+                }},
+                BucketCount: 3000,
+            },
+        },
+        GroupByCols:    []string{"rex_field"},
+        FinalColumns:   finalCols,
+        QueryStartTime: time.Now(),
+    }
+
+    // 4) Run the pipeline. The 6th arg `true` means "this is the last (and only) segment".
+    flags := PerformAggsOnRecs(
+        nodeResult,
+        &structs.QueryAggregators{Limit: 0},
+        recs,
+        finalCols,
+        /* numTotalSegments */ 1,
+        /* finishesSegment  */ true,
+        /* qid              */ 1,
+    )
+
+    // We should get that sentinel back:
+    assert.Equal(t, map[string]bool{"CHECK_NEXT_AGG": true}, flags)
+
+    // 5) The `recs` map itself is now replaced with your 3 aggregated buckets:
+    assert.Len(t, recs, 3, "should have one entry per distinct rex_field")
+
+    // 6) Pull out each bucket’s count(*) and verify:
+    gotCounts := make(map[string]int)
+    for _, rec := range recs {
+        group := rec["rex_field"].(string)
+        // count came back as some numeric type; stringify & parse:
+        cnt, err := strconv.Atoi(fmt.Sprint(rec["count(*)"]))
+        assert.NoError(t, err)
+        gotCounts[group] = cnt
+    }
+
+    wantCounts := map[string]int{
+        "alpha": 2,
+        "beta":  2,
+        "gamma": 1,
+    }
+    assert.Equal(t, wantCounts, gotCounts)
 }
