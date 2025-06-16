@@ -978,6 +978,7 @@ func NewSearcherDP(searcher Streamer, queryType structs.QueryType) *DataProcesso
 	isTransformingCmd := queryType.IsSegmentStatsCmd() || queryType.IsGroupByCmd()
 	return &DataProcessor{
 		name:              "searcher",
+		mergeSettings:     mergeSettings{less: sortByTimestampLess}, // TODO: add parameter for this.
 		streams:           []*CachedStream{NewCachedStream(searcher)},
 		processor:         &passThroughProcessor{},
 		processorLock:     &sync.Mutex{},
