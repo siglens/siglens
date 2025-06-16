@@ -180,7 +180,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	firstProcessorAgg := firstAgg
-	firstProcessorAgg, err := postProcessQueryAggs(firstProcessorAgg, queryInfo)
+	firstProcessorAgg, skippedStats, err := postProcessQueryAggs(firstProcessorAgg, queryInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	sortExpr := MutateForSearchSorter(firstAgg)
 
 	firstAggHasStats := firstAgg.HasStatsBlock()
-	chainFactory := func() []*DataProcessor { return AggsToDataProcessors(firstProcessorAgg, queryInfo) }
+	chainFactory := func() []*DataProcessor {
+		dpChain := AggsToDataProcessors(firstProcessorAgg, queryInfo)
+		_ = setMergeSettings(dpChain)
+		return dpChain
+	}
 	dataProcessorChains, err := SetupQueryParallelism(firstAggHasStats, chainFactory)
 	if err != nil {
 		return nil, utils.TeeErrorf("NewQueryProcessor: failed to setup query parallelism; err=%v", err)
@@ -219,7 +223,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
 		chainFactory := func() any { return chainFactory() }
-		chainedDPAsAny, err := hook(chainFactory, searcher, queryInfo, shouldDistribute)
+		chainedDPAsAny, err := hook(chainFactory, searcher, skippedStats, queryInfo, shouldDistribute)
 		if err != nil {
 			return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook failed; err=%v", err)
 		}
@@ -310,13 +314,16 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	}, nil
 }
 
-func postProcessQueryAggs(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) (*structs.QueryAggregators, error) {
+func postProcessQueryAggs(firstAgg *structs.QueryAggregators,
+	queryInfo *query.QueryInformation) (*structs.QueryAggregators, bool, error) {
+
+	skippedStats := false
 	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 
 	if queryType != structs.RRCCmd {
 		// If query Type is GroupByCmd/SegmentStatsCmd, this agg must be a Stats Agg and will be processed by the searcher.
 		if !firstAgg.HasStatsBlock() {
-			return nil, utils.TeeErrorf("postProcessQueryAggs: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
+			return nil, false, utils.TeeErrorf("postProcessQueryAggs: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
 		}
 
 		if queryType == structs.GroupByCmd {
@@ -337,6 +344,7 @@ func postProcessQueryAggs(firstAgg *structs.QueryAggregators, queryInfo *query.Q
 
 		// skip the first agg
 		firstAgg = firstAgg.Next
+		skippedStats = true
 	}
 
 	isDistributed := queryInfo.IsDistributed()
@@ -358,7 +366,7 @@ func postProcessQueryAggs(firstAgg *structs.QueryAggregators, queryInfo *query.Q
 		}
 	}
 
-	return firstAgg, nil
+	return firstAgg, skippedStats, nil
 }
 
 // Returns a list of DataProcessor chains. The number of chains is the amount
@@ -793,8 +801,9 @@ func validateStreamStatsTimeWindow(firstAgg *structs.QueryAggregators) error {
 // outcome.
 func setMergeSettings(dpChain []*DataProcessor) mergeSettings {
 	defaultSortMode := recentFirst // Splunk default.
-	curMergeSettings := mergeSettings{sortMode: &defaultSortMode}
-	inputMergeSettings := mergeSettings{sortMode: &defaultSortMode}
+	defaultLess := sortByTimestampLess
+	curMergeSettings := mergeSettings{sortMode: &defaultSortMode, less: defaultLess}
+	inputMergeSettings := mergeSettings{sortMode: &defaultSortMode, less: defaultLess}
 
 	for i, dp := range dpChain {
 		if dp.IgnoresInputOrder() {

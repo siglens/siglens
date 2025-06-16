@@ -126,7 +126,7 @@ type Hooks struct {
 	// Distributed query
 	InitDistributedQueryServiceHook func(querySummary interface{}, allSegFileResults interface{}, distQueryId string, segKeyEnc uint32) interface{}
 	FilterQsrsHook                  func(qsrs interface{}, queryInfoAsAny interface{}, isRotated bool) (interface{}, error)
-	GetDistributedStreamsHook       func(createDpChain func() any, searcher interface{}, queryInfo interface{}, shouldDistribute bool) (interface{}, error)
+	GetDistributedStreamsHook       func(createDpChain func() any, searcher interface{}, skippedStats bool, queryInfo interface{}, shouldDistribute bool) (interface{}, error)
 
 	// Handling ingestion
 	BeforeHandlingBulkRequest func(ctx *fasthttp.RequestCtx, myid int64) (bool, uint64)

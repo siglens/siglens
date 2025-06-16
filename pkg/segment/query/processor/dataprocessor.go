@@ -339,6 +339,8 @@ func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64) {
 
 func (dp *DataProcessor) SetStatsAsIqrStatsResults() error {
 	switch dp.processor.(type) {
+	case *mergeProcessor:
+		dp.processor.(*mergeProcessor).mergeSettings.mergingStats = true
 	case *statsProcessor:
 		dp.processor.(*statsProcessor).SetAsIqrStatsResults()
 	case *topProcessor:
