@@ -141,8 +141,6 @@ func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
         return sutils.Estdc
     case "estdc_error":
         return sutils.EstdcError
-    case "median":
-        return sutils.Median
     case "mode":
         return sutils.Mode
     case "stdev":
@@ -169,7 +167,7 @@ func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
         return sutils.LatestTime
     case "rate":
         return sutils.StatsRate
-    case "perc", "p":
+    case "perc", "p", "median":
         return sutils.Perc
     case "exactperc":
         return sutils.ExactPerc
@@ -4001,6 +3999,38 @@ AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "
 
     return agg, nil
 }
+/ ("median") L_PAREN field:FieldName R_PAREN {
+     measureFunc := GetAggregateFunction("median")
+    if measureFunc == sutils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        StrEnc: string(c.text),
+        MeasureFunc: measureFunc,
+        Param: float64(50),
+    }
+
+    return agg, nil
+}
+/ ("median") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+    measureFunc := GetAggregateFunction("median")
+    if measureFunc == sutils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: measureFunc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
+        Param: float64(50),
+    }
+
+    return agg, nil
+}
+
 
 FieldWithNumberValue <- keyValuePair:(NamedFieldWithNumberValue / UnnamedFieldWithNumberValue) {
     return keyValuePair, nil

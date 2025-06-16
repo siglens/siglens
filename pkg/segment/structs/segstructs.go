@@ -543,7 +543,7 @@ type SegStats struct {
 	Hll         *utils.GobbableHll
 	NumStats    *NumericStats
 	StringStats *StringStats
-	LatestTs    sutils.CValueEnclosure
+	TimeStats   *TimeStats
 	Records     []*sutils.CValueEnclosure
 	TDigest     *utils.GobbableTDigest
 }
@@ -552,6 +552,13 @@ type NumericStats struct {
 	NumericCount uint64                  `json:"numericCount,omitempty"`
 	Sum          sutils.NumTypeEnclosure `json:"sum,omitempty"`
 	Sumsq        float64                 `json:"sumsq,omitempty"` // sum of squares, use float64 since we expect large values
+}
+
+type TimeStats struct {
+	LatestTs    sutils.CValueEnclosure
+	EarliestTs  sutils.CValueEnclosure
+	LatestVal   sutils.CValueEnclosure
+	EarliestVal sutils.CValueEnclosure
 }
 
 type StringStats struct {
@@ -609,6 +616,15 @@ var HllSettings = hll.Settings{
 
 func init() {
 	initHllDefaultSettings()
+}
+
+var nonIngestStats = map[sutils.AggregateFunctions]string{
+	sutils.LatestTime:   "",
+	sutils.EarliestTime: "",
+	sutils.Latest:       "",
+	sutils.Earliest:     "",
+	sutils.Perc:         "",
+	sutils.Sumsq:        "",
 }
 
 // init SegStats from raw bytes of SegStatsJSON
@@ -807,6 +823,11 @@ func (ss *SegStats) Merge(other *SegStats) {
 	} else {
 		ss.StringStats.Merge(other.StringStats)
 	}
+	if ss.TimeStats == nil {
+		ss.TimeStats = other.TimeStats
+	} else {
+		ss.TimeStats.Merge(other.TimeStats)
+	}
 }
 
 func (ss *StringStats) Merge(other *StringStats) {
@@ -833,6 +854,24 @@ func (ss *StringStats) Merge(other *StringStats) {
 		} else {
 			ss.StrList = make([]string, len(other.StrList))
 			copy(ss.StrList, other.StrList)
+		}
+	}
+}
+
+func (ss *TimeStats) Merge(other *TimeStats) {
+	if other == nil {
+		return
+	}
+	if ss.LatestTs.Dtype == sutils.SS_DT_UNSIGNED_NUM && other.LatestTs.Dtype == sutils.SS_DT_UNSIGNED_NUM {
+		if ss.LatestTs.CVal.(uint64) < other.LatestTs.CVal.(uint64) {
+			ss.LatestTs = other.LatestTs
+			ss.LatestVal = other.LatestVal
+		}
+	}
+	if ss.EarliestTs.Dtype == sutils.SS_DT_UNSIGNED_NUM && other.EarliestTs.Dtype == sutils.SS_DT_UNSIGNED_NUM {
+		if ss.EarliestTs.CVal.(uint64) > other.EarliestTs.CVal.(uint64) {
+			ss.EarliestTs = other.EarliestTs
+			ss.EarliestVal = other.EarliestVal
 		}
 	}
 }
@@ -1184,15 +1223,6 @@ func HasValueColRequestInMeasureAggs(measureAggs []*MeasureAggregator) bool {
 	return false
 }
 
-func (qa *QueryAggregators) HasSumsqVarVarpFunc() bool {
-	for _, agg := range qa.MeasureOperations {
-		if agg.MeasureFunc == sutils.Sumsq || agg.MeasureFunc == sutils.Var || agg.MeasureFunc == sutils.Varp {
-			return true
-		}
-	}
-	return false
-}
-
 // To determine whether it contains Aggregate Func: Values()
 func (qa *QueryAggregators) HasValuesFunc() bool {
 	for _, agg := range qa.MeasureOperations {
@@ -1206,6 +1236,15 @@ func (qa *QueryAggregators) HasValuesFunc() bool {
 func (qa *QueryAggregators) HasListFunc() bool {
 	for _, agg := range qa.MeasureOperations {
 		if agg.MeasureFunc == sutils.List {
+			return true
+		}
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasNonIngestStats() bool {
+	for _, agg := range qa.MeasureOperations {
+		if _, ok := nonIngestStats[agg.MeasureFunc]; ok {
 			return true
 		}
 	}
@@ -1494,7 +1533,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvsort":           {},
 	"mvzip":            {},
 	"mv_to_json_array": {},
-	"sigfig":           {},
 	"object_to_array":  {},
 	"printf":           {},
 	"tojson":           {},
