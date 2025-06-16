@@ -178,6 +178,7 @@ const (
 	SS_DT_USIGNED_8_NUM
 	SS_DT_ARRAY_DICT
 	SS_DT_RAW_JSON
+	SS_DT_GOBBABLE_HLL
 )
 
 func ValTypeToSSDType(valtype byte) SS_DTYPE {
