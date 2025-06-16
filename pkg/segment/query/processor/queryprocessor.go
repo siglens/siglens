@@ -180,7 +180,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	firstProcessorAgg := firstAgg
-	firstProcessorAgg, err := postProcessQueryAggs(firstProcessorAgg, queryInfo)
+	firstProcessorAgg, skippedStats, err := postProcessQueryAggs(firstProcessorAgg, queryInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,11 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	sortExpr := MutateForSearchSorter(firstAgg)
 
 	firstAggHasStats := firstAgg.HasStatsBlock()
-	chainFactory := func() []*DataProcessor { return AggsToDataProcessors(firstProcessorAgg, queryInfo) }
+	chainFactory := func() []*DataProcessor {
+		dpChain := AggsToDataProcessors(firstProcessorAgg, queryInfo)
+		_ = setMergeSettings(dpChain)
+		return dpChain
+	}
 	dataProcessorChains, err := SetupQueryParallelism(firstAggHasStats, chainFactory)
 	if err != nil {
 		return nil, utils.TeeErrorf("NewQueryProcessor: failed to setup query parallelism; err=%v", err)
@@ -217,21 +221,22 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	ConnectEachDpChain(dataProcessorChains, searcher)
 	InitDataGenerators(dataProcessorChains, searcher.qid, scrollFrom)
 
-	dataProcessors := dataProcessorChains[0]
-
 	if hook := hooks.GlobalHooks.GetDistributedStreamsHook; hook != nil {
-		chainedDPAsAny, err := hook(dataProcessors, searcher, queryInfo, shouldDistribute)
+		createChain := func() any { return chainFactory() } // Change the return type.
+		chainedDPAsAny, err := hook(createChain, searcher, skippedStats, queryInfo, shouldDistribute)
 		if err != nil {
 			return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook failed; err=%v", err)
 		}
 
 		chainedDp, ok := chainedDPAsAny.([]*DataProcessor)
 		if !ok {
-			log.Errorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
-		} else {
-			dataProcessors = chainedDp
+			return nil, utils.TeeErrorf("NewQueryProcessor: GetDistributedStreamsHook returned invalid type, expected []*DataProcessor, got %T", chainedDPAsAny)
 		}
+
+		dataProcessorChains[0] = chainedDp
 	}
+
+	dataProcessors := dataProcessorChains[0]
 
 	var lastStreamer Streamer = searcher
 	if len(dataProcessors) > 0 {
@@ -309,13 +314,16 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	}, nil
 }
 
-func postProcessQueryAggs(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation) (*structs.QueryAggregators, error) {
+func postProcessQueryAggs(firstAgg *structs.QueryAggregators,
+	queryInfo *query.QueryInformation) (*structs.QueryAggregators, bool, error) {
+
+	skippedStats := false
 	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 
 	if queryType != structs.RRCCmd {
 		// If query Type is GroupByCmd/SegmentStatsCmd, this agg must be a Stats Agg and will be processed by the searcher.
 		if !firstAgg.HasStatsBlock() {
-			return nil, utils.TeeErrorf("postProcessQueryAggs: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
+			return nil, false, utils.TeeErrorf("postProcessQueryAggs: is not a RRCCmd, but first agg is not a stats agg. qType=%v", queryType)
 		}
 
 		if queryType == structs.GroupByCmd {
@@ -336,6 +344,7 @@ func postProcessQueryAggs(firstAgg *structs.QueryAggregators, queryInfo *query.Q
 
 		// skip the first agg
 		firstAgg = firstAgg.Next
+		skippedStats = true
 	}
 
 	isDistributed := queryInfo.IsDistributed()
@@ -357,7 +366,7 @@ func postProcessQueryAggs(firstAgg *structs.QueryAggregators, queryInfo *query.Q
 		}
 	}
 
-	return firstAgg, nil
+	return firstAgg, skippedStats, nil
 }
 
 // Returns a list of DataProcessor chains. The number of chains is the amount
@@ -379,12 +388,6 @@ func SetupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataPro
 		canParallelize = false
 		mergeIndex = 0
 	}
-	if hooks.GlobalHooks.GetDistributedStreamsHook != nil {
-		// TODO: remove this check once we have a way to handle parallelism
-		// in this case.
-		canParallelize = false
-		mergeIndex = 0
-	}
 
 	dataProcessorChains := make([][]*DataProcessor, 0)
 	parallelism := 1
@@ -393,7 +396,18 @@ func SetupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataPro
 	}
 
 	if canParallelize && firstDpChain[mergeIndex].IsMergeableBottleneckCmd() {
-		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergeBottleneckDP())
+		var settings mergeSettings
+		switch firstDpChain[mergeIndex].processor.(type) {
+		case *statsProcessor, *timechartProcessor: // TODO: should top/rare be included?
+			settings = mergeSettings{mergingStats: true}
+		default:
+			settings = mergeSettings{
+				mergingStats: false,
+				less:         firstDpChain[mergeIndex].mergeSettings.less,
+				limit:        firstDpChain[mergeIndex].mergeSettings.limit,
+			}
+		}
+		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergerDP(settings))
 		mergeIndex++
 	}
 
@@ -771,4 +785,84 @@ func validateStreamStatsTimeWindow(firstAgg *structs.QueryAggregators) error {
 		}
 	}
 	return nil
+}
+
+// This analyzes the DataProcessor chain and sets the mergeSettings for each.
+// It returns the sorting mode the input (i.e., the searcher) should use.
+//
+// Setting the mergeSettings uses info about the whole chain, so passing parts
+// of a chain in chunks and concatenating the result may lead to a different
+// outcome.
+func setMergeSettings(dpChain []*DataProcessor) mergeSettings {
+	defaultSortMode := recentFirst // Splunk default.
+	defaultLess := sortByTimestampLess
+	curMergeSettings := mergeSettings{sortMode: &defaultSortMode, less: defaultLess}
+	inputMergeSettings := mergeSettings{sortMode: &defaultSortMode, less: defaultLess}
+
+	for i, dp := range dpChain {
+		if dp.IgnoresInputOrder() {
+			mode := anyOrder
+			curMergeSettings.sortMode = &mode
+			curMergeSettings.sortExpr = nil
+			curMergeSettings.reverse = false
+			curMergeSettings.less = func(a, b *iqr.Record) bool { return true }
+
+			// Propagate backwards so if we get to the searcher, we can
+			// optimize by having it not sort.
+			for k := i; k >= -1; k-- {
+				if k == -1 {
+					inputMergeSettings = curMergeSettings
+					break
+				}
+
+				dp := dpChain[k]
+				if dp.DoesInputOrderMatter() {
+					break
+				}
+
+				dp.mergeSettings = curMergeSettings
+			}
+		}
+
+		if dp.IsPermutingCmd() {
+			// The sort order changes here.
+			switch processor := dp.processor.(type) {
+			case *sortProcessor:
+				curMergeSettings.sortMode = nil
+				curMergeSettings.sortExpr = processor.options
+				curMergeSettings.reverse = false
+				curMergeSettings.less = processor.lessDirectRead
+			case *tailProcessor:
+				curMergeSettings.reverse = !curMergeSettings.reverse
+				if curMergeSettings.less != nil {
+					newLess := func(a, b *iqr.Record) bool {
+						return !curMergeSettings.less(a, b)
+					}
+					curMergeSettings.less = newLess
+				}
+			default:
+				log.Warnf("setMergeSettings: unexpected permuting command type: %T", dp.processor)
+			}
+
+			// Propagate backwards so if we get to the searcher, we can have it
+			// sort in this order.
+			for k := i; k >= -1; k-- {
+				if k == -1 {
+					inputMergeSettings = curMergeSettings
+					break
+				}
+
+				dp := dpChain[k]
+				if dp.DoesInputOrderMatter() || dp.IsPermutingCmd() || dp.IgnoresInputOrder() {
+					break
+				}
+
+				dp.mergeSettings = curMergeSettings
+			}
+		}
+
+		dp.mergeSettings = curMergeSettings
+	}
+
+	return inputMergeSettings
 }

@@ -124,3 +124,18 @@ func (o *Option[T]) GobDecode(data []byte) error {
 
 	return nil
 }
+
+func EqualOptions[T comparable](a, b Option[T]) bool {
+	val1, ok1 := a.Get()
+	val2, ok2 := b.Get()
+
+	if !ok1 && !ok2 {
+		return true
+	}
+
+	if !ok1 || !ok2 {
+		return false
+	}
+
+	return val1 == val2
+}
