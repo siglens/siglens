@@ -804,6 +804,8 @@ func setMergeSettings(dpChain []*DataProcessor) mergeSettings {
 			curMergeSettings.reverse = false
 			curMergeSettings.less = func(a, b *iqr.Record) bool { return true }
 
+			// Propagate backwards so if we get to the searcher, we can
+			// optimize by having it not sort.
 			for k := i; k >= -1; k-- {
 				if k == -1 {
 					inputMergeSettings = curMergeSettings
@@ -835,8 +837,12 @@ func setMergeSettings(dpChain []*DataProcessor) mergeSettings {
 					}
 					curMergeSettings.less = newLess
 				}
+			default:
+				log.Warnf("setMergeSettings: unexpected permuting command type: %T", dp.processor)
 			}
 
+			// Propagate backwards so if we get to the searcher, we can have it
+			// sort in this order.
 			for k := i; k >= -1; k-- {
 				if k == -1 {
 					inputMergeSettings = curMergeSettings
