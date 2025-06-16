@@ -680,6 +680,35 @@ func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, strSet 
 	return float64(len(strSet)), nil
 }
 
+// Always pass a non-nil strSet when using this function
+func PerformAggEvalForValues(measureAgg *structs.MeasureAggregator, strSet map[string]struct{}, fieldToValue map[string]sutils.CValueEnclosure) (float64, error) {
+	if len(fieldToValue) == 0 {
+		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+		if err != nil {
+			return 0.0, fmt.Errorf("PerformAggEvalForValues: Error while evaluating value col request function: %v", err)
+		}
+		strSet[valueStr] = struct{}{}
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return 0.0, fmt.Errorf("PerformAggEvalForValues: there are some errors in the eval function that is inside the values function: %v", err)
+			}
+			if boolResult {
+				strSet["1"] = struct{}{}
+			}
+		} else {
+			cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+			if err != nil {
+				return 0.0, fmt.Errorf("PerformAggEvalForValues: Error while evaluating value col request, err: %v", err)
+			}
+			strSet[cellValueStr] = struct{}{}
+		}
+	}
+
+	return float64(len(strSet)), nil
+}
+
 func PerformAggEvalForList(measureAgg *structs.MeasureAggregator, currentList []string, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	finalList := []string{}
 
@@ -767,7 +796,7 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 	}
 
 	if len(fields) == 0 {
-		_, err := PerformAggEvalForCardinality(measureAgg, valueSet, nil)
+		_, err := PerformAggEvalForValues(measureAgg, valueSet, nil)
 		if err != nil {
 			return fmt.Errorf("ComputeAggEvalForValues: Error while performing eval agg for values, err: %v", err)
 		}
@@ -785,7 +814,7 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 				return fmt.Errorf("ComputeAggEvalForValues: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
-			_, err = PerformAggEvalForCardinality(measureAgg, valueSet, fieldToValue)
+			_, err = PerformAggEvalForValues(measureAgg, valueSet, fieldToValue)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForValues: Error while performing eval agg for values, err: %v", err)
 			}
