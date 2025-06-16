@@ -24,7 +24,6 @@ import (
 	"sync"
 
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
@@ -383,16 +382,13 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	case 1:
 		return dp.streams[0].Fetch()
 	default:
-		// TODO: remove this outer if block but keep the inner.
-		if hooks.GlobalHooks.GetDistributedStreamsHook == nil {
-			if dp.IgnoresInputOrder() && dp.IsBottleneckCmd() {
-				// Since it ignores input order, it doesn't matter which stream we
-				// get data from, and we don't need to merge multiple streams.
-				//
-				// Since it's a bottleneck, we need to eventually get all data, so
-				// we don't need to check dp.mergeSettings.limit
-				return dp.fetchFromAnyStream()
-			}
+		if dp.IgnoresInputOrder() && dp.IsBottleneckCmd() {
+			// Since it ignores input order, it doesn't matter which stream we
+			// get data from, and we don't need to merge multiple streams.
+			//
+			// Since it's a bottleneck, we need to eventually get all data, so
+			// we don't need to check dp.mergeSettings.limit
+			return dp.fetchFromAnyStream()
 		}
 
 		iqrs, streamIndices, err := dp.fetchFromAllStreamsWithData()

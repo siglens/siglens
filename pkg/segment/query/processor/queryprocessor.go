@@ -388,12 +388,6 @@ func SetupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataPro
 		canParallelize = false
 		mergeIndex = 0
 	}
-	if hooks.GlobalHooks.GetDistributedStreamsHook != nil {
-		// TODO: remove this check once we have a way to handle parallelism
-		// in this case.
-		canParallelize = false
-		mergeIndex = 0
-	}
 
 	dataProcessorChains := make([][]*DataProcessor, 0)
 	parallelism := 1
