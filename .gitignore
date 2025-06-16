@@ -88,3 +88,4 @@ siglens.db
 
 # Alerting Scale testing output
 vector_log_lib/
+/vendor/
