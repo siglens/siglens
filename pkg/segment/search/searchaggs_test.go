@@ -20,10 +20,11 @@ package search
 import (
 	"fmt"
 	"math/rand"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
-	"strconv"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -489,78 +490,80 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 }
 
 func Test_PerformGroupByAggsWithRexColumns(t *testing.T) {
-    // 1) Input records already have the rex_field extracted.
-    recs := map[string]map[string]interface{}{
-        "rec1": {"rex_field": "alpha", "other_field": "value1"},
-        "rec2": {"rex_field": "beta",  "other_field": "value2"},
-        "rec3": {"rex_field": "alpha", "other_field": "value3"},
-        "rec4": {"rex_field": "gamma", "other_field": "value4"},
-        "rec5": {"rex_field": "beta",  "other_field": "value5"},
-    }
+	rawRecs := map[string]map[string]interface{}{
+		"rec1": {"_raw": "user=abc@alpha.com", "other_field": "value1"},
+		"rec2": {"_raw": "user=def@beta.com", "other_field": "value2"},
+		"rec3": {"_raw": "user=ghi@alpha.com", "other_field": "value3"},
+		"rec4": {"_raw": "user=jkl@gamma.com", "other_field": "value4"},
+		"rec5": {"_raw": "user=mno@beta.com", "other_field": "value5"},
+	}
 
-    // 2) Which columns we want in the final aggregated output:
-    finalCols := map[string]bool{
-        "rex_field":   true,
-        "other_field": true,
-        "count(*)":    true,
-    }
+	rex := regexp.MustCompile(`(?i)user=.*@(?P<rex_field>[^ ]+)`)
+	recs := make(map[string]map[string]interface{}, len(rawRecs))
+	for id, r := range rawRecs {
+		recCopy := map[string]interface{}{
+			"other_field": r["other_field"],
+		}
+		if m := rex.FindStringSubmatch(r["_raw"].(string)); m != nil {
+			recCopy["rex_field"] = m[1]
+		}
+		recs[id] = recCopy
+	}
 
-    // 3) Build a NodeResult that will trigger the GroupBy path:
-    nodeResult := &structs.NodeResult{
-        RecsAggregator: structs.RecsAggregator{
-            PerformAggsOnRecs: true,
-            RecsAggsType:      structs.GroupByType,
-            GroupByRequest: &structs.GroupByRequest{
-                GroupByColumns: []string{"rex_field"},
-                MeasureOperations: []*structs.MeasureAggregator{{
-                    MeasureCol:  "*",
-                    MeasureFunc: sutils.Count,
-                    StrEnc:      "count(*)",
-                    // MUST supply a ValueColRequest so Count is registered:
-                    ValueColRequest: &structs.ValueExpr{
-                        ValueExprMode:  structs.VEMMultiValueExpr,
-                        MultiValueExpr: &structs.MultiValueExpr{FieldName: "rex_field"},
-                    },
-                }},
-                BucketCount: 3000,
-            },
-        },
-        GroupByCols:    []string{"rex_field"},
-        FinalColumns:   finalCols,
-        QueryStartTime: time.Now(),
-    }
+	finalCols := map[string]bool{
+		"rex_field":   true,
+		"other_field": true,
+		"count(*)":    true,
+	}
 
-    // 4) Run the pipeline. The 6th arg `true` means "this is the last (and only) segment".
-    flags := PerformAggsOnRecs(
-        nodeResult,
-        &structs.QueryAggregators{Limit: 0},
-        recs,
-        finalCols,
-        /* numTotalSegments */ 1,
-        /* finishesSegment  */ true,
-        /* qid              */ 1,
-    )
+	nodeResult := &structs.NodeResult{
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.GroupByType,
+			GroupByRequest: &structs.GroupByRequest{
+				GroupByColumns: []string{"rex_field"},
+				MeasureOperations: []*structs.MeasureAggregator{{
+					MeasureCol:  "*",
+					MeasureFunc: sutils.Count,
+					StrEnc:      "count(*)",
+					ValueColRequest: &structs.ValueExpr{
+						ValueExprMode:  structs.VEMMultiValueExpr,
+						MultiValueExpr: &structs.MultiValueExpr{FieldName: "rex_field"},
+					},
+				}},
+				BucketCount: 3000,
+			},
+		},
+		GroupByCols:    []string{"rex_field"},
+		FinalColumns:   finalCols,
+		QueryStartTime: time.Now(),
+	}
 
-    // We should get that sentinel back:
-    assert.Equal(t, map[string]bool{"CHECK_NEXT_AGG": true}, flags)
+	flags := PerformAggsOnRecs(
+		nodeResult,
+		&structs.QueryAggregators{Limit: 0},
+		recs,
+		finalCols,
+		1,
+		true,
+		42,
+	)
+	assert.Equal(t, map[string]bool{"CHECK_NEXT_AGG": true}, flags)
 
-    // 5) The `recs` map itself is now replaced with your 3 aggregated buckets:
-    assert.Len(t, recs, 3, "should have one entry per distinct rex_field")
+	assert.Len(t, recs, 3)
 
-    // 6) Pull out each bucket’s count(*) and verify:
-    gotCounts := make(map[string]int)
-    for _, rec := range recs {
-        group := rec["rex_field"].(string)
-        // count came back as some numeric type; stringify & parse:
-        cnt, err := strconv.Atoi(fmt.Sprint(rec["count(*)"]))
-        assert.NoError(t, err)
-        gotCounts[group] = cnt
-    }
+	got := map[string]int{}
+	for _, r := range recs {
+		domain := r["rex_field"].(string)
+		cnt, err := strconv.Atoi(fmt.Sprint(r["count(*)"]))
+		assert.NoError(t, err)
+		got[domain] = cnt
+	}
 
-    wantCounts := map[string]int{
-        "alpha": 2,
-        "beta":  2,
-        "gamma": 1,
-    }
-    assert.Equal(t, wantCounts, gotCounts)
+	want := map[string]int{
+		"alpha.com": 2,
+		"beta.com":  2,
+		"gamma.com": 1,
+	}
+	assert.Equal(t, want, got)
 }
