@@ -1146,72 +1146,80 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 }
 
 func handleMVMap(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
-	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 2 {
-		return nil, fmt.Errorf("mvmap requires exactly two parameters: a multivalue expression and a string expression")
+	if len(self.MultiValueExprParams) < 1 || len(self.ValueExprParams) < 1 {
+		return nil, fmt.Errorf("mvmap requires a multivalue expression and an expression")
 	}
 
-	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
-	if utils.IsNilValueError(err) {
-		return nil, err
-	} else if err != nil {
-		return nil, fmt.Errorf("mvmap: error evaluating multivalue input: %v", err)
+	mvExpr := self.MultiValueExprParams[0]
+	mvSlice, err := mvExpr.Evaluate(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("mvmap: error evaluating multivalue expression: %v", err)
 	}
 
-	expr := self.MultiValueExprParams[1]
-	if expr == nil {
-		return nil, fmt.Errorf("mvmap: second parameter must be a valid string expression")
+	if mvSlice == nil || len(mvSlice) == 0 {
+		return []string{}, nil
 	}
 
-	result := make([]string, 0, len(mvSlice))
+	var result []string
 	for _, val := range mvSlice {
-		fieldToValue["_mvmap"] = sutils.CValueEnclosure{CVal: val}
-		resSlice, err := expr.Evaluate(fieldToValue)
-		if err != nil {
-			return nil, fmt.Errorf("mvmap: error applying expression: %v", err)
+		localMap := make(map[string]sutils.CValueEnclosure, len(fieldToValue))
+		for k, v := range fieldToValue {
+			localMap[k] = v
 		}
-		if len(resSlice) > 0 {
-			result = append(result, resSlice[0])
+
+		var cval interface{}
+		var dtype sutils.SS_DTYPE
+		if fval, err := strconv.ParseFloat(val, 64); err == nil {
+			cval = fval
+			dtype = sutils.SS_DT_FLOAT
 		} else {
-			result = append(result, "")
+			cval = val
+			dtype = sutils.SS_DT_STRING
 		}
+
+		localMap["value"] = sutils.CValueEnclosure{CVal: cval, Dtype: dtype}
+
+		res, err := self.ValueExprParams[0].EvaluateToString(localMap)
+		if err != nil {
+			return nil, fmt.Errorf("mvmap: error evaluating expression on value %v: %v", val, err)
+		}
+		result = append(result, res)
 	}
+
 	return result, nil
 }
 func handleMVRange(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
-	if self.ValueExprParams == nil || len(self.ValueExprParams) < 2 || len(self.ValueExprParams) > 3 {
-		return nil, fmt.Errorf("mvrange requires 2 or 3 numeric arguments: start, end, and optional step")
+	if len(self.NumericExprParams) < 2 {
+		return nil, fmt.Errorf("mvrange requires at least two numeric arguments")
 	}
 
-	startStr := self.ValueExprParams[0].StringExpr.RawString
-	start, err := strconv.Atoi(startStr)
+	startVal, err := self.NumericExprParams[0].Evaluate(fieldToValue)
 	if err != nil {
-		return nil, fmt.Errorf("mvrange: invalid start value: %v", err)
+		return nil, fmt.Errorf("mvrange start value error: %v", err)
+	}
+	endVal, err := self.NumericExprParams[1].Evaluate(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("mvrange end value error: %v", err)
 	}
 
-	endStr := self.ValueExprParams[1].StringExpr.RawString
-	end, err := strconv.Atoi(endStr)
-	if err != nil {
-		return nil, fmt.Errorf("mvrange: invalid end value: %v", err)
-	}
+	start := int(startVal)
+	end := int(endVal)
 
 	step := 1
-	if len(self.ValueExprParams) == 3 {
-		stepStr := self.ValueExprParams[2].StringExpr.RawString
-		step, err = strconv.Atoi(stepStr)
+	if len(self.NumericExprParams) >= 3 {
+		stepVal, err := self.NumericExprParams[2].Evaluate(fieldToValue)
 		if err != nil {
-			return nil, fmt.Errorf("mvrange: invalid step value: %v", err)
+			return nil, fmt.Errorf("mvrange step value error: %v", err)
 		}
-		if step == 0 {
-			return nil, fmt.Errorf("mvrange: step cannot be zero")
-		}
+		step = int(stepVal)
 	}
 
-	result := []string{}
-	if (step > 0 && start >= end) || (step < 0 && start <= end) {
-		return result, nil
+	if step == 0 {
+		return nil, fmt.Errorf("step value cannot be zero")
 	}
 
-	for i := start; (step > 0 && i < end) || (step < 0 && i > end); i += step {
+	var result []string
+	for i := start; i < end; i += step {
 		result = append(result, strconv.Itoa(i))
 	}
 
@@ -1241,7 +1249,6 @@ func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEn
 	if startIndex < 0 {
 		startIndex += len(mvSlice)
 	}
-	// If endIndex is not provided, use startIndex as endIndex to fetch single value
 	endIndex := startIndex
 	if len(self.NumericExprParams) == 2 && self.NumericExprParams[1] != nil {
 		endIndex, err = strconv.Atoi(self.NumericExprParams[1].Value)
@@ -1253,7 +1260,6 @@ func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEn
 		}
 	}
 
-	// Check for index out of bounds
 	if startIndex > endIndex || startIndex < 0 || endIndex < 0 || endIndex >= len(mvSlice) || startIndex >= len(mvSlice) {
 		return []string{}, nil
 	}

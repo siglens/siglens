@@ -1,4 +1,20 @@
 {
-  "queryText": "city=Boston | eval names=\"Frank,Grace,Heidi,Ivan\" | makemv delim=\",\" names | head 4 | eval mvmap = mvmap(names, \"prefix:\" . _mvmap) | fields mvmap"
-  
+    "queryText": "city=Boston | eval results=\"1,2,3\" | makemv delim=\",\" results | eval mapped=mvmap(results, value*10) | fields mapped",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 1,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": ["mapped"],
+        "records": [
+            { "mapped": ["10", "20", "30"] }
+        ],
+        "allColumns": [
+            "mapped"
+        ],
+        "columnsOrder": [
+            "mapped"
+        ]
+    }
 }
