@@ -1224,7 +1224,12 @@ func handleMVRange(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEn
 	}
 
 	var result []string
-	for i := start; i < end; i += step {
+
+	if (step > 0 && start >= end) || (step < 0 && start <= end) {
+		return []string{}, nil
+	}
+
+	for i := start; (step > 0 && i < end) || (step < 0 && i > end); i += step {
 		result = append(result, strconv.Itoa(i))
 	}
 
