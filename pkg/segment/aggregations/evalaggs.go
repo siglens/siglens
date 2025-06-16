@@ -1063,6 +1063,56 @@ func AddMeasureAggInRunningStatsForRange(m *structs.MeasureAggregator, allConver
 	return idx, nil
 }
 
+func AddMeasureAggInRunningStatsForLatestOrEarliest(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int, isLatest bool) (int, error) {
+	measureCol := m.MeasureCol
+	if m.ValueColRequest != nil {
+		fields := m.ValueColRequest.GetFields()
+		if len(fields) != 1 {
+			return idx, fmt.Errorf("AddMeasureAggInRunningStatsForLatest: Incorrect number  of fields for aggCol: %v", m.String())
+		}
+		measureCol = fields[0]
+	}
+
+	if _, ok := colToIdx[measureCol]; !ok {
+		colToIdx[measureCol] = make([]int, 0)
+	}
+
+	var timestampMeasureFunc sutils.AggregateFunctions
+	var valMeasureFunc sutils.AggregateFunctions
+
+	if isLatest {
+		timestampMeasureFunc = sutils.LatestTime
+		valMeasureFunc = sutils.Latest
+	} else {
+		timestampMeasureFunc = sutils.EarliestTime
+		valMeasureFunc = sutils.Earliest
+	}
+
+	// this order is important since in blockresults/runningstats.go->@AddEvalResultsForLatest/Earliest
+	// it expects timestamp at i+1 and value at i
+	*allReverseIndex = append(*allReverseIndex, idx)
+	colToIdx[measureCol] = append(colToIdx[measureCol], idx)
+	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+		MeasureCol:      measureCol,
+		MeasureFunc:     valMeasureFunc,
+		ValueColRequest: m.ValueColRequest,
+		StrEnc:          m.StrEnc,
+	})
+	idx++
+
+	*allReverseIndex = append(*allReverseIndex, idx)
+	colToIdx[measureCol] = append(colToIdx[measureCol], idx)
+	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+		MeasureCol:      measureCol,
+		MeasureFunc:     timestampMeasureFunc,
+		ValueColRequest: m.ValueColRequest,
+		StrEnc:          m.StrEnc,
+	})
+	idx++
+
+	return idx, nil
+}
+
 func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
 
 	fields := m.ValueColRequest.GetFields()
