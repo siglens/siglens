@@ -418,7 +418,7 @@ func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInsensi
 
 			// We don't need to do this with the LeftSearchInput.OriginalColumnValue, as this is a regex/wildcard
 			// And we don't do Bloom Filtering for regex/wildcard searches
-			cval := dtu.GetRegex(sq.ExpressionFilter.LeftSearchInput.ColumnValue.StringVal, isCaseInsensitive, isTerm)
+			cval := dtu.SPLToRegex(sq.ExpressionFilter.LeftSearchInput.ColumnValue.StringVal, isCaseInsensitive, isTerm)
 
 			rexpC, err := regexp.Compile(cval)
 			if err != nil {

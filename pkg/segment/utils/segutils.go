@@ -176,7 +176,7 @@ func (dte *DtypeEnclosure) UpdateRegexp(caseInsensitive bool, isTerm bool) {
 
 	if strings.Contains(dte.StringVal, "*") || isTerm {
 
-		rawRegex := dtu.GetRegex(dte.StringVal, caseInsensitive, isTerm)
+		rawRegex := dtu.SPLToRegex(dte.StringVal, caseInsensitive, isTerm)
 
 		compiledRegex, err := regexp.Compile(rawRegex)
 		if err != nil {
