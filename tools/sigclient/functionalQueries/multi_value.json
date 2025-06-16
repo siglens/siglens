@@ -1,5 +1,5 @@
 {
-    "queryText": "app_name=Bracecould | eval multi_val = first_name.\",\".last_name.\",\".country.\",\".city.\" multi val\" | makemv delim=\",\" multi_val | eval mvindex2 = mvindex(multi_val, 2) | eval mvindex02 = mvindex(multi_val, 0, 2) | eval mvindex_1 = mvindex(multi_val, -1) | eval mvindex_3_1 = mvindex(multi_val, -3, -1) | eval mvcount = mvcount(multi_val) | eval mvjoin = mvjoin(multi_val, \":\") | eval mvfind = mvfind(multi_val, \"^N.*$\") | eval split = split(\"a:bc:123\", \":\") | eval split_join = mvjoin(split(\"a:bc:123\", \":\"), \"?\") | eval split_count = mvcount(split(\"a:bc:123\", \":\")) | eval split_index = mvindex(split(\"a:bc:123\", \":\"), -2, 2) | eval split_find = mvfind(split(\"a:bc:123\", \":\"), \"^b.*$\") | fields app_name, first_name, last_name, country, city, multi_val, mvindex2, mvindex02, mvindex_1, mvindex_3_1, mvcount, mvjoin, mvfind, split, split_join, split_count, split_index, split_find, ident",
+    "queryText": "app_name=Bracecould | eval multi_val = first_name.\",\".last_name.\",\".country.\",\".city.\" multi val\" | makemv delim=\",\" multi_val | eval mvindex2 = mvindex(multi_val, 2) | eval mvindex02 = mvindex(multi_val, 0, 2) | eval mvindex_1 = mvindex(multi_val, -1) | eval mvindex_3_1 = mvindex(multi_val, -3, -1) | eval mvcount = mvcount(multi_val) | eval mvjoin = mvjoin(multi_val, \":\") | eval mvfind = mvfind(multi_val, \"^N.*$\") | eval split = split(\"a:bc:123\", \":\") | eval split_join = mvjoin(split(\"a:bc:123\", \":\"), \"?\") | eval split_count = mvcount(split(\"a:bc:123\", \":\")) | eval split_index = mvindex(split(\"a:bc:123\", \":\"), -2, 2) | eval split_find = mvfind(split(\"a:bc:123\", \":\"), \"^b.*$\") | eval mvmap = mvmap(multi_val, \"prefix:\" . <<ITEM>>) | eval mvrange = mvrange(3) | fields app_name, first_name, last_name, country, city, multi_val, mvindex2, mvindex02, mvindex_1, mvindex_3_1, mvcount, mvjoin, mvfind, split, split_join, split_count, split_index, split_find, mvmap, mvrange, ident",
     "expectedResult": {
          "totalMatched": {
              "value": 6,
@@ -51,7 +51,14 @@
                     "bc",
                     "123"
                 ],
-                "split_join": "a?bc?123"
+                "split_join": "a?bc?123",
+                "mvmap": [
+                    "prefix:Dalton",
+                    "prefix:Gottlieb",
+                    "prefix:Martinique",
+                    "prefix:Norfolk multi val"
+                ],
+                "mvrange": ["0", "1", "2"]
             },
             {
                 "app_name": "Bracecould",
@@ -96,7 +103,14 @@
                     "bc",
                     "123"
                 ],
-                "split_join": "a?bc?123"
+                "split_join": "a?bc?123",
+                "mvmap": [
+                    "prefix:Tad",
+                    "prefix:Bins",
+                    "prefix:French Guiana",
+                    "prefix:Nashville-Davidson multi val"
+                ],
+                "mvrange": ["0", "1", "2"]
             },
             {
                 "app_name": "Bracecould",
@@ -141,7 +155,14 @@
                     "bc",
                     "123"
                 ],
-                "split_join": "a?bc?123"
+                "split_join": "a?bc?123",
+                "mvmap": [
+                    "prefix:Elijah",
+                    "prefix:Gaylord",
+                    "prefix:Jersey",
+                    "prefix:Denver multi val"
+                ],
+                "mvrange": ["0", "1", "2"]
             },
             {
                 "app_name": "Bracecould",
@@ -186,7 +207,14 @@
                     "bc",
                     "123"
                 ],
-                "split_join": "a?bc?123"
+                "split_join": "a?bc?123",
+                "mvmap": [
+                    "prefix:Jackson",
+                    "prefix:Marvin",
+                    "prefix:Dominican Republic",
+                    "prefix:Albuquerque multi val"
+                ],
+                "mvrange": ["0", "1", "2"]
             },
             {
                 "app_name": "Bracecould",
@@ -232,7 +260,15 @@
                     "bc",
                     "123"
                 ],
-                "split_join": "a?bc?123"
+                "split_join": "a?bc?123",
+                "mvmap": [
+                    "prefix:Elwyn",
+                    "prefix:Waelchi",
+                    "prefix:Bonaire",
+                    "prefix: Sint Eustatius and Saba",
+                    "prefix:Cleveland multi val"
+                ],
+                "mvrange": ["0", "1", "2"]
             },
             {
                 "app_name": "Bracecould",
@@ -277,7 +313,14 @@
                     "bc",
                     "123"
                 ],
-                "split_join": "a?bc?123"
+                "split_join": "a?bc?123",
+                "mvmap": [
+                    "prefix:Hilton",
+                    "prefix:Kiehn",
+                    "prefix:Cuba",
+                    "prefix:Phoenix multi val"
+                ],
+                "mvrange": ["0", "1", "2"]
             }
         ],
          "allColumns": [
@@ -299,6 +342,8 @@
             "split_count",
             "split_index",
             "split_find",
+            "mvmap",
+            "mvrange",
             "ident"
         ],
          "columnsOrder": [
@@ -320,8 +365,9 @@
             "split_count",
             "split_index",
             "split_find",
+            "mvmap",
+            "mvrange",
             "ident"
         ]
      }
  }
- 

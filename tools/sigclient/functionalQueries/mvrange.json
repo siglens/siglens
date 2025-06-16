@@ -1,0 +1,19 @@
+{
+  "queryText": "city=Boston | head 4 | eval mvrange = mvrange(5) | fields mvrange",
+  "expectedResult": {
+    "totalMatched": {
+      "value": 4,
+      "relation": "eq"
+    },
+    "qtype": "logs-query",
+    "uniqueKeyCols": ["mvrange"],
+    "records": [
+      { "mvrange": ["0", "1", "2", "3", "4"] },
+      { "mvrange": ["0", "1", "2", "3", "4"] },
+      { "mvrange": ["0", "1", "2", "3", "4"] },
+      { "mvrange": ["0", "1", "2", "3", "4"] }
+    ],
+    "allColumns": ["mvrange"],
+    "columnsOrder": ["mvrange"]
+  }
+}
