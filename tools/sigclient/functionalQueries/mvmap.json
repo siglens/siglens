@@ -1,5 +1,5 @@
 {
-  "queryText": "city=Boston | eval names=\"Frank,Grace,Heidi,Ivan\" | makemv delim=\",\" names | head 4 | eval mvmap = mvmap(names, \"prefix:\" . <<ITEM>>) | fields mvmap",
+  "queryText": "city=Boston | eval names=\"Frank,Grace,Heidi,Ivan\" | makemv delim=\",\" names | head 4 | eval mvmap = mvmap(names, \"prefix:\" . _mvmap) | fields mvmap",
   "expectedResult": {
     "totalMatched": {
       "value": 4,
