@@ -41,10 +41,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const TestPercAlternate sutils.AggregateFunctions = sutils.END_OF_AGGREGATE_FUNCS + 5
+const TestPercAlternate sutils.AggregateFunctions = sutils.END_OF_AGGREGATE_FUNCS + 1
 
 var alternateAggTestingMap = map[sutils.AggregateFunctions]sutils.AggregateFunctions{
 	TestPercAlternate: sutils.Perc,
+	sutils.Median:     sutils.Perc,
 }
 
 // Helper functions
@@ -9560,7 +9561,7 @@ func Test_StreamStats_2(t *testing.T) {
 	assert.Equal(t, 5, len(aggregator.MeasureOperations))
 	assert.Equal(t, sutils.Count, aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "*", aggregator.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, sutils.Median, aggregator.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, alternateAggTestingMap[sutils.Median], aggregator.MeasureOperations[1].MeasureFunc)
 	assert.Equal(t, "sale_amount", aggregator.MeasureOperations[1].MeasureCol)
 	assert.Equal(t, sutils.Stdev, aggregator.MeasureOperations[2].MeasureFunc)
 	assert.Equal(t, "revenue", aggregator.MeasureOperations[2].MeasureCol)
@@ -9687,7 +9688,7 @@ func Test_StreamStats_4(t *testing.T) {
 	assert.Nil(t, aggregator.GroupByRequest)
 	assert.NotNil(t, aggregator.MeasureOperations)
 	assert.Equal(t, 1, len(aggregator.MeasureOperations))
-	assert.Equal(t, sutils.Median, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, alternateAggTestingMap[sutils.Median], aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "abc", aggregator.MeasureOperations[0].MeasureCol)
 
 	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore)
@@ -10151,11 +10152,13 @@ func getMeasureFuncStr(measureFunc sutils.AggregateFunctions) (string, float64) 
 	switch measureFunc {
 	case sutils.Cardinality:
 		return "dc", 0
-	case sutils.Perc, sutils.ExactPerc, sutils.UpperPerc, TestPercAlternate:
+	case sutils.Perc, sutils.ExactPerc, sutils.UpperPerc, TestPercAlternate, sutils.Median:
 		percentVal := rand.Float64() * 100
 		percentStr := strconv.FormatFloat(percentVal, 'f', -1, 64)
 		if measureFunc == TestPercAlternate {
 			return "p" + percentStr, percentVal
+		} else if measureFunc == sutils.Median {
+			return "median", 50
 		} else {
 			return measureFunc.String() + percentStr, percentVal
 		}

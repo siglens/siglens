@@ -172,11 +172,22 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:MinMax", err)
 			}
 			i += step
+		case sutils.EarliestTime:
+			fallthrough
 		case sutils.LatestTime:
 			isLatestTime := measureFunc == sutils.LatestTime
 			step, err := rr.AddEvalResultsForMinMax(runningStats, measureResults, i, isLatestTime, fieldToValue)
 			if err != nil {
-				batchErr.AddError("RunningBucketResults.AddMeasureResults:MinMax", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:LatestTime/EarliestTime", err)
+			}
+			i += step
+		case sutils.Earliest:
+			fallthrough
+		case sutils.Latest:
+			isLatest := sutils.Latest == measureFunc
+			step, err := rr.AddEvalResultsForLatestOrEarliest(runningStats, measureResults, i, fieldToValue, isLatest)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Latest/Earliest", err)
 			}
 			i += step
 		case sutils.Range:
@@ -296,6 +307,36 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				i += (len(fields) - 1)
 			} else {
 				batchErr.AddError("RunningBucketResults.mergeRunningStats:Avg", fmt.Errorf("ValueColRequest is nil"))
+			}
+		case sutils.Latest:
+			if rr.currStats[i].ValueColRequest == nil {
+				latestTsIdx := i + 1
+				latestIdx := i
+				err := rr.ProcessReduce(runningStats, toJoinRunningStats[latestTsIdx].rawVal, latestTsIdx)
+				if err != nil {
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Latest", err)
+				}
+				if (*runningStats)[latestTsIdx].rawVal.Dtype != sutils.SS_INVALID {
+					if (*runningStats)[latestTsIdx].rawVal.CVal.(uint64) == toJoinRunningStats[latestTsIdx].rawVal.CVal.(uint64) {
+						(*runningStats)[latestIdx].rawVal = toJoinRunningStats[latestIdx].rawVal
+					}
+				}
+				i += 1
+			}
+		case sutils.Earliest:
+			if rr.currStats[i].ValueColRequest == nil {
+				earliestTsIdx := i + 1
+				earliestIdx := i
+				err := rr.ProcessReduce(runningStats, toJoinRunningStats[earliestTsIdx].rawVal, earliestTsIdx)
+				if err != nil {
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Latest", err)
+				}
+				if (*runningStats)[earliestTsIdx].rawVal.Dtype != sutils.SS_INVALID {
+					if (*runningStats)[earliestTsIdx].rawVal.CVal.(uint64) == toJoinRunningStats[earliestTsIdx].rawVal.CVal.(uint64) {
+						(*runningStats)[earliestIdx].rawVal = toJoinRunningStats[earliestIdx].rawVal
+					}
+				}
+				i += 1
 			}
 		case sutils.Range:
 			if rr.currStats[i].ValueColRequest != nil {
@@ -573,6 +614,39 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	(*runningStats)[i].number = nil
 
 	return numFields - 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForLatestOrEarliest(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure, isLatest bool) (int, error) {
+	if rr.currStats[i].ValueColRequest == nil {
+		// order should be the same as defined in evalaggs.go -> @AddMeasureAggInRunningStatsForLatestOrEarliest
+		// timestamp is present at index i+1
+		// the value (can be any dtype) present at index i
+		elTsIdx := i + 1
+		elIdx := i
+		(*runningStats)[elTsIdx].syncRawValue()
+		(*runningStats)[elIdx].syncRawValue()
+		elTsChanged := false
+		retVal, err := sutils.Reduce((*runningStats)[elTsIdx].rawVal, measureResults[elTsIdx], rr.currStats[elTsIdx].MeasureFunc)
+		if err != nil {
+			return 1, ErrReduceCVal
+		} else {
+			if (*runningStats)[elIdx].rawVal.Dtype != sutils.SS_INVALID {
+				if retVal.CVal.(uint64) != (*runningStats)[elTsIdx].rawVal.CVal.(uint64) {
+					elTsChanged = true
+				}
+			} else {
+				elTsChanged = true
+			}
+			(*runningStats)[elTsIdx].rawVal = retVal
+			(*runningStats)[elTsIdx].number = nil
+			if elTsChanged {
+				(*runningStats)[elIdx].rawVal = measureResults[elIdx]
+				(*runningStats)[elIdx].number = nil
+			}
+		}
+		return 1, nil
+	}
+	return 1, nil
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForMinMax(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, isMin bool, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {

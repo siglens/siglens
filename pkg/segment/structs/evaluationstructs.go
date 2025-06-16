@@ -368,6 +368,17 @@ type SPathExpr struct {
 	OutputColName   string // the name of the column in the output table to which the extracted values will be written. By Default it is set the same as the path.
 }
 
+type SigfigInfo struct {
+	Value        float64 // result of mathematical operation
+	SigFigs      int
+	DecimalPlace int
+}
+
+type RunningLatestOrEarliestVal struct {
+	Value     sutils.CValueEnclosure
+	Timestamp uint64
+}
+
 type BoolOperator uint8
 
 const (
@@ -2097,6 +2108,152 @@ func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue m
 	}
 }
 
+func applySigfigToRes(fltVal float64, sigfigs int) float64 {
+	strArr := strings.Split(strconv.FormatFloat(fltVal, 'f', -1, 64), ".")
+	var lenDecPart int = 0
+	if len(strArr) > 1 {
+		lenDecPart = len(strArr[1])
+	}
+	lenMantPart := len(strArr[0])
+	totalResLen := lenDecPart + lenMantPart
+	if totalResLen < sigfigs {
+		return fltVal
+	}
+	if strArr[0] == "0" {
+		offset := 0
+		for _, char := range strArr[1] {
+			if char != '0' {
+				break
+			}
+			offset++
+		}
+		return round(fltVal, sigfigs+offset)
+	}
+	return round(fltVal, sigfigs-lenMantPart)
+}
+
+func (self *NumericExpr) getSigDecimals(strVal string, fltVal float64) int {
+	if len(strVal) == 0 {
+		strVal = strconv.FormatFloat(fltVal, 'f', -1, 64)
+	}
+	clnArr := strings.Split(strings.Split(strVal, "e")[0], ".")
+	if len(clnArr) > 1 {
+		return len(clnArr[1])
+	} else {
+		return 0
+	}
+}
+
+func (self *NumericExpr) getSigFigs(strVal string, fltVal float64) int {
+	if len(strVal) == 0 {
+		strVal = strconv.FormatFloat(fltVal, 'f', -1, 64)
+	}
+	strVal = strings.Split(strVal, "e")[0]
+	sigfigs := 0
+	if strings.Contains(strVal, ".") {
+		valArr := strings.Split(strVal, ".")
+		mantPart := valArr[0]
+		decPart := valArr[1]
+		mantPartNum, err := utils.FastParseFloat([]byte(mantPart))
+		if err == nil {
+			if mantPartNum == 0 {
+				// all leading 0s are not significant
+				sigfigs += len(strings.TrimLeft(decPart, "0"))
+			} else {
+				sigfigs += len(mantPart) + len(decPart)
+			}
+		}
+	} else {
+		// all trailing 0s are not significant
+		sigfigs += len(strings.TrimRight(strVal, "0"))
+	}
+	return sigfigs
+}
+
+func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[string]sutils.CValueEnclosure, sigfigArr *[]SigfigInfo) (float64, string, error) {
+	if expr.IsTerminal {
+		value, err := expr.Evaluate(fieldToValue)
+		if err != nil {
+			return 0, "", err
+		}
+		return value, "", nil
+	} else {
+		var leftInfo, rightInfo SigfigInfo
+		if expr.Left != nil {
+			leftValue, _, err := self.evaluateWithSigfig(expr.Left, fieldToValue, sigfigArr)
+			if err != nil {
+				return 0, "", err
+			}
+			leftInfo = SigfigInfo{
+				Value:        leftValue,
+				SigFigs:      self.getSigFigs(expr.Left.Value, leftValue),
+				DecimalPlace: self.getSigDecimals(expr.Left.Value, leftValue),
+			}
+		}
+
+		if expr.Right != nil {
+			rightValue, _, err := self.evaluateWithSigfig(expr.Right, fieldToValue, sigfigArr)
+			if err != nil {
+				return 0, "", err
+			}
+			rightInfo = SigfigInfo{
+				Value:        rightValue,
+				SigFigs:      self.getSigFigs(expr.Right.Value, rightValue),
+				DecimalPlace: self.getSigDecimals(expr.Right.Value, rightValue),
+			}
+		}
+
+		resultInfo := SigfigInfo{
+			SigFigs:      min(leftInfo.SigFigs, rightInfo.SigFigs),
+			DecimalPlace: min(leftInfo.DecimalPlace, rightInfo.DecimalPlace),
+		}
+		switch expr.Op {
+		case "+", "-":
+			var result float64
+			if expr.Op == "+" {
+				result = leftInfo.Value + rightInfo.Value
+			} else {
+				result = leftInfo.Value - rightInfo.Value
+			}
+			resultInfo.Value = result
+			// convert to sigfigs -> usefull if the last operations is either * or /
+			resArr := strings.Split(strconv.FormatFloat(result, 'f', -1, 64), ".")
+			// required due to floating point error
+			var resStr string
+			if len(resArr) > 1 {
+				resStr = resArr[0] + "." + resArr[1][:resultInfo.DecimalPlace]
+			} else {
+				resStr = resArr[0]
+			}
+			resultInfo.SigFigs = expr.getSigFigs(resStr, 0.0)
+			*sigfigArr = append(*sigfigArr, resultInfo)
+			return result, expr.Op, nil
+		case "*", "/":
+			var result float64
+			if expr.Op == "*" {
+				result = leftInfo.Value * rightInfo.Value
+			} else {
+				result = leftInfo.Value / rightInfo.Value
+			}
+			resultInfo.Value = result
+			// convert to decimal places -> usefull if the last operations is either + or -
+			tempRes := applySigfigToRes(result, resultInfo.SigFigs)
+			tempResStr := strconv.FormatFloat(tempRes, 'f', -1, 64)
+			tempResArr := strings.Split(tempResStr, ".")
+			if len(tempResArr) > 1 {
+				resultInfo.DecimalPlace = len(tempResArr[1])
+			} else {
+				resultInfo.DecimalPlace = 0
+			}
+			*sigfigArr = append(*sigfigArr, resultInfo)
+			return result, expr.Op, nil
+		default:
+			result, err := expr.Evaluate(fieldToValue)
+			return result, "", err
+		}
+	}
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
@@ -2168,6 +2325,28 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 			return math.Abs(left), nil
 		case "ceil":
 			return math.Ceil(left), nil
+		case "sigfig":
+			var sigfigArr []SigfigInfo
+			result, op, err := self.evaluateWithSigfig(self.Left, fieldToValue, &sigfigArr)
+			if err != nil {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: error while evaluating sigfig; err: %v", err)
+			}
+			switch op {
+			case "+", "-":
+				minDecPlace := math.MaxInt
+				for idx := range sigfigArr {
+					minDecPlace = min(minDecPlace, sigfigArr[idx].DecimalPlace)
+				}
+				return round(result, minDecPlace), nil
+			case "*", "/":
+				minSigFig := math.MaxInt
+				for idx := range sigfigArr {
+					minSigFig = min(minSigFig, sigfigArr[idx].SigFigs)
+				}
+				return applySigfigToRes(result, minSigFig), nil
+			default:
+				return result, nil
+			}
 		case "acosh":
 			if left < 1 {
 				return -1, fmt.Errorf("NumericExpr.Evaluate: acosh requires values >= 1, got: %v", left)
