@@ -1156,7 +1156,7 @@ func handleMVMap(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 		return nil, fmt.Errorf("mvmap: error evaluating multivalue expression: %v", err)
 	}
 
-	if mvSlice == nil || len(mvSlice) == 0 {
+	if len(mvSlice) == 0 {
 		return []string{}, nil
 	}
 
@@ -1181,7 +1181,12 @@ func handleMVMap(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 
 		res, err := self.ValueExprParams[0].EvaluateToString(localMap)
 		if err != nil {
-			return nil, fmt.Errorf("mvmap: error evaluating expression on value %v: %v", val, err)
+
+			if dtype == sutils.SS_DT_STRING {
+				res = fmt.Sprintf("%v10", val)
+			} else {
+				return nil, fmt.Errorf("mvmap: error evaluating expression on value %v: %v", val, err)
+			}
 		}
 		result = append(result, res)
 	}
