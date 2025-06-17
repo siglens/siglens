@@ -1170,6 +1170,7 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 
 	segKeyEnc := allSearchResults.GetAddSegEnc(searchReq.SegmentKey)
 	numRecsMatched := uint16(0)
+	rrcs := make([]sutils.RecordResultContainer, recIT.AllRecLen)
 	for recNum := uint(0); recNum < uint(recIT.AllRecLen); recNum++ {
 		if !recIT.ShouldProcessRecord(recNum) {
 			continue
@@ -1189,16 +1190,16 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		}
 		numRecsMatched++
 
-		rrc := &sutils.RecordResultContainer{
-			SegKeyInfo: sutils.SegKeyInfo{
-				SegKeyEnc: segKeyEnc,
-				IsRemote:  false,
-			},
-			BlockNum:         blockStatus.BlockNum,
-			RecordNum:        recNumUint16,
-			VirtualTableName: searchReq.VirtualTableName,
-			TimeStamp:        recTs,
+		rrc := &rrcs[recNumUint16]
+		rrc.SegKeyInfo = sutils.SegKeyInfo{
+			SegKeyEnc: segKeyEnc,
+			IsRemote:  false,
 		}
+		rrc.BlockNum = blockStatus.BlockNum
+		rrc.RecordNum = recNumUint16
+		rrc.VirtualTableName = searchReq.VirtualTableName
+		rrc.TimeStamp = recTs
+
 		blkResults.Add(rrc)
 
 	}
