@@ -218,7 +218,6 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
                     columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
                 }
             }
-            $('#avail-field-container ').css('display', 'none');
             renderPanelAggsGrid(columnOrder, res, panelId);
         }
         //for logs-query
@@ -234,7 +233,6 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             } else {
                 selectedFieldsList = columnOrder;
             }
-            $('#avail-field-container ').css('display', 'inline-flex');
             renderAvailableFields(columnOrder);
             renderPanelLogsGrid(columnOrder, res.hits.records, panelId, currentPanel);
         }
