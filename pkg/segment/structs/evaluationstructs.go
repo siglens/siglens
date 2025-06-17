@@ -1179,9 +1179,10 @@ func handleMVMap(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 
 		localMap["value"] = sutils.CValueEnclosure{CVal: cval, Dtype: dtype}
 
+		localMap["results"] = sutils.CValueEnclosure{CVal: cval, Dtype: dtype}
+
 		res, err := self.ValueExprParams[0].EvaluateToString(localMap)
 		if err != nil {
-
 			if dtype == sutils.SS_DT_STRING {
 				res = fmt.Sprintf("%v10", val)
 			} else {
@@ -1193,47 +1194,107 @@ func handleMVMap(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 
 	return result, nil
 }
+
 func handleMVRange(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if len(self.NumericExprParams) < 2 {
-		return nil, fmt.Errorf("mvrange requires at least two numeric arguments")
+		return nil, fmt.Errorf("handleMVRange: mvrange requires at least two numeric arguments")
 	}
 
-	startVal, err := self.NumericExprParams[0].Evaluate(fieldToValue)
-	if err != nil {
-		return nil, fmt.Errorf("mvrange start value error: %v", err)
-	}
-	endVal, err := self.NumericExprParams[1].Evaluate(fieldToValue)
-	if err != nil {
-		return nil, fmt.Errorf("mvrange end value error: %v", err)
-	}
-
-	start := int(startVal)
-	end := int(endVal)
-
-	step := 1
+	step := int64(1)
 	if len(self.NumericExprParams) >= 3 {
-		stepVal, err := self.NumericExprParams[2].Evaluate(fieldToValue)
+		raw, err := self.NumericExprParams[2].Evaluate(fieldToValue)
 		if err != nil {
-			return nil, fmt.Errorf("mvrange step value error: %v", err)
+			return nil, fmt.Errorf("step error: %v", err)
 		}
-		step = int(stepVal)
+		var stepVal interface{} = raw
+		switch v := stepVal.(type) {
+
+		case float64:
+			step = int64(v)
+		case int64:
+			step = v
+		case string:
+			dur, err := time.ParseDuration(v)
+			if err != nil {
+				dur, err = parseExtendedDuration(v)
+				if err != nil {
+					return nil, fmt.Errorf("invalid step string: %v", err)
+				}
+			}
+			step = int64(dur.Seconds())
+		default:
+			return nil, fmt.Errorf("unsupported step type: %T", v)
+		}
 	}
 
 	if step == 0 {
-		return nil, fmt.Errorf("step value cannot be zero")
+		return nil, fmt.Errorf("handleMVRange: step cannot be zero")
 	}
+	startRaw, err := self.NumericExprParams[0].Evaluate(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("handleMVRange: start value error: %v", err)
+	}
+	var startVal interface{} = startRaw
 
-	var result []string
+	var start int64
+	switch v := startVal.(type) {
+	case float64:
+		start = int64(v)
+	case int64:
+		start = v
+	case string:
+		parsed, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("handleMVRange: start is not a valid number: %v", err)
+		}
+		start = parsed
+	default:
+		return nil, fmt.Errorf("handleMVRange: unsupported start type: %T", v)
+	}
+	endRaw, err := self.NumericExprParams[1].Evaluate(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("handleMVRange: end value error: %v", err)
+	}
+	var endVal interface{} = endRaw
+
+	var end int64
+	switch v := endVal.(type) {
+	case float64:
+		end = int64(v)
+	case int64:
+		end = v
+	case string:
+		parsed, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("handleMVRange: end is not a valid number: %v", err)
+		}
+		end = parsed
+	default:
+		return nil, fmt.Errorf("handleMVRange: unsupported end type: %T", v)
+	}
 
 	if (step > 0 && start >= end) || (step < 0 && start <= end) {
 		return []string{}, nil
 	}
 
+	var result []string
 	for i := start; (step > 0 && i < end) || (step < 0 && i > end); i += step {
-		result = append(result, strconv.Itoa(i))
+		result = append(result, strconv.FormatInt(i, 10))
 	}
 
 	return result, nil
+}
+
+func parseExtendedDuration(s string) (time.Duration, error) {
+	if strings.HasSuffix(s, "d") {
+		daysStr := strings.TrimSuffix(s, "d")
+		days, err := strconv.Atoi(daysStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Hour * 24 * time.Duration(days), nil
+	}
+	return 0, fmt.Errorf("unsupported duration format: %s", s)
 }
 
 func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
