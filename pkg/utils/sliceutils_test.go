@@ -187,6 +187,17 @@ func Test_SortThenProcessThenUnsort(t *testing.T) {
 	assert.Equal(t, expectedReceivedOrder, actualReceivedOrder)
 }
 
+func Test_Unsort(t *testing.T) {
+	sorter := sortable[string]{
+		order: []int{2, 0, 1, 4, 3, 5},
+	}
+
+	actual, err := Unsort(sorter, []string{"a", "b", "c", "d", "e", "f"})
+	expected := []string{"c", "a", "b", "e", "d", "f"}
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
 func Test_RemoveElements(t *testing.T) {
 	slice := []int{1, 2, 3, 4, 5}
 	idxsToRemove := map[int]struct{}{

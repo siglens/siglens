@@ -290,6 +290,42 @@ func (s sortable[T]) Swap(i, j int) {
 	s.order[i], s.order[j] = s.order[j], s.order[i]
 }
 
+func Unsort[T, R any](sorter sortable[T], results []R) ([]R, error) {
+	if len(sorter.order) != len(results) {
+		return nil, fmt.Errorf("Unsort: inputs have different lenghts; %d and %d",
+			len(sorter.order), len(results))
+	}
+
+	visited := make([]bool, len(results))
+	for i := 0; i < len(results); i++ {
+		if visited[i] {
+			continue
+		}
+
+		if sorter.order[i] == i {
+			visited[i] = true
+			continue
+		}
+
+		// Process a cycle starting at position i
+		temp := results[i] // Save the starting element
+		curr := i
+		for !visited[curr] {
+			visited[curr] = true
+			next := sorter.order[curr] // Where current element should go
+			if next == i {
+				results[curr] = temp // Complete the cycle
+				break
+			} else {
+				results[curr] = results[next] // Move next element here
+				curr = next                   // Follow the chain
+			}
+		}
+	}
+
+	return results, nil
+}
+
 func SortThenProcessThenUnsort[T any, R any](slice []T, less func(T, T) bool,
 	operation func([]T) ([]R, error)) ([]R, error) {
 	sortableItems := newSortable(slice, less)
