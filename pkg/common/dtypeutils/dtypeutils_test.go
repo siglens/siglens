@@ -18,7 +18,9 @@
 package dtypeutils
 
 import (
+	"fmt"
 	"math"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -222,4 +224,108 @@ func Test_subtract(t *testing.T) {
 	val, err = Subtract(int8(10), int8(2))
 	assert.Nil(t, err)
 	assert.Equal(t, val, int8(8))
+}
+
+func Test_SPLtoRegex(t *testing.T) {
+
+	type testCase struct {
+		splPattern      string
+		caseInsensitive bool
+		isTerm          bool
+		acceptStrings   []string
+		rejectStrings   []string
+	}
+
+	testCases := []testCase{
+		// case-sensitive, non-TERM()
+		{
+			splPattern:      `foo`,
+			caseInsensitive: false,
+			isTerm:          false,
+			acceptStrings:   []string{"foo"},
+			rejectStrings:   []string{"Foo", "fOo", "FOO", "bar", "foo bar"},
+		},
+		{
+			splPattern:      `foo*`,
+			caseInsensitive: false,
+			isTerm:          false,
+			acceptStrings:   []string{"foo", "foot", "football", "foot-ball123"},
+			rejectStrings:   []string{"fOo", "FOO", "bar", "Football", "afoo", "afoot"},
+		},
+
+		// case-sensitive, TERM()
+		{
+			splPattern:      `foo`,
+			caseInsensitive: false,
+			isTerm:          true,
+			acceptStrings:   []string{"foo", "foo bar", "a[foo)", "foo123;foo", "<foo%21"},
+			rejectStrings:   []string{"Foo", "fOo", "FOO", "bar"},
+		},
+		{
+			splPattern:      `foo*`,
+			caseInsensitive: false,
+			isTerm:          true,
+			acceptStrings:   []string{"foo", "foot", "football", "foot-ball123", "foo bar", "a[foo)", "foo123;foo", "<foo%21"},
+			rejectStrings:   []string{"Foo", "fOo", "FOO", "bar", "Football"},
+		},
+		{
+			splPattern:      `an Apple`,
+			caseInsensitive: true,
+			isTerm:          true,
+			acceptStrings:   []string{"an apple", "An Apple", "aN aPPle", "an APPLE a day", "i EAT an Apple every day", " an apple"},
+			rejectStrings:   []string{"ban apples", "Van Apple", "a-n aPPle", "an apple_", "an appLeT"},
+		},
+
+		// case-insensitive, non-TERM()
+		{
+			splPattern:      `foo`,
+			caseInsensitive: true,
+			isTerm:          false,
+			acceptStrings:   []string{"foo", "Foo", "FOo"},
+			rejectStrings:   []string{"foo bar", "foot", "bar"},
+		},
+		{
+			splPattern:      `foo*`,
+			caseInsensitive: true,
+			isTerm:          false,
+			acceptStrings:   []string{"foo", "Foo", "FOo", "foobar", "foot", "foot-ball123"},
+			rejectStrings:   []string{"bar", "Goo", "bar foo"},
+		},
+
+		// case-insensitive, TERM()
+		{
+			splPattern:      `foo`,
+			caseInsensitive: true,
+			isTerm:          true,
+			acceptStrings:   []string{"foo", "foo bar", "a[foo)", "foo123;foo", "<foo%21", "Foo", "fOo", "FOO"},
+			rejectStrings:   []string{"foobar", "bar"},
+		},
+		{
+			splPattern:      `foo*`,
+			caseInsensitive: true,
+			isTerm:          true,
+			acceptStrings:   []string{"foo", "Foo", "FOo", "food", "foo&$^!@#", "Football"},
+			rejectStrings:   []string{"bar", "floo", "afoo", "a_foo"},
+		},
+		{
+			splPattern:      `an apple`,
+			caseInsensitive: true,
+			isTerm:          true,
+			acceptStrings:   []string{"an Apple", "i EAT an AppLe every day", " an Apple"},
+			rejectStrings:   []string{"ban apples", "Van Apple", "a-n aPPle", "an apple_", "an appLeT"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		regexStr := SPLToRegex(testCase.splPattern, testCase.caseInsensitive, testCase.isTerm)
+		regexAutomaton, err := regexp.Compile(regexStr)
+		assert.NoError(t, err)
+
+		for _, acceptedStr := range testCase.acceptStrings {
+			assert.True(t, regexAutomaton.MatchString(acceptedStr), fmt.Sprintf("string %s with regex %s", acceptedStr, regexAutomaton.String()))
+		}
+		for _, rejectedStr := range testCase.rejectStrings {
+			assert.False(t, regexAutomaton.MatchString(rejectedStr), fmt.Sprintf("string %s with regex %s", rejectedStr, regexAutomaton.String()))
+		}
+	}
 }

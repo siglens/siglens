@@ -304,7 +304,7 @@ func (searchExp *SearchExpression) GetExpressionType() SearchQueryType {
 }
 
 // parse a FilterInput to a friendly SearchInput for raw searching/expression matching
-func getSearchInputFromFilterInput(filter *FilterInput, isCaseInsensitive bool, qid uint64) *SearchExpressionInput {
+func getSearchInputFromFilterInput(filter *FilterInput, isCaseInsensitive bool, isTerm bool, qid uint64) *SearchExpressionInput {
 
 	searchInput := SearchExpressionInput{}
 
@@ -318,7 +318,7 @@ func getSearchInputFromFilterInput(filter *FilterInput, isCaseInsensitive bool, 
 			// TODO: handle error
 			log.Errorf("getSearchInputFromFilterInput: qid=%d, Error creating dtype enclosure: %v", qid, err)
 		} else {
-			val.UpdateRegexp(isCaseInsensitive)
+			val.UpdateRegexp(isCaseInsensitive, isTerm)
 		}
 		searchInput.ColumnValue = val
 		return &searchInput
@@ -346,9 +346,10 @@ func GetSearchQueryFromFilterCriteria(criteria *FilterCriteria, qid uint64) *Sea
 	if criteria.MatchFilter != nil {
 		sq = extractSearchQueryFromMatchFilter(criteria.MatchFilter, criteria.FilterIsCaseInsensitive, qid)
 	} else {
-		sq = extractSearchQueryFromExpressionFilter(criteria.ExpressionFilter, criteria.FilterIsCaseInsensitive, qid)
+		sq = extractSearchQueryFromExpressionFilter(criteria.ExpressionFilter, criteria.FilterIsCaseInsensitive, criteria.FilterIsTerm, qid)
 	}
 	sq.FilterIsCaseInsensitive = criteria.FilterIsCaseInsensitive
+	sq.FilterIsTerm = criteria.FilterIsTerm
 	return sq
 }
 
@@ -398,9 +399,9 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter, isCaseInsensitive boo
 	return currQuery
 }
 
-func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInsensitive bool, qid uint64) *SearchQuery {
-	leftSearchInput := getSearchInputFromFilterInput(exp.LeftInput, isCaseInsensitive, qid)
-	rightSearchInput := getSearchInputFromFilterInput(exp.RightInput, isCaseInsensitive, qid)
+func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInsensitive bool, isTerm bool, qid uint64) *SearchQuery {
+	leftSearchInput := getSearchInputFromFilterInput(exp.LeftInput, isCaseInsensitive, isTerm, qid)
+	rightSearchInput := getSearchInputFromFilterInput(exp.RightInput, isCaseInsensitive, isTerm, qid)
 	sq := &SearchQuery{
 		ExpressionFilter: &SearchExpression{
 			LeftSearchInput:  leftSearchInput,
@@ -417,10 +418,8 @@ func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, isCaseInsensi
 
 			// We don't need to do this with the LeftSearchInput.OriginalColumnValue, as this is a regex/wildcard
 			// And we don't do Bloom Filtering for regex/wildcard searches
-			cval := dtu.ReplaceWildcardStarWithRegex(sq.ExpressionFilter.LeftSearchInput.ColumnValue.StringVal)
-			if isCaseInsensitive {
-				cval = "(?i)" + cval
-			}
+			cval := dtu.SPLToRegex(sq.ExpressionFilter.LeftSearchInput.ColumnValue.StringVal, isCaseInsensitive, isTerm)
+
 			rexpC, err := regexp.Compile(cval)
 			if err != nil {
 				log.Errorf("extractSearchQueryFromExpressionFilter: regexp compile failed for exp: %v, err: %v", cval, err)
