@@ -1136,13 +1136,13 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 
 func handleMVDedup(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
-		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvdedup requires one multiValueExpr argument")
+		return []string{}, fmt.Errorf("handleMVDedup: mvdedup requires one multiValueExpr argument")
 	}
 	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
 	if utils.IsNilValueError(err) {
 		return nil, err
 	} else if err != nil {
-		return []string{}, fmt.Errorf("TextExpr.EvaluateText -> handleMVDedup: %v", err)
+		return []string{}, fmt.Errorf("handleMVDedup: %v", err)
 	}
 
 	seen := make(map[string]string, len(mvSlice))
@@ -1160,7 +1160,7 @@ func handleMVDedup(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEn
 
 func handleMVAppend(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.ValueExprParams == nil || len(self.ValueExprParams) < 1 || self.ValueExprParams[0] == nil {
-		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvappend requires atleast one argument")
+		return []string{}, fmt.Errorf("handleMVAppend: mvappend requires atleast one argument")
 	}
 
 	finalMVSlice := []string{}
@@ -1171,7 +1171,7 @@ func handleMVAppend(self *MultiValueExpr, fieldToValue map[string]sutils.CValueE
 			if utils.IsNilValueError(err) {
 				return nil, err
 			} else if err != nil {
-				return []string{}, fmt.Errorf("TextExpr.EvaluateText -> handleMVAppend: %v", err)
+				return []string{}, fmt.Errorf("handleMVAppend: %v", err)
 			}
 			finalMVSlice = append(finalMVSlice, mvSlice...)
 		case VEMStringExpr:
@@ -1182,7 +1182,7 @@ func handleMVAppend(self *MultiValueExpr, fieldToValue map[string]sutils.CValueE
 				if utils.IsNilValueError(err) {
 					return nil, err
 				} else if err != nil {
-					return []string{}, fmt.Errorf("TextExpr.EvaluateText -> handleMVAppend: %v", err)
+					return []string{}, fmt.Errorf("handleMVAppend: %v", err)
 				}
 				finalMVSlice = append(finalMVSlice, result)
 			}
