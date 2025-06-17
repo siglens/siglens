@@ -3313,6 +3313,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     height: 30px;
     border-bottom: 1px solid var(--border-color-regular);
     background-color: var(--db-bg-color);
+    z-index: 1;
 }
 
 .panel div.panel-header p {
