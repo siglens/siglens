@@ -336,12 +336,7 @@ func SortThenProcessThenUnsort[T any, R any](slice []T, less func(T, T) bool,
 	}
 
 	// Now unsort to get the original order.
-	results := make([]R, len(slice))
-	for i, result := range sortedResults {
-		results[sortableItems.order[i]] = result
-	}
-
-	return results, nil
+	return Unsort(sortableItems, sortedResults)
 }
 
 // idxsToRemove should contain only valid indexes in the array
