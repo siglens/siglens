@@ -296,30 +296,13 @@ func Unsort[T, R any](sorter sortable[T], results []R) ([]R, error) {
 			len(sorter.order), len(results))
 	}
 
-	visited := make([]bool, len(results))
+	// Keep applying swaps until all elements are in their correct positions.
 	for i := 0; i < len(results); i++ {
-		if visited[i] {
-			continue
-		}
-
-		if sorter.order[i] == i {
-			visited[i] = true
-			continue
-		}
-
-		// Process a cycle starting at position i
-		temp := results[i] // Save the starting element
-		curr := i
-		for !visited[curr] {
-			visited[curr] = true
-			next := sorter.order[curr] // Where current element should go
-			if next == i {
-				results[curr] = temp // Complete the cycle
-				break
-			} else {
-				results[curr] = results[next] // Move next element here
-				curr = next                   // Follow the chain
-			}
+		// Keep swapping element at position i until it's in the right place.
+		for sorter.order[i] != i {
+			targetPos := sorter.order[i]
+			results[i], results[targetPos] = results[targetPos], results[i]
+			sorter.order[i], sorter.order[targetPos] = sorter.order[targetPos], sorter.order[i]
 		}
 	}
 
@@ -335,7 +318,6 @@ func SortThenProcessThenUnsort[T any, R any](slice []T, less func(T, T) bool,
 		return nil, err
 	}
 
-	// Now unsort to get the original order.
 	return Unsort(sortableItems, sortedResults)
 }
 
