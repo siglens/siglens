@@ -1137,13 +1137,13 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 
 func handleMVSort(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
-		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvsort requires one multiValueExpr argument")
+		return []string{}, fmt.Errorf("handleMVSort: mvsort requires one multiValueExpr argument")
 	}
 	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
 	if utils.IsNilValueError(err) {
 		return nil, err
 	} else if err != nil {
-		return []string{}, fmt.Errorf("TextExpr.EvaluateText -> handleMVSort: %v", err)
+		return []string{}, fmt.Errorf("handleMVSort: %v", err)
 	}
 	// does lexicograrphical sorting => for numbers checks the first digit
 	// => 123456 < 2
@@ -1153,7 +1153,7 @@ func handleMVSort(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnc
 
 func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 2 {
-		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvzip requires two multiValueExpr argument")
+		return []string{}, fmt.Errorf("handleMVZip: mvzip requires two multiValueExpr argument")
 	}
 
 	var delimiter string
@@ -1170,15 +1170,15 @@ func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 
 	mvLeft, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
 	if utils.IsNilValueError(err) {
-		return nil, err
+		mvLeft = append(mvLeft, "")
 	} else if err != nil {
-		return []string{}, fmt.Errorf("TextExpr.EvaluateText -> handleMVZip: %v", err)
+		return []string{}, fmt.Errorf("handleMVZip: %v", err)
 	}
 	mvRight, err := self.MultiValueExprParams[1].Evaluate(fieldToValue)
 	if utils.IsNilValueError(err) {
-		return nil, err
+		mvRight = append(mvRight, "")
 	} else if err != nil {
-		return []string{}, fmt.Errorf("TextExpr.EvaluateText -> handleMVZip: %v", err)
+		return []string{}, fmt.Errorf("handleMVZip: %v", err)
 	}
 
 	// mvzip is simmilar to python zip => the resulting array size will be = to the shortest array
@@ -1193,13 +1193,13 @@ func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 
 func handleMVToJsonArray(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
-		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mv_to_json_array requires one multiValueExpr argument")
+		return []string{}, fmt.Errorf("handleMVToJsonArray: mv_to_json_array requires one multiValueExpr argument")
 	}
 	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
 	if utils.IsNilValueError(err) {
 		return nil, err
 	} else if err != nil {
-		return []string{}, fmt.Errorf("TextExpr.EvaluateText -> mv_to_json_array: %v", err)
+		return []string{}, fmt.Errorf("handleMVToJsonArray: %v", err)
 	}
 
 	resultArr := make([]any, len(mvSlice))
@@ -1215,6 +1215,8 @@ func handleMVToJsonArray(self *MultiValueExpr, fieldToValue map[string]sutils.CV
 			case "null":
 				resultArr[idx] = nil
 				continue
+			default:
+				log.Warnf("handleMVToJsonArray: no keyword found -> moving on to the number check")
 			}
 
 			if num, err := utils.FastParseFloat([]byte(mvSlice[idx])); err == nil {
@@ -1238,7 +1240,7 @@ func handleMVToJsonArray(self *MultiValueExpr, fieldToValue map[string]sutils.CV
 		jsonBytes, err = json.Marshal(mvSlice)
 	}
 	if err != nil {
-		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mv_to_json_array - error marshaling multivalue field %v; err: %v", mvSlice, err)
+		return []string{}, fmt.Errorf("handleMVToJsonArray: error marshaling multivalue field %v; err: %v", mvSlice, err)
 	}
 	return []string{string(jsonBytes)}, nil
 

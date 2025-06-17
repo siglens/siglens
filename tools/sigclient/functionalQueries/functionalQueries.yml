@@ -23,6 +23,9 @@ eval_fields_timechart.json
 multi_value.json
 gentimes.json
 gentimes_2.json
+mv_to_json_array.json
+mvsort.json
+mvzip.json
 mvexpand.json
 rex_stats_groupby_eval_stats.json
 eval_stats_sort_stats_groupby_where.json
