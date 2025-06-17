@@ -2170,6 +2170,87 @@ func (self *NumericExpr) getSigFigs(strVal string, fltVal float64) int {
 	return sigfigs
 }
 
+func splPrintfHumanizeHelper(verbCounter int, value any, formatValues []any, buffer *[]byte, verb byte, parseInt func(string) (int64, error), parseFloat func(string) (float64, error)) {
+	var strVal string
+	formatValues[verbCounter] = value
+	formattedVal := fmt.Sprintf(string(append(*buffer, verb)), formatValues...)
+	// can't use precomputed hasDecimal since formatting may remove the decimal
+	hasDecimal := strings.Contains(formattedVal, ".")
+	// remove spaces, leading zeros, signs from the left.
+	// remove spaces and trailing zeros from the right
+	// we add back these removed values at the end
+	trimmedVal := strings.TrimSpace(formattedVal)
+	start := strings.Index(formattedVal, trimmedVal)
+	end := start + len(trimmedVal)
+	if trimmedVal[0] == '+' || trimmedVal[0] == '-' {
+		trimmedVal = trimmedVal[1:]
+		start += 1
+	}
+	for i := 0; i < len(trimmedVal); i++ {
+		if trimmedVal[i] != '0' || (trimmedVal[i] == '.' && hasDecimal) {
+			break
+		}
+		start++
+	}
+	if hasDecimal {
+		for i := len(trimmedVal) - 1; i >= 0; i-- {
+			if trimmedVal[i] != '0' || trimmedVal[i] == '.' {
+				break
+			}
+			end--
+		}
+	}
+	removedLeft := formattedVal[:start]
+	removedRight := formattedVal[end:]
+	switch value.(type) {
+	case int64:
+		intVal, err := parseInt(trimmedVal)
+		if err != nil {
+			log.Errorf("splPrintfToGoPrintfConverter: Unable to parse int value; val: %v", formattedVal)
+		} else {
+			strVal = humanize.Comma(intVal)
+		}
+	case float64:
+		fltVal, err := parseFloat(trimmedVal)
+		if err != nil {
+			log.Errorf("splPrintfToGoPrintfConverter: Unable to parse float value; val: %v", formattedVal)
+		} else {
+			strVal = humanize.Commaf(fltVal)
+		}
+	case uint64:
+		uintVal, err := strconv.ParseUint(trimmedVal, 10, 64)
+		if err != nil {
+			log.Errorf("splPrintfToGoPrintfConverter: Unable to parse uint value; val: %v", formattedVal)
+		} else {
+			strVal = utils.HumanizeUints(uintVal)
+		}
+	case string:
+		strVal = formattedVal
+	default:
+		log.Errorf("splPrintfToGoPrintfConverter: Unable to determine dtype when adding val to buffer; val: %v", formattedVal)
+	}
+	strVal = removedLeft + strVal + removedRight
+	formatValues[verbCounter] = strVal
+	// Clear any formatting flags from the previous '%' token.
+	// For example, consider the format string "%.5g": the rounding has already been applied earlier
+	// when we initially processed this format using sprintf.
+	//
+	// If we now substitute the formatted value 's' directly into the format string, like replacing %g with %s,
+	// the format string becomes "%.5s". This causes the final sprintf call to re-apply formatting (like rounding or truncation),
+	// which is incorrect because the value has already been rounded once.
+	lastPercentPos := -1
+	for i := len(*buffer) - 1; i >= 0; i-- {
+		if (*buffer)[i] == '%' {
+			lastPercentPos = i
+			break
+		}
+	}
+	if lastPercentPos != -1 {
+		*buffer = (*buffer)[:lastPercentPos]
+	}
+	*buffer = append(*buffer, '%', 's')
+}
+
 func splPrintfToGoPrintfConverter(buffer *[]byte, originalVerb byte, formatValues []any, valStr string, verbCounter int, humanizeVal bool) error {
 	var splToGoFmt = map[byte]byte{
 		'a': 'x',
@@ -2192,21 +2273,7 @@ func splPrintfToGoPrintfConverter(buffer *[]byte, originalVerb byte, formatValue
 
 	addToBuffer := func(buffer *[]byte, verb byte, value any, formatValues []any, humanizeVal bool, verbCounter int) {
 		if humanizeVal {
-			var strVal string
-			switch castedVal := value.(type) {
-			case int64:
-				strVal = humanize.Comma(castedVal)
-			case float64:
-				strVal = humanize.Commaf(castedVal)
-			case uint64:
-				strVal = utils.HumanizeUints(castedVal)
-			case string:
-				strVal = castedVal
-			default:
-				log.Errorf("splPrintfToGoPrintfConverter: Unable to determine dtype when adding val to buffer; val: %v", castedVal)
-			}
-			formatValues[verbCounter] = strVal
-			*buffer = append(*buffer, 's')
+			splPrintfHumanizeHelper(verbCounter, value, formatValues, buffer, verb, parseInt, parseFloat)
 		} else {
 			formatValues[verbCounter] = value
 			*buffer = append(*buffer, verb)
