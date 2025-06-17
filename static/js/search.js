@@ -50,6 +50,20 @@ function doLiveTailCancel(_data) {
 
 function resetDataTable(firstQUpdate) {
     if (firstQUpdate) {
+        logsColumnDefs = [
+            {
+                field: 'timestamp',
+                headerName: 'timestamp',
+                cellRenderer: ExpandableJsonCellRenderer('logs'),
+                maxWidth: 250,
+                minWidth: 250,
+            },
+            {
+                field: 'logs',
+                headerName: 'logs',
+                minWidth: 1128,
+            },
+        ];
         $('#empty-response').hide();
         $('#custom-chart-tab').show().css({ height: '100%' });
         $('.tab-chart-list').show();
@@ -1182,7 +1196,6 @@ function renderLogsGrid(columnOrder, hits) {
 
     const logsColumnDefsMap = new Map(logsColumnDefs.map((logCol) => [logCol.field, logCol]));
     const combinedColumnDefs = cols.map((col) => logsColumnDefsMap.get(col.field) || col);
-
     logsColumnDefs.forEach((logCol) => {
         if (!combinedColumnDefs.some((col) => col.field === logCol.field)) {
             combinedColumnDefs.push(logCol);
