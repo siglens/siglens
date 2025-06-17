@@ -147,19 +147,24 @@ func BatchProcess[T any, K comparable, R any](slice []T, batchBy func(T) K,
 	}
 
 	// Batch the items, but track their original order.
+	// First find the number of items in each batch, so we can allocate the
+	// slices with the correct size.
+	keyToNumItems := make(map[K]int)
+	for _, item := range slice {
+		keyToNumItems[batchBy(item)] += 1
+	}
+
+	// Now allocate and fill the batches.
 	batches := make(map[K]*orderedItems[T])
+	for batchKey, numItems := range keyToNumItems {
+		batches[batchKey] = &orderedItems[T]{
+			items: make([]T, 0, numItems),
+			order: make([]int, 0, numItems),
+		}
+	}
 	for i, item := range slice {
 		batchKey := batchBy(item)
-		batch, ok := batches[batchKey]
-		if !ok {
-			batch = &orderedItems[T]{
-				items: make([]T, 0),
-				order: make([]int, 0),
-			}
-
-			batches[batchKey] = batch
-		}
-
+		batch := batches[batchKey]
 		batch.items = append(batch.items, item)
 		batch.order = append(batch.order, i)
 	}

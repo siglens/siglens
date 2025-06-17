@@ -192,3 +192,19 @@ func Test_Option_EncodeDecode_nilOption(t *testing.T) {
 	_, ok := decoded.Get()
 	assert.False(t, ok)
 }
+
+func Test_EqualOptions(t *testing.T) {
+	option1 := NewOptionWithValue(42)
+	option2 := NewOptionWithValue(42)
+	assert.True(t, EqualOptions(option1, option2))
+
+	option2.Set(43)
+	assert.False(t, EqualOptions(option1, option2))
+	option1.Set(43)
+	assert.True(t, EqualOptions(option1, option2))
+
+	option2.Clear()
+	assert.False(t, EqualOptions(option1, option2))
+	option1.Clear()
+	assert.True(t, EqualOptions(option1, option2))
+}
