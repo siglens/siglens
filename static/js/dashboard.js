@@ -926,7 +926,6 @@ function addPanel(chartIndex) {
         queryData: queryData,
         logLinesViewType: logLinesViewType,
         unit: unit,
-        isNewPanel: true, // Keep the flag for log panels
     });
 
     editPanelInit(panelIndex, true);
