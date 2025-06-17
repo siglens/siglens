@@ -28,7 +28,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -753,7 +752,6 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 		}
 	} else {
 		sst, ok := sstMap[fields[0]]
-		log.Infof("ComputeAggEvalForCardinality called: numRecords = %d, measureAgg: %v", len(sst.Records), measureAgg.String())
 		if !ok {
 			return fmt.Errorf("ComputeAggEvalForCardinality: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
