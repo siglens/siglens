@@ -180,6 +180,10 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	unsetRecord := make(map[string]sutils.CValueEnclosure)
 	timestampkey := config.GetTimeStampKey()
 
+	// We're going to to iterate measureInfo many times.
+	// Convert to a slice once to avoid map iteration overhead.
+	measureInfoSlice := utils.MapToSlice(measureInfo)
+
 	for i := 0; i < numOfRecords; i++ {
 		record := inputIQR.GetRecord(i)
 
@@ -195,7 +199,8 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 			p.bucketKeyWorkingBuf, bucketKeyBufIdx = cValue.WriteToBytesWithType(p.bucketKeyWorkingBuf, bucketKeyBufIdx)
 		}
 
-		for cname, indices := range measureInfo {
+		for _, kvPair := range measureInfoSlice {
+			cname, indices := kvPair.Key, kvPair.Value
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
 				p.errorData.readColumns[cname] = err

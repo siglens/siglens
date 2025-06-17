@@ -84,6 +84,21 @@ func MapsConflict[K comparable, V comparable](map1 map[K]V, map2 map[K]V) bool {
 	return false
 }
 
+type KVPair[K comparable, V any] struct {
+	Key   K
+	Value V
+}
+
+func MapToSlice[K comparable, V any](m map[K]V) []KVPair[K, V] {
+	slice := make([]KVPair[K, V], 0, len(m))
+
+	for key, value := range m {
+		slice = append(slice, KVPair[K, V]{Key: key, Value: value})
+	}
+
+	return slice
+}
+
 func MapToSet[K comparable, V any](m map[K]V) map[K]struct{} {
 	set := make(map[K]struct{}, len(m))
 
