@@ -281,3 +281,79 @@ func TestIsLogsQuery_MixedRRCCmdAndGroupByCmd(t *testing.T) {
 	result := query.IsLogsQuery(agg)
 	assert.False(t, result)
 }
+
+func Test_setMergeSettings(t *testing.T) {
+	t.Run("Default order", func(t *testing.T) {
+		dpChain := []*DataProcessor{
+			NewEvalDP(nil),
+			NewWhereDP(nil),
+		}
+
+		searcherMergeSettings := setMergeSettings(dpChain)
+		assert.NotNil(t, searcherMergeSettings)
+		assert.Equal(t, recentFirst, *searcherMergeSettings.sortMode)
+		assert.NotNil(t, dpChain[0].mergeSettings.sortMode)
+		assert.Equal(t, recentFirst, *dpChain[0].mergeSettings.sortMode)
+		assert.NotNil(t, dpChain[1].mergeSettings.sortMode)
+		assert.Equal(t, recentFirst, *dpChain[1].mergeSettings.sortMode)
+	})
+
+	t.Run("Custom sort", func(t *testing.T) {
+		sortExpr := &structs.SortExpr{
+			SortEles: []*structs.SortElement{
+				{Field: "foo", Op: "", SortByAsc: true},
+			},
+		}
+
+		dpChain := []*DataProcessor{
+			NewEvalDP(nil),
+			NewSortDP(sortExpr),
+			NewWhereDP(nil),
+		}
+
+		searcherMergeSettings := setMergeSettings(dpChain)
+		assert.NotNil(t, searcherMergeSettings.sortMode)
+		assert.Equal(t, anyOrder, *searcherMergeSettings.sortMode)
+		assert.NotNil(t, dpChain[0].mergeSettings.sortMode)
+		assert.Equal(t, anyOrder, *dpChain[0].mergeSettings.sortMode)
+		assert.NotNil(t, dpChain[1].mergeSettings.sortExpr)
+		assert.True(t, sortExpr.Equal(dpChain[1].mergeSettings.sortExpr))
+		assert.NotNil(t, dpChain[2].mergeSettings.sortExpr)
+		assert.True(t, sortExpr.Equal(dpChain[2].mergeSettings.sortExpr))
+	})
+
+	t.Run("Multiple sorts", func(t *testing.T) {
+		sortExpr1 := &structs.SortExpr{
+			SortEles: []*structs.SortElement{
+				{Field: "foo", Op: "", SortByAsc: true},
+			},
+		}
+		sortExpr2 := &structs.SortExpr{
+			SortEles: []*structs.SortElement{
+				{Field: "bar", Op: "", SortByAsc: false},
+			},
+		}
+
+		dpChain := []*DataProcessor{
+			NewSortDP(sortExpr1),
+			NewEvalDP(nil),
+			NewDedupDP(&structs.DedupExpr{}),
+			NewSortDP(sortExpr2),
+			NewWhereDP(nil),
+		}
+
+		searcherMergeSettings := setMergeSettings(dpChain)
+		assert.NotNil(t, searcherMergeSettings.sortMode)
+		assert.Equal(t, anyOrder, *searcherMergeSettings.sortMode)
+		assert.NotNil(t, dpChain[0].mergeSettings.sortExpr)
+		assert.True(t, sortExpr1.Equal(dpChain[0].mergeSettings.sortExpr))
+		assert.NotNil(t, dpChain[1].mergeSettings.sortExpr)
+		assert.True(t, sortExpr1.Equal(dpChain[1].mergeSettings.sortExpr))
+		assert.NotNil(t, dpChain[2].mergeSettings.sortExpr)
+		assert.True(t, sortExpr1.Equal(dpChain[2].mergeSettings.sortExpr))
+		assert.NotNil(t, dpChain[3].mergeSettings.sortExpr)
+		assert.True(t, sortExpr2.Equal(dpChain[3].mergeSettings.sortExpr))
+		assert.NotNil(t, dpChain[4].mergeSettings.sortExpr)
+		assert.True(t, sortExpr2.Equal(dpChain[4].mergeSettings.sortExpr))
+	})
+}

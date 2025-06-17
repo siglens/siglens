@@ -56,6 +56,7 @@ type runningStats struct {
 	hll       *utils.GobbableHll
 	rangeStat *structs.RangeStat
 	avgStat   *structs.AvgStat
+	tDigest   *utils.GobbableTDigest
 }
 
 func (rs *runningStats) syncRawValue() {
@@ -97,6 +98,11 @@ func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []running
 			retVal[i] = runningStats{avgStat: &structs.AvgStat{}}
 		} else if internalMeasureFns[i].MeasureFunc == sutils.Range {
 			retVal[i] = runningStats{rangeStat: agg.InitRangeStat()}
+		} else if internalMeasureFns[i].MeasureFunc == sutils.Perc {
+			t, err := utils.CreateNewTDigest()
+			if err == nil {
+				retVal[i] = runningStats{tDigest: t}
+			}
 		}
 	}
 	return retVal
@@ -166,11 +172,22 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:MinMax", err)
 			}
 			i += step
+		case sutils.EarliestTime:
+			fallthrough
 		case sutils.LatestTime:
 			isLatestTime := measureFunc == sutils.LatestTime
 			step, err := rr.AddEvalResultsForMinMax(runningStats, measureResults, i, isLatestTime, fieldToValue)
 			if err != nil {
-				batchErr.AddError("RunningBucketResults.AddMeasureResults:MinMax", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:LatestTime/EarliestTime", err)
+			}
+			i += step
+		case sutils.Earliest:
+			fallthrough
+		case sutils.Latest:
+			isLatest := sutils.Latest == measureFunc
+			step, err := rr.AddEvalResultsForLatestOrEarliest(runningStats, measureResults, i, fieldToValue, isLatest)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Latest/Earliest", err)
 			}
 			i += step
 		case sutils.Range:
@@ -183,6 +200,20 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			step, err := rr.AddEvalResultsForCount(runningStats, measureResults, i, usedByTimechart, cnt, fieldToValue)
 			if err != nil {
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Count", err)
+			}
+			i += step
+		case sutils.Perc:
+			if rr.currStats[i].ValueColRequest == nil {
+				err := tDigestAddCval((*runningStats)[i].tDigest, &measureResults[i])
+				if err != nil {
+					batchErr.AddError("RunningBucketResults.AddMeasureResults:Perc", err)
+					continue
+				}
+				continue
+			}
+			step, err := rr.AddEvalResultsForPerc(runningStats, measureResults, i, fieldToValue)
+			if err != nil {
+				batchErr.AddError("RunningBuckketResults.AddMeasureResults:Percentile", err)
 			}
 			i += step
 		case sutils.Cardinality:
@@ -281,6 +312,36 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			} else {
 				batchErr.AddError("RunningBucketResults.mergeRunningStats:Avg", fmt.Errorf("ValueColRequest is nil"))
 			}
+		case sutils.Latest:
+			if rr.currStats[i].ValueColRequest == nil {
+				latestTsIdx := i + 1
+				latestIdx := i
+				err := rr.ProcessReduce(runningStats, toJoinRunningStats[latestTsIdx].rawVal, latestTsIdx)
+				if err != nil {
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Latest", err)
+				}
+				if (*runningStats)[latestTsIdx].rawVal.Dtype != sutils.SS_INVALID {
+					if (*runningStats)[latestTsIdx].rawVal.CVal.(uint64) == toJoinRunningStats[latestTsIdx].rawVal.CVal.(uint64) {
+						(*runningStats)[latestIdx].rawVal = toJoinRunningStats[latestIdx].rawVal
+					}
+				}
+				i += 1
+			}
+		case sutils.Earliest:
+			if rr.currStats[i].ValueColRequest == nil {
+				earliestTsIdx := i + 1
+				earliestIdx := i
+				err := rr.ProcessReduce(runningStats, toJoinRunningStats[earliestTsIdx].rawVal, earliestTsIdx)
+				if err != nil {
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:Latest", err)
+				}
+				if (*runningStats)[earliestTsIdx].rawVal.Dtype != sutils.SS_INVALID {
+					if (*runningStats)[earliestTsIdx].rawVal.CVal.(uint64) == toJoinRunningStats[earliestTsIdx].rawVal.CVal.(uint64) {
+						(*runningStats)[earliestIdx].rawVal = toJoinRunningStats[earliestIdx].rawVal
+					}
+				}
+				i += 1
+			}
 		case sutils.Range:
 			if rr.currStats[i].ValueColRequest != nil {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
@@ -301,6 +362,15 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				if err != nil {
 					batchErr.AddError("RunningBucketResults.mergeRunningStats:Values", err)
 				}
+				i += (len(fields) - 1)
+			}
+		case sutils.Perc:
+			err := (*runningStats)[i].tDigest.MergeTDigest(toJoinRunningStats[i].tDigest)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.mergeRunningStats:Perc", err)
+			}
+			if rr.currStats[i].ValueColRequest != nil {
+				fields := rr.currStats[i].ValueColRequest.GetFields()
 				i += (len(fields) - 1)
 			}
 		case sutils.List:
@@ -550,6 +620,39 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	return numFields - 1, nil
 }
 
+func (rr *RunningBucketResults) AddEvalResultsForLatestOrEarliest(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure, isLatest bool) (int, error) {
+	if rr.currStats[i].ValueColRequest == nil {
+		// order should be the same as defined in evalaggs.go -> @AddMeasureAggInRunningStatsForLatestOrEarliest
+		// timestamp is present at index i+1
+		// the value (can be any dtype) present at index i
+		elTsIdx := i + 1
+		elIdx := i
+		(*runningStats)[elTsIdx].syncRawValue()
+		(*runningStats)[elIdx].syncRawValue()
+		elTsChanged := false
+		retVal, err := sutils.Reduce((*runningStats)[elTsIdx].rawVal, measureResults[elTsIdx], rr.currStats[elTsIdx].MeasureFunc)
+		if err != nil {
+			return 1, ErrReduceCVal
+		} else {
+			if (*runningStats)[elIdx].rawVal.Dtype != sutils.SS_INVALID {
+				if retVal.CVal.(uint64) != (*runningStats)[elTsIdx].rawVal.CVal.(uint64) {
+					elTsChanged = true
+				}
+			} else {
+				elTsChanged = true
+			}
+			(*runningStats)[elTsIdx].rawVal = retVal
+			(*runningStats)[elTsIdx].number = nil
+			if elTsChanged {
+				(*runningStats)[elIdx].rawVal = measureResults[elIdx]
+				(*runningStats)[elIdx].number = nil
+			}
+		}
+		return 1, nil
+	}
+	return 1, nil
+}
+
 func (rr *RunningBucketResults) AddEvalResultsForMinMax(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, isMin bool, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
@@ -631,6 +734,24 @@ func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningSt
 		(*runningStats)[i].number = nil
 	}
 
+	return len(fieldToValue) - 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForPerc(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+	if (*runningStats)[i].tDigest == nil {
+		td, err := utils.CreateNewTDigest()
+		if err != nil {
+			return 0, fmt.Errorf("RunningBuckets.AddEvalResultsForPerc: unable to initialize the digest tree; err: %v", err)
+		}
+		(*runningStats)[i].tDigest = td
+	}
+	td := (*runningStats)[i].tDigest
+	err := agg.PerformEvalAggForPerc(rr.currStats[i], 0, td, fieldToValue)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBuckets.AddEvalResultsForPerc: failed to evaluate ValueColRequest to string, err: %v", err)
+	}
+	(*runningStats)[i].tDigest = td
+	(*runningStats)[i].number = nil
 	return len(fieldToValue) - 1, nil
 }
 
@@ -973,6 +1094,26 @@ func GetRunningBucketResultsSliceForTest() []*RunningBucketResults {
 	})
 
 	return runningBucketResults
+}
+
+func tDigestAddCval(td *utils.GobbableTDigest, cval *sutils.CValueEnclosure) error {
+	var err error
+	switch cval.Dtype {
+	case sutils.SS_DT_FLOAT:
+		err = td.Add(cval.CVal.(float64))
+	case sutils.SS_DT_SIGNED_NUM:
+		err = td.Add(float64(cval.CVal.(int64)))
+	case sutils.SS_DT_UNSIGNED_NUM:
+		err = td.Add(float64(cval.CVal.(uint64)))
+	case sutils.SS_DT_BACKFILL:
+		return utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetString: nil value"))
+	default:
+		return fmt.Errorf("tDigestAddCval: Works only on numerical columns. Received: %v", cval.Dtype)
+	}
+	if err != nil {
+		return fmt.Errorf("tDigestAddCval: Unable to add value to digest tree; val: %v, err: %v", cval.CVal, err)
+	}
+	return nil
 }
 
 func hllAddRawCval(hll *utils.GobbableHll, cval *sutils.CValueEnclosure) error {

@@ -32,6 +32,14 @@ import (
 var (
 	ErrGetSegSumsqCurrSegStatNil        = errors.New("GetSegSumsq: currSegStat is nil")
 	ErrGetSegSumsqCurrSegStatNonNumeric = errors.New("GetSegSumsq: current segStats is non-numeric")
+
+	ErrGetSegVarCurrSegStatNil    = errors.New("GetSegVar: currSegStat is nil")
+	ErrGetSegVarSegStatNonNumeric = errors.New("GetSegVar: current segStats is non-numeric")
+	ErrGetVarianceInvalidDtype    = errors.New("getVariance: invalid data type")
+
+	ErrGetSegVarpCurrSegStatNil    = errors.New("GetSegVarp: currSegStat is nil")
+	ErrGetSegVarpSegStatNonNumeric = errors.New("GetSegVarp: current segStats is non-numeric")
+	ErrGetVarpInvalidDtype         = errors.New("getVarp: invalid data type")
 )
 
 func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, error) {
@@ -280,20 +288,78 @@ func GetSegMax(runningSegStat *structs.SegStats,
 	return &runningSegStat.Max, nil
 }
 
-func GetSegLatestTs(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*sutils.CValueEnclosure, error) {
+func GetSegLatestOrEarliestTs(runningSegStat *structs.SegStats, currSegStat *structs.SegStats, isLatest bool) (*sutils.CValueEnclosure, error) {
 	if currSegStat == nil {
-		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestTs: currSegStat is nil")
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestOrEarliestTs: currSegStat is nil")
 	}
 
 	if runningSegStat == nil {
-		return &currSegStat.LatestTs, nil
+		if isLatest {
+			return &currSegStat.TimeStats.LatestTs, nil
+		} else {
+			return &currSegStat.TimeStats.EarliestTs, nil
+		}
 	}
-	result, err := sutils.ReduceMinMax(runningSegStat.LatestTs, currSegStat.LatestTs, false)
+
+	result, err := reduceLatestEarliestTs(runningSegStat.TimeStats, currSegStat.TimeStats, isLatest)
 	if err != nil {
-		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegMax: error in ReduceMinMax, err: %v", err)
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestOrEarliestTs: error in ReduceMinMax, err: %v", err)
 	}
-	runningSegStat.LatestTs = result
-	return &runningSegStat.LatestTs, nil
+
+	if isLatest {
+		runningSegStat.TimeStats.LatestTs = result
+		return &runningSegStat.TimeStats.LatestTs, nil
+	} else {
+		runningSegStat.TimeStats.EarliestTs = result
+		return &runningSegStat.TimeStats.EarliestTs, nil
+	}
+}
+
+func reduceLatestEarliestTs(runningTs *structs.TimeStats, currentTs *structs.TimeStats, isLatest bool) (sutils.CValueEnclosure, error) {
+	var result sutils.CValueEnclosure
+	var err error
+	if isLatest {
+		result, err = sutils.ReduceMinMax(runningTs.LatestTs, currentTs.LatestTs, false)
+	} else {
+		result, err = sutils.ReduceMinMax(runningTs.EarliestTs, currentTs.EarliestTs, true)
+	}
+	return result, err
+}
+
+func GetSegLatestOrEarliestVal(runningSegStat *structs.SegStats, currSegStat *structs.SegStats, isLatest bool) (*sutils.CValueEnclosure, error) {
+	if currSegStat == nil {
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestOrEarliestVal: currSegStat is nil")
+	}
+
+	if runningSegStat == nil {
+		if isLatest {
+			return &currSegStat.TimeStats.LatestVal, nil
+		} else {
+			return &currSegStat.TimeStats.EarliestVal, nil
+		}
+	}
+	result, err := reduceLatestEarliestTs(runningSegStat.TimeStats, currSegStat.TimeStats, isLatest)
+	if err != nil {
+		return &sutils.CValueEnclosure{}, fmt.Errorf("GetSegLatestOrEarliestTs: error in ReduceMinMax, err: %v", err)
+	}
+	var elVal sutils.CValueEnclosure
+	if isLatest {
+		if runningSegStat.TimeStats.LatestTs.CVal.(uint64) == result.CVal.(uint64) {
+			elVal = runningSegStat.TimeStats.LatestVal
+		} else {
+			elVal = currSegStat.TimeStats.LatestVal
+		}
+		runningSegStat.TimeStats.LatestVal = elVal
+		return &runningSegStat.TimeStats.LatestVal, nil
+	} else {
+		if runningSegStat.TimeStats.EarliestTs.CVal.(uint64) == result.CVal.(uint64) {
+			elVal = runningSegStat.TimeStats.EarliestVal
+		} else {
+			elVal = currSegStat.TimeStats.EarliestVal
+		}
+		runningSegStat.TimeStats.EarliestVal = elVal
+		return &runningSegStat.TimeStats.EarliestVal, nil
+	}
 }
 
 func getRange(max sutils.CValueEnclosure, min sutils.CValueEnclosure) (*sutils.CValueEnclosure, error) {
@@ -406,6 +472,35 @@ func GetSegSum(runningSegStat *structs.SegStats,
 	}
 
 	return &rSst, nil
+}
+
+func GetSegPerc(runningSegStat *structs.SegStats, currSegStat *structs.SegStats, perc float64) (*sutils.NumTypeEnclosure, error) {
+	res := sutils.NumTypeEnclosure{
+		Ntype:    sutils.SS_DT_FLOAT,
+		IntgrVal: 0,
+		FloatVal: 0.0,
+	}
+
+	if currSegStat == nil {
+		return &res, fmt.Errorf("GetSegPerc: currSegStat is nil")
+	}
+
+	fltPercentileVal := perc / 100
+	if fltPercentileVal < 0.0 || fltPercentileVal > 1.0 {
+		return &res, fmt.Errorf("GetSegPerc: percentile not between the valid range")
+	}
+
+	if runningSegStat == nil {
+		res.FloatVal = currSegStat.TDigest.GetQuantile(fltPercentileVal)
+		return &res, nil
+	}
+
+	err := runningSegStat.TDigest.MergeTDigest(currSegStat.TDigest)
+	if err != nil {
+		return &res, fmt.Errorf("GetSegPerc: Can't merge TDigests, check if they have the same compression value")
+	}
+	res.FloatVal = runningSegStat.TDigest.GetQuantile(fltPercentileVal)
+	return &res, nil
 }
 
 func GetSegSumsq(runningSegStat *structs.SegStats,
@@ -536,6 +631,120 @@ func getAverage(sum sutils.NumTypeEnclosure, count uint64) (float64, error) {
 		return avg, fmt.Errorf("getAverage: invalid data type: %v", sum.Ntype)
 	}
 	return avg, nil
+}
+
+func GetSegVar(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
+
+	if currSegStat == nil {
+		return nil, ErrGetSegVarCurrSegStatNil
+	}
+
+	if !currSegStat.IsNumeric {
+		return nil, ErrGetSegVarSegStatNonNumeric
+	}
+
+	// Initialize result with default values
+	rSst := sutils.NumTypeEnclosure{
+		Ntype:    sutils.SS_DT_FLOAT,
+		IntgrVal: 0,
+		FloatVal: 0.0,
+	}
+
+	// If running segment statistics are nil, return the current segment's variance
+	if runningSegStat == nil {
+		variance, err := getVariance(currSegStat.NumStats.Sum, currSegStat.NumStats.Sumsq, currSegStat.NumStats.NumericCount)
+		rSst.FloatVal = variance
+		return &rSst, err
+	}
+
+	// Update running segment statistics
+	runningSegStat.NumStats.NumericCount += currSegStat.NumStats.NumericCount
+	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, sutils.Sum)
+	if err != nil {
+		return nil, err
+	}
+	runningSegStat.NumStats.Sumsq += currSegStat.NumStats.Sumsq
+
+	// Calculate and return the variance
+	variance, err := getVariance(runningSegStat.NumStats.Sum, runningSegStat.NumStats.Sumsq, runningSegStat.NumStats.NumericCount)
+	rSst.FloatVal = variance
+	return &rSst, err
+}
+
+// Helper function to calculate the sample variance
+func getVariance(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64, error) {
+	if count < 2 { // sample variance requires at least 2 records
+		return 0, nil
+	}
+
+	var variance float64
+	switch sum.Ntype {
+	case sutils.SS_DT_FLOAT:
+		variance = (sumsq - (sum.FloatVal * sum.FloatVal / float64(count))) / float64(count-1)
+	case sutils.SS_DT_SIGNED_NUM:
+		variance = (sumsq - (float64(sum.IntgrVal) * float64(sum.IntgrVal) / float64(count))) / float64(count-1)
+	default:
+		return 0, ErrGetVarianceInvalidDtype
+	}
+	return variance, nil
+}
+
+func GetSegVarp(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
+
+	if currSegStat == nil {
+		return nil, ErrGetSegVarpCurrSegStatNil
+	}
+
+	if !currSegStat.IsNumeric {
+		return nil, ErrGetSegVarpSegStatNonNumeric
+	}
+
+	// Initialize result with default values
+	rSst := sutils.NumTypeEnclosure{
+		Ntype:    sutils.SS_DT_FLOAT,
+		IntgrVal: 0,
+		FloatVal: 0.0,
+	}
+
+	// If running segment statistics are nil, return the current segment's population variance
+	if runningSegStat == nil {
+		varp, err := getVarp(currSegStat.NumStats.Sum, currSegStat.NumStats.Sumsq, currSegStat.NumStats.NumericCount)
+		rSst.FloatVal = varp
+		return &rSst, err
+	}
+
+	// Update running segment statistics
+	runningSegStat.NumStats.NumericCount += currSegStat.NumStats.NumericCount
+	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, sutils.Sum)
+	if err != nil {
+		return nil, err
+	}
+	runningSegStat.NumStats.Sumsq += currSegStat.NumStats.Sumsq
+
+	// Calculate and return the varp
+	varp, err := getVarp(runningSegStat.NumStats.Sum, runningSegStat.NumStats.Sumsq, runningSegStat.NumStats.NumericCount)
+	rSst.FloatVal = varp
+	return &rSst, err
+}
+
+// Helper function to calculate the variance
+func getVarp(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64, error) {
+	if count == 0 { // population variance requires at least 1 record
+		return 0, nil
+	}
+
+	var variance float64
+	switch sum.Ntype {
+	case sutils.SS_DT_FLOAT:
+		variance = (sumsq - (sum.FloatVal * sum.FloatVal / float64(count))) / float64(count)
+	case sutils.SS_DT_SIGNED_NUM:
+		variance = (sumsq - (float64(sum.IntgrVal) * float64(sum.IntgrVal) / float64(count))) / float64(count)
+	default:
+		return 0, ErrGetVarpInvalidDtype
+	}
+	return variance, nil
 }
 
 func GetSegList(runningSegStat *structs.SegStats,

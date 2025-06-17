@@ -379,6 +379,7 @@ const (
 	Latest
 	LatestTime
 	StatsRate
+	END_OF_AGGREGATE_FUNCS
 )
 
 type MathFunctions int

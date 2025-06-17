@@ -832,10 +832,6 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		return nil, 0, utils.TeeErrorf("MergeIQRs: no IQRs to merge")
 	}
 
-	if less == nil {
-		return nil, 0, utils.TeeErrorf("MergeIQRs: the less function is nil")
-	}
-
 	iqr, err := mergeMetadata(iqrs, true)
 	if err != nil {
 		log.Errorf("MergeIQRs: error merging metadata: %v", err)
@@ -850,6 +846,10 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 
 	if statsResultsExists {
 		return iqr, -1, io.EOF
+	}
+
+	if less == nil {
+		return nil, 0, utils.TeeErrorf("MergeIQRs: the less function is nil")
 	}
 
 	originalKnownColumns := utils.GetKeysOfMap(iqr.knownValues)

@@ -8,6 +8,7 @@ require (
 	github.com/bits-and-blooms/bloom/v3 v3.0.1
 	github.com/brianvoe/gofakeit/v6 v6.21.0
 	github.com/buger/jsonparser v1.1.1
+	github.com/caio/go-tdigest/v4 v4.0.1
 	github.com/cespare/xxhash v1.1.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fasthttp/router v1.4.1
