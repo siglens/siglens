@@ -2200,9 +2200,10 @@ func splPrintfToGoPrintfConverter(buffer *[]byte, originalVerb byte, formatValue
 				strVal = humanize.Commaf(castedVal)
 			case uint64:
 				strVal = utils.HumanizeUints(castedVal)
+			case string:
+				strVal = castedVal
 			default:
-				// must be a string
-				strVal = castedVal.(string)
+				log.Errorf("splPrintfToGoPrintfConverter: Unable to determine dtype when adding val to buffer; val: %v", castedVal)
 			}
 			formatValues[verbCounter] = strVal
 			*buffer = append(*buffer, 's')
@@ -2220,9 +2221,9 @@ func splPrintfToGoPrintfConverter(buffer *[]byte, originalVerb byte, formatValue
 	} else {
 		verb = originalVerb
 	}
-	var INVALID_INT_DTYPE_PRINTF_ERR = fmt.Errorf("TextExpr.Evaluate: printf - %v format specifier requires an integer value; received: %v", verb, valStr)
-	var INVALID_FLOAT_DTYPE_PRINTF_ERR = fmt.Errorf("TextExpr.Evaluate: printf - %v format specifier requires a float value; received: %v", verb, valStr)
-	var INVALID_DTYPE_PRINTF_ERR = fmt.Errorf("TextExpr.Evaluate: printf - %v format specifier requires either an integer or a float value; received: %v", verb, valStr)
+	var INVALID_INT_DTYPE_PRINTF_ERR = fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format specifier requires an integer value; received: %v", verb, valStr)
+	var INVALID_FLOAT_DTYPE_PRINTF_ERR = fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format specifier requires a float value; received: %v", verb, valStr)
+	var INVALID_DTYPE_PRINTF_ERR = fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format specifier requires either an integer or a float value; received: %v", verb, valStr)
 
 	switch verb {
 	// only accepts integers
@@ -2240,7 +2241,7 @@ func splPrintfToGoPrintfConverter(buffer *[]byte, originalVerb byte, formatValue
 					}
 					addToBuffer(buffer, 'c', first, formatValues, humanizeVal, verbCounter)
 				} else {
-					return fmt.Errorf("TextExpr.Evaluate: printf - %v format requires a non empty string", verb)
+					return fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format requires a non empty string", verb)
 				}
 			} else {
 				return INVALID_INT_DTYPE_PRINTF_ERR
@@ -2339,7 +2340,7 @@ func splPrintfHandleArgs(verbCounter int, fieldToValue map[string]sutils.CValueE
 					case sutils.SS_DT_FLOAT:
 						valStr = strconv.FormatFloat(val.CVal.(float64), 'f', -1, 64)
 					default:
-						return "", fmt.Errorf("TextExpr.Evaluate: printf-splunkPrintfHandleArgs: Unable to determine dtype for value in fieldToValueMap; val: %v", val)
+						return "", fmt.Errorf("splPrintfHandleArgs: Unable to determine dtype for value in fieldToValueMap; val: %v", val)
 					}
 				}
 			} else {
@@ -2352,11 +2353,11 @@ func splPrintfHandleArgs(verbCounter int, fieldToValue map[string]sutils.CValueE
 				valStr = self.ValueList[verbCounter].RawString
 			}
 			if err != nil {
-				return "", fmt.Errorf("TextExpr.Evaluate: error while evaluating ConcatExpr in printf")
+				return "", fmt.Errorf("splPrintfHandleArgs: error while evaluating ConcatExpr")
 			}
 		}
 	} else {
-		return "", fmt.Errorf("TextExpr.Evaluate: printf didn't receive enough arguments to format")
+		return "", fmt.Errorf("splPrintfHandleArgs: printf didn't receive enough arguments to format")
 	}
 	return valStr, nil
 }
@@ -2780,12 +2781,12 @@ func parseTime(dateStr, format string) (time.Time, error) {
 
 func handlePrintf(self *TextExpr, fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
 	if self.Param == nil {
-		return "", fmt.Errorf("TextExpr.EvaluateText: invalid format specifier")
+		return "", fmt.Errorf("handlePrintf: invalid format specifier")
 	}
 
 	if len(self.Param.RawString) == 0 {
 		if len(self.ValueList) != 0 {
-			return "", fmt.Errorf("TextExpr.EvaluateText: format specifier empty, but values still provided")
+			return "", fmt.Errorf("handlePrintf: format specifier empty, but values still provided")
 		} else {
 			return "", nil
 		}
@@ -2835,7 +2836,7 @@ func handlePrintf(self *TextExpr, fieldToValue map[string]sutils.CValueEnclosure
 					}
 					valInt, err := strconv.ParseInt(valStr, 10, 64)
 					if err != nil {
-						return "", fmt.Errorf("TextExpr.Evaluate: 'printf' got invalid dtype for * replacement; got: %v", valStr)
+						return "", fmt.Errorf("handlePrintf: got invalid dtype for * replacement; got: %v", valStr)
 					}
 					formatValues[verbCounter] = valInt
 					verbCounter++
