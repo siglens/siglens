@@ -24,7 +24,6 @@ import (
 	"sync"
 
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
@@ -39,10 +38,44 @@ type processor interface {
 }
 
 type mergeSettings struct {
-	less  func(*iqr.Record, *iqr.Record) bool
-	limit utils.Option[uint64]
+	mergingStats bool // Other fields don't matter when this is true.
 
+	// Either sortMode or sortExpr must be set.
+	sortMode *sortMode
+	sortExpr *structs.SortExpr
+	reverse  bool // If true, sort by sortMode/sortExpr and then reverse.
+
+	// This must incorporate the reverse flag.
+	less func(*iqr.Record, *iqr.Record) bool
+
+	limit       utils.Option[uint64]
 	numReturned uint64
+}
+
+func (ms mergeSettings) Equal(other mergeSettings) bool {
+	if ms.mergingStats != other.mergingStats {
+		return false
+	}
+
+	if ms.reverse != other.reverse {
+		return false
+	}
+
+	if ms.sortMode != nil || other.sortMode != nil {
+		if ms.sortMode != other.sortMode {
+			return false
+		}
+	}
+
+	if !ms.sortExpr.Equal(other.sortExpr) {
+		return false
+	}
+
+	if !utils.EqualOptions(ms.limit, other.limit) {
+		return false
+	}
+
+	return true
 }
 
 type DataProcessor struct {
@@ -136,6 +169,8 @@ func (dp *DataProcessor) SetMergeSettingsBasedOnStream(stream Streamer) {
 			sorter := streamDP.processor.(*sortProcessor)
 			dp.mergeSettings.less = sorter.lessDirectRead
 			dp.mergeSettings.limit.Set(sorter.GetLimit())
+		case *mergeProcessor:
+			dp.mergeSettings = streamDP.processor.(*mergeProcessor).mergeSettings
 		default:
 			dp.setDefaultMergeSettings()
 		}
@@ -144,6 +179,10 @@ func (dp *DataProcessor) SetMergeSettingsBasedOnStream(stream Streamer) {
 	}
 
 	dp.setDefaultMergeSettings()
+}
+
+func (dp *DataProcessor) GetMergeSettings() mergeSettings {
+	return dp.mergeSettings
 }
 
 func (dp *DataProcessor) CleanupInputStreams() {
@@ -299,6 +338,8 @@ func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64) {
 
 func (dp *DataProcessor) SetStatsAsIqrStatsResults() error {
 	switch dp.processor.(type) {
+	case *mergeProcessor:
+		dp.processor.(*mergeProcessor).mergeSettings.mergingStats = true
 	case *statsProcessor:
 		dp.processor.(*statsProcessor).SetAsIqrStatsResults()
 	case *topProcessor:
@@ -341,16 +382,13 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	case 1:
 		return dp.streams[0].Fetch()
 	default:
-		// TODO: remove this outer if block but keep the inner.
-		if hooks.GlobalHooks.GetDistributedStreamsHook == nil {
-			if dp.IgnoresInputOrder() && dp.IsBottleneckCmd() {
-				// Since it ignores input order, it doesn't matter which stream we
-				// get data from, and we don't need to merge multiple streams.
-				//
-				// Since it's a bottleneck, we need to eventually get all data, so
-				// we don't need to check dp.mergeSettings.limit
-				return dp.fetchFromAnyStream()
-			}
+		if dp.IgnoresInputOrder() && dp.IsBottleneckCmd() {
+			// Since it ignores input order, it doesn't matter which stream we
+			// get data from, and we don't need to merge multiple streams.
+			//
+			// Since it's a bottleneck, we need to eventually get all data, so
+			// we don't need to check dp.mergeSettings.limit
+			return dp.fetchFromAnyStream()
 		}
 
 		iqrs, streamIndices, err := dp.fetchFromAllStreamsWithData()
@@ -829,25 +867,8 @@ func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	}
 }
 
-// Note: this has side-effects.
-// TODO: remove the side-effects.
-func NewStatisticExprDP(options *structs.QueryAggregators, isDistributed bool) *DataProcessor {
-	statsExpr := &structs.StatsExpr{GroupByRequest: options.GroupByRequest}
-	options.StatsExpr = statsExpr
-
-	if isDistributed && !options.StatisticExpr.ExprSplitDone {
-		// Split the Aggs into two data processors, the first one is the stats processor
-		// and the second one will perform the actual statisticExpr.
-		nextAgg := &structs.QueryAggregators{
-			GroupByRequest: options.GroupByRequest,
-			StatisticExpr:  options.StatisticExpr,
-		}
-		nextAgg.Next = options.Next
-		options.Next = nextAgg
-		nextAgg.StatisticExpr.ExprSplitDone = true
-
-		return NewStatsDP(statsExpr)
-	}
+func NewStatisticExprDP(options *structs.QueryAggregators) *DataProcessor {
+	options.StatsExpr = &structs.StatsExpr{GroupByRequest: options.GroupByRequest}
 
 	if options.HasTopExpr() {
 		return NewTopDP(options)
@@ -953,6 +974,7 @@ func NewSearcherDP(searcher Streamer, queryType structs.QueryType) *DataProcesso
 	isTransformingCmd := queryType.IsSegmentStatsCmd() || queryType.IsGroupByCmd()
 	return &DataProcessor{
 		name:              "searcher",
+		mergeSettings:     mergeSettings{less: sortByTimestampLess}, // TODO: add parameter for this.
 		streams:           []*CachedStream{NewCachedStream(searcher)},
 		processor:         &passThroughProcessor{},
 		processorLock:     &sync.Mutex{},
@@ -974,18 +996,19 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 	}
 }
 
-func NewMergeBottleneckDP() *DataProcessor {
+func NewMergerDP(mergeSettings mergeSettings) *DataProcessor {
 	return &DataProcessor{
-		name:                  "merge-bottleneck",
+		name:                  "merger",
 		streams:               make([]*CachedStream, 0),
-		processor:             &mergeProcessor{},
-		inputOrderMatters:     false,
-		ignoresInputOrder:     true,
+		mergeSettings:         mergeSettings,
+		processor:             &mergeProcessor{mergeSettings: mergeSettings},
+		inputOrderMatters:     !mergeSettings.mergingStats,
+		ignoresInputOrder:     mergeSettings.mergingStats,
 		isPermutingCmd:        false,
-		isBottleneckCmd:       true,
+		isBottleneckCmd:       mergeSettings.mergingStats,
 		isTransformingCmd:     false,
 		isTwoPassCmd:          false,
-		isMergeableBottleneck: true,
+		isMergeableBottleneck: mergeSettings.mergingStats,
 		processorLock:         &sync.Mutex{},
 	}
 }

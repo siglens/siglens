@@ -802,6 +802,7 @@
   border-right: none;
   border-radius: 1px 0;
   cursor: pointer;
+  z-index: 1;
 }
 
 #panel-desc-info {

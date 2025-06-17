@@ -1,5 +1,4 @@
 // Copyright (c) 2021-2024 SigScalr, Inc.
-//
 // This file is part of SigLens Observability Solution
 //
 // This program is free software: you can redistribute it and/or modify
@@ -33,6 +32,15 @@ func GetDefaultNumStats() *NumericStats {
 		NumericCount: 0,
 		Sum: NumTypeEnclosure{Ntype: SS_DT_SIGNED_NUM,
 			IntgrVal: 0},
+	}
+}
+
+func GetDefaultTimeStats() *TimeStats {
+	return &TimeStats{
+		LatestTs:    CValueEnclosure{Dtype: SS_DT_BACKFILL},
+		EarliestTs:  CValueEnclosure{Dtype: SS_DT_BACKFILL},
+		LatestVal:   CValueEnclosure{Dtype: SS_DT_BACKFILL},
+		EarliestVal: CValueEnclosure{Dtype: SS_DT_BACKFILL},
 	}
 }
 
@@ -72,6 +80,58 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 }
 
+func AddSegStatsLatestEarliestVal(segstats map[string]*SegStats, cname string, currTs *CValueEnclosure, currRawVal interface{}, updateLatest bool) {
+	var stats *SegStats
+	var ok bool
+	stats, ok = segstats[cname]
+	if !ok {
+		var latestTs uint64 = 0
+		var isNumeric bool = false
+		switch currRawVal.(type) {
+		case string:
+			isNumeric = false
+		case int64, float64:
+			isNumeric = true
+		}
+		stats = &SegStats{
+			IsNumeric: isNumeric,
+			Count:     0,
+			NumStats:  GetDefaultNumStats(),
+			TimeStats: GetDefaultTimeStats(),
+		}
+		stats.TimeStats.LatestTs.CVal = latestTs
+		stats.CreateNewHll()
+		segstats[cname] = stats
+	}
+	var nonEncVal uint64
+	var err error
+	if updateLatest {
+		nonEncVal, err = stats.TimeStats.LatestTs.GetUIntValue()
+	} else {
+		nonEncVal, err = stats.TimeStats.EarliestTs.GetUIntValue()
+	}
+	if err == nil {
+		if nonEncVal == currTs.CVal.(uint64) {
+			var ssDtype SS_DTYPE
+			switch currRawVal.(type) {
+			case string:
+				ssDtype = SS_DT_STRING
+			case int64:
+				ssDtype = SS_DT_SIGNED_NUM
+			case float64:
+				ssDtype = SS_DT_FLOAT
+			}
+			if updateLatest {
+				stats.TimeStats.LatestVal.Dtype = ssDtype
+				stats.TimeStats.LatestVal.CVal = currRawVal
+			} else {
+				stats.TimeStats.EarliestVal.Dtype = ssDtype
+				stats.TimeStats.EarliestVal.CVal = currRawVal
+			}
+		}
+	}
+}
+
 func AddSegStatsUNIXTime(segstats map[string]*SegStats, cname string, val uint64, rawValue interface{}, updateLatest bool) {
 	var stats *SegStats
 	var ok bool
@@ -89,17 +149,37 @@ func AddSegStatsUNIXTime(segstats map[string]*SegStats, cname string, val uint64
 			IsNumeric: isNumeric,
 			Count:     0,
 			NumStats:  GetDefaultNumStats(),
-			LatestTs:  CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: latestTs},
+			TimeStats: GetDefaultTimeStats(),
 		}
+		stats.TimeStats.LatestTs.CVal = latestTs
 		stats.CreateNewHll()
 		segstats[cname] = stats
 	}
 
 	if updateLatest {
-		nonEncVal, err := stats.LatestTs.GetUIntValue()
-		if err == nil {
-			if nonEncVal < val {
-				stats.LatestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+		if stats.TimeStats.LatestTs.Dtype == SS_DT_BACKFILL {
+			stats.TimeStats.LatestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+		} else {
+			nonEncVal, err := stats.TimeStats.LatestTs.GetUIntValue()
+			if err == nil {
+				if nonEncVal < val {
+					stats.TimeStats.LatestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+				}
+			} else {
+				log.Errorf("AddSegStatsUNIXTime: unable to get uint value from TimeStats.LatestTs; err: %v", err)
+			}
+		}
+	} else {
+		if stats.TimeStats.EarliestTs.Dtype == SS_DT_BACKFILL {
+			stats.TimeStats.EarliestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+		} else {
+			nonEncVal, err := stats.TimeStats.EarliestTs.GetUIntValue()
+			if err == nil {
+				if nonEncVal > val {
+					stats.TimeStats.EarliestTs.CVal = val
+				}
+			} else {
+				log.Errorf("AddSegStatsUNIXTime: unable to get uint value from TimeStats.EarliestTs; err: %v", err)
 			}
 		}
 	}

@@ -40,6 +40,10 @@ let panelLogsColumnDefs = [
             let counter = 0;
 
             _.forEach(params.data, (value, key) => {
+                if (key === 'timestamp') {
+                    return; // Skip timestamp field
+                }
+                
                 let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
 
                 logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}<b>${key}</b>` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
@@ -337,7 +341,7 @@ function renderPanelAggsGrid(columnOrder, hits, panelId) {
         enableCellTextSelection: true,
         suppressRowClickSelection: true,
         suppressDragLeaveHidesColumns: true,
-        ensureDomOrder: true
+        ensureDomOrder: true,
     };
     $(`.panelDisplay .big-number-display-container`).hide();
     if (panelId == -1) panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
@@ -478,6 +482,10 @@ function resetPanelLogsColumnDefs() {
                 let counter = 0;
 
                 _.forEach(params.data, (value, key) => {
+                    if (key === 'timestamp') {
+                        return; // Skip timestamp field
+                    }
+
                     let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
 
                     logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}<b>${key} </b>` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;

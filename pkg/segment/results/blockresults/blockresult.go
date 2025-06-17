@@ -171,6 +171,18 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 				idx = curId
 				continue
 			}
+		case sutils.Earliest:
+			fallthrough
+		case sutils.Latest:
+			isLatest := sutils.Latest == m.MeasureFunc
+			if m.ValueColRequest == nil {
+				curId, err := aggregations.AddMeasureAggInRunningStatsForLatestOrEarliest(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx, isLatest)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for latest, err: %v", err)
+				}
+				idx = curId
+				continue
+			}
 		case sutils.Count:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.AddMeasureAggInRunningStatsForCount(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
@@ -648,7 +660,15 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 
 		shouldAddRes := aggregations.ShouldAddRes(timechart, tmLimitResult, index, eVal, hllToMerge, strSetToMerge, tdToMerge, mInfo.MeasureFunc, mInfo.Param, groupByColVal, isOtherCol, batchErr)
 		if shouldAddRes {
-			currRes[mInfoStr] = eVal
+			if mInfo.MeasureFunc == sutils.Latest || mInfo.MeasureFunc == sutils.Earliest {
+				castedEVal, ok := eVal.CVal.(structs.RunningLatestOrEarliestVal)
+				if ok {
+					elVal := castedEVal.Value
+					currRes[mInfoStr] = elVal
+				}
+			} else {
+				currRes[mInfoStr] = eVal
+			}
 		}
 	}
 }
@@ -766,6 +786,31 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 				eVal.CVal = avg
 				eVal.Dtype = sutils.SS_DT_FLOAT
 			}
+		}
+	case sutils.Earliest:
+		fallthrough
+	case sutils.Latest:
+		if mInfo.ValueColRequest == nil {
+			// order should be the same as defined in evalaggs.go -> @AddMeasureAggInRunningStatsForLatestOrEarliest
+			// timestamp is present at index idx+1
+			// the value (can be any dtype) present at index idx
+			incrementIdxBy = 2
+			elTsIdx := gb.reverseMeasureIndex[idx+1]
+			elIdx := gb.reverseMeasureIndex[idx]
+			runningStats[elTsIdx].syncRawValue()
+			elTsVal, err := runningStats[elTsIdx].rawVal.GetUIntValue()
+			if err != nil {
+				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
+				return
+			}
+			runningStats[elIdx].syncRawValue()
+			elVal := runningStats[elIdx].rawVal
+
+			eVal.CVal = structs.RunningLatestOrEarliestVal{
+				Timestamp: elTsVal,
+				Value:     elVal,
+			}
+			eVal.Dtype = sutils.SS_DT_BACKFILL
 		}
 	case sutils.Range:
 		if mInfo.ValueColRequest != nil {

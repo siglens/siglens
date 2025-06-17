@@ -41,10 +41,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const TestPercAlternate sutils.AggregateFunctions = sutils.END_OF_AGGREGATE_FUNCS + 5
+const TestPercAlternate sutils.AggregateFunctions = sutils.END_OF_AGGREGATE_FUNCS + 1
 
 var alternateAggTestingMap = map[sutils.AggregateFunctions]sutils.AggregateFunctions{
 	TestPercAlternate: sutils.Perc,
+	sutils.Median:     sutils.Perc,
 }
 
 // Helper functions
@@ -9560,7 +9561,7 @@ func Test_StreamStats_2(t *testing.T) {
 	assert.Equal(t, 5, len(aggregator.MeasureOperations))
 	assert.Equal(t, sutils.Count, aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "*", aggregator.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, sutils.Median, aggregator.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, alternateAggTestingMap[sutils.Median], aggregator.MeasureOperations[1].MeasureFunc)
 	assert.Equal(t, "sale_amount", aggregator.MeasureOperations[1].MeasureCol)
 	assert.Equal(t, sutils.Stdev, aggregator.MeasureOperations[2].MeasureFunc)
 	assert.Equal(t, "revenue", aggregator.MeasureOperations[2].MeasureCol)
@@ -9687,7 +9688,7 @@ func Test_StreamStats_4(t *testing.T) {
 	assert.Nil(t, aggregator.GroupByRequest)
 	assert.NotNil(t, aggregator.MeasureOperations)
 	assert.Equal(t, 1, len(aggregator.MeasureOperations))
-	assert.Equal(t, sutils.Median, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, alternateAggTestingMap[sutils.Median], aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "abc", aggregator.MeasureOperations[0].MeasureCol)
 
 	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore)
@@ -10151,11 +10152,13 @@ func getMeasureFuncStr(measureFunc sutils.AggregateFunctions) (string, float64) 
 	switch measureFunc {
 	case sutils.Cardinality:
 		return "dc", 0
-	case sutils.Perc, sutils.ExactPerc, sutils.UpperPerc, TestPercAlternate:
+	case sutils.Perc, sutils.ExactPerc, sutils.UpperPerc, TestPercAlternate, sutils.Median:
 		percentVal := rand.Float64() * 100
 		percentStr := strconv.FormatFloat(percentVal, 'f', -1, 64)
 		if measureFunc == TestPercAlternate {
 			return "p" + percentStr, percentVal
+		} else if measureFunc == sutils.Median {
+			return "median", 50
 		} else {
 			return measureFunc.String() + percentStr, percentVal
 		}
@@ -11713,4 +11716,88 @@ func Test_evalDoubleEqualsWithoutAssignment(t *testing.T) {
 	query := []byte(`* | eval status == 200`)
 	_, err := spl.Parse("", query)
 	assert.NotNil(t, err)
+}
+
+func Test_term_lowercase(t *testing.T) {
+	query := []byte(`search field1=TERM("value1")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "field1", filterNode.Comparison.Field)
+	assert.Equal(t, `"value1"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"value1"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "field1", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "value1", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_term_uppercase(t *testing.T) {
+	query := []byte(`search DUMMY_FIELD=TERM("VALUE1")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "DUMMY_FIELD", filterNode.Comparison.Field)
+	assert.Equal(t, `"value1"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"VALUE1"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "DUMMY_FIELD", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "value1", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_term_singleWildcard(t *testing.T) {
+	query := []byte(`search city=TERM("An*")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, `"an*"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"An*"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "city", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "an*", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_term_multipleWildcard(t *testing.T) {
+	query := []byte(`search city=TERM("*to*")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, `"*to*"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"*to*"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "city", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "*to*", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }
