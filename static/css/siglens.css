@@ -431,6 +431,14 @@
     font-size: var(--font-size-lg);
 }
 
+.text-bold {
+    font-weight: 500;
+}
+
+.text-bolder {
+    font-weight: 700;
+}
+
 /* Button Utility Classes */
 .btn {
     height: var(--height-sm);
@@ -1661,7 +1669,6 @@ progress.hidden {
 
 #setting-container {
     box-shadow: var(--box-shadow);
-    padding: 6px;
     display: none;
     position: absolute;
     top: 40px;
@@ -1669,8 +1676,13 @@ progress.hidden {
     border-radius: 5px;
     z-index: 9;
     font-size: 12px !important;
-    background: var(--index-drop-down-box-bg-color);
+    background: var(--timepicker-bg-color);
     border: 1px solid var(--timepicker-border-color);
+    width: 190px;
+}
+
+#setting-container>div {
+    padding: 12px;
 }
 
 /* cluster stats start */
