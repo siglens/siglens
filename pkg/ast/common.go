@@ -37,11 +37,11 @@ import (
 )
 
 type CaseConversionInfo struct {
-	caseInsensitive      bool
-	valueIsRegex         bool
-	IsString             bool
-	colValue             interface{}
-	originalColValue     interface{}
+	caseInsensitive  bool
+	valueIsRegex     bool
+	IsString         bool
+	colValue         interface{}
+	originalColValue interface{}
 }
 
 func (cci *CaseConversionInfo) ShouldAlsoSearchWithOriginalCase() bool {
@@ -81,10 +81,10 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 	}
 
 	caseConversion := &CaseConversionInfo{
-		caseInsensitive:      caseInsensitive,
-		valueIsRegex:         valueIsRegex,
-		colValue:             colValue,
-		originalColValue:     originalColValue,
+		caseInsensitive:  caseInsensitive,
+		valueIsRegex:     valueIsRegex,
+		colValue:         colValue,
+		originalColValue: originalColValue,
 	}
 
 	switch t := colValue.(type) {
