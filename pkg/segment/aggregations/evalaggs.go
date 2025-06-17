@@ -653,36 +653,6 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	return nil
 }
 
-// Always pass a non-nil strSet when using this function
-func PerformAggEvalForCardinality_dummy(measureAgg *structs.MeasureAggregator, strSet map[string]struct{}, fieldToValue map[string]sutils.CValueEnclosure) (float64, error) {
-	log.Infof("dummy function called")
-	if len(fieldToValue) == 0 {
-		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
-		if err != nil {
-			return 0.0, fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request function: %v", err)
-		}
-		strSet[valueStr] = struct{}{}
-	} else {
-		if measureAgg.ValueColRequest.BooleanExpr != nil {
-			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-			if err != nil {
-				return 0.0, fmt.Errorf("PerformAggEvalForCardinality: there are some errors in the eval function that is inside the values function: %v", err)
-			}
-			if boolResult {
-				strSet["1"] = struct{}{}
-			}
-		} else {
-			cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
-			if err != nil {
-				return 0.0, fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request, err: %v", err)
-			}
-			strSet[cellValueStr] = struct{}{}
-		}
-	}
-
-	return float64(len(strSet)), nil
-}
-
 func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, hll *utils.GobbableHll, fieldToValue map[string]sutils.CValueEnclosure) (float64, error) {
 	if len(fieldToValue) == 0 {
 		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)

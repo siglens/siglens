@@ -114,6 +114,7 @@ type EvalStatsMetaData struct {
 	RangeStat     *structs.RangeStat
 	AvgStat       *structs.AvgStat
 	StrSet        map[string]struct{}
+	Hll           *utils.GobbableHll
 	StrList       []string
 	MeasureResult interface{} // we should not use CValueEnclosure directly, because it treats interface having numbers as float64
 }
@@ -1204,7 +1205,18 @@ func (sr *SearchResults) GetRemoteStats() (*RemoteStats, error) {
 						AvgStat: metadata.(*structs.AvgStat),
 					}
 				}
-			case sutils.Cardinality, sutils.Values:
+			case sutils.Cardinality:
+				metadata, exist := sr.runningEvalStats[measureAgg.String()]
+				if exist {
+					_, isHLL := metadata.(*utils.GobbableHll)
+					if !isHLL {
+						return nil, fmt.Errorf("GetRemoteStats: HLL not found for agg %v, qid=%v", measureAgg.String(), sr.qid)
+					}
+					remoteStats.EvalStats[measureAgg.String()] = EvalStatsMetaData{
+						Hll: metadata.(*utils.GobbableHll),
+					}
+				}
+			case sutils.Values:
 				metadata, exist := sr.runningEvalStats[measureAgg.String()]
 				if exist {
 					_, isStrSet := metadata.(map[string]struct{})
