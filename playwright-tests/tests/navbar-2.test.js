@@ -41,7 +41,7 @@ test('Navigation Menu Part 2', async ({ page }) => {
     }
 
     // Test org pages
-    const orgPages = ['cluster-stats.html', 'org-settings.html', 'application-version.html', 'pqs-settings.html'];
+    const orgPages = ['cluster-stats.html', 'org-settings.html', 'application-version.html', 'pqs-settings.html', 'license.html'];
     for (const url of orgPages) {
         await page.goto(`http://localhost:5122/${url}`, {
             waitUntil: 'domcontentloaded',

@@ -225,10 +225,14 @@ const headerHTML = `
 let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
     { name: 'Org Settings', url: './org-settings.html', class: 'org-settings' },
+     {{ .OrgUpperNavTabs }}
+    {{ if not .EnterpriseEnabled }}
     { name: 'PQS', url: './pqs-settings.html', class: 'pqs-settings' },
     { name: 'Query Stats', url: './query-stats.html', class: 'query-stats' },
     { name: 'Version', url: './application-version.html', class: 'application-version' },
+     {{ end }}
     { name: 'Diagnostics', url: './diagnostics.html', class: 'diagnostics' },
+    {name : 'License', url: './license.html', class: 'license' },
 ];
 
 let tracingUpperNavTabs = [
@@ -439,7 +443,16 @@ const orgPages = {
             { name: 'Diagnostics' }
         ]
     },
+    'license.html': {
+        name: 'License',
+        breadcrumbs: [ 
+           { name: 'My Org', noLink: true },
+           { name: 'License' }
+        ]
+},
 };
+
+ {{ .OrgUpperNavUrls }}
 
 $(document).ready(function () {
     $('#app-side-nav').before(headerHTML);
@@ -706,6 +719,8 @@ $(document).ready(function () {
     $(document).on('click', 'a', function() {
         setTimeout(updateActiveHighlighting, 100);
     });
+
+    {{ .Button1Function }}
 
 });
 
