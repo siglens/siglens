@@ -1216,7 +1216,7 @@ func handleMVToJsonArray(self *MultiValueExpr, fieldToValue map[string]sutils.CV
 				resultArr[idx] = nil
 				continue
 			default:
-				log.Warnf("handleMVToJsonArray: no keyword found -> moving on to the number check")
+				// Do Nothing. Handled below
 			}
 
 			if num, err := utils.FastParseFloat([]byte(mvSlice[idx])); err == nil {
