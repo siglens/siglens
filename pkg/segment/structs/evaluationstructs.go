@@ -2374,6 +2374,265 @@ func (self *NumericExpr) getSigFigs(strVal string, fltVal float64) int {
 	return sigfigs
 }
 
+func splPrintfHumanizeHelper(verbCounter int, value any, formatValues []any, buffer *[]byte, verb byte, parseInt func(string) (int64, error), parseFloat func(string) (float64, error)) {
+	var strVal string
+	formatValues[verbCounter] = value
+	formattedVal := fmt.Sprintf(string(append(*buffer, verb)), formatValues...)
+	// can't use precomputed hasDecimal since formatting may remove the decimal
+	hasDecimal := strings.Contains(formattedVal, ".")
+	// remove spaces, leading zeros, signs from the left.
+	// remove spaces and trailing zeros from the right
+	// we add back these removed values at the end
+	trimmedVal := strings.TrimSpace(formattedVal)
+	start := strings.Index(formattedVal, trimmedVal)
+	end := start + len(trimmedVal)
+	if trimmedVal[0] == '+' || trimmedVal[0] == '-' {
+		trimmedVal = trimmedVal[1:]
+		start += 1
+	}
+	for i := 0; i < len(trimmedVal); i++ {
+		if trimmedVal[i] != '0' || (trimmedVal[i] == '.' && hasDecimal) {
+			break
+		}
+		start++
+	}
+	if hasDecimal {
+		for i := len(trimmedVal) - 1; i >= 0; i-- {
+			if trimmedVal[i] != '0' || trimmedVal[i] == '.' {
+				break
+			}
+			end--
+		}
+	}
+	removedLeft := formattedVal[:start]
+	removedRight := formattedVal[end:]
+	switch value.(type) {
+	case int64:
+		intVal, err := parseInt(trimmedVal)
+		if err != nil {
+			log.Errorf("splPrintfToGoPrintfConverter: Unable to parse int value; val: %v", formattedVal)
+		} else {
+			strVal = humanize.Comma(intVal)
+		}
+	case float64:
+		fltVal, err := parseFloat(trimmedVal)
+		if err != nil {
+			log.Errorf("splPrintfToGoPrintfConverter: Unable to parse float value; val: %v", formattedVal)
+		} else {
+			strVal = humanize.Commaf(fltVal)
+		}
+	case uint64:
+		uintVal, err := strconv.ParseUint(trimmedVal, 10, 64)
+		if err != nil {
+			log.Errorf("splPrintfToGoPrintfConverter: Unable to parse uint value; val: %v", formattedVal)
+		} else {
+			strVal = utils.HumanizeUints(uintVal)
+		}
+	case string:
+		strVal = formattedVal
+	default:
+		log.Errorf("splPrintfToGoPrintfConverter: Unable to determine dtype when adding val to buffer; val: %v", formattedVal)
+	}
+	strVal = removedLeft + strVal + removedRight
+	formatValues[verbCounter] = strVal
+	// Clear any formatting flags from the previous '%' token.
+	// For example, consider the format string "%.5g": the rounding has already been applied earlier
+	// when we initially processed this format using sprintf.
+	//
+	// If we now substitute the formatted value 's' directly into the format string, like replacing %g with %s,
+	// the format string becomes "%.5s". This causes the final sprintf call to re-apply formatting (like rounding or truncation),
+	// which is incorrect because the value has already been rounded once.
+	lastPercentPos := -1
+	for i := len(*buffer) - 1; i >= 0; i-- {
+		if (*buffer)[i] == '%' {
+			lastPercentPos = i
+			break
+		}
+	}
+	if lastPercentPos != -1 {
+		*buffer = (*buffer)[:lastPercentPos]
+	}
+	*buffer = append(*buffer, '%', 's')
+}
+
+func splPrintfToGoPrintfConverter(buffer *[]byte, originalVerb byte, formatValues []any, valStr string, verbCounter int, humanizeVal bool) error {
+	var splToGoFmt = map[byte]byte{
+		'a': 'x',
+		'A': 'X',
+		'i': 'd',
+		'z': 's',
+		'u': '-',
+		'x': '-',
+		'X': '-',
+		'o': '-',
+		'p': '-',
+	}
+
+	parseInt := func(s string) (int64, error) {
+		return strconv.ParseInt(s, 10, 64)
+	}
+	parseFloat := func(s string) (float64, error) {
+		return utils.FastParseFloat([]byte(s))
+	}
+
+	addToBuffer := func(buffer *[]byte, verb byte, value any, formatValues []any, humanizeVal bool, verbCounter int) {
+		if humanizeVal {
+			splPrintfHumanizeHelper(verbCounter, value, formatValues, buffer, verb, parseInt, parseFloat)
+		} else {
+			formatValues[verbCounter] = value
+			*buffer = append(*buffer, verb)
+		}
+	}
+
+	hasDecimal := strings.Contains(valStr, ".")
+
+	var verb byte
+	if val, ok := splToGoFmt[originalVerb]; ok {
+		verb = val
+	} else {
+		verb = originalVerb
+	}
+	var INVALID_INT_DTYPE_PRINTF_ERR = fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format specifier requires an integer value; received: %v", verb, valStr)
+	var INVALID_FLOAT_DTYPE_PRINTF_ERR = fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format specifier requires a float value; received: %v", verb, valStr)
+	var INVALID_DTYPE_PRINTF_ERR = fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format specifier requires either an integer or a float value; received: %v", verb, valStr)
+
+	switch verb {
+	// only accepts integers
+	case 'b', 'c', 'd', 'q':
+		if !hasDecimal {
+			if val, err := parseInt(valStr); err == nil {
+				addToBuffer(buffer, verb, val, formatValues, humanizeVal, verbCounter)
+				// c in go doesn't accept a string value. Therefore we handle it manually
+			} else if verb == 'c' {
+				if len(valStr) > 0 {
+					var first rune
+					for _, r := range valStr {
+						first = r
+						break
+					}
+					addToBuffer(buffer, 'c', first, formatValues, humanizeVal, verbCounter)
+				} else {
+					return fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format requires a non empty string", verb)
+				}
+			} else {
+				return INVALID_INT_DTYPE_PRINTF_ERR
+			}
+		} else {
+			return INVALID_INT_DTYPE_PRINTF_ERR
+		}
+	// only accepts floats
+	case 'e', 'E', 'f', 'F', 'g', 'G':
+		// according to splunks example, there is no strict checking
+		// => 123 can be treated as 123.0
+		val, err := parseFloat(valStr)
+		if err != nil {
+			return INVALID_FLOAT_DTYPE_PRINTF_ERR
+		}
+		addToBuffer(buffer, verb, val, formatValues, humanizeVal, verbCounter)
+	// works for both integer and floats
+	case 'X', 'x':
+		if hasDecimal {
+			val, err := parseFloat(valStr)
+			if err != nil {
+				return INVALID_DTYPE_PRINTF_ERR
+			}
+			addToBuffer(buffer, verb, val, formatValues, humanizeVal, verbCounter)
+		} else {
+			val, err := parseInt(valStr)
+			if err != nil {
+				return INVALID_DTYPE_PRINTF_ERR
+			}
+			addToBuffer(buffer, verb, val, formatValues, humanizeVal, verbCounter)
+		}
+	// these are verbs which don't have an equivalent in go. Therefore we handle it manually
+	case '-':
+		switch originalVerb {
+		// x, o, u - return unsigned values
+		case 'x', 'o', 'u', 'X', 'p':
+			if hasDecimal && originalVerb != 'o' {
+				if originalVerb == 'u' {
+					originalVerb = 'f'
+				} else if originalVerb == 'p' {
+					originalVerb = 'X'
+				}
+				val, err := parseFloat(valStr)
+				if err != nil {
+					return INVALID_DTYPE_PRINTF_ERR
+				}
+				if val < 0 {
+					val = val * -1
+				}
+				addToBuffer(buffer, originalVerb, val, formatValues, humanizeVal, verbCounter)
+			} else {
+				if originalVerb == 'u' {
+					originalVerb = 'd'
+				} else if originalVerb == 'o' {
+					if hasDecimal {
+						valStr = strings.Split(valStr, ".")[0]
+					}
+				} else if originalVerb == 'p' {
+					originalVerb = 'X'
+				}
+				val, err := parseInt(valStr)
+				if err != nil {
+					return INVALID_DTYPE_PRINTF_ERR
+				}
+				if val < 0 {
+					val = val * -1
+				}
+				addToBuffer(buffer, originalVerb, val, formatValues, humanizeVal, verbCounter)
+			}
+		default:
+			return INVALID_DTYPE_PRINTF_ERR
+		}
+	// rest are only string formatters which require a string argument
+	default:
+		addToBuffer(buffer, verb, valStr, formatValues, humanizeVal, verbCounter)
+	}
+	return nil
+}
+
+func splPrintfHandleArgs(verbCounter int, fieldToValue map[string]sutils.CValueEnclosure, self *TextExpr) (string, error) {
+	var valStr string
+	var err error
+	if verbCounter < len(self.ValueList) {
+		fieldName := self.ValueList[verbCounter].FieldName
+		if fieldName != "" {
+			fltVal, err := handleNoArgFunction(fieldName)
+			if err != nil {
+				if val, ok := fieldToValue[fieldName]; ok {
+					switch val.Dtype {
+					case sutils.SS_DT_STRING:
+						valStr = val.CVal.(string)
+					case sutils.SS_DT_SIGNED_NUM:
+						valStr = strconv.FormatInt(val.CVal.(int64), 10)
+					case sutils.SS_DT_UNSIGNED_NUM:
+						valStr = strconv.FormatUint(val.CVal.(uint64), 10)
+					case sutils.SS_DT_FLOAT:
+						valStr = strconv.FormatFloat(val.CVal.(float64), 'f', -1, 64)
+					default:
+						return "", fmt.Errorf("splPrintfHandleArgs: Unable to determine dtype for value in fieldToValueMap; val: %v", val)
+					}
+				}
+			} else {
+				valStr = strconv.FormatFloat(fltVal, 'f', -1, 64)
+			}
+		} else {
+			if len(self.ValueList[verbCounter].RawString) == 0 {
+				valStr, err = self.ValueList[verbCounter].ConcatExpr.Evaluate(fieldToValue)
+			} else {
+				valStr = self.ValueList[verbCounter].RawString
+			}
+			if err != nil {
+				return "", fmt.Errorf("splPrintfHandleArgs: error while evaluating ConcatExpr")
+			}
+		}
+	} else {
+		return "", fmt.Errorf("splPrintfHandleArgs: printf didn't receive enough arguments to format")
+	}
+	return valStr, nil
+}
+
 func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[string]sutils.CValueEnclosure, sigfigArr *[]SigfigInfo) (float64, string, error) {
 	if expr.IsTerminal {
 		value, err := expr.Evaluate(fieldToValue)
@@ -2791,6 +3050,88 @@ func parseTime(dateStr, format string) (time.Time, error) {
 	return time.Parse(format, dateStr)
 }
 
+func handlePrintf(self *TextExpr, fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
+	if self.Param == nil {
+		return "", fmt.Errorf("handlePrintf: invalid format specifier")
+	}
+
+	if len(self.Param.RawString) == 0 {
+		if len(self.ValueList) != 0 {
+			return "", fmt.Errorf("handlePrintf: format specifier empty, but values still provided")
+		} else {
+			return "", nil
+		}
+	}
+	format := self.Param.RawString
+	var formatResult []byte
+	var pointerToResBuff = &formatResult
+	var formatValues []any = make([]any, len(self.ValueList))
+	formatEnd := len(format)
+	humanizeRes := false
+	verbCounter := 0
+
+	for i := 0; i < formatEnd; i++ {
+		lasti := i
+		for i < formatEnd && format[i] != '%' {
+			i++
+		}
+		if i > lasti {
+			*pointerToResBuff = append(*pointerToResBuff, format[lasti:i]...)
+		}
+		if i >= formatEnd {
+			break
+		}
+
+		// check if the verb is %%, and continue since %% doesn't consume any arguments
+		lookAhead := i + 1
+		if format[lookAhead] == '%' {
+			*pointerToResBuff = append(*pointerToResBuff, format[i])
+			*pointerToResBuff = append(*pointerToResBuff, format[lookAhead])
+			i++
+			continue
+		}
+
+		// skip to the verbs (while checking for flags not handled by golang)
+		for ; i < len(format); i++ {
+			if !((format[i] >= 'A' && format[i] <= 'Z') || (format[i] >= 'a' && format[i] <= 'z')) {
+				if format[i] == '\'' {
+					humanizeRes = true
+					// don't write to buffer
+					continue
+				}
+				// asterixis consumes one argument
+				if format[i] == '*' {
+					valStr, err := splPrintfHandleArgs(verbCounter, fieldToValue, self)
+					if err != nil {
+						return "", err
+					}
+					valInt, err := strconv.ParseInt(valStr, 10, 64)
+					if err != nil {
+						return "", fmt.Errorf("handlePrintf: got invalid dtype for * replacement; got: %v", valStr)
+					}
+					formatValues[verbCounter] = valInt
+					verbCounter++
+				}
+				*pointerToResBuff = append(*pointerToResBuff, format[i])
+			} else {
+				break
+			}
+		}
+
+		valStr, err := splPrintfHandleArgs(verbCounter, fieldToValue, self)
+		if err != nil {
+			return "", err
+		}
+		err = splPrintfToGoPrintfConverter(pointerToResBuff, format[i], formatValues, valStr, verbCounter, humanizeRes)
+		if err != nil {
+			return "", err
+		}
+		verbCounter++
+	}
+	val := fmt.Sprintf(string(formatResult), formatValues...)
+	return val, nil
+}
+
 func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
@@ -2827,6 +3168,12 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 			ip[i] &= mask[i]
 		}
 		return ip.String(), nil
+	case "printf":
+		formattedString, err := handlePrintf(self, fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		return formattedString, nil
 	case "replace":
 		if len(self.ValueList) < 2 {
 			return "", fmt.Errorf("TextExpr.EvaluateText: 'replace' operation requires a regex and a replacement")
@@ -3209,7 +3556,7 @@ func (self *TextExpr) GetFields() []string {
 		return nil
 	}
 	fields := make([]string, 0)
-	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
+	if self.IsTerminal || (self.Op != "max" && self.Op != "min" && self.Op != "printf") {
 		if self.Param != nil {
 			fields = append(fields, self.Param.GetFields()...)
 		}
@@ -3228,7 +3575,6 @@ func (self *TextExpr) GetFields() []string {
 		if self.MultiValueExpr != nil {
 			fields = append(fields, self.MultiValueExpr.GetFields()...)
 		}
-
 		return fields
 	}
 	for _, expr := range self.ValueList {

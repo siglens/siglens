@@ -30,7 +30,7 @@ import (
 
 type TestCase struct {
 	EquationString string
-	ExpectedAnswer float64
+	ExpectedAnswer any
 }
 
 func parseSPL(t *testing.T, query string) (*structs.ASTNode, *structs.QueryAggregators) {
@@ -46,6 +46,13 @@ func evaluateNumericExpr(t *testing.T, aggs *structs.QueryAggregators) float64 {
 	return res
 }
 
+func evaluateTextExpr(t *testing.T, aggs *structs.QueryAggregators) string {
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+	res, err := aggs.EvalExpr.ValueExpr.StringExpr.TextExpr.EvaluateText(fieldToValue)
+	assert.NoError(t, err)
+	return res
+}
+
 func Test_Sigfig(t *testing.T) {
 	query := "* | eval col=sigfig(%v)"
 
@@ -55,6 +62,123 @@ func Test_Sigfig(t *testing.T) {
 		_, aggs := parseSPL(t, fmt.Sprintf(query, test.EquationString))
 		res := evaluateNumericExpr(t, aggs)
 		assert.Equal(t, test.ExpectedAnswer, res)
+	}
+}
+
+func Test_Printf(t *testing.T) {
+	query := "* | %v"
+
+	testCases := getTestCasesPrintf()
+
+	for _, test := range testCases {
+		_, aggs := parseSPL(t, fmt.Sprintf(query, test.EquationString))
+		res := evaluateTextExpr(t, aggs)
+		assert.Equal(t, test.ExpectedAnswer, res)
+	}
+}
+
+func getTestCasesPrintf() []TestCase {
+	return []TestCase{
+		{
+			EquationString: `eval result=printf("%+06d", 42)`,
+			ExpectedAnswer: `+00042`,
+		},
+		{
+			EquationString: `eval result=printf("%-#8X!", 3735928559)`,
+			ExpectedAnswer: `0XDEADBEEF!`,
+		},
+		{
+			EquationString: `eval result=printf("%+#12.4E", 0.0012345)`,
+			ExpectedAnswer: ` +1.2345E-03`,
+		},
+		{
+			EquationString: `eval result=printf("%10.3A", 3.1415926535)`,
+			ExpectedAnswer: `0X1.922P+01`,
+		},
+		{
+			EquationString: `eval result=printf("%c = %d%%", 128156, 100)`,
+			ExpectedAnswer: `💜 = 100%`,
+		},
+		{
+			EquationString: `eval result=printf("%02d-%02d-%d", 5, 7, 2025)`,
+			ExpectedAnswer: `05-07-2025`,
+		},
+		{
+			EquationString: `eval result=printf("%#08o", 10)`,
+			ExpectedAnswer: `00000012`,
+		},
+		{
+			EquationString: `eval result=printf("%'.5g", 1234567.89)`,
+			ExpectedAnswer: `1,234,600`,
+		},
+		{
+			EquationString: `eval result=printf("Value=0x%04X!", 255)`,
+			ExpectedAnswer: `Value=0x00FF!`,
+		},
+		{
+			EquationString: `eval result=printf("%'d", 1234567)`,
+			ExpectedAnswer: `1,234,567`,
+		},
+		{
+			EquationString: `eval result=printf("%'10d", 987654321)`,
+			ExpectedAnswer: ` 987,654,321`,
+		},
+		{
+			EquationString: `eval result=printf("%'15.2f", 1234567.89)`,
+			ExpectedAnswer: `     1,234,567.89`,
+		},
+		{
+			EquationString: `eval result=printf("%'+15.2f", 1234567.89)`,
+			ExpectedAnswer: `    +1,234,567.89`,
+		},
+		{
+			EquationString: `eval result=printf("%'#15.0f", 1000000.0)`,
+			ExpectedAnswer: `       1,000,000`,
+		},
+		{
+			EquationString: `eval result=printf("%'015d", 1234567)`,
+			ExpectedAnswer: `000000001,234,567`,
+		},
+		{
+			EquationString: `eval result=printf("%+10.2f", 1234.5)`,
+			ExpectedAnswer: `  +1234.50`,
+		},
+		{
+			EquationString: `eval result=printf("% 10.2f", 1234.5)`,
+			ExpectedAnswer: `   1234.50`, // space for sign
+		},
+		{
+			EquationString: `eval result=printf("%+'10.2f", 1234.5)`,
+			ExpectedAnswer: `  +1,234.50`,
+		},
+		{
+			EquationString: `eval result=printf("%' 10.2f", 1234.5)`,
+			ExpectedAnswer: `   1,234.50`,
+		},
+		{
+			EquationString: `eval result=printf("%'+010.2f", 1234.5)`,
+			ExpectedAnswer: `+001,234.50`, // leading zero, sign, and grouping
+		},
+		{
+			EquationString: `eval result=printf("%'+ 010.2f", 1234.5)`,
+			ExpectedAnswer: `+001,234.50`,
+		},
+		{
+			EquationString: `eval result=printf("%'+15.2f", 9876543.21)`,
+			ExpectedAnswer: `    +9,876,543.21`,
+		},
+		{
+			EquationString: `eval result=printf("%' 15.0f", 1000000.0)`,
+			ExpectedAnswer: `        1,000,000`,
+		},
+		{
+			EquationString: `eval result=printf("%'+020.2f", 1234.5)`,
+			ExpectedAnswer: `+0000000000001,234.50`,
+		},
+		{
+			EquationString: `eval result=printf("%'20.0f", 1234567890.0)`,
+			ExpectedAnswer: `          1,234,567,890`,
+		},
 	}
 }
 
