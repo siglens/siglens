@@ -1,14 +1,16 @@
 {
     "queryText": "app_name=Bracecould | eval multi_val = first_name.\",\".last_name.\",\".country.\",\".city.\" multi val\" | makemv delim=\",\" multi_val | eval mvindex2 = mvindex(multi_val, 2) | eval mvindex02 = mvindex(multi_val, 0, 2) | eval mvindex_1 = mvindex(multi_val, -1) | eval mvindex_3_1 = mvindex(multi_val, -3, -1) | eval mvcount = mvcount(multi_val) | eval mvjoin = mvjoin(multi_val, \":\") | eval mvfind = mvfind(multi_val, \"^N.*$\") | eval split = split(\"a:bc:123\", \":\") | eval split_join = mvjoin(split(\"a:bc:123\", \":\"), \"?\") | eval split_count = mvcount(split(\"a:bc:123\", \":\")) | eval split_index = mvindex(split(\"a:bc:123\", \":\"), -2, 2) | eval split_find = mvfind(split(\"a:bc:123\", \":\"), \"^b.*$\") | fields app_name, first_name, last_name, country, city, multi_val, mvindex2, mvindex02, mvindex_1, mvindex_3_1, mvcount, mvjoin, mvfind, split, split_join, split_count, split_index, split_find, ident",
     "expectedResult": {
-         "totalMatched": {
-             "value": 6,
-             "relation": "eq"
-         },
-         "qtype": "logs-query",
-         "uniqueKeyCols": ["ident"],
-         "records": [
-            {   
+        "totalMatched": {
+            "value": 6,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": [
+            "ident"
+        ],
+        "records": [
+            {
                 "app_name": "Bracecould",
                 "city": "Norfolk",
                 "country": "Martinique",
@@ -280,7 +282,7 @@
                 "split_join": "a?bc?123"
             }
         ],
-         "allColumns": [
+        "allColumns": [
             "app_name",
             "first_name",
             "last_name",
@@ -301,7 +303,7 @@
             "split_find",
             "ident"
         ],
-         "columnsOrder": [
+        "columnsOrder": [
             "app_name",
             "first_name",
             "last_name",
@@ -322,6 +324,5 @@
             "split_find",
             "ident"
         ]
-     }
- }
- 
+    }
+}
