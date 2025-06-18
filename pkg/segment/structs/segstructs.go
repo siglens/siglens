@@ -597,7 +597,8 @@ type AvgStat struct {
 	Sum   float64
 }
 
-type VarStat struct {
+// Used for Stdev, Stdevp, Var, Varp
+type DeviationStat struct {
 	Count int64
 	Sum   float64
 	Sumsq float64
@@ -1514,8 +1515,6 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.UpperPerc:  {},
 	sutils.Median:     {},
 	sutils.Mode:       {},
-	sutils.Stdev:      {},
-	sutils.Stdevp:     {},
 	sutils.First:      {},
 	sutils.Last:       {},
 	sutils.StatsRate:  {},
