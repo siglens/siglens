@@ -597,6 +597,12 @@ type AvgStat struct {
 	Sum   float64
 }
 
+type VarStat struct {
+	Count int64
+	Sum   float64
+	Sumsq float64
+}
+
 type FieldGetter interface {
 	GetFields() []string
 }
@@ -1510,8 +1516,6 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.Mode:       {},
 	sutils.Stdev:      {},
 	sutils.Stdevp:     {},
-	sutils.Var:        {},
-	sutils.Varp:       {},
 	sutils.First:      {},
 	sutils.Last:       {},
 	sutils.StatsRate:  {},

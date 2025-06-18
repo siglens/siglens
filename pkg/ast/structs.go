@@ -123,6 +123,7 @@ type Comparison struct {
 	OriginalValues  interface{}
 	ValueIsRegex    bool // True if Values is a regex string. False if Values is a wildcarded string or anything else.
 	CaseInsensitive bool
+	IsTerm          bool // True if this is of the form `field=TERM(value)` or `field=TERM("value")`
 }
 
 func (c *Comparison) isMatchAll() bool {
