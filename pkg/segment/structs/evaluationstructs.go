@@ -19,6 +19,7 @@ package structs
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
@@ -1170,6 +1171,117 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 	return stringsList, nil
 }
 
+func handleMVSort(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
+		return []string{}, fmt.Errorf("handleMVSort: mvsort requires one multiValueExpr argument")
+	}
+	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
+		return []string{}, fmt.Errorf("handleMVSort: %v", err)
+	}
+	// does lexicograrphical sorting => for numbers checks the first digit
+	// => 123456 < 2
+	sort.Strings(mvSlice)
+	return mvSlice, nil
+}
+
+func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 2 {
+		return []string{}, fmt.Errorf("handleMVZip: mvzip requires two multiValueExpr argument")
+	}
+
+	var delimiter string
+	if self.StringExprParams == nil || len(self.StringExprParams) != 1 {
+		delimiter = ","
+	} else {
+		// delimiter must be enclosed in quotation marks
+		if len(self.StringExprParams[0].RawString) != 0 {
+			delimiter = self.StringExprParams[0].RawString
+		} else {
+			delimiter = ","
+		}
+	}
+
+	mvLeft, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		mvLeft = append(mvLeft, "")
+	} else if err != nil {
+		return []string{}, fmt.Errorf("handleMVZip: %v", err)
+	}
+	mvRight, err := self.MultiValueExprParams[1].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		mvRight = append(mvRight, "")
+	} else if err != nil {
+		return []string{}, fmt.Errorf("handleMVZip: %v", err)
+	}
+
+	// mvzip is simmilar to python zip => the resulting array size will be = to the shortest array
+	minLen := min(len(mvLeft), len(mvRight))
+	resultSlice := make([]string, minLen)
+	for i := 0; i < minLen; i++ {
+		resultSlice[i] = mvLeft[i] + delimiter + mvRight[i]
+	}
+
+	return resultSlice, nil
+}
+
+func handleMVToJsonArray(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
+		return []string{}, fmt.Errorf("handleMVToJsonArray: mv_to_json_array requires one multiValueExpr argument")
+	}
+	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
+		return []string{}, fmt.Errorf("handleMVToJsonArray: %v", err)
+	}
+
+	resultArr := make([]any, len(mvSlice))
+	if self.InferTypes {
+		for idx, val := range mvSlice {
+			switch val {
+			case "true":
+				resultArr[idx] = true
+				continue
+			case "false":
+				resultArr[idx] = false
+				continue
+			case "null":
+				resultArr[idx] = nil
+				continue
+			default:
+				// Do Nothing. Handled below
+			}
+
+			if num, err := utils.FastParseFloat([]byte(mvSlice[idx])); err == nil {
+				resultArr[idx] = num
+				continue
+			}
+
+			// parser automatically removes extra quotes
+			if len(mvSlice[idx]) != 0 {
+				resultArr[idx] = mvSlice[idx]
+			} else {
+				resultArr[idx] = nil
+			}
+		}
+	}
+
+	var jsonBytes []byte
+	if resultArr[0] != nil {
+		jsonBytes, err = json.Marshal(resultArr)
+	} else {
+		jsonBytes, err = json.Marshal(mvSlice)
+	}
+	if err != nil {
+		return []string{}, fmt.Errorf("handleMVToJsonArray: error marshaling multivalue field %v; err: %v", mvSlice, err)
+	}
+	return []string{string(jsonBytes)}, nil
+
+}
+
 func handleMVDedup(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
 		return []string{}, fmt.Errorf("handleMVDedup: mvdedup requires one multiValueExpr argument")
@@ -1295,6 +1407,12 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 		return handleSplit(self, fieldToValue)
 	case "mvindex":
 		return handleMVIndex(self, fieldToValue)
+	case "mvsort":
+		return handleMVSort(self, fieldToValue)
+	case "mvzip":
+		return handleMVZip(self, fieldToValue)
+	case "mv_to_json_array":
+		return handleMVToJsonArray(self, fieldToValue)
 	case "mvdedup":
 		return handleMVDedup(self, fieldToValue)
 	case "mvappend":
