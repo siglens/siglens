@@ -126,6 +126,7 @@ func NewIQR(qid uint64) *IQR {
 		measureColumns:   make([]string, 0),
 		columnIndex:      make(map[string]int),
 		statsResults:     &IQRStatsResults{},
+		isDirty:          true,
 	}
 
 	return iqr
@@ -1843,8 +1844,6 @@ func (iqr *IQR) GobEncode() ([]byte, error) {
 
 // GobDecode deserializes bytes back to IQR struct
 func (iqr *IQR) GobDecode(data []byte) error {
-	iqr.isDirty = true
-
 	if len(data) == 0 {
 		return nil
 	}
