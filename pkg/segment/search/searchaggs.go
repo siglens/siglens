@@ -178,6 +178,7 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 			isBlkFullyEncosed, qid, aggsKeyWorkingBuf, timeRangeBuckets, nodeRes)
 	}
 	allSearchResults.AddBlockResults(blkResults)
+	blkResults.Close()
 }
 
 func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, MFuncs []*structs.MeasureAggregator,
