@@ -147,19 +147,24 @@ func BatchProcess[T any, K comparable, R any](slice []T, batchBy func(T) K,
 	}
 
 	// Batch the items, but track their original order.
+	// First find the number of items in each batch, so we can allocate the
+	// slices with the correct size.
+	keyToNumItems := make(map[K]int)
+	for _, item := range slice {
+		keyToNumItems[batchBy(item)] += 1
+	}
+
+	// Now allocate and fill the batches.
 	batches := make(map[K]*orderedItems[T])
+	for batchKey, numItems := range keyToNumItems {
+		batches[batchKey] = &orderedItems[T]{
+			items: make([]T, 0, numItems),
+			order: make([]int, 0, numItems),
+		}
+	}
 	for i, item := range slice {
 		batchKey := batchBy(item)
-		batch, ok := batches[batchKey]
-		if !ok {
-			batch = &orderedItems[T]{
-				items: make([]T, 0),
-				order: make([]int, 0),
-			}
-
-			batches[batchKey] = batch
-		}
-
+		batch := batches[batchKey]
 		batch.items = append(batch.items, item)
 		batch.order = append(batch.order, i)
 	}
@@ -285,6 +290,25 @@ func (s sortable[T]) Swap(i, j int) {
 	s.order[i], s.order[j] = s.order[j], s.order[i]
 }
 
+func Unsort[T, R any](sorter sortable[T], results []R) ([]R, error) {
+	if len(sorter.order) != len(results) {
+		return nil, fmt.Errorf("Unsort: inputs have different lenghts; %d and %d",
+			len(sorter.order), len(results))
+	}
+
+	// Keep applying swaps until all elements are in their correct positions.
+	for i := 0; i < len(results); i++ {
+		// Keep swapping element at position i until it's in the right place.
+		for sorter.order[i] != i {
+			targetPos := sorter.order[i]
+			results[i], results[targetPos] = results[targetPos], results[i]
+			sorter.order[i], sorter.order[targetPos] = sorter.order[targetPos], sorter.order[i]
+		}
+	}
+
+	return results, nil
+}
+
 func SortThenProcessThenUnsort[T any, R any](slice []T, less func(T, T) bool,
 	operation func([]T) ([]R, error)) ([]R, error) {
 	sortableItems := newSortable(slice, less)
@@ -294,13 +318,7 @@ func SortThenProcessThenUnsort[T any, R any](slice []T, less func(T, T) bool,
 		return nil, err
 	}
 
-	// Now unsort to get the original order.
-	results := make([]R, len(slice))
-	for i, result := range sortedResults {
-		results[sortableItems.order[i]] = result
-	}
-
-	return results, nil
+	return Unsort(sortableItems, sortedResults)
 }
 
 // idxsToRemove should contain only valid indexes in the array

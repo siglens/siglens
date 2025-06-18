@@ -141,8 +141,6 @@ func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
         return sutils.Estdc
     case "estdc_error":
         return sutils.EstdcError
-    case "median":
-        return sutils.Median
     case "mode":
         return sutils.Mode
     case "stdev":
@@ -169,7 +167,7 @@ func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
         return sutils.LatestTime
     case "rate":
         return sutils.StatsRate
-    case "perc", "p":
+    case "perc", "p", "median":
         return sutils.Perc
     case "exactperc":
         return sutils.ExactPerc
@@ -479,6 +477,7 @@ type StringSearchRequest struct {
     value interface{}
     originalValue interface{}
     caseInsensitive bool
+    isTerm bool // used to match TERM() from SPL
 }
 
 }
@@ -3864,7 +3863,7 @@ AggFunction <- agg:(AggCount / AggPercCommon / AggCommon) {
     return agg, nil
 }
 
-// TODO Processing Logic: varp, var, stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
+// TODO Processing Logic: stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
 CommonAggName <- ("values" / "varp" / "var" / "sumsq" / "sum" / "stdevp" / "stdev" / "rate" / "range" / "mode" / "min" / "median" / "mean" / "max" / 
 "list" / "latest_time" / "latest" / "last" / "first" / "estdc_error" / "estdc" / "earliest_time" / "earliest" / "distinct_count" / "dc" / "avg") {
     return string(c.text), nil
@@ -3936,17 +3935,18 @@ AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     }
 
     var valueColRequest *structs.ValueExpr
-    if measureFunc == sutils.Sumsq {
-        // This ensures that sumsq is computed using the raw records
-        valueColRequest = &structs.ValueExpr{
-            ValueExprMode: structs.VEMNumericExpr,
-            NumericExpr: &structs.NumericExpr{
-                IsTerminal:      true,
-                ValueIsField:    true,
-                Value:           field.(string),
-                NumericExprMode: structs.NEMNumberField,
-            },
-        }
+    switch measureFunc {
+        case sutils.Sumsq, sutils.Var, sutils.Varp:
+            // This ensures that sumsq, var, and varp, are computed using the raw records
+            valueColRequest = &structs.ValueExpr{
+                ValueExprMode: structs.VEMNumericExpr,
+                NumericExpr: &structs.NumericExpr{
+                    IsTerminal:      true,
+                    ValueIsField:    true,
+                    Value:           field.(string),
+                    NumericExprMode: structs.NEMNumberField,
+                },
+            }
     }
 
     agg := &structs.MeasureAggregator {
@@ -4000,6 +4000,38 @@ AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "
 
     return agg, nil
 }
+/ ("median") L_PAREN field:FieldName R_PAREN {
+     measureFunc := GetAggregateFunction("median")
+    if measureFunc == sutils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        StrEnc: string(c.text),
+        MeasureFunc: measureFunc,
+        Param: float64(50),
+    }
+
+    return agg, nil
+}
+/ ("median") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+    measureFunc := GetAggregateFunction("median")
+    if measureFunc == sutils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: measureFunc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
+        Param: float64(50),
+    }
+
+    return agg, nil
+}
+
 
 FieldWithNumberValue <- keyValuePair:(NamedFieldWithNumberValue / UnnamedFieldWithNumberValue) {
     return keyValuePair, nil
@@ -4058,6 +4090,7 @@ NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(
             Values: ssr.value,
             OriginalValues: ssr.originalValue,
             CaseInsensitive: ssr.caseInsensitive,
+            IsTerm: ssr.isTerm,
         },
     }
     return node, nil
@@ -4073,11 +4106,13 @@ UnnamedFieldWithStringValue <- stringSearchReq:(CaseSensitiveString / CaseInsens
             Values: ssr.value,
             OriginalValues: ssr.originalValue,
             CaseInsensitive: ssr.caseInsensitive,
+            IsTerm: ssr.isTerm,
         },
     }
     return node, nil
 }
 
+// https://docs.splunk.com/Documentation/SplunkCloud/latest/Search/UseCASEandTERMtomatchphrases
 CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
     return &StringSearchRequest{
         value: value,
@@ -4086,7 +4121,17 @@ CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
     }, nil
 }
 
-CaseInsensitiveString <- value:String {
+// https://docs.splunk.com/Documentation/SplunkCloud/latest/Search/UseCASEandTERMtomatchphrases
+CaseInsensitiveString <- "TERM" L_PAREN value:String R_PAREN {
+    return &StringSearchRequest{
+        value: strings.ToLower(value.(string)),
+        originalValue: value,
+        caseInsensitive: true,
+        isTerm: true,
+    }, nil
+}
+
+/ value:String {
     return &StringSearchRequest{
         value: strings.ToLower(value.(string)),
         originalValue: value,

@@ -426,32 +426,46 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     </ul>
                                                     <button class="btn settings-btn" id="logs-settings">
                                                     </button>
-                                                    <div class="" id="setting-container">
-                                                        <div class="mb-1">Query Language:</div>
-                                                        <div class="dropdown w-100">
-                                                            <button class="btn btn-grey dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
-                                                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
-                                                                <span>Splunk QL</span>
-                                                                <i class="dropdown-arrow"></i>
-                                                            </button>
-                                                            <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
-                                                                {{ .Dropdown2 | safeHTML }}
-                                                                <li id="option-3" class="query-language-option active">Splunk QL</li>
+                                                    <div id="setting-container">
+                                                        <div>
+                                                            <div class="mb-3">
+                                                                <div class="text-bold">Query Language</div>
+                                                                <small class="grey-text">Default language for queries </small>
+                                                            </div>
+                                                            <div class="dropdown w-100">
+                                                                <button class="btn btn-grey dropdown-toggle w-100" type="button"
+                                                                    id="query-language-btn" data-toggle="dropdown" aria-haspopup="true"
+                                                                    aria-expanded="false" data-bs-toggle="dropdown">
+                                                                    <span>Splunk QL</span>
+                                                                    <i class="dropdown-arrow"></i>
+                                                                </button>
+                                                                <div class="dropdown-menu box-shadow" aria-labelledby="index-btn"
+                                                                    id="query-language-options">
+                                                                    {{ .Dropdown2 | safeHTML }}
+                                                                    <li id="option-3" class="query-language-option active">Splunk QL</li>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                        <div class="mt-3 mb-1">Query Mode:</div>
-                                                        <div class="dropdown w-100">
-                                                            <button class="btn btn-grey dropdown-toggle w-100" type="button" id="query-mode-btn" data-toggle="dropdown"
-                                                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
-                                                                <span>Builder</span>
-                                                                <i class="dropdown-arrow"></i>
-                                                            </button>
-                                                            <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-mode-options">
-                                                                <li id="mode-option-1" class="query-mode-option">Builder</li>
-                                                                <li id="mode-option-2" class="query-mode-option">Code</li>
+                                                        <hr>
+                                                        <div class="pt-2">
+                                                            <div class="mb-3">
+                                                                <div class="text-bold">Default Query Mode</div>
+                                                                <small class="grey-text">Mode to open by default</small>
+                                                            </div>
+                                                            <div class="dropdown w-100">
+                                                                <button class="btn btn-grey dropdown-toggle w-100" type="button"
+                                                                    id="query-mode-btn" data-toggle="dropdown" aria-haspopup="true"
+                                                                    aria-expanded="false" data-bs-toggle="dropdown">
+                                                                    <span>Builder</span>
+                                                                    <i class="dropdown-arrow"></i>
+                                                                </button>
+                                                                <div class="dropdown-menu box-shadow" aria-labelledby="index-btn"
+                                                                    id="query-mode-options">
+                                                                    <li id="mode-option-1" class="query-mode-option">Builder</li>
+                                                                    <li id="mode-option-2" class="query-mode-option">Code</li>
+                                                                </div>
                                                             </div>
                                                         </div>
-
                                                     </div>
                                                 </div>
                                                 <div class="d-flex">
