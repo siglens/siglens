@@ -38,6 +38,7 @@ import (
 
 type CaseConversionInfo struct {
 	caseInsensitive  bool
+	isTerm           bool
 	valueIsRegex     bool
 	IsString         bool
 	colValue         interface{}
@@ -52,7 +53,7 @@ func (cci *CaseConversionInfo) ShouldAlsoSearchWithOriginalCase() bool {
 // to match and should not have quotation marks as the first and last character
 // unless those are intended to be matched.
 // If forceCaseSensitive is set to true, caseInsensitive will be ignored
-func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, caseInsensitive bool, forceCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
+func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, caseInsensitive bool, isTerm bool, forceCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
 	andFilterCondition := make([]*FilterCriteria, 0)
 	var opr FilterOperator = Equals
 	switch compOpr {
@@ -82,6 +83,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 
 	caseConversion := &CaseConversionInfo{
 		caseInsensitive:  caseInsensitive,
+		isTerm:           isTerm,
 		valueIsRegex:     valueIsRegex,
 		colValue:         colValue,
 		originalColValue: originalColValue,
@@ -170,6 +172,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
 	andFilterCondition[0].FilterIsCaseInsensitive = caseInsensitive
+	andFilterCondition[0].FilterIsTerm = isTerm
 	return andFilterCondition, nil
 }
 
@@ -260,7 +263,7 @@ func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOp
 		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for ColValue=%v. Error=%+v", qid, colValue, err)
 	} else {
 		if cci != nil && !cci.valueIsRegex {
-			cVal.UpdateRegexp(cci.caseInsensitive)
+			cVal.UpdateRegexp(cci.caseInsensitive, cci.isTerm)
 		}
 	}
 

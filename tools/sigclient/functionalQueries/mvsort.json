@@ -1,0 +1,89 @@
+{
+    "queryText": "city=boston | eval mv1=http_method.\",\".batch.\",\".account_status.\",\".http_status | eval mv2=latency.\",\".app_name.\",\".app_version | makemv delim=\",\" mv1 | makemv delim=\",\" mv2 | eval sorted1 = mvsort(mv1) | eval sorted2 = mvsort(mv2) | head 5 | fields sorted1, sorted2, ident",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 5,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": [
+            "ident"
+        ],
+        "records": [
+            {
+                "ident": "0a7902e4-2869-45e5-99de-22b1aeecfede",
+                "sorted1": [
+                    "301",
+                    "GET",
+                    "active",
+                    "batch-75"
+                ],
+                "sorted2": [
+                    "5.17.17",
+                    "8592022",
+                    "LightGrayream"
+                ]
+            },
+            {
+                "ident": "5644ebc3-afb2-4b47-a411-8510b027dbf9",
+                "sorted1": [
+                    "301",
+                    "POST",
+                    "batch-683",
+                    "inactive"
+                ],
+                "sorted2": [
+                    "1.14.17",
+                    "6410194",
+                    "Kangaroocan"
+                ]
+            },
+            {
+                "ident": "b40f3267-3d65-4ffb-a88f-51af0bdff718",
+                "sorted2": [
+                    "1.6.11",
+                    "2719463",
+                    "DarkMagentayoga"
+                ]
+            },
+            {
+                "ident": "59e37369-feb2-40ac-a01f-3636d234a8e6",
+                "sorted1": [
+                    "500",
+                    "PATCH",
+                    "batch-792",
+                    "inactive"
+                ],
+                "sorted2": [
+                    "3.17.20",
+                    "9286131",
+                    "LightGreencovey"
+                ]
+            },
+            {
+                "ident": "452922de-6bb7-4552-9dcf-e76360d78795",
+                "sorted1": [
+                    "301",
+                    "DELETE",
+                    "active",
+                    "batch-364"
+                ],
+                "sorted2": [
+                    "1.10.12",
+                    "7446604",
+                    "Doorride"
+                ]
+            }
+        ],
+        "allColumns": [
+            "ident",
+            "sorted2",
+            "sorted1"
+        ],
+        "columnsOrder": [
+            "sorted1",
+            "sorted2",
+            "ident"
+        ]
+    }
+}

@@ -31,7 +31,7 @@ func Test_getSearchInputFromFilter(t *testing.T) {
 		SubtreeResult: "literal1",
 	}
 
-	search := getSearchInputFromFilterInput(simpleFilter, false, 0)
+	search := getSearchInputFromFilterInput(simpleFilter, false, false, 0)
 	log.Info(search)
 	assert.Equal(t, search.ColumnValue.StringVal, "literal1")
 
@@ -45,7 +45,7 @@ func Test_getSearchInputFromFilter(t *testing.T) {
 		Expression: exp,
 	}
 
-	search = getSearchInputFromFilterInput(expressionColumnFilter, false, 0)
+	search = getSearchInputFromFilterInput(expressionColumnFilter, false, false, 0)
 	log.Info(search)
 	assert.Nil(t, search.ColumnValue)
 	assert.Equal(t, 1, len(search.getAllColumnsInSearch()))
@@ -66,7 +66,7 @@ func Test_getSearchInputFromFilter(t *testing.T) {
 	expressionComplexFilter := &FilterInput{
 		Expression: exp,
 	}
-	search = getSearchInputFromFilterInput(expressionComplexFilter, false, 0)
+	search = getSearchInputFromFilterInput(expressionComplexFilter, false, false, 0)
 	assert.Nil(t, search.ColumnValue)
 	assert.Equal(t, 0, len(search.ColumnName))
 	assert.Equal(t, 2, len(search.getAllColumnsInSearch()))
