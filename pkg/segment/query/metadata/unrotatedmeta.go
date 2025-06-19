@@ -22,7 +22,6 @@ import (
 	"sync/atomic"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -80,8 +79,6 @@ func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRan
 	totalUnrotatedBlocks := uint64(0)
 	totalFilteredBlocks := uint64(0)
 
-	dualCaseCheckEnabled := config.IsDualCaseCheckEnabled()
-
 	for _, rawSearchKeys := range allBlocksToSearch {
 		for segKey, blkTracker := range rawSearchKeys {
 			usi, ok := writer.AllUnrotatedSegmentInfo[segKey]
@@ -95,7 +92,7 @@ func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRan
 				defer wg.Done()
 
 				filteredBlocks, maxBlocks, numFiltered, err := store.DoCMICheckForUnrotated(currQuery, lookupTimeRange,
-					blkT, bloomWords, originalBloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardValue, qid, dualCaseCheckEnabled)
+					blkT, bloomWords, originalBloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardValue, qid)
 				atomic.AddUint64(&totalUnrotatedBlocks, maxBlocks)
 				atomic.AddUint64(&totalFilteredBlocks, numFiltered)
 				if err != nil {
