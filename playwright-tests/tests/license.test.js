@@ -4,30 +4,46 @@ const { testThemeToggle } = require('./common-functions');
 test('License Page Test', async ({ page }) => {
     await page.goto('http://localhost:5122/license.html');
 
-    // Check for License Information heading
-    await expect(page.locator('text=License Information')).toBeVisible();
+    // Check if License Info section is present (only for non-SaaS mode)
+    const licenseInfoHeader = page.locator('text=License Information');
+    if (await licenseInfoHeader.count() > 0) {
+        await expect(licenseInfoHeader).toBeVisible();
 
-    // Check for summary/license card
-    const card = page.locator('.license-card-container .card');
-    await expect(card).toBeVisible();
+        // Check License Info Table rows
+        const tableChecks = [
+            { header: 'License Type', id: 'licenseType' },
+            { header: 'Issued To', id: 'licensedTo' },
+            { header: 'Organization', id: 'organization' },
+            { header: 'Version', id: 'version' },
+            { header: 'Max Users', id: 'maxUsers' },
+            { header: 'Expires On', id: 'licenseExpiry' }
+        ];
 
-    // Check for summary text
-    await expect(page.locator('text=SigLens Observability Solution License')).toBeVisible();
-    await expect(page.locator('text=GNU Affero General Public License v3.0')).toBeVisible();
-    await expect(page.locator('text=Disclaimer')).toBeVisible();
+        for (const check of tableChecks) {
+            // Check if header exists
+            await expect(page.locator('th', { hasText: check.header }))
+                .toBeVisible();
 
-    // Check for full license text heading and some license content
-    await expect(page.locator('text=Full License Text')).toBeVisible();
-    await expect(page.locator('pre')).toContainText('GNU AFFERO GENERAL PUBLIC LICENSE');
-    await expect(page.locator('pre')).toContainText('TERMS AND CONDITIONS');
+            // Check if value is loaded (not showing loading placeholder)
+            await expect(page.locator(`td#${check.id}`))
+                .not.toHaveText('Loading...');
 
-    // Check containers
-    await expect(page.locator('.myOrg')).toBeVisible();
-    await expect(page.locator('.myOrg-container')).toBeVisible();
+            // Verify content is present
+            await expect(page.locator(`td#${check.id}`))
+                .not.toBeEmpty();
+        }
+    }
 
-    // Footer
-    await expect(page.locator('#app-footer')).toBeVisible();
+    // UI container checks
+    await expect(page.locator('.myOrg'))
+        .toBeVisible();
+    await expect(page.locator('.myOrg-container'))
+        .toBeVisible();
 
-    // Theme Button
+    // Check footer presence
+    await expect(page.locator('#app-footer'))
+        .toBeVisible();
+
+    // Test theme toggle functionality
     await testThemeToggle(page);
 });

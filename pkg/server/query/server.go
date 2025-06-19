@@ -27,6 +27,7 @@ import (
 	"github.com/fasthttp/router"
 	"github.com/oklog/run"
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
+	"github.com/siglens/siglens/pkg/cfghandler"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -275,6 +276,9 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/sort-columns", hs.Recovery(setSortColumnsHandler()))
 
 	hs.Router.GET(server_utils.API_PREFIX+"/collect-diagnostics", hs.Recovery(collectDiagnosticsHandler()))
+
+	//License API routes
+	hs.Router.GET(server_utils.API_PREFIX+"/license", tracing.TraceMiddleware(hs.Recovery(cfghandler.GetLicenseDetails)))
 
 	if config.IsPProfEnabled() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
