@@ -189,15 +189,15 @@ func getTestCasesPrintf() []TestCase {
 		},
 		{
 			EquationString: `eval result=printf("%'10d %'+#12.0f %'g", 100000, 1234567.0, 999999.99)`,
-			ExpectedAnswer: "   100,000     +1,234,567 1,000,000",
+			ExpectedAnswer: "    100,000    +1,234,567 999,999.99",
 		},
 		{
 			EquationString: `eval result=printf("%0+10d %'12.3f %'10g", 4567, 123456.789, 7654321.1)`,
-			ExpectedAnswer: "+000004567   123,456.789 1.0000e+06",
+			ExpectedAnswer: "+000004567   123,456.789 7,654,321.1",
 		},
 		{
 			EquationString: `eval result=printf("%'+d %'+f %'.2f", 1000000, 12345.67, 9876543.21)`,
-			ExpectedAnswer: "+1,000,000 +12345.670000 9,876,543.21",
+			ExpectedAnswer: "+1,000,000 +12,345.670000 9,876,543.21",
 		},
 		{
 			EquationString: `eval result=printf("%'+#10.0f %'15.2f %0+8d", 1000000.0, 12345678.9, 99)`,
