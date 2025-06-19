@@ -179,6 +179,34 @@ func getTestCasesPrintf() []TestCase {
 			EquationString: `eval result=printf("%'20.0f", 1234567890.0)`,
 			ExpectedAnswer: `          1,234,567,890`,
 		},
+		{
+			EquationString: `eval result=printf("%'d %'+10.2f %g", 123456, 987654.321, 0.0000123)`,
+			ExpectedAnswer: "123,456 +987,654.32 1.23e-05",
+		},
+		{
+			EquationString: `eval result=printf("%'+15d %'10.2f %0.1g", 1000000, 987654.32, 3.14159)`,
+			ExpectedAnswer: "       +1,000,000  987,654.32 3",
+		},
+		{
+			EquationString: `eval result=printf("%'10d %'+#12.0f %'g", 100000, 1234567.0, 999999.99)`,
+			ExpectedAnswer: "   100,000     +1,234,567 1,000,000",
+		},
+		{
+			EquationString: `eval result=printf("%0+10d %'12.3f %'10g", 4567, 123456.789, 7654321.1)`,
+			ExpectedAnswer: "+000004567   123,456.789 1.0000e+06",
+		},
+		{
+			EquationString: `eval result=printf("%'+d %'+f %'.2f", 1000000, 12345.67, 9876543.21)`,
+			ExpectedAnswer: "+1,000,000 +12345.670000 9,876,543.21",
+		},
+		{
+			EquationString: `eval result=printf("%'+#10.0f %'15.2f %0+8d", 1000000.0, 12345678.9, 99)`,
+			ExpectedAnswer: " +1,000,000     12,345,678.90 +0000099",
+		},
+		{
+			EquationString: `eval result=printf("Rain Percentage: %+12.2f/%*.*f. Sample of: %'d Date: %d-0%d-%d", 92.233433, 3, 1, 100.011111, 10000000000, 12, 1, 25)`,
+			ExpectedAnswer: "Rain Percentage:       +92.23/100.0. Sample of: 10,000,000,000 Date: 12-01-25",
+		},
 	}
 }
 
