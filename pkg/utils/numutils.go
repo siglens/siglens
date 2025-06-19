@@ -20,6 +20,8 @@ package utils
 import (
 	"errors"
 	"math"
+	"strconv"
+	"strings"
 )
 
 var INVALID_FLOAT_ERR = errors.New("invalid float")
@@ -103,4 +105,25 @@ func FastParseFloat(val []byte) (float64, error) {
 	}
 
 	return result, nil
+}
+
+func HumanizeUints(v uint64) string {
+	if v < 1000 {
+		return strconv.FormatUint(v, 10)
+	}
+	parts := []string{"", "", "", "", "", "", ""}
+	j := len(parts) - 1
+	for v > 999 {
+		parts[j] = strconv.FormatUint(v%1000, 10)
+		switch len(parts[j]) {
+		case 2:
+			parts[j] = "0" + parts[j]
+		case 1:
+			parts[j] = "00" + parts[j]
+		}
+		v = v / 1000
+		j--
+	}
+	parts[j] = strconv.FormatUint(v, 10)
+	return strings.Join(parts[j:], ",")
 }
