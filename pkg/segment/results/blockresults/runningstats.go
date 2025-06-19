@@ -225,9 +225,13 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				}
 				continue
 			}
-			fallthrough
+			step, err := rr.AddEvalResultsForCardinality(runningStats, measureResults, i, fieldToValue)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Cardinality", err)
+			}
+			i += step
 		case sutils.Values:
-			step, err := rr.AddEvalResultsForValuesOrCardinality(runningStats, measureResults, i, fieldToValue)
+			step, err := rr.AddEvalResultsForValues(runningStats, measureResults, i, fieldToValue)
 			if err != nil {
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Values", err)
 			}
@@ -751,7 +755,39 @@ func (rr *RunningBucketResults) AddEvalResultsForPerc(runningStats *[]runningSta
 	return len(fieldToValue) - 1, nil
 }
 
-func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+func (rr *RunningBucketResults) AddEvalResultsForCardinality(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+
+	(*runningStats)[i].syncRawValue()
+	if (*runningStats)[i].rawVal.CVal == nil {
+		(*runningStats)[i].rawVal = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_GOBBABLE_HLL_PTR,
+			CVal:  structs.CreateNewHll(),
+		}
+	}
+	hll := (*runningStats)[i].rawVal.CVal.(*utils.GobbableHll)
+
+	if rr.currStats[i].ValueColRequest == nil {
+		strVal, err := measureResults[i].GetString()
+		if err != nil {
+			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinality: failed to add measurement to running stats, err: %v", err)
+		}
+		hll.AddRaw(xxhash.Sum64String(strVal))
+		(*runningStats)[i].rawVal.CVal = hll
+		(*runningStats)[i].number = nil
+		return 0, nil
+	}
+
+	_, err := agg.PerformAggEvalForCardinality(rr.currStats[i], hll, fieldToValue)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
+	}
+	(*runningStats)[i].rawVal.CVal = hll
+	(*runningStats)[i].number = nil
+
+	return len(fieldToValue) - 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForValues(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
 
 	(*runningStats)[i].syncRawValue()
 	if (*runningStats)[i].rawVal.CVal == nil {
@@ -765,7 +801,7 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 	if rr.currStats[i].ValueColRequest == nil {
 		strVal, err := measureResults[i].GetString()
 		if err != nil {
-			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to add measurement to running stats, err: %v", err)
+			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValues: failed to add measurement to running stats, err: %v", err)
 		}
 		strSet[strVal] = struct{}{}
 		(*runningStats)[i].rawVal.CVal = strSet
@@ -773,9 +809,9 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 		return 0, nil
 	}
 
-	_, err := agg.PerformAggEvalForCardinality(rr.currStats[i], strSet, fieldToValue)
+	_, err := agg.PerformAggEvalForValues(rr.currStats[i], strSet, fieldToValue)
 	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValues: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
 	(*runningStats)[i].rawVal.CVal = strSet
 	(*runningStats)[i].number = nil
