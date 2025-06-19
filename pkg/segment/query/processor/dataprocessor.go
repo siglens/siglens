@@ -935,7 +935,7 @@ func NewSortDP(options *structs.SortExpr) *DataProcessor {
 		isPermutingCmd:        true,
 		isBottleneckCmd:       true,
 		isTwoPassCmd:          false,
-		isMergeableBottleneck: false, // TODO: implement merging, then set to true.
+		isMergeableBottleneck: true,
 		processorLock:         &sync.Mutex{},
 	}
 }
@@ -1003,12 +1003,12 @@ func NewMergerDP(mergeSettings mergeSettings) *DataProcessor {
 		mergeSettings:         mergeSettings,
 		processor:             &mergeProcessor{mergeSettings: mergeSettings},
 		inputOrderMatters:     !mergeSettings.mergingStats,
-		ignoresInputOrder:     mergeSettings.mergingStats,
+		ignoresInputOrder:     true,
 		isPermutingCmd:        false,
 		isBottleneckCmd:       mergeSettings.mergingStats,
 		isTransformingCmd:     false,
 		isTwoPassCmd:          false,
-		isMergeableBottleneck: mergeSettings.mergingStats,
+		isMergeableBottleneck: true,
 		processorLock:         &sync.Mutex{},
 	}
 }
