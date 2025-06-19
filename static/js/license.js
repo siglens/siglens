@@ -52,4 +52,12 @@ $(document).ready(function () {
             $('#licenseType, #licensedTo, #organization, #version, #maxUsers, #licenseExpiry')
                 .text('Error loading license data');
         });
+        $('#theme-btn').on('click', function() {
+        const html = $('html');
+        const currentTheme = html.attr('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        html.attr('data-theme', newTheme);
+        Cookies.set('theme', newTheme, { expires: 365 });
+    });
 });
