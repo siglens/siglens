@@ -556,6 +556,7 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 }
 
 func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, error) {
+	log.Infof("QueryProcessor.GetFullResult called")
 
 	var finalIQR *iqr.IQR
 	var iqr *iqr.IQR
@@ -617,6 +618,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 //
 // Once the final result is sent, no more updates will be sent.
 func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChanData) error {
+	log.Infof("QueryProcessor.GetStreamedResult called")
 	var finalIQR *iqr.IQR
 	var err error
 	totalRecords := 0

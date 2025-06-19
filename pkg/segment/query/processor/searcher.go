@@ -272,6 +272,7 @@ func (s *Searcher) initUnprocessedQSRs() {
 }
 
 func (s *Searcher) Fetch() (*iqr.IQR, error) {
+	log.Infof("searcher.fetch has aggs.GroupByRequest %+v", s.queryInfo.GetAggregators().GroupByRequest)
 	if s.subsearch != nil {
 		return s.subsearch.merger.Fetch()
 	}
@@ -729,6 +730,8 @@ func (s *Searcher) applyRawSearchForSortedIndex(qsr *query.QuerySegmentRequest, 
 	searchNode := s.queryInfo.GetSearchNode()
 	timeRange := s.queryInfo.GetTimeRange()
 
+	log.Infof("applyRawSearchForSortedIndex calls ApplyFilterOperatorInternal with aggs.groupbyrequest %+v", aggs.GroupByRequest)
+
 	err = query.ApplyFilterOperatorInternal(searchResults, allSSRs,
 		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, s.qid, s.querySummary)
 	if err != nil {
@@ -883,6 +886,8 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 	qType := s.queryInfo.GetQueryType()
 	orgId := s.queryInfo.GetOrgId()
 
+	log.Infof("fetchStatsResults has aggs.groupbyrequest %+v", aggs.GroupByRequest)
+
 	queryType := s.queryInfo.GetQueryType()
 	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, qid)
 	if err != nil {
@@ -955,6 +960,8 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 }
 
 func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, aggs *structs.QueryAggregators) (*structs.NodeResult, error) {
+	log.Infof("call to fetchGroupByresults with aggs %+v", aggs.GroupByRequest)
+
 	if s.qsrs == nil {
 		err := s.initializeQSRs()
 		if err != nil {
@@ -971,6 +978,8 @@ func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, 
 		bucketLimit = aggs.BucketLimit
 	}
 	aggs.BucketLimit = bucketLimit
+
+	log.Infof("fetchGroupByResults has groupbyreq %#v", (*s.qsrs[0]))
 
 	nodeResult := query.GetNodeResultsFromQSRS(s.qsrs, s.queryInfo, s.startTime, searchResults, s.querySummary, s.setAsIqrStatsResults)
 	if s.setAsIqrStatsResults {
@@ -1478,6 +1487,8 @@ func (s *Searcher) addRRCsFromRawSearch(searchResults *segresults.SearchResults,
 	timeRange := s.queryInfo.GetTimeRange()
 	sizeLimit := uint64(math.MaxUint64)
 	aggs := s.queryInfo.GetAggregators()
+
+	log.Infof("addRRCsFromRawSearch calls ApplyFilterOperatorInternal with aggs.groupbyrequest %+v", aggs.GroupByRequest)
 
 	err = query.ApplyFilterOperatorInternal(searchResults, allSegRequests,
 		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, s.qid, s.querySummary)

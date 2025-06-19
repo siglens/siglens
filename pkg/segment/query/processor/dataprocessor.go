@@ -227,6 +227,7 @@ func (dp *DataProcessor) Rewind() {
 }
 
 func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
+	log.Infof("dataprocessor.Fetch called")
 	var output *iqr.IQR
 	var resultExists bool
 
@@ -373,6 +374,8 @@ func (dp *DataProcessor) SetStatsAsIqrStatsResults() error {
 }
 
 func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
+	log.Infof("getStreamInput called")
+
 	switch len(dp.streams) {
 	case 0:
 		if dp.IsDataGenerator() {
@@ -443,6 +446,8 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 }
 
 func (dp *DataProcessor) fetchFromAnyStream() (*iqr.IQR, error) {
+	log.Infof("fetchFromAnyStream called")
+
 	if dp.streamDataChan == nil {
 		dp.streamDataChan = make(chan streamResponse, len(dp.streams))
 	}
@@ -528,6 +533,7 @@ loop:
 }
 
 func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error) {
+	log.Infof("fetchFromAllSteramsWithData called")
 	iqrs := make([]*iqr.IQR, 0, len(dp.streams))
 	streamIndices := make([]int, 0, len(dp.streams))
 	lock := sync.Mutex{}

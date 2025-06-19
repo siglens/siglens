@@ -535,6 +535,7 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 
 func ExecuteQueryInternalNewPipeline(qid uint64, isAsync bool, root *structs.ASTNode, aggs *structs.QueryAggregators,
 	qc *structs.QueryContext, rQuery *query.RunningQueryState, sizeLimit uint64) {
+	log.Infof("ExecuteQueryInternalNewPipeline: groupby=%+v,aggs=%+v", aggs.GroupByRequest, aggs)
 	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, qc.Scroll, sizeLimit)
 	if err != nil {
 		log.Errorf("qid=%v, ExecuteQueryInternalNewPipeline: failed to SetupPipeResQuery, err: %v", qid, err)

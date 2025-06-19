@@ -23,6 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type QueryStruct struct {
@@ -238,6 +239,7 @@ func GetMeasureAggsTokens(first, rest interface{}, idx int) *structs.QueryAggreg
 		expr := toIfaceSlice(v)
 		aggNode.MeasureOperations = append(aggNode.MeasureOperations, expr[idx].(*structs.MeasureAggregator))
 	}
+	log.Infof("GetMeasureAggsTokens: returns measureOperations %+v", aggNode.MeasureOperations)
 	return aggNode
 }
 
@@ -258,6 +260,8 @@ func GetGroupByTokens(cols, first, rest interface{}, idx int, limit int) *struct
 		expr := toIfaceSlice(v)
 		aggNode.GroupByRequest.MeasureOperations = append(aggNode.GroupByRequest.MeasureOperations, expr[idx].(*structs.MeasureAggregator))
 	}
+	log.Infof("GetGroupByTokens: returns measureOperations %+v", aggNode.MeasureOperations)
+
 	return aggNode
 }
 

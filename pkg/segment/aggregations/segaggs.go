@@ -244,6 +244,8 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		return errors.New("performAggOnResult: multiple QueryAggregators is currently only supported for OutputTransformType")
 	}
 
+	log.Infof("performAggOnResult: measureOperations = %+v", agg.MeasureOperations)
+
 	return nil
 }
 

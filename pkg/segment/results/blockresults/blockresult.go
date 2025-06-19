@@ -144,7 +144,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 		var mFunc sutils.AggregateFunctions
 		var overrodeMeasureAgg *structs.MeasureAggregator
 		switch m.MeasureFunc {
-		case sutils.Sum, sutils.Max, sutils.Min, sutils.List:
+		case sutils.Sum, sutils.Max, sutils.Min, sutils.List, sutils.Sumsq:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, m.MeasureFunc, &allReverseIndex, colToIdx, idx)
 				if err != nil {
@@ -155,6 +155,8 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 			} else {
 				mFunc = m.MeasureFunc
 			}
+		case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
+			panic("Not yet implemented blockresult.go:convertRequestToInternalStats for var, varp, stdev, stdevp")
 		case sutils.Range:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, sutils.Range, &allReverseIndex, colToIdx, idx)
@@ -968,6 +970,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 		eVal.CVal = cTypeVal.CVal
 		eVal.Dtype = cTypeVal.Dtype
 	default:
+		log.Infof("reached default in GroupByBuckets.updateEValFromRunningBuckets")
 		incrementIdxBy = 1
 
 		valIdx := gb.reverseMeasureIndex[idx]
@@ -1061,6 +1064,7 @@ func (tb *TimeBucketsJSON) ToTimeBuckets() (*TimeBuckets, error) {
 
 func (gb *GroupByBucketsJSON) ToGroupByBucket(req *structs.GroupByRequest) (*GroupByBuckets, error) {
 	mCols, mFuns, revIndex := convertRequestToInternalStats(req, false)
+	log.Infof("GroupByBucketsJSON.ToGroupByBucket: mCols: %v, mFuns: %v, revIndex: %v", mCols, mFuns, revIndex)
 	retVal := &GroupByBuckets{
 		AllRunningBuckets:   make([]*RunningBucketResults, 0, len(gb.AllGroupbyBuckets)),
 		StringBucketIdx:     make(map[string]int, len(gb.AllGroupbyBuckets)),

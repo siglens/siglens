@@ -46,6 +46,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary, queryRange *dtu.TimeRange,
 	sizeLimit uint64, fileParallelism int64, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
 	allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult) error {
+	log.Infof("applyAggregationsToResult has aggs groupbyrequest %+v", aggs.GroupByRequest)
 	var blkWG sync.WaitGroup
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
 	aggCols, _, _ := GetAggColsAndTimestamp(aggs)
@@ -63,8 +64,10 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 
 	usedByTimechart := aggs.UsedByTimechart()
 	if (aggs != nil && aggs.GroupByRequest != nil) || usedByTimechart {
+		log.Infof("call checkIfGrpColsPresent has params %+v, %+v", aggs.GroupByRequest, allSearchResults)
 		cname, ok := checkIfGrpColsPresent(aggs.GroupByRequest, sharedReader.MultiColReaders[0],
 			allSearchResults)
+		log.Infof("call checkIfGrpColsPresent, returns %v, %v", cname, ok)
 		if !ok && !usedByTimechart {
 			log.Errorf("qid=%v, applyAggregationsToResult: cname: %v was not present", qid, cname)
 			return fmt.Errorf("qid=%v, applyAggregationsToResult: cname: %v was not present", qid,
@@ -116,7 +119,7 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 	queryRange *dtu.TimeRange, sizeLimit uint64, wg *sync.WaitGroup, queryMetrics *structs.QueryProcessingMetrics,
 	qid uint64, blockSummaries []*structs.BlockSummary, aggsHasTimeHt bool, aggsHasNonTimeHt bool,
 	allBlocksToXRollup map[uint16]map[uint64]*writer.RolledRecs, nodeRes *structs.NodeResult) {
-
+	log.Infof("called applyAggregationsToSingleBlock for aggs %+v", aggs)
 	blkResults, err := blockresults.InitBlockResults(sizeLimit, aggs, qid)
 	if err != nil {
 		log.Errorf("applyAggregationsToSingleBlock: failed to initialize block results reader for %s. Err: %v", searchReq.SegmentKey, err)
@@ -183,6 +186,8 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, MFuncs []*structs.MeasureAggregator,
 	multiColReader *segread.MultiColSegmentReader, blockNum uint16, recIT *BlockRecordIterator, blockRes *blockresults.BlockResults,
 	qid uint64, aggsKeyWorkingBuf []byte, timeRangeBuckets *aggregations.Range, nodeRes *structs.NodeResult) []byte {
+
+	log.Infof("addRecordToAggregations called for measureInfo %+v", grpReq)
 
 	measureResults := make([]sutils.CValueEnclosure, len(MFuncs))
 	var retCVal sutils.CValueEnclosure
@@ -1225,6 +1230,7 @@ func doAggs(aggs *structs.QueryAggregators, mcr *segread.MultiColSegmentReader,
 	bss *BlockSearchStatus, recIT *BlockRecordIterator, blkResults *blockresults.BlockResults,
 	isBlkFullyEncosed bool, qid uint64, aggsKeyWorkingBuf []byte,
 	timeRangeBuckets *aggregations.Range, nodeRes *structs.NodeResult) []byte {
+	log.Infof("doAggs is called")
 
 	if aggs == nil || aggs.GroupByRequest == nil {
 		return aggsKeyWorkingBuf // nothing to do
@@ -1284,6 +1290,7 @@ func checkIfGrpColsPresent(grpReq *structs.GroupByRequest,
 			return cname, false
 		}
 	}
+	log.Infof("now checking MeasureInfo: %+v", measureInfo)
 
 	for cname := range measureInfo {
 		if !mcsr.IsColPresent(cname) {

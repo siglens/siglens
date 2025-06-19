@@ -20,9 +20,13 @@ package utils
 import (
 	"fmt"
 	"math"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CValueEnclosure, error) {
+
+	log.Infof("reduce called with agg func %+v with params %+v and %+v", fun, e1, e2)
 
 	if e1.Dtype == SS_INVALID {
 		return e2, nil

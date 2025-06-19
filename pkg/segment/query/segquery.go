@@ -387,6 +387,8 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 // Base function to apply operators on query segment requests
 func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *QueryInformation, sTime time.Time,
 	allSegFileResults *segresults.SearchResults, querySummary *summary.QuerySummary, returnAggBuckets bool) *structs.NodeResult {
+	log.Infof("GetNodeResultsFromQSRS has groupbyreq %+v", sortedQSRSlice[0].aggs.GroupByRequest)
+
 	applyFopAllRequests(sortedQSRSlice, queryInfo, allSegFileResults, querySummary)
 	if !returnAggBuckets {
 		err := queryInfo.Wait(querySummary)
@@ -459,6 +461,7 @@ func GetNodeResultsForRRCCmd(queryInfo *QueryInformation, sTime time.Time, allSe
 			ErrList: []error{err},
 		}
 	}
+	log.Infof("GetNodeResultsForRRCCmd has groupbyreq %+v", sortedQSRSlice[0].aggs.GroupByRequest)
 
 	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary, false)
 }
@@ -590,6 +593,9 @@ func applyKibanaFilterOperator(kibanaIndices []string, allSegFileResults *segres
 		StartEpochMs: 0,
 		EndEpochMs:   utils.GetCurrentTimeInMs(),
 	}
+
+	log.Infof("applyKibanaFilterOperator calls ApplyFilterOperatorInternal with aggs.groupbyrequest %+v", aggs.GroupByRequest)
+
 	err := ApplyFilterOperatorInternal(allSegFileResults, kibanaSearchRequests, parallelismPerFile, searchNode, tRange,
 		sizeLimit, aggs, qid, qs)
 	if err != nil {
@@ -609,6 +615,7 @@ func reverseSortedQSRSlice(sortedQSRSlice []*QuerySegmentRequest) {
 // loops over all inputted querySegmentRequests and apply search for each file. This function may exit early
 func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *QueryInformation,
 	allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) {
+	log.Infof("applyFopAllRequests has groupbyreq %+v", sortedQSRSlice[0].aggs.GroupByRequest)
 
 	// In order, search segKeys (either raw or pqs depending on above sType).
 	// If no aggs, early exit at utils.QUERY_EARLY_EXIT_LIMIT
@@ -1121,6 +1128,7 @@ func getAllRotatedSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) 
 }
 
 func applyFilterOperatorSingleRequest(qsr *QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) error {
+	log.Infof("applyFilterOperatorSingleRequest has group by request %+v", qsr.aggs.GroupByRequest)
 	switch qsr.sType {
 	case structs.PQS:
 		return applyFilterOperatorPQSRequest(qsr, allSegFileResults, qs)
@@ -1139,6 +1147,8 @@ func applyFilterOperatorSingleRequest(qsr *QuerySegmentRequest, allSegFileResult
 }
 
 func applyFilterOperatorPQSRequest(qsr *QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) error {
+	log.Infof("applyFilterOperatorPQSRequest has group by request %+v", qsr.aggs.GroupByRequest)
+
 	spqmr, err := pqs.GetAllPersistentQueryResults(qsr.segKey, qsr.QueryInformation.pqid)
 	if err != nil {
 		qsr.sType = structs.RAW_SEARCH
@@ -1201,6 +1211,8 @@ func applyFilterOperatorRawSearchRequest(qsr *QuerySegmentRequest, allSegFileRes
 		return err
 	}
 
+	log.Infof("applyFilterOperatorRawSearchRequest calls ApplyFilterOperatorInternal with aggs.groupbyrequest %+v", qsr.aggs.GroupByRequest)
+
 	err = ApplyFilterOperatorInternal(allSegFileResults, rawSearchSSRs, qsr.parallelismPerFile,
 		qsr.sNode, qsr.queryRange, qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
 
@@ -1250,6 +1262,8 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 	for _, req := range rawSearchSSR {
 		req.SType = qsr.sType
 	}
+	log.Infof("applyFilterOperatorUnrotatedRawSearchRequest calls ApplyFilterOperatorInternal with aggs.groupbyrequest %+v", qsr.aggs.GroupByRequest)
+
 	err = ApplyFilterOperatorInternal(allSegFileResults, rawSearchSSR, qsr.parallelismPerFile, qsr.sNode, qsr.queryRange,
 		qsr.sizeLimit, qsr.aggs, qsr.qid, qs)
 
@@ -1266,6 +1280,7 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 func ApplyFilterOperatorInternal(allSegFileResults *segresults.SearchResults, allSegRequests map[string]*structs.SegmentSearchRequest,
 	parallelismPerFile int64, searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
 	qid uint64, qs *summary.QuerySummary) error {
+	log.Infof("ApplyFilterOperatorInternal has aggs.groupbyrequest %+v", aggs.GroupByRequest)
 
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
