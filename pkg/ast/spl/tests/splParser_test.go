@@ -11532,6 +11532,65 @@ func Test_Index_6(t *testing.T) {
 	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
 }
 
+func Test_ToJson_Expr(t *testing.T) {
+	queryPlain := []byte(`city=* | tojson`)
+	queryWDtype := []byte(`city=Boston | tojson auto(f) none(g) bool(h) json(i) str(k) num(l)`)
+	queryWFillNull := []byte(`city=Boston | tojson fill_null=true`)
+	queryWDefaultType := []byte(`city=Boston | tojson default_type=bool`)
+	queryWIncludeInternal := []byte(`city=Boston | tojson include_internal=true`)
+	queryWMix := []byte(`city=Boston | tojson app_name height width auto(weight) num(latency) fill_null=true default_type=json include_internal=true`)
+
+	res, err := spl.Parse("", queryPlain)
+	assert.Nil(t, err)
+	q := res.(ast.QueryStruct)
+	agg := q.PipeCommands.ToJsonExpr
+	assert.True(t, agg.AllFields)
+	assert.Len(t, agg.FieldsDtypes, 1)
+	assert.Equal(t, structs.TJ_None, agg.FieldsDtypes[0].Dtype)
+	assert.Equal(t, "\\*", agg.FieldsDtypes[0].Regex.GetRawRegex())
+
+	res, err = spl.Parse("", queryWDtype)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.False(t, agg.AllFields)
+	expectedDtypes := []structs.ToJsonDtypes{
+		structs.TJ_Auto, structs.TJ_None, structs.TJ_Bool,
+		structs.TJ_Json, structs.TJ_Str, structs.TJ_Num,
+	}
+	assert.Len(t, agg.FieldsDtypes, 6)
+	for i, dtypeOpt := range agg.FieldsDtypes {
+		assert.Equal(t, expectedDtypes[i], dtypeOpt.Dtype)
+	}
+
+	res, err = spl.Parse("", queryWFillNull)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.True(t, agg.FillNull)
+
+	res, err = spl.Parse("", queryWDefaultType)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.Equal(t, structs.TJ_Bool, agg.DefaultType.Dtype)
+
+	res, err = spl.Parse("", queryWIncludeInternal)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.True(t, agg.IncludeInternal)
+
+	res, err = spl.Parse("", queryWMix)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.False(t, agg.AllFields)
+	assert.Len(t, agg.FieldsDtypes, 5)
+	assert.Equal(t, structs.TJ_Auto, agg.FieldsDtypes[3].Dtype)
+	assert.Equal(t, "weight", agg.FieldsDtypes[3].Regex.GetRawRegex())
+	assert.Equal(t, structs.TJ_Num, agg.FieldsDtypes[4].Dtype)
+	assert.Equal(t, "latency", agg.FieldsDtypes[4].Regex.GetRawRegex())
+	assert.True(t, agg.FillNull)
+	assert.True(t, agg.IncludeInternal)
+	assert.Equal(t, structs.TJ_Json, agg.DefaultType.Dtype)
+}
+
 func Test_Eval_Expr(t *testing.T) {
 	query := []byte(`city=Boston | stats count AS Count BY http_status | eval myField=if(http_status > 400, http_status, "Error"), myField2=abs(http_status - 100) | eval myField3="Test concat:" . lower(state) . "  end"`)
 	res, err := spl.Parse("", query)

@@ -5409,7 +5409,7 @@ AppendBlock <- PIPE CMD_APPEND options:(AppendCmdOption SPACE?)* subsearch:Subse
     }, nil
 }
 
-ToJsonOption <- option:(ToJsonFunctionOption / DefaultTypeOption / FillNullOption / IncludeInternalOption / OutputFieldOption / ToJsonFunctionPostProcess) {
+ToJsonOption <- SPACE option:(ToJsonFunctionOption / DefaultTypeOption / FillNullOption / IncludeInternalOption / OutputFieldOption / ToJsonFunctionPostProcess) {
     return option, nil
 }
 
@@ -5498,7 +5498,7 @@ OutputFieldOption <- "output_field" EQUAL strVal:String {
     }, nil
 }
 
-ToJsonBlock <- PIPE CMD_TOJSON options:(ToJsonOption SPACE?)* {
+ToJsonBlock <- PIPE CMD_TOJSON options:(ToJsonOption)* {
     defaultDtypeRegex := utils.GobbableRegex{}
     err := defaultDtypeRegex.SetRegex(`\*`)
     if err != nil {
@@ -5521,30 +5521,25 @@ ToJsonBlock <- PIPE CMD_TOJSON options:(ToJsonOption SPACE?)* {
         AllFields: true,
     }
     for _, opt := range options.([]interface{}) {
-        if optSlice, ok := opt.([]interface{}); ok {
-            for _, toJsonOption := range optSlice {
-                if option, ok := toJsonOption.(*structs.ToJsonCmdOption); ok {
-                    switch option.OptionType {
-                    case "tojson-function":
-                        if toJsonDefaultOptions.AllFields {
-                            toJsonDefaultOptions.FieldsDtypes[0] = option.Value.(*structs.ToJsonFieldsDtypeOptions)
-                            toJsonDefaultOptions.AllFields = false
-                        
-                        } else {
-                            toJsonDefaultOptions.FieldsDtypes = append(toJsonDefaultOptions.FieldsDtypes, option.Value.(*structs.ToJsonFieldsDtypeOptions))
-                        }
-                    case "default_type":
-                        toJsonDefaultOptions.DefaultType = option.Value.(*structs.ToJsonFieldsDtypeOptions)
-                    case "fill_null":
-                        toJsonDefaultOptions.FillNull = option.Value.(bool)
-                    case "include_internal":
-                        toJsonDefaultOptions.IncludeInternal = option.Value.(bool)
-                    case "output_field":
-                        toJsonDefaultOptions.OutputField = option.Value.(string)
-                    default:
-                        return nil, fmt.Errorf("ToJsonBlock: Received unexpected option; option-%v", option.OptionType)
-                    }
+        if option, ok := opt.(*structs.ToJsonCmdOption); ok {
+            switch option.OptionType {
+            case "tojson-function":
+                if toJsonDefaultOptions.AllFields {
+                    toJsonDefaultOptions.FieldsDtypes[0] = option.Value.(*structs.ToJsonFieldsDtypeOptions)
+                    toJsonDefaultOptions.AllFields = false
+                } else {
+                    toJsonDefaultOptions.FieldsDtypes = append(toJsonDefaultOptions.FieldsDtypes, option.Value.(*structs.ToJsonFieldsDtypeOptions))
                 }
+            case "default_type":
+                toJsonDefaultOptions.DefaultType = option.Value.(*structs.ToJsonFieldsDtypeOptions)
+            case "fill_null":
+                toJsonDefaultOptions.FillNull = option.Value.(bool)
+            case "include_internal":
+                toJsonDefaultOptions.IncludeInternal = option.Value.(bool)
+            case "output_field":
+                toJsonDefaultOptions.OutputField = option.Value.(string)
+            default:
+                return nil, fmt.Errorf("ToJsonBlock: Received unexpected option; option-%v", option.OptionType)
             }
         }
     }
@@ -5591,7 +5586,7 @@ CMD_INPUTLOOKUP <- "inputlookup" SPACE
 EVAL_CONCAT <- SPACE? ("." / "+") SPACE?
 CMD_MVEXPAND <- "mvexpand"
 CMD_APPEND <- "append" SPACE
-CMD_TOJSON <- "tojson" SPACE
+CMD_TOJSON <- "tojson"
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
 MAJOR_BREAK <- [[\]<>(){}|!;,'"*\n\r \t&?+] / "%21" / "%26" /

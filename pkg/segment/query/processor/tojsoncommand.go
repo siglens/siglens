@@ -19,6 +19,7 @@ package processor
 
 import (
 	"encoding/json"
+	"io"
 	"strings"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
@@ -33,7 +34,12 @@ type tojsonProcessor struct {
 
 var SkipValue = new(struct{})
 
+// stores the result as a string. If another command needs the json, it needs to unmarshal the string first
 func (p *tojsonProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
+	if iqr == nil {
+		return nil, io.EOF
+	}
+
 	columnToDtype := make(map[string]structs.ToJsonDtypes)
 	if len(p.options.FieldsDtypes) != 0 {
 		allColumns, err := iqr.GetColumns()
