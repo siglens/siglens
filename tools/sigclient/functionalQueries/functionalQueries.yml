@@ -29,6 +29,7 @@ multi_value.json
 mvappend.json
 mvdedup.json
 mvexpand.json
+mvfilter.json
 rex_stats_groupby_eval_stats.json
 eval_stats_sort_stats_groupby_where.json
 eval_stats_sort.json
