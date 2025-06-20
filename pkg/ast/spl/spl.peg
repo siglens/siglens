@@ -32,6 +32,25 @@ import (
     log "github.com/sirupsen/logrus"
 )
 
+func stringToToJsonDtype(dtype string) structs.ToJsonDtypes {
+    var optionDtype structs.ToJsonDtypes
+    switch dtype {
+    case "auto":
+        optionDtype = structs.TJ_Auto
+    case "bool":
+        optionDtype = structs.TJ_Bool
+    case "json":
+        optionDtype = structs.TJ_Json
+    case "num":
+        optionDtype = structs.TJ_Num
+    case "str":
+        optionDtype = structs.TJ_Str
+    default:
+        optionDtype = structs.TJ_None
+    }
+    return optionDtype
+}
+
 func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (int64, error) {
     var epoch int64 = 0
     var err error
@@ -783,7 +802,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock / ToJsonBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -5390,9 +5409,154 @@ AppendBlock <- PIPE CMD_APPEND options:(AppendCmdOption SPACE?)* subsearch:Subse
     }, nil
 }
 
+ToJsonOption <- option:(ToJsonFunctionOption / DefaultTypeOption / FillNullOption / IncludeInternalOption / OutputFieldOption / ToJsonFunctionPostProcess) {
+    return option, nil
+}
+
+ToJsonFunctionOption <- (dtype:("auto" / "bool" / "json" / "num" / "str" / "none") L_PAREN regexPattern:StringExpr R_PAREN) {
+    regex, ok := regexPattern.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
+    }
+    gobRegex := utils.GobbableRegex{}
+    var err error
+    if regex.RawString != "" {
+        err = gobRegex.SetRegex(regex.RawString)
+    } else {
+        err = gobRegex.SetRegex(regex.FieldName)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex compile: %v", err)
+    }
+    optionDtype := stringToToJsonDtype(string(dtype.([]byte)))
+    option := &structs.ToJsonFieldsDtypeOptions {
+        Dtype: optionDtype,
+        Regex: &gobRegex,
+    }
+    return &structs.ToJsonCmdOption {
+        OptionType: "tojson-function",
+        Value: option,
+    }, nil
+}
+
+ToJsonFunctionPostProcess <- regexPattern:StringExpr {
+    regex, ok := regexPattern.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
+    }
+    gobRegex := utils.GobbableRegex{}
+    var err error
+    if regex.RawString != "" {
+        err = gobRegex.SetRegex(regex.RawString)
+    } else {
+        err = gobRegex.SetRegex(regex.FieldName)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex compile: %v", err)
+    }
+    option := &structs.ToJsonFieldsDtypeOptions {
+        Dtype: structs.TJ_PP,
+        Regex: &gobRegex,
+    }
+    return &structs.ToJsonCmdOption {
+        OptionType: "tojson-function",
+        Value: option,
+    }, nil
+}
+
+DefaultTypeOption <- "default_type" EQUAL dtype:("auto" / "bool" / "json" / "num" / "str" / "none") {
+    optionDtype := stringToToJsonDtype(string(dtype.([]byte)))
+    gobRegex := utils.GobbableRegex{}
+    option := &structs.ToJsonFieldsDtypeOptions {
+        Dtype: optionDtype,
+        Regex: &gobRegex,
+    }
+    return &structs.ToJsonCmdOption {
+        OptionType: "default_type",
+        Value: option,
+    }, nil
+}
+
+FillNullOption <- "fill_null" EQUAL boolVal:Boolean {
+    return &structs.ToJsonCmdOption {
+        OptionType: "fill_null",
+        Value: boolVal.(bool),
+    }, nil
+}
+
+IncludeInternalOption <- "include_internal" EQUAL boolVal:Boolean {
+    return &structs.ToJsonCmdOption {
+        OptionType: "include_internal",
+        Value: boolVal.(bool),
+    }, nil
+}
+
+OutputFieldOption <- "output_field" EQUAL strVal:String {
+    return &structs.ToJsonCmdOption {
+        OptionType: "output_field",
+        Value: strVal.(string),
+    }, nil
+}
+
+ToJsonBlock <- PIPE CMD_TOJSON options:(ToJsonOption SPACE?)* {
+    defaultDtypeRegex := utils.GobbableRegex{}
+    err := defaultDtypeRegex.SetRegex(`\*`)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex Compile: %v", err)
+    }
+    toJsonDefaultOptions := &structs.ToJsonExpr {
+        FieldsDtypes: []*structs.ToJsonFieldsDtypeOptions {
+            &structs.ToJsonFieldsDtypeOptions {
+                Dtype: structs.TJ_None,
+                Regex: &defaultDtypeRegex,
+            },
+        }, 
+        DefaultType: &structs.ToJsonFieldsDtypeOptions {
+            Dtype: structs.TJ_None,
+            Regex: &utils.GobbableRegex{},
+        },
+        FillNull: false,
+        IncludeInternal: false,
+        OutputField: "_raw",
+        AllFields: true,
+    }
+    for _, opt := range options.([]interface{}) {
+        if optSlice, ok := opt.([]interface{}); ok {
+            for _, toJsonOption := range optSlice {
+                if option, ok := toJsonOption.(*structs.ToJsonCmdOption); ok {
+                    switch option.OptionType {
+                    case "tojson-function":
+                        if toJsonDefaultOptions.AllFields {
+                            toJsonDefaultOptions.FieldsDtypes[0] = option.Value.(*structs.ToJsonFieldsDtypeOptions)
+                            toJsonDefaultOptions.AllFields = false
+                        
+                        } else {
+                            toJsonDefaultOptions.FieldsDtypes = append(toJsonDefaultOptions.FieldsDtypes, option.Value.(*structs.ToJsonFieldsDtypeOptions))
+                        }
+                    case "default_type":
+                        toJsonDefaultOptions.DefaultType = option.Value.(*structs.ToJsonFieldsDtypeOptions)
+                    case "fill_null":
+                        toJsonDefaultOptions.FillNull = option.Value.(bool)
+                    case "include_internal":
+                        toJsonDefaultOptions.IncludeInternal = option.Value.(bool)
+                    case "output_field":
+                        toJsonDefaultOptions.OutputField = option.Value.(string)
+                    default:
+                        return nil, fmt.Errorf("ToJsonBlock: Received unexpected option; option-%v", option.OptionType)
+                    }
+                }
+            }
+        }
+    }
+
+    return &structs.QueryAggregators {
+        ToJsonExpr: toJsonDefaultOptions,
+    }, nil
+}
+
 
 // All commands except CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP / CMD_APPEND)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP / CMD_APPEND / CMD_TOJSON)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -5427,6 +5591,7 @@ CMD_INPUTLOOKUP <- "inputlookup" SPACE
 EVAL_CONCAT <- SPACE? ("." / "+") SPACE?
 CMD_MVEXPAND <- "mvexpand"
 CMD_APPEND <- "append" SPACE
+CMD_TOJSON <- "tojson" SPACE
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
 MAJOR_BREAK <- [[\]<>(){}|!;,'"*\n\r \t&?+] / "%21" / "%26" /

@@ -201,6 +201,7 @@ type QueryAggregators struct {
 	StatisticExpr   *StatisticExpr
 	TransactionExpr *TransactionArguments
 	WhereExpr       *BoolExpr
+	ToJsonExpr      *ToJsonExpr
 }
 
 type GenerateEvent struct {
@@ -365,6 +366,37 @@ type AppendCmdOption struct {
 	OptionType string
 	Value      interface{}
 }
+
+type ToJsonExpr struct {
+	FieldsDtypes    []*ToJsonFieldsDtypeOptions
+	DefaultType     *ToJsonFieldsDtypeOptions
+	FillNull        bool
+	IncludeInternal bool
+	OutputField     string
+	AllFields       bool
+}
+
+type ToJsonCmdOption struct {
+	OptionType string
+	Value      any
+}
+
+type ToJsonFieldsDtypeOptions struct {
+	Dtype ToJsonDtypes
+	Regex *utils.GobbableRegex
+}
+
+type ToJsonDtypes uint8
+
+const (
+	TJ_None ToJsonDtypes = iota
+	TJ_Auto
+	TJ_Bool
+	TJ_Json
+	TJ_Num
+	TJ_Str
+	TJ_PP // post process
+)
 
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
@@ -1538,7 +1570,7 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"isnum":            {},
 	"isnotnull":        {},
 	"spath":            {},
-	"eventcount":       {},
+	// "eventcount":       {},
 }
 
 type StatsFuncChecker struct{}

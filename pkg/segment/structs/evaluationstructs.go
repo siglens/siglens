@@ -725,7 +725,7 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 				return validateBoolExprError(err, "BoolExpr.Evaluate: 'isnum' can not evaluate to String")
 			}
 
-			_, parseErr := strconv.ParseFloat(val, 64)
+			_, parseErr := utils.FastParseFloat([]byte(val))
 			return getBoolCValueEnclosure(parseErr == nil), nil
 		case "isstr":
 			_, floatErr := self.LeftValue.EvaluateToFloat(fieldToValue)
