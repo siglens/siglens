@@ -996,19 +996,19 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 	}
 }
 
-func NewMergerDP(mergeSettings mergeSettings) *DataProcessor {
+func NewMergerDP(mergeSettings mergeSettings, mergingBottlenecks bool) *DataProcessor {
 	return &DataProcessor{
 		name:                  "merger",
 		streams:               make([]*CachedStream, 0),
 		mergeSettings:         mergeSettings,
 		processor:             &mergeProcessor{mergeSettings: mergeSettings},
-		inputOrderMatters:     !mergeSettings.mergingStats,
-		ignoresInputOrder:     true,
+		inputOrderMatters:     !mergingBottlenecks,
+		ignoresInputOrder:     mergingBottlenecks,
 		isPermutingCmd:        false,
-		isBottleneckCmd:       mergeSettings.mergingStats,
+		isBottleneckCmd:       mergingBottlenecks,
 		isTransformingCmd:     false,
 		isTwoPassCmd:          false,
-		isMergeableBottleneck: true,
+		isMergeableBottleneck: mergingBottlenecks,
 		processorLock:         &sync.Mutex{},
 	}
 }
