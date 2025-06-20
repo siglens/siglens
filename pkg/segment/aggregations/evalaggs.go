@@ -651,42 +651,42 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	return nil
 }
 
-func PerformAggEvalForDeviationMetrics(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currVarStat *structs.DeviationStat, fieldToValue map[string]sutils.CValueEnclosure) (*structs.DeviationStat, error) {
+func PerformAggEvalForDeviationMetrics(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currDevStat *structs.DeviationStat, fieldToValue map[string]sutils.CValueEnclosure) (*structs.DeviationStat, error) {
 	if len(fieldToValue) == 0 {
 		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		// We cannot compute var if constant is not numeric
 		if err != nil || !isNumeric {
-			return currVarStat, err
+			return currDevStat, err
 		}
-		currVarStat.Sum += floatValue * float64(count)
-		currVarStat.Sumsq += floatValue * floatValue * float64(count)
-		currVarStat.Count += int64(count)
+		currDevStat.Sum += floatValue * float64(count)
+		currDevStat.Sumsq += floatValue * floatValue * float64(count)
+		currDevStat.Count += int64(count)
 	} else {
 		if measureAgg.ValueColRequest.BooleanExpr != nil {
 			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
 			if err != nil {
-				return currVarStat, err
+				return currDevStat, err
 			}
 			if boolResult {
-				currVarStat.Sum++
-				currVarStat.Sumsq++
-				currVarStat.Count++
+				currDevStat.Sum++
+				currDevStat.Sumsq++
+				currDevStat.Count++
 			}
 		} else {
 			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 			if err != nil {
-				return currVarStat, err
+				return currDevStat, err
 			}
 			// records that are not float will be ignored
 			if isNumeric {
-				currVarStat.Sum += floatValue
-				currVarStat.Sumsq += floatValue * floatValue
-				currVarStat.Count++
+				currDevStat.Sum += floatValue
+				currDevStat.Sumsq += floatValue * floatValue
+				currDevStat.Count++
 			}
 		}
 	}
 
-	return currVarStat, nil
+	return currDevStat, nil
 }
 
 func ComputeAggEvalForVar(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
@@ -1429,6 +1429,43 @@ func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggrega
 		})
 		idx++
 	}
+	return idx, nil
+}
+
+// Record the index of var, varp, stdev, stdevp in runningStats; the index is idx
+// We need to store sum, sumsq, and count in runningStats
+// We use three columns and store them in this order: sum, sumsq, count
+// Also see blockresult.go -> @updateEValFromRunningBuckets
+func AddMeasureAggInRunningStatsForDeviation(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+
+	measureCol := m.MeasureCol
+	if m.ValueColRequest != nil {
+		fields := m.ValueColRequest.GetFields()
+		if len(fields) != 1 {
+			return idx, fmt.Errorf("AddMeasureAggInRunningStatsForRange: Incorrect number of fields for aggCol: %v", m.String())
+		}
+		measureCol = fields[0]
+	}
+
+	if _, ok := colToIdx[measureCol]; !ok {
+		colToIdx[measureCol] = make([]int, 0)
+	}
+
+	// this determines the order of the columns in runningStats: sum, sumsq, count
+	measureFuncs := []sutils.AggregateFunctions{sutils.Sum, sutils.Sumsq, sutils.Count}
+
+	for _, measureFunc := range measureFuncs {
+		*allReverseIndex = append(*allReverseIndex, idx)
+		colToIdx[measureCol] = append(colToIdx[measureCol], idx)
+		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+			MeasureCol:      measureCol,
+			MeasureFunc:     measureFunc,
+			ValueColRequest: m.ValueColRequest,
+			StrEnc:          m.StrEnc,
+		})
+		idx++
+	}
+
 	return idx, nil
 }
 

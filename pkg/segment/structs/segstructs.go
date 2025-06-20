@@ -626,6 +626,10 @@ var nonIngestStats = map[sutils.AggregateFunctions]string{
 	sutils.Earliest:     "",
 	sutils.Perc:         "",
 	sutils.Sumsq:        "",
+	sutils.Var:          "",
+	sutils.Varp:         "",
+	sutils.Stdev:        "",
+	sutils.Stdevp:       "",
 }
 
 // init SegStats from raw bytes of SegStatsJSON
