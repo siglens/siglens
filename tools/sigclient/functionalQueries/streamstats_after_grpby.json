@@ -1,18 +1,20 @@
 {
-    "queryText": "* | stats count as cnt by http_method, http_status | sort cnt, http_method, http_status | streamstats window=5 global=false reset_after=(http_method = \"GET\" AND http_status = 500) avg(http_status) as avg by http_method | streamstats window = 3 current=false reset_before=(cnt = 2724 OR cnt = 2736) sum(cnt) as sum",
+    "queryText": "* | stats count as cnt by http_method, http_status | sort cnt, http_method, http_status | streamstats window=5 global=false reset_after=(http_method = \"GET\" AND http_status = 500) avg(http_status) as avg, varp(http_status) as varp_http_status by http_method | streamstats window = 3 current=false reset_before=(cnt = 2724 OR cnt = 2736) sum(cnt) as sum, sumsq(cnt) as sumsq_cnt",
     "expectedResult": {
-         "bucketCount": 36,
-         "qtype": "aggs-query",
-         "groupByCols": [
+        "bucketCount": 36,
+        "qtype": "aggs-query",
+        "groupByCols": [
             "http_method",
             "http_status"
         ],
-         "measureFunctions": [
+        "measureFunctions": [
             "avg",
             "sum",
+            "sumsq_cnt",
+            "varp_http_status",
             "cnt"
         ],
-         "measure": [
+        "measure": [
             {
                 "GroupByValues": [
                     "DELETE",
@@ -21,7 +23,9 @@
                 "MeasureVal": {
                     "avg": 200,
                     "cnt": 2693,
-                    "sum": ""
+                    "sum": "",
+                    "sumsq_cnt": "",
+                    "varp_http_status": 0
                 }
             },
             {
@@ -32,7 +36,9 @@
                 "MeasureVal": {
                     "avg": 404,
                     "cnt": 2705,
-                    "sum": 2693
+                    "sum": 2693,
+                    "sumsq_cnt": 7252249,
+                    "varp_http_status": 0
                 }
             },
             {
@@ -43,7 +49,9 @@
                 "MeasureVal": {
                     "avg": 302,
                     "cnt": 2724,
-                    "sum": ""
+                    "sum": "",
+                    "sumsq_cnt": "",
+                    "varp_http_status": 10404
                 }
             },
             {
@@ -54,7 +62,9 @@
                 "MeasureVal": {
                     "avg": 200,
                     "cnt": 2728,
-                    "sum": 2724
+                    "sum": 2724,
+                    "sumsq_cnt": 7420176,
+                    "varp_http_status": 0
                 }
             },
             {
@@ -65,7 +75,9 @@
                 "MeasureVal": {
                     "avg": 302,
                     "cnt": 2729,
-                    "sum": 5452
+                    "sum": 5452,
+                    "sumsq_cnt": 14862160,
+                    "varp_http_status": 0
                 }
             },
             {
@@ -76,7 +88,9 @@
                 "MeasureVal": {
                     "avg": 368,
                     "cnt": 2731,
-                    "sum": 8181
+                    "sum": 8181,
+                    "sumsq_cnt": 22309601,
+                    "varp_http_status": 15648
                 }
             },
             {
@@ -87,7 +101,9 @@
                 "MeasureVal": {
                     "avg": 301,
                     "cnt": 2732,
-                    "sum": 8188
+                    "sum": 8188,
+                    "sumsq_cnt": 22347786,
+                    "varp_http_status": 0
                 }
             },
             {
@@ -98,7 +114,9 @@
                 "MeasureVal": {
                     "avg": 400,
                     "cnt": 2736,
-                    "sum": ""
+                    "sum": "",
+                    "sumsq_cnt": "",
+                    "varp_http_status": 0
                 }
             },
             {
@@ -109,7 +127,9 @@
                 "MeasureVal": {
                     "avg": 404,
                     "cnt": 2740,
-                    "sum": 2736
+                    "sum": 2736,
+                    "sumsq_cnt": 7485696,
+                    "varp_http_status": 0
                 }
             },
             {
@@ -120,7 +140,9 @@
                 "MeasureVal": {
                     "avg": 250.5,
                     "cnt": 2742,
-                    "sum": 5476
+                    "sum": 5476,
+                    "sumsq_cnt": 14993296,
+                    "varp_http_status": 2550.25
                 }
             },
             {
@@ -131,7 +153,9 @@
                 "MeasureVal": {
                     "avg": 400,
                     "cnt": 2745,
-                    "sum": 8218
+                    "sum": 8218,
+                    "sumsq_cnt": 22511860,
+                    "varp_http_status": 0
                 }
             },
             {
@@ -142,7 +166,9 @@
                 "MeasureVal": {
                     "avg": 350.5,
                     "cnt": 2747,
-                    "sum": 8227
+                    "sum": 8227,
+                    "sumsq_cnt": 22561189,
+                    "varp_http_status": 2450.25
                 }
             },
             {
@@ -153,7 +179,9 @@
                 "MeasureVal": {
                     "avg": 368.3333333333333,
                     "cnt": 2759,
-                    "sum": 8234
+                    "sum": 8234,
+                    "sumsq_cnt": 22599598,
+                    "varp_http_status": 2269.555555555562
                 }
             },
             {
@@ -164,7 +192,9 @@
                 "MeasureVal": {
                     "avg": 400,
                     "cnt": 2759,
-                    "sum": 8251
+                    "sum": 8251,
+                    "sumsq_cnt": 22693115,
+                    "varp_http_status": 0
                 }
             },
             {
@@ -175,7 +205,9 @@
                 "MeasureVal": {
                     "avg": 351.75,
                     "cnt": 2761,
-                    "sum": 8265
+                    "sum": 8265,
+                    "sumsq_cnt": 22770171,
+                    "varp_http_status": 2527.1875
                 }
             },
             {
@@ -186,7 +218,9 @@
                 "MeasureVal": {
                     "avg": 400,
                     "cnt": 2762,
-                    "sum": 8279
+                    "sum": 8279,
+                    "sumsq_cnt": 22847283,
+                    "varp_http_status": 0
                 }
             },
             {
@@ -197,7 +231,9 @@
                 "MeasureVal": {
                     "avg": 300,
                     "cnt": 2762,
-                    "sum": 8282
+                    "sum": 8282,
+                    "sumsq_cnt": 22863846,
+                    "varp_http_status": 10000
                 }
             },
             {
@@ -208,7 +244,9 @@
                 "MeasureVal": {
                     "avg": 350.5,
                     "cnt": 2766,
-                    "sum": 8285
+                    "sum": 8285,
+                    "sumsq_cnt": 22880409,
+                    "varp_http_status": 2450.25
                 }
             },
             {
@@ -219,7 +257,9 @@
                 "MeasureVal": {
                     "avg": 381.4,
                     "cnt": 2767,
-                    "sum": 8290
+                    "sum": 8290,
+                    "sumsq_cnt": 22908044,
+                    "varp_http_status": 5538.239999999991
                 }
             },
             {
@@ -230,7 +270,9 @@
                 "MeasureVal": {
                     "avg": 300.6666666666667,
                     "cnt": 2771,
-                    "sum": 8295
+                    "sum": 8295,
+                    "sumsq_cnt": 22935689,
+                    "varp_http_status": 6667.555555555562
                 }
             },
             {
@@ -241,7 +283,9 @@
                 "MeasureVal": {
                     "avg": 352.5,
                     "cnt": 2772,
-                    "sum": 8304
+                    "sum": 8304,
+                    "sumsq_cnt": 22985486,
+                    "varp_http_status": 2652.25
                 }
             },
             {
@@ -252,7 +296,9 @@
                 "MeasureVal": {
                     "avg": 351,
                     "cnt": 2778,
-                    "sum": 8310
+                    "sum": 8310,
+                    "sumsq_cnt": 23018714,
+                    "varp_http_status": 2401
                 }
             },
             {
@@ -263,7 +309,9 @@
                 "MeasureVal": {
                     "avg": 301.6666666666667,
                     "cnt": 2786,
-                    "sum": 8321
+                    "sum": 8321,
+                    "sumsq_cnt": 23079709,
+                    "varp_http_status": 6936.222222222229
                 }
             },
             {
@@ -274,7 +322,9 @@
                 "MeasureVal": {
                     "avg": 300.3333333333333,
                     "cnt": 2796,
-                    "sum": 8336
+                    "sum": 8336,
+                    "sumsq_cnt": 23163064,
+                    "varp_http_status": 6666.888888888895
                 }
             },
             {
@@ -285,7 +335,9 @@
                 "MeasureVal": {
                     "avg": 350.25,
                     "cnt": 2799,
-                    "sum": 8360
+                    "sum": 8360,
+                    "sumsq_cnt": 23296696,
+                    "varp_http_status": 12475.1875
                 }
             },
             {
@@ -296,7 +348,9 @@
                 "MeasureVal": {
                     "avg": 300.75,
                     "cnt": 2803,
-                    "sum": 8381
+                    "sum": 8381,
+                    "sumsq_cnt": 23413813,
+                    "varp_http_status": 5000.6875
                 }
             },
             {
@@ -307,7 +361,9 @@
                 "MeasureVal": {
                     "avg": 334.3333333333333,
                     "cnt": 2804,
-                    "sum": 8398
+                    "sum": 8398,
+                    "sumsq_cnt": 23508826,
+                    "varp_http_status": 2156.2222222222285
                 }
             },
             {
@@ -318,7 +374,9 @@
                 "MeasureVal": {
                     "avg": 326.25,
                     "cnt": 2821,
-                    "sum": 8406
+                    "sum": 8406,
+                    "sumsq_cnt": 23553626,
+                    "varp_http_status": 7015.1875
                 }
             },
             {
@@ -329,7 +387,9 @@
                 "MeasureVal": {
                     "avg": 351.75,
                     "cnt": 2823,
-                    "sum": 8428
+                    "sum": 8428,
+                    "sumsq_cnt": 23677266,
+                    "varp_http_status": 2527.1875
                 }
             },
             {
@@ -340,7 +400,9 @@
                 "MeasureVal": {
                     "avg": 381.4,
                     "cnt": 2824,
-                    "sum": 8448
+                    "sum": 8448,
+                    "sumsq_cnt": 23789786,
+                    "varp_http_status": 5538.239999999991
                 }
             },
             {
@@ -351,7 +413,9 @@
                 "MeasureVal": {
                     "avg": 340.6,
                     "cnt": 2833,
-                    "sum": 8468
+                    "sum": 8468,
+                    "sumsq_cnt": 23902346,
+                    "varp_http_status": 10352.63999999999
                 }
             },
             {
@@ -362,7 +426,9 @@
                 "MeasureVal": {
                     "avg": 361,
                     "cnt": 2842,
-                    "sum": 8480
+                    "sum": 8480,
+                    "sumsq_cnt": 23970194,
+                    "varp_http_status": 10442.4
                 }
             },
             {
@@ -373,7 +439,9 @@
                 "MeasureVal": {
                     "avg": 341.4,
                     "cnt": 2844,
-                    "sum": 8499
+                    "sum": 8499,
+                    "sumsq_cnt": 24077829,
+                    "varp_http_status": 10450.23999999999
                 }
             },
             {
@@ -384,7 +452,9 @@
                 "MeasureVal": {
                     "avg": 361,
                     "cnt": 2849,
-                    "sum": 8519
+                    "sum": 8519,
+                    "sumsq_cnt": 24191189,
+                    "varp_http_status": 10442.4
                 }
             },
             {
@@ -395,7 +465,9 @@
                 "MeasureVal": {
                     "avg": 334.3333333333333,
                     "cnt": 2870,
-                    "sum": 8535
+                    "sum": 8535,
+                    "sumsq_cnt": 24282101,
+                    "varp_http_status": 2156.2222222222285
                 }
             },
             {
@@ -406,10 +478,11 @@
                 "MeasureVal": {
                     "avg": 361.2,
                     "cnt": 2897,
-                    "sum": 8563
+                    "sum": 8563,
+                    "sumsq_cnt": 24442037,
+                    "varp_http_status": 10418.560000000009
                 }
             }
         ]
-     }
- }
- 
+    }
+}

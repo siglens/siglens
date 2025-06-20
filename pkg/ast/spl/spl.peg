@@ -3863,7 +3863,7 @@ AggFunction <- agg:(AggCount / AggPercCommon / AggCommon) {
     return agg, nil
 }
 
-// TODO Processing Logic: stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
+// TODO Processing Logic: rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
 CommonAggName <- ("values" / "varp" / "var" / "sumsq" / "sum" / "stdevp" / "stdev" / "rate" / "range" / "mode" / "min" / "median" / "mean" / "max" / 
 "list" / "latest_time" / "latest" / "last" / "first" / "estdc_error" / "estdc" / "earliest_time" / "earliest" / "distinct_count" / "dc" / "avg") {
     return string(c.text), nil
@@ -3936,8 +3936,8 @@ AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
 
     var valueColRequest *structs.ValueExpr
     switch measureFunc {
-        case sutils.Sumsq, sutils.Var, sutils.Varp:
-            // This ensures that sumsq, var, and varp, are computed using the raw records
+        case sutils.Sumsq, sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
+            // This ensures that these functions are computed using the raw records
             valueColRequest = &structs.ValueExpr{
                 ValueExprMode: structs.VEMNumericExpr,
                 NumericExpr: &structs.NumericExpr{

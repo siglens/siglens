@@ -337,6 +337,10 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		sstResult, err = segread.GetSegVar(runningSegStat, incomingSegStat)
 	case sutils.Varp:
 		sstResult, err = segread.GetSegVarp(runningSegStat, incomingSegStat)
+	case sutils.Stdev:
+		sstResult, err = segread.GetSegStdev(runningSegStat, incomingSegStat)
+	case sutils.Stdevp:
+		sstResult, err = segread.GetSegStdevp(runningSegStat, incomingSegStat)
 	case sutils.Avg:
 		sstResult, err = segread.GetSegAvg(runningSegStat, incomingSegStat)
 	case sutils.Values:
@@ -432,10 +436,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			err = aggregations.ComputeAggEvalForSum(measureAgg, sstMap, sr.segStatsResults.measureResults)
 		case sutils.Sumsq:
 			err = aggregations.ComputeAggEvalForSumsq(measureAgg, sstMap, sr.segStatsResults.measureResults)
-		case sutils.Var:
-			err = aggregations.ComputeAggEvalForVar(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-		case sutils.Varp:
-			err = aggregations.ComputeAggEvalForVarp(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
+			err = aggregations.ComputeAggEvalForDeviationAggs(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Avg:
 			err = aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Values:
