@@ -821,6 +821,20 @@ func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
 	}
 }
 
+func NewToJsonDP(options *structs.ToJsonExpr) *DataProcessor {
+	return &DataProcessor{
+		name:              "tojson",
+		streams:           make([]*CachedStream, 0),
+		processor:         &tojsonProcessor{options: options},
+		inputOrderMatters: false,
+		ignoresInputOrder: false,
+		isPermutingCmd:    false,
+		isBottleneckCmd:   false,
+		isTwoPassCmd:      false,
+		processorLock:     &sync.Mutex{},
+	}
+}
+
 func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 	return &DataProcessor{
 		name:              "streamstats",
