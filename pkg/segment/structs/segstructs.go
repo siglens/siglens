@@ -259,6 +259,7 @@ type RunningStreamStatsResults struct {
 	NumProcessedRecords uint64              // kept for global stats where window = 0
 	SecondaryWindow     *utils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
+	DeviationStat       *DeviationStat
 	CardinalityMap      map[string]int
 	CardinalityHLL      *utils.GobbableHll
 	ValuesMap           map[string]struct{}
@@ -602,6 +603,42 @@ type DeviationStat struct {
 	Count int64
 	Sum   float64
 	Sumsq float64
+}
+
+// Updates deviationStat to include the given floatValue
+func (deviationStat *DeviationStat) UpdateDeviationStat(floatValue float64) {
+	deviationStat.Sum += floatValue
+	deviationStat.Sumsq += floatValue * floatValue
+	deviationStat.Count++
+}
+
+// returns var / varp / stdev / stdevp for a given DeviationStat
+func (deviationStat DeviationStat) GetDeviationMetric(aggFunc sutils.AggregateFunctions) float64 {
+	switch aggFunc {
+	case sutils.Var:
+		if deviationStat.Count >= 2 {
+			// sample variance = population variance * count / (count-1)
+			return (deviationStat.Sumsq - deviationStat.Sum*deviationStat.Sum/float64(deviationStat.Count)) / float64(deviationStat.Count-1)
+		}
+	case sutils.Varp:
+		if deviationStat.Count >= 1 {
+			// population variance = sumsq / count - (sum / count)^2
+			return (deviationStat.Sumsq - deviationStat.Sum*deviationStat.Sum/float64(deviationStat.Count)) / float64(deviationStat.Count)
+		}
+	case sutils.Stdev:
+		if deviationStat.Count >= 2 {
+			// sample standard deviation = sqrt(sample variance)
+			return math.Sqrt((deviationStat.Sumsq - deviationStat.Sum*deviationStat.Sum/float64(deviationStat.Count)) / float64(deviationStat.Count-1))
+		}
+	case sutils.Stdevp:
+		if deviationStat.Count >= 1 {
+			// population standard deviation = sqrt(population variance)
+			return math.Sqrt((deviationStat.Sumsq - deviationStat.Sum*deviationStat.Sum/float64(deviationStat.Count)) / float64(deviationStat.Count))
+		}
+	default:
+		log.Errorf("Called GetDeviationMetric with unsupported aggregate function: %s", aggFunc)
+	}
+	return 0.0
 }
 
 type FieldGetter interface {

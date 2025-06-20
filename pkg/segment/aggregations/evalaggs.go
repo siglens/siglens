@@ -658,6 +658,8 @@ func PerformAggEvalForDeviationMetrics(measureAgg *structs.MeasureAggregator, co
 		if err != nil || !isNumeric {
 			return currDevStat, err
 		}
+
+		// cannot use UpdateDeviationStat if count > 1
 		currDevStat.Sum += floatValue * float64(count)
 		currDevStat.Sumsq += floatValue * floatValue * float64(count)
 		currDevStat.Count += int64(count)
@@ -668,9 +670,7 @@ func PerformAggEvalForDeviationMetrics(measureAgg *structs.MeasureAggregator, co
 				return currDevStat, err
 			}
 			if boolResult {
-				currDevStat.Sum++
-				currDevStat.Sumsq++
-				currDevStat.Count++
+				currDevStat.UpdateDeviationStat(1.0)
 			}
 		} else {
 			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
@@ -679,9 +679,7 @@ func PerformAggEvalForDeviationMetrics(measureAgg *structs.MeasureAggregator, co
 			}
 			// records that are not float will be ignored
 			if isNumeric {
-				currDevStat.Sum += floatValue
-				currDevStat.Sumsq += floatValue * floatValue
-				currDevStat.Count++
+				currDevStat.UpdateDeviationStat(floatValue)
 			}
 		}
 	}

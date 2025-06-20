@@ -46,7 +46,6 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary, queryRange *dtu.TimeRange,
 	sizeLimit uint64, fileParallelism int64, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
 	allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult) error {
-	log.Infof("applyAggregationsToResult has aggs groupbyrequest %+v", aggs.GroupByRequest)
 	var blkWG sync.WaitGroup
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
 	aggCols, _, _ := GetAggColsAndTimestamp(aggs)

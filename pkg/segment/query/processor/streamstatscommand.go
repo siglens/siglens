@@ -162,6 +162,7 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 
 			finalColValue, include := CreateCValueFromValueExpression(measureAgg, fieldToValue, colValue)
+			log.Infof("finalColValue: %+v, include: %v", finalColValue, include)
 
 			var result sutils.CValueEnclosure
 			var exists bool
@@ -270,7 +271,8 @@ func InitRunningStreamStatsResults(measureFunc sutils.AggregateFunctions) *struc
 	}
 
 	switch measureFunc {
-	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality:
+	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality,
+		sutils.Sumsq, sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
 		runningSSResult.CurrResult = sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_FLOAT,
 			CVal:  0.0,
@@ -328,7 +330,8 @@ func calculateAvg(ssResults *structs.RunningStreamStatsResults, window bool) sut
 func validateCurrResultDType(measureAgg sutils.AggregateFunctions, currResult sutils.CValueEnclosure) error {
 
 	switch measureAgg {
-	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality:
+	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality,
+		sutils.Sumsq, sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
 		if currResult.Dtype != sutils.SS_DT_FLOAT {
 			return fmt.Errorf("validateCurrResultDType: Error: currResult value is not a float for measureAgg: %v", measureAgg)
 		}
@@ -406,6 +409,20 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 			ssResults.ValuesMap = make(map[string]struct{}, 0)
 		}
 		ssResults.ValuesMap[strValue] = struct{}{}
+	case sutils.Sumsq:
+		if colValue.Dtype != sutils.SS_DT_FLOAT {
+			return result, valExist, nil
+		}
+		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) + colValue.CVal.(float64)*colValue.CVal.(float64)
+	case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
+		if colValue.Dtype != sutils.SS_DT_FLOAT {
+			return result, valExist, nil
+		}
+		if ssResults.DeviationStat == nil {
+			ssResults.DeviationStat = &structs.DeviationStat{}
+		}
+		ssResults.DeviationStat.UpdateDeviationStat(colValue.CVal.(float64))
+		ssResults.CurrResult.CVal = ssResults.DeviationStat.GetDeviationMetric(measureAgg.MeasureFunc)
 	default:
 		return sutils.CValueEnclosure{}, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
 	}
@@ -463,8 +480,20 @@ func removeFrontElementFromWindow(window *utils.GobbableList, ssResults *structs
 			return fmt.Errorf("removeFrontElementFromWindow: Error: cardinality map does not contain the value: %v which is present in the window", strValue)
 		}
 		ssResults.CurrResult.CVal = float64(len(ssResults.CardinalityMap))
+	} else if measureAgg == sutils.Sumsq {
+		if frontElement.Value.Dtype != sutils.SS_DT_FLOAT {
+			return fmt.Errorf("removeFrontElementFromWindow: Error: front element in the window does not have a numeric value, has value: %v, function: %v", frontElement.Value, measureAgg)
+		}
+		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) - frontElement.Value.CVal.(float64)*frontElement.Value.CVal.(float64)
+	} else if measureAgg == sutils.Var || measureAgg == sutils.Varp || measureAgg == sutils.Stdev || measureAgg == sutils.Stdevp {
+		if frontElement.Value.Dtype != sutils.SS_DT_FLOAT {
+			return fmt.Errorf("removeFrontElementFromWindow: Error: front element in the window does not have a numeric value, has value: %v, function: %v", frontElement.Value, measureAgg)
+		}
+		ssResults.DeviationStat.Sum -= frontElement.Value.CVal.(float64)
+		ssResults.DeviationStat.Sumsq -= frontElement.Value.CVal.(float64) * frontElement.Value.CVal.(float64)
+		ssResults.DeviationStat.Count--
+		ssResults.CurrResult.CVal = ssResults.DeviationStat.GetDeviationMetric(measureAgg)
 	}
-
 	window.Remove(window.Front())
 
 	return nil
@@ -631,6 +660,11 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg sutils.
 		return ssResults.CurrResult, true, nil
 	case sutils.Values:
 		return getValues(ssResults.CardinalityMap), true, nil
+	case sutils.Sumsq:
+		return ssResults.CurrResult, true, nil
+	case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
+		return ssResults.CurrResult, true, nil
+
 	default:
 		return sutils.CValueEnclosure{}, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
 	}
@@ -835,6 +869,22 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 		}
 
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: cvalue, TimeInMilli: timestamp})
+	case sutils.Sumsq:
+		if colValue.Dtype != sutils.SS_DT_FLOAT {
+			return defaultResult, nil
+		}
+		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) + colValue.CVal.(float64)*colValue.CVal.(float64)
+		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
+	case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
+		if colValue.Dtype != sutils.SS_DT_FLOAT {
+			return defaultResult, nil
+		}
+		if ssResults.DeviationStat == nil {
+			ssResults.DeviationStat = &structs.DeviationStat{}
+		}
+		ssResults.DeviationStat.UpdateDeviationStat(colValue.CVal.(float64))
+		ssResults.CurrResult.CVal = ssResults.DeviationStat.GetDeviationMetric(measureAgg.MeasureFunc)
+		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	default:
 		return sutils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error measureAgg: %v not supported", measureAgg)
 	}

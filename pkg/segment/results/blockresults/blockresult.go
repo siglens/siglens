@@ -801,7 +801,6 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 
 				eVal.CVal = avg
 				eVal.Dtype = sutils.SS_DT_FLOAT
-				panic("Check execution flow")
 			}
 		}
 	case sutils.Earliest:

@@ -156,7 +156,6 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 	sizeLimit uint64, aggs *structs.QueryAggregators, fileParallelism int64, allSearchResults *segresults.SearchResults, qid uint64,
 	querySummary *summary.QuerySummary, nodeRes *structs.NodeResult) {
 
-	log.Infof("rawsearchcolumnar has aggs.GroupByRequest %+v", aggs.GroupByRequest)
 	if fileParallelism <= 0 {
 		log.Errorf("qid=%d, rawSearchColumnar: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
 		allSearchResults.AddError(errors.New("invalid fileParallelism - must be > 0"))
