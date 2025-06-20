@@ -458,7 +458,6 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e sutils.CValueEnclosure, i int) error {
 	runningStat := &(*runningStats)[i]
 	aggFunc := rr.currStats[i].MeasureFunc
-	log.Infof("runningstats.go: processreduce called with stat %+v, aggFunc %+v", runningStat, aggFunc)
 	if aggFunc == sutils.Sum || aggFunc == sutils.Count {
 		if runningStat.number == nil {
 			if runningStat.rawVal.Dtype == sutils.SS_INVALID {
