@@ -606,14 +606,14 @@ type DeviationStat struct {
 }
 
 // Updates deviationStat to include the given floatValue
-func (deviationStat *DeviationStat) UpdateDeviationStat(floatValue float64) {
+func (deviationStat *DeviationStat) Insert(floatValue float64) {
 	deviationStat.Sum += floatValue
 	deviationStat.Sumsq += floatValue * floatValue
 	deviationStat.Count++
 }
 
 // returns var / varp / stdev / stdevp for a given DeviationStat
-func (deviationStat DeviationStat) GetDeviationMetric(aggFunc sutils.AggregateFunctions) float64 {
+func (deviationStat DeviationStat) GetDeviationAgg(aggFunc sutils.AggregateFunctions) float64 {
 	switch aggFunc {
 	case sutils.Var:
 		if deviationStat.Count >= 2 {
@@ -636,7 +636,7 @@ func (deviationStat DeviationStat) GetDeviationMetric(aggFunc sutils.AggregateFu
 			return math.Sqrt((deviationStat.Sumsq - deviationStat.Sum*deviationStat.Sum/float64(deviationStat.Count)) / float64(deviationStat.Count))
 		}
 	default:
-		log.Errorf("Called GetDeviationMetric with unsupported aggregate function: %s", aggFunc)
+		log.Errorf("Called GetDeviationAgg with unsupported aggregate function: %s", aggFunc)
 	}
 	return 0.0
 }

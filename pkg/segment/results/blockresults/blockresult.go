@@ -994,30 +994,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 			valIdx := gb.reverseMeasureIndex[idx]
 			if runningStats[valIdx].devStat != nil {
-				sumVal := runningStats[valIdx].devStat.Sum
-				sumsqVal := runningStats[valIdx].devStat.Sumsq
-				countVal := runningStats[valIdx].devStat.Count
-				switch mInfo.MeasureFunc {
-				case sutils.Var: // sample variance
-					if countVal >= 2 {
-						dev = (sumsqVal - sumVal*sumVal/float64(countVal)) / float64(countVal-1)
-					}
-				case sutils.Varp: // population variance
-					if countVal >= 2 {
-						dev = (sumsqVal - sumVal*sumVal/float64(countVal)) / float64(countVal)
-					}
-				case sutils.Stdev: // sample standard deviation
-					if countVal >= 2 {
-						dev = math.Sqrt((sumsqVal - sumVal*sumVal/float64(countVal)) / float64(countVal-1))
-					}
-				case sutils.Stdevp: // population standard deviation
-					if countVal >= 2 {
-						dev = math.Sqrt((sumsqVal - sumVal*sumVal/float64(countVal)) / float64(countVal))
-					}
-				default:
-					batchErr.AddError("GroupByBuckets.AddResultToStatRes:DeviationStat", fmt.Errorf("invalid measureFunc: %v", mInfo.MeasureFunc))
-					return
-				}
+				dev = runningStats[valIdx].devStat.GetDeviationAgg(mInfo.MeasureFunc)
 			} else {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
@@ -1026,21 +1003,21 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			eVal.CVal = dev
 			eVal.Dtype = sutils.SS_DT_FLOAT
 		} else {
-			if usedByTimechart {
-				// If used by timechart, we need 3 values: sum, sumsq, count
-				// so incrementIdxBy will be 3
-				// order should be the same as defined in evalaggs.go -> @AddMeasureAggInRunningStatsForDeviation
-				// sum is present at index idx
-				// sumsq is present at index idx+1
-				// count is present at index idx+2
-				incrementIdxBy = 3
-			} else {
-				incrementIdxBy = 1
-			}
+			// it is used by timechart
+			// we need 3 values: sum, sumsq, count
+			// so incrementIdxBy will be 3
+			// order should be the same as defined in evalaggs.go -> @AddMeasureAggInRunningStatsForDeviation
+			// sum is present at index idx
+			// sumsq is present at index idx+1
+			// count is present at index idx+2
+			incrementIdxBy = 3
+
+			devStat := &structs.DeviationStat{}
+			var err error
 
 			sumIdx := gb.reverseMeasureIndex[idx]
 			runningStats[sumIdx].syncRawValue()
-			sumVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
+			devStat.Sum, err = runningStats[sumIdx].rawVal.GetFloatValue()
 			if err != nil {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
@@ -1048,7 +1025,7 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 
 			sumsqIdx := gb.reverseMeasureIndex[idx+1]
 			runningStats[sumsqIdx].syncRawValue()
-			sumsqVal, err := runningStats[sumsqIdx].rawVal.GetFloatValue()
+			devStat.Sumsq, err = runningStats[sumsqIdx].rawVal.GetFloatValue()
 			if err != nil {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
@@ -1056,39 +1033,17 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 
 			countIdx := gb.reverseMeasureIndex[idx+2]
 			runningStats[countIdx].syncRawValue()
-			countVal, err := runningStats[countIdx].rawVal.GetFloatValue()
+			devStat.Count, err = runningStats[countIdx].rawVal.GetIntValue()
 			if err != nil {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
 			}
 
-			switch mInfo.MeasureFunc {
-			case sutils.Var: // sample variance
-				if countVal >= 2 {
-					dev = (sumsqVal - sumVal*sumVal/float64(countVal)) / float64(countVal-1)
-				}
-			case sutils.Varp: // population variance
-				if countVal >= 2 {
-					dev = (sumsqVal - sumVal*sumVal/float64(countVal)) / float64(countVal)
-				}
-			case sutils.Stdev: // sample standard deviation
-				if countVal >= 2 {
-					dev = math.Sqrt((sumsqVal - sumVal*sumVal/float64(countVal)) / float64(countVal-1))
-				}
-			case sutils.Stdevp: // population standard deviation
-				if countVal >= 2 {
-					dev = math.Sqrt((sumsqVal - sumVal*sumVal/float64(countVal)) / float64(countVal))
-				}
-			default:
-				batchErr.AddError("GroupByBuckets.AddResultToStatRes:DeviationStat", fmt.Errorf("invalid measureFunc: %v", mInfo.MeasureFunc))
-				return
-			}
-
+			dev = devStat.GetDeviationAgg(mInfo.MeasureFunc)
 			eVal.CVal = dev
 			eVal.Dtype = sutils.SS_DT_FLOAT
 		}
 	default:
-		log.Infof("reached default in GroupByBuckets.updateEValFromRunningBuckets")
 		incrementIdxBy = 1
 
 		valIdx := gb.reverseMeasureIndex[idx]
@@ -1182,7 +1137,6 @@ func (tb *TimeBucketsJSON) ToTimeBuckets() (*TimeBuckets, error) {
 
 func (gb *GroupByBucketsJSON) ToGroupByBucket(req *structs.GroupByRequest) (*GroupByBuckets, error) {
 	mCols, mFuns, revIndex := convertRequestToInternalStats(req, false)
-	log.Infof("GroupByBucketsJSON.ToGroupByBucket: mCols: %v, mFuns: %v, revIndex: %v", mCols, mFuns, revIndex)
 	retVal := &GroupByBuckets{
 		AllRunningBuckets:   make([]*RunningBucketResults, 0, len(gb.AllGroupbyBuckets)),
 		StringBucketIdx:     make(map[string]int, len(gb.AllGroupbyBuckets)),

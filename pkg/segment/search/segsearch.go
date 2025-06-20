@@ -66,7 +66,6 @@ const BLOCK_BATCH_SIZE = 100
 func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismPerFile int64,
 	searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
 	allSearchResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary, nodeRes *structs.NodeResult) {
-	log.Infof("RawSearchSegmentFIleWrapper has aggs.GroupByRequest %+v", aggs.GroupByRequest)
 	err := numConcurrentRawSearch.TryAcquireWithBackoff(1, 5, fmt.Sprintf("qid.%d", qid))
 	if err != nil {
 		log.Errorf("qid=%d Failed to Acquire resources for raw search! error %+v", qid, err)
@@ -155,7 +154,6 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *structs.SearchNode, timeRange *dtu.TimeRange,
 	sizeLimit uint64, aggs *structs.QueryAggregators, fileParallelism int64, allSearchResults *segresults.SearchResults, qid uint64,
 	querySummary *summary.QuerySummary, nodeRes *structs.NodeResult) {
-
 	if fileParallelism <= 0 {
 		log.Errorf("qid=%d, rawSearchColumnar: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
 		allSearchResults.AddError(errors.New("invalid fileParallelism - must be > 0"))

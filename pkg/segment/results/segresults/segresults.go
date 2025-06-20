@@ -436,14 +436,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			err = aggregations.ComputeAggEvalForSum(measureAgg, sstMap, sr.segStatsResults.measureResults)
 		case sutils.Sumsq:
 			err = aggregations.ComputeAggEvalForSumsq(measureAgg, sstMap, sr.segStatsResults.measureResults)
-		case sutils.Var:
-			err = aggregations.ComputeAggEvalForVar(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-		case sutils.Varp:
-			err = aggregations.ComputeAggEvalForVarp(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-		case sutils.Stdev:
-			err = aggregations.ComputeAggEvalForStdev(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-		case sutils.Stdevp:
-			err = aggregations.ComputeAggEvalForStdevp(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
+			err = aggregations.ComputeAggEvalForDeviationAggs(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Avg:
 			err = aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Values:

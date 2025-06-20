@@ -162,7 +162,6 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 
 			finalColValue, include := CreateCValueFromValueExpression(measureAgg, fieldToValue, colValue)
-			log.Infof("finalColValue: %+v, include: %v", finalColValue, include)
 
 			var result sutils.CValueEnclosure
 			var exists bool
@@ -421,8 +420,8 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		if ssResults.DeviationStat == nil {
 			ssResults.DeviationStat = &structs.DeviationStat{}
 		}
-		ssResults.DeviationStat.UpdateDeviationStat(colValue.CVal.(float64))
-		ssResults.CurrResult.CVal = ssResults.DeviationStat.GetDeviationMetric(measureAgg.MeasureFunc)
+		ssResults.DeviationStat.Insert(colValue.CVal.(float64))
+		ssResults.CurrResult.CVal = ssResults.DeviationStat.GetDeviationAgg(measureAgg.MeasureFunc)
 	default:
 		return sutils.CValueEnclosure{}, false, fmt.Errorf("PerformNoWindowStreamStatsOnSingleFunc: Error: measureAgg: %v not supported", measureAgg)
 	}
@@ -492,8 +491,9 @@ func removeFrontElementFromWindow(window *utils.GobbableList, ssResults *structs
 		ssResults.DeviationStat.Sum -= frontElement.Value.CVal.(float64)
 		ssResults.DeviationStat.Sumsq -= frontElement.Value.CVal.(float64) * frontElement.Value.CVal.(float64)
 		ssResults.DeviationStat.Count--
-		ssResults.CurrResult.CVal = ssResults.DeviationStat.GetDeviationMetric(measureAgg)
+		ssResults.CurrResult.CVal = ssResults.DeviationStat.GetDeviationAgg(measureAgg)
 	}
+
 	window.Remove(window.Front())
 
 	return nil
@@ -664,7 +664,6 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg sutils.
 		return ssResults.CurrResult, true, nil
 	case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
 		return ssResults.CurrResult, true, nil
-
 	default:
 		return sutils.CValueEnclosure{}, false, fmt.Errorf("getResults: Error measureAgg: %v not supported", measureAgg)
 	}
@@ -882,8 +881,8 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 		if ssResults.DeviationStat == nil {
 			ssResults.DeviationStat = &structs.DeviationStat{}
 		}
-		ssResults.DeviationStat.UpdateDeviationStat(colValue.CVal.(float64))
-		ssResults.CurrResult.CVal = ssResults.DeviationStat.GetDeviationMetric(measureAgg.MeasureFunc)
+		ssResults.DeviationStat.Insert(colValue.CVal.(float64))
+		ssResults.CurrResult.CVal = ssResults.DeviationStat.GetDeviationAgg(measureAgg.MeasureFunc)
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	default:
 		return sutils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error measureAgg: %v not supported", measureAgg)

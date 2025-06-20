@@ -249,7 +249,6 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			}
 			i += step
 		case sutils.Sumsq:
-			log.Infof("called addevalresultsforsumsq")
 			step, err := rr.AddEvalResultsForSumsq(runningStats, measureResults, i, fieldToValue)
 			if err != nil {
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Sumsq", err)
@@ -448,7 +447,6 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				i += (len(fields) - 1)
 			}
 		default:
-			log.Infof("default called in runningstats.go: mergeRunningStats")
 			err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 			if err != nil {
 				batchErr.AddError("RunningBucketResults.mergeRunningStats:ProcessReduce", err)
@@ -613,9 +611,6 @@ func PopulateFieldToValueFromMeasureResults(fieldToValue map[string]sutils.CValu
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
-	(*runningStats)[i].syncRawValue()
-	log.Infof("addEvalResultsForSum called for currstat %+v, rawVal %+v; valcolrequest is %+v and fieldtovalue is %+v", rr.currStats[i], (*runningStats)[i].rawVal, rr.currStats[i].ValueColRequest, fieldToValue)
-
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
@@ -634,14 +629,11 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 	}
 	(*runningStats)[i].rawVal = result
 	(*runningStats)[i].number = nil
-	log.Infof("addEvalResultsForSum returns %+v", (*runningStats)[i].rawVal)
 
 	return numFields - 1, nil
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForSumsq(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
-	(*runningStats)[i].syncRawValue()
-	log.Infof("addEvalResultsForSumsq called for currstat %+v, rawVal %+v; valcolrequest is %+v and fieldtovalue is %+v", rr.currStats[i], (*runningStats)[i].rawVal, rr.currStats[i].ValueColRequest, fieldToValue)
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
@@ -660,19 +652,16 @@ func (rr *RunningBucketResults) AddEvalResultsForSumsq(runningStats *[]runningSt
 	}
 	(*runningStats)[i].rawVal = result
 	(*runningStats)[i].number = nil
-	log.Infof("addEvalResultsForSumsq returns %+v", (*runningStats)[i].rawVal)
 
 	return numFields - 1, nil
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStats,
 	measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
-	(*runningStats)[i].syncRawValue()
-	log.Infof("AddEvalResultsForAvg called for currstat %+v, avgStat %+v; valcolrequest is %+v and fieldtovalue is %+v", rr.currStats[i], (*runningStats)[i].avgStat, rr.currStats[i].ValueColRequest, fieldToValue)
-
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
+
 	numFields := len(fieldToValue)
 	if numFields == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: Need non zero number of fields in expression for eval stats for avg for aggCol: %v", rr.currStats[i].String())
@@ -696,7 +685,6 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 		CVal:  avg,
 	}
 	(*runningStats)[i].number = nil
-	log.Infof("AddEvalResultsForAvg returns %+v", (*runningStats)[i].rawVal)
 
 	return numFields - 1, nil
 }
@@ -704,7 +692,6 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 func (rr *RunningBucketResults) AddEvalResultsForDeviation(runningStats *[]runningStats,
 	measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
 	(*runningStats)[i].syncRawValue()
-	log.Infof("AddEvalResultsForDeviation called for currstat %+v, devStat %+v; valcolrequest is %+v and fieldtovalue is %+v", rr.currStats[i], (*runningStats)[i].devStat, rr.currStats[i].ValueColRequest, fieldToValue)
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
@@ -720,40 +707,16 @@ func (rr *RunningBucketResults) AddEvalResultsForDeviation(runningStats *[]runni
 
 	curr := rr.currStats[i]
 	devStat := (*runningStats)[i].devStat
-	result, err := agg.PerformAggEvalForDeviationMetrics(curr, 1, exists, devStat, fieldToValue)
+	result, err := agg.PerformAggEvalForDeviationAggs(curr, 1, exists, devStat, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForDeviation: failed to evaluate ValueColRequest, err: %v", err)
 	}
 
-	dev := 0.0
-
-	switch rr.currStats[i].MeasureFunc {
-	case sutils.Var: // sample variance
-		if result.Count >= 2 {
-			dev = (result.Sumsq - float64(result.Sum)*float64(result.Sum)/float64(result.Count)) / float64(result.Count-1)
-		}
-	case sutils.Varp: // population variance
-		if result.Count >= 2 {
-			dev = (result.Sumsq - float64(result.Sum)*float64(result.Sum)/float64(result.Count)) / float64(result.Count)
-		}
-	case sutils.Stdev: // sample standard deviation
-		if result.Count >= 2 {
-			dev = math.Sqrt((result.Sumsq - float64(result.Sum)*float64(result.Sum)/float64(result.Count)) / float64(result.Count-1))
-		}
-	case sutils.Stdevp: // population standard deviation
-		if result.Count >= 2 {
-			dev = math.Sqrt((result.Sumsq - float64(result.Sum)*float64(result.Sum)/float64(result.Count)) / float64(result.Count))
-		}
-	default:
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForDeviation: unsupported measureFunc: %v", rr.currStats[i].MeasureFunc)
-	}
-
 	(*runningStats)[i].rawVal = sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_FLOAT,
-		CVal:  dev,
+		CVal:  result.GetDeviationAgg(rr.currStats[i].MeasureFunc),
 	}
 	(*runningStats)[i].number = nil
-	log.Infof("AddEvalResultsForDeviation returns %+v", (*runningStats)[i].rawVal)
 
 	return numFields - 1, nil
 }

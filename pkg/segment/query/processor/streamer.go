@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
-	log "github.com/sirupsen/logrus"
 )
 
 type Streamer interface {
@@ -50,7 +49,6 @@ func NewCachedStream(stream Streamer) *CachedStream {
 }
 
 func (cs *CachedStream) Fetch() (*iqr.IQR, error) {
-	log.Infof("CachedStream.Fetch called")
 	if cs.isExhausted {
 		return nil, io.EOF
 	}
@@ -95,7 +93,6 @@ func (cs CachedStream) String() string {
 }
 
 func NewSingleThreadedStream(stream Streamer) *SingleThreadedStream {
-
 	return &SingleThreadedStream{
 		stream: stream,
 		lock:   &sync.Mutex{},
@@ -103,8 +100,6 @@ func NewSingleThreadedStream(stream Streamer) *SingleThreadedStream {
 }
 
 func (sts *SingleThreadedStream) Fetch() (*iqr.IQR, error) {
-	log.Infof("SingleThreadedStream.Fetch called")
-
 	sts.lock.Lock()
 	defer sts.lock.Unlock()
 

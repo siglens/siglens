@@ -344,8 +344,6 @@ func parseAggregations(json_body interface{}, qid uint64) (*QueryAggregators, er
 			}
 		}
 
-		log.Infof("parseAggregations: returns measureOperations %+v", queryAgg.MeasureOperations)
-
 		return queryAgg, nil
 	}
 	return nil, nil
@@ -460,8 +458,6 @@ func processStatisticAggregation(aggType string, params interface{}, name string
 			tempMeasureAgg.MeasureCol = colStr
 			tempMeasureAgg.MeasureFunc = aggFunc
 			aggNode.GroupByRequest.MeasureOperations = append(aggNode.GroupByRequest.MeasureOperations, tempMeasureAgg)
-
-			log.Infof("processStatisticAggregation: returns measureOperations %+v", aggNode.MeasureOperations)
 			return nil
 		}
 	}
