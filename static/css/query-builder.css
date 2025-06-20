@@ -317,6 +317,39 @@ input.form-control {
     width: 100%;
 }
 
+.custom-reset-button {
+    background-color: #F3F3F3;
+    color: #1C1B1F;
+    font-family: Inter, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    padding: 3px 10px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    cursor: pointer;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    margin-top: -6px;
+    transition: all 0.2s ease-in-out;
+    white-space: nowrap;
+}
+
+.custom-reset-button.active {
+    background-color: rgba(103, 80, 164, 0.12); 
+    border: 1px solid rgba(103, 80, 164, 1);   
+    color: #1C1B1F;
+}
+
+.custom-reset-button:hover:not(.active),
+.custom-reset-button:focus:not(.active) {
+    background-color: #EDEDED;
+    border-color: #D0D0D0;
+    outline: none;
+}
+
+
 .search-img {
     background-image: url("../assets/search-img.svg");
     height: 26px;
