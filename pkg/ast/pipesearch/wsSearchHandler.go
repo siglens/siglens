@@ -37,7 +37,6 @@ import (
 const KEY_TRACE_RELATED_LOGS_INDEX = "trace-related-logs"
 
 func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp.RequestCtx) {
-
 	qid := rutils.GetNextQid()
 	event, err := readInitialEvent(qid, conn)
 	defer fileutils.DeferableAddAccessLogEntry(
@@ -94,7 +93,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 		return
 	}
 
-	ti := structs.InitTableInfo(indexNameIn, orgid, false)
+	ti := structs.InitTableInfo(indexNameIn, orgid, false, ctx)
 	log.Infof("qid=%v, ProcessPipeSearchWebsocket: index=[%v] searchString=[%v] scrollFrom=[%v]",
 		qid, ti.String(), searchText, scrollFrom)
 
@@ -153,12 +152,12 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 
 	// This is for SPL queries where the index name is parsed from the query
 	if len(parsedIndexNames) > 0 {
-		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), orgid, false)
+		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), orgid, false, ctx)
 	}
 
 	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
 		indexNameIn = aggs.TableName
-		ti = structs.InitTableInfo(indexNameIn, orgid, false) // Re-initialize ti with the updated indexNameIn
+		ti = structs.InitTableInfo(indexNameIn, orgid, false, ctx) // Re-initialize ti with the updated indexNameIn
 	}
 
 	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
@@ -168,12 +167,12 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	qc.IncludeNulls = includeNulls
 
 	RunAsyncQueryForNewPipeline(conn, qid, simpleNode, aggs, timechartSimpleNode, timechartAggs, qc, limit, scrollFrom)
-
 }
 
 func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *structs.ASTNode, aggs *structs.QueryAggregators,
 	timechartSimpleNode *structs.ASTNode, timechartAggs *structs.QueryAggregators,
-	qc *structs.QueryContext, sizeLimit uint64, scrollFrom int) {
+	qc *structs.QueryContext, sizeLimit uint64, scrollFrom int,
+) {
 	websocketR := make(chan map[string]interface{})
 
 	go listenToConnection(qid, websocketR, conn)
@@ -267,7 +266,6 @@ func processCancelQuery(conn *websocket.Conn, qid uint64) {
 }
 
 func processQueryStateUpdate(conn *websocket.Conn, qid uint64, queryState query.QueryState) {
-
 	e := map[string]interface{}{
 		"state": queryState.String(),
 		"qid":   qid,

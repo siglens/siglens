@@ -67,7 +67,7 @@ func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		indexNameIn = "*"
 	}
 
-	ti := structs.InitTableInfo(indexNameIn, myid, true)
+	ti := structs.InitTableInfo(indexNameIn, myid, true, ctx)
 	isJaegerQuery := false
 	for _, indexName := range ti.GetQueryTables() {
 		if strings.HasPrefix(indexName, "jaeger-") {
@@ -192,7 +192,6 @@ TODO: how does this look in a multi node setting?
 Returns NodeResults with doc counts per index aggregation
 */
 func getIndexNameAggOnly(aggName string, myid int64) *structs.NodeResult {
-
 	totalHits := uint64(0)
 	bucketResults := make([]*structs.BucketResult, 0)
 

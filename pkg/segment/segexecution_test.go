@@ -69,7 +69,7 @@ func testPipesearchScroll(t *testing.T, numBuffers int, numEntriesForBuffer int,
 		AndFilterCondition: &Condition{FilterCriteria: []*FilterCriteria{&valueFilter}},
 		TimeRange:          queryRange,
 	}
-	qc := structs.InitQueryContext(IndexName, uint64(10), 9, 0, false)
+	qc := structs.InitQueryContext(IndexName, uint64(10), 9, 0, false, nil)
 	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 59, qc)
 	assert.Len(t, result.AllRecords, 1)
 
@@ -86,7 +86,6 @@ func testPipesearchScroll(t *testing.T, numBuffers int, numEntriesForBuffer int,
 	qc.Scroll = int(maxPossible - 5)
 	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 62, qc)
 	assert.Len(t, result.AllRecords, 5)
-
 }
 
 func getMyIds() []int64 {
@@ -228,7 +227,7 @@ func Test_unrotatedQuery(t *testing.T) {
 	}
 	sizeLimit := uint64(10000)
 	scroll := 0
-	qc := structs.InitQueryContext("test", sizeLimit, scroll, 0, false)
+	qc := structs.InitQueryContext("test", sizeLimit, scroll, 0, false, nil)
 	result := ExecuteQuery(simpleNode, aggs, 63, qc)
 	assert.Equal(t, uint64(numRec), result.TotalResults.TotalCount)
 	assert.Equal(t, Equals, result.TotalResults.Op)
@@ -302,7 +301,6 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 	batchSize := 10
 	entryCount := 10
 	err := os.MkdirAll(dir, os.FileMode(0755))
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -375,7 +373,7 @@ func Benchmark_agileTreeQueryReader(t *testing.B) {
 		err1 := str.ApplyGroupByJit(grpByRequest.GroupByColumns, measureOps, blkResults, qid, agileTreeBuf)
 		assert.NoError(t, err1)
 
-		//log.Infof("Aggs seg: %v query, time: %+v", skNum, time.Since(sTime))
+		// log.Infof("Aggs seg: %v query, time: %+v", skNum, time.Since(sTime))
 
 		res := blkResults.GetGroupByBuckets()
 		assert.NotNil(t, res)
@@ -395,13 +393,12 @@ func Benchmark_agileTreeQueryReader(t *testing.B) {
 
 	res := allSearchResults.BlockResults.GetGroupByBuckets()
 	log.Infof("Aggs query, Num of bkt key: %v", len(res.Results))
-
 }
 
 func measureColsTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int, measureCol string, measureFunc AggregateFunctions) {
 	value1, _ := CreateDtypeEnclosure("value1", 0)
 	// wildcard all columns
-	ti := structs.InitTableInfo(IndexName, 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false, nil)
 	allColumns := FilterCriteria{
 		ExpressionFilter: &ExpressionFilter{
 			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "*"}}},
@@ -432,7 +429,7 @@ func measureColsTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 
 func groupByAggQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int, measureCol string, measureFunc AggregateFunctions) *NodeResult {
 	value1, _ := CreateDtypeEnclosure("value1", 0)
-	ti := structs.InitTableInfo(IndexName, 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false, nil)
 	allColumns := FilterCriteria{
 		ExpressionFilter: &ExpressionFilter{
 			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "key1"}}},

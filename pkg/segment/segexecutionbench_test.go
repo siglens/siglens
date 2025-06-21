@@ -38,7 +38,6 @@ import (
 )
 
 func Benchmark_ApplyFilterOpAndAggs(b *testing.B) {
-
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -126,7 +125,7 @@ func Benchmark_ApplyFilterOpAndAggs(b *testing.B) {
 	count := 5
 
 	start := time.Now()
-	ti := structs.InitTableInfo("test", 0, false)
+	ti := structs.InitTableInfo("test", 0, false, nil)
 	qc := structs.QueryContext{
 		TableInfo: ti,
 	}
