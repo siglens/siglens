@@ -879,7 +879,6 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
-                queryMode: 'Builder',
             };
             break;
         case 1: // Line chart
@@ -927,7 +926,6 @@ function addPanel(chartIndex) {
         queryData: queryData,
         logLinesViewType: logLinesViewType,
         unit: unit,
-        isNewPanel: true, // Keep the flag for log panels
     });
 
     editPanelInit(panelIndex, true);
@@ -1137,13 +1135,15 @@ $('#error-ok-btn').click(function () {
 function initializeFolderDropdown() {
     new FolderDropdown('folder-dropdown-container', {
         showRoot: true,
-        initialFolder: dbData.folder ? {
-            id: dbData.folder.id,
-            name: dbData.folder.id === 'root-folder' ? 'Dashboards' : dbData.folder.name
-        } : null,
+        initialFolder: dbData.folder
+            ? {
+                  id: dbData.folder.id,
+                  name: dbData.folder.id === 'root-folder' ? 'Dashboards' : dbData.folder.name,
+              }
+            : null,
         onSelect: (selectedFolder) => {
             dbData.folder = selectedFolder;
-        }
+        },
     });
 }
 
@@ -1325,20 +1325,14 @@ function resizeCharts() {
 
 //eslint-disable-next-line no-unused-vars
 function setDashboardQueryModeHandler(panelQueryMode) {
-    let queryModeCookieValue = Cookies.get('queryMode');
+    // Determine which mode to use: panel > queryMode > default (Builder)
+    const mode = panelQueryMode || Cookies.get('queryMode') || 'Builder';
 
-    if (queryModeCookieValue !== undefined) {
-        if (panelQueryMode === '') {
-            // If panel queryMode is empty, apply the cookie queryMode
-            if (queryModeCookieValue === 'Builder') {
-                $('.custom-code-tab a:first').trigger('click');
-            } else {
-                $('.custom-code-tab a[href="#tabs-2"]').trigger('click');
-            }
-        }
-        // Add active class to dropdown options based on the queryMode selected
-        updateQueryModeUI(queryModeCookieValue);
-    }
+    // Trigger appropriate tab
+    const tabSelector = mode === 'Builder' ? '.custom-code-tab a:first' : '.custom-code-tab a[href="#tabs-2"]';
+
+    $(tabSelector).trigger('click');
+    updateQueryModeUI(mode);
 }
 
 // Search across the panels based on the search input

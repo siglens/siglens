@@ -402,17 +402,15 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 	}
 
 	var isTsCol bool
-	for idx, recNum := range orderedRecNums {
+	for colKeyIdx, cname := range allColKeyIndices {
+		_, ok := dictEncCols[cname]
+		if ok {
+			continue
+		}
 
-		for colKeyIdx, cname := range allColKeyIndices {
+		isTsCol = (config.GetTimeStampKey() == cname)
 
-			_, ok := dictEncCols[cname]
-			if ok {
-				continue
-			}
-
-			isTsCol = (config.GetTimeStampKey() == cname)
-
+		for idx, recNum := range orderedRecNums {
 			var cValEnc sutils.CValueEnclosure
 
 			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,

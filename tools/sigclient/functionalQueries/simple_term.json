@@ -1,0 +1,47 @@
+{
+    "queryText": "app_version=\"3.1.1\"|address=TERM(north)|fields app_version, first_name",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 5,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "app_version": "3.1.1",
+                "first_name": "Aletha",
+                "timestamp": 1749473986785
+            },
+            {
+                "app_version": "3.1.1",
+                "first_name": "Estefania",
+                "timestamp": 1749473978589
+            },
+            {
+                "app_version": "3.1.1",
+                "first_name": "Alivia",
+                "timestamp": 1749473972994
+            },
+            {
+                "app_version": "3.1.1",
+                "first_name": "Maudie",
+                "timestamp": 1749473924797
+            },
+            {
+                "app_version": "3.1.1",
+                "first_name": "Lonnie",
+                "timestamp": 1749473906081
+            }
+        ],
+        "allColumns": [
+            "first_name",
+            "timestamp",
+            "app_version"
+        ],
+        "columnsOrder": [
+            "timestamp",
+            "app_version",
+            "first_name"
+        ]
+    }
+}

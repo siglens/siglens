@@ -187,6 +187,39 @@ func Test_SortThenProcessThenUnsort(t *testing.T) {
 	assert.Equal(t, expectedReceivedOrder, actualReceivedOrder)
 }
 
+func Test_Unsort(t *testing.T) {
+	t.Run("1-cycle", func(t *testing.T) {
+		sorter := sortable[string]{
+			order: []int{0, 1, 2, 3, 4, 5},
+		}
+		actual, err := Unsort(sorter, []string{"a", "b", "c", "d", "e", "f"})
+		expected := []string{"a", "b", "c", "d", "e", "f"}
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("2-cycle", func(t *testing.T) {
+		sorter := sortable[string]{
+			order: []int{5, 4, 3, 2, 1, 0},
+		}
+		actual, err := Unsort(sorter, []string{"a", "b", "c", "d", "e", "f"})
+		expected := []string{"f", "e", "d", "c", "b", "a"}
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("6-cycle", func(t *testing.T) {
+		sorter := sortable[string]{
+			order: []int{2, 0, 1, 4, 3, 5},
+		}
+
+		actual, err := Unsort(sorter, []string{"a", "b", "c", "d", "e", "f"})
+		expected := []string{"b", "c", "a", "e", "d", "f"}
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+}
+
 func Test_RemoveElements(t *testing.T) {
 	slice := []int{1, 2, 3, 4, 5}
 	idxsToRemove := map[int]struct{}{

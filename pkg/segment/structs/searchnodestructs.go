@@ -59,6 +59,7 @@ type SearchQuery struct {
 	SearchType              SearchQueryType // type of query
 	QueryInfo               *QueryInfo      // query info
 	FilterIsCaseInsensitive bool            // whether the filter is case sensitive
+	FilterIsTerm            bool            // whether the filter is a TERM() filter
 }
 
 type QueryInfo struct {
@@ -313,13 +314,12 @@ func GetAllColumnsFromCondition(cond *SearchCondition) (map[string]bool, bool) {
 // map is all non-wildcard block bloom keys, bool is if any keyword contained a wildcard, LogicalOperator
 // is if any/all of map keys need to exist
 func (query *SearchQuery) GetAllBlockBloomKeysToSearch() (map[string]bool, map[string]string, bool, LogicalOperator) {
-	dualCaseCheckEnabled := config.IsDualCaseCheckEnabled()
 
 	if query.MatchFilter != nil {
-		matchKeys, originalMatchKeys, wildcardExists, matchOp := query.MatchFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInsensitive)
+		matchKeys, originalMatchKeys, wildcardExists, matchOp := query.MatchFilter.GetAllBlockBloomKeysToSearch(query.FilterIsCaseInsensitive)
 		return matchKeys, originalMatchKeys, wildcardExists, matchOp
 	} else {
-		blockBloomKeys, originalBlockBloomKeys, wildcardExists, err := query.ExpressionFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInsensitive)
+		blockBloomKeys, originalBlockBloomKeys, wildcardExists, err := query.ExpressionFilter.GetAllBlockBloomKeysToSearch(query.FilterIsCaseInsensitive)
 		if err != nil {
 			return make(map[string]bool), make(map[string]string), false, And
 		}

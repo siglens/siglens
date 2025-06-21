@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/es/query"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
@@ -38,23 +37,23 @@ import (
 )
 
 type CaseConversionInfo struct {
-	dualCaseCheckEnabled bool
-	caseInsensitive      bool
-	valueIsRegex         bool
-	IsString             bool
-	colValue             interface{}
-	originalColValue     interface{}
+	caseInsensitive  bool
+	isTerm           bool
+	valueIsRegex     bool
+	IsString         bool
+	colValue         interface{}
+	originalColValue interface{}
 }
 
 func (cci *CaseConversionInfo) ShouldAlsoSearchWithOriginalCase() bool {
-	return cci.IsString && cci.dualCaseCheckEnabled && cci.caseInsensitive && !cci.valueIsRegex && cci.colValue != cci.originalColValue
+	return cci.IsString && cci.caseInsensitive && !cci.valueIsRegex && cci.colValue != cci.originalColValue
 }
 
 // When valueIsRegex is true, colValue should be a string containing the regex
 // to match and should not have quotation marks as the first and last character
 // unless those are intended to be matched.
 // If forceCaseSensitive is set to true, caseInsensitive will be ignored
-func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, caseInsensitive bool, forceCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
+func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, caseInsensitive bool, isTerm bool, forceCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
 	andFilterCondition := make([]*FilterCriteria, 0)
 	var opr FilterOperator = Equals
 	switch compOpr {
@@ -83,11 +82,11 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 	}
 
 	caseConversion := &CaseConversionInfo{
-		dualCaseCheckEnabled: config.IsDualCaseCheckEnabled(),
-		caseInsensitive:      caseInsensitive,
-		valueIsRegex:         valueIsRegex,
-		colValue:             colValue,
-		originalColValue:     originalColValue,
+		caseInsensitive:  caseInsensitive,
+		isTerm:           isTerm,
+		valueIsRegex:     valueIsRegex,
+		colValue:         colValue,
+		originalColValue: originalColValue,
 	}
 
 	switch t := colValue.(type) {
@@ -173,6 +172,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
 	andFilterCondition[0].FilterIsCaseInsensitive = caseInsensitive
+	andFilterCondition[0].FilterIsTerm = isTerm
 	return andFilterCondition, nil
 }
 
@@ -263,7 +263,7 @@ func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOp
 		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for ColValue=%v. Error=%+v", qid, colValue, err)
 	} else {
 		if cci != nil && !cci.valueIsRegex {
-			cVal.UpdateRegexp(cci.caseInsensitive)
+			cVal.UpdateRegexp(cci.caseInsensitive, cci.isTerm)
 		}
 	}
 

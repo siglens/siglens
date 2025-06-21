@@ -11717,3 +11717,87 @@ func Test_evalDoubleEqualsWithoutAssignment(t *testing.T) {
 	_, err := spl.Parse("", query)
 	assert.NotNil(t, err)
 }
+
+func Test_term_lowercase(t *testing.T) {
+	query := []byte(`search field1=TERM("value1")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "field1", filterNode.Comparison.Field)
+	assert.Equal(t, `"value1"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"value1"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "field1", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "value1", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_term_uppercase(t *testing.T) {
+	query := []byte(`search DUMMY_FIELD=TERM("VALUE1")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "DUMMY_FIELD", filterNode.Comparison.Field)
+	assert.Equal(t, `"value1"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"VALUE1"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "DUMMY_FIELD", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "value1", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_term_singleWildcard(t *testing.T) {
+	query := []byte(`search city=TERM("An*")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, `"an*"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"An*"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "city", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "an*", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_term_multipleWildcard(t *testing.T) {
+	query := []byte(`search city=TERM("*to*")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, `"*to*"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"*to*"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "city", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "*to*", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}

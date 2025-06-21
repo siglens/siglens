@@ -21,10 +21,14 @@ stats_group_by_eval.json
 eval_groupby_2col_2stats.json
 eval_fields_timechart.json
 multi_value.json
-mvmap.json
-mvrange.json
 gentimes.json
 gentimes_2.json
+mv_to_json_array.json
+mvsort.json
+mvzip.json
+multi_value.json
+mvappend.json
+mvdedup.json
 mvexpand.json
 rex_stats_groupby_eval_stats.json
 eval_stats_sort_stats_groupby_where.json
@@ -51,6 +55,8 @@ streamstats_multi_resets_grpby.json
 streamstats_eval.json
 streamstats_after_stats.json
 streamstats_after_grpby.json
+simple_term.json
+wildcard_term.json
 
 # Variable column based queries
 variable_col_tests/var_simple_where.json
