@@ -37,7 +37,16 @@ type simpleRegex struct {
 	fullPattern    string
 }
 
-var simpleRe = regexp.MustCompile(`^(\(\?i\))?(\^)?(\.\*)?([a-zA-Z0-9_:/\-]+)(\.\*)?(\$)?$`) // Optional case-insensitive flag
+var simpleRe = regexp.MustCompile(
+	`^` + // Start of string
+		`(\(\?i\))?` + // Optional case-insensitive flag
+		`(\^)?` + // Optional start anchor
+		`(\.\*)?` + // Optional leading wildcard
+		`([a-zA-Z0-9_:/\-]+)` + // The main word (allowed chars)
+		`(\.\*)?` + // Optional trailing wildcard
+		`(\$)?` + // Optional end anchor
+		`$`, // End of string
+)
 
 func New(pattern string) (Regex, error) {
 	if bytes.Contains([]byte(pattern), []byte("\n")) {
@@ -53,11 +62,30 @@ func New(pattern string) (Regex, error) {
 		return regexp.Compile(pattern)
 	}
 
+	caseSensitive := matches[1] != "(?i)"
+	word := []byte(matches[4])
+
+	hasStartAnchor := matches[2] == "^"
+	hasEndAnchor := matches[6] == "$"
+	leadingWildcard := matches[3] == ".*"
+	trailingWildcard := matches[5] == ".*"
+
+	wildcardBefore := leadingWildcard
+	wildcardAfter := trailingWildcard
+
+	if !hasStartAnchor && !leadingWildcard {
+		wildcardBefore = true
+	}
+
+	if !hasEndAnchor && !trailingWildcard {
+		wildcardAfter = true
+	}
+
 	return &simpleRegex{
-		caseSensitive:  matches[1] != "(?i)",
-		wildcardBefore: matches[2] != "^" || matches[3] == ".*",
-		word:           []byte(matches[4]),
-		wildcardAfter:  matches[5] == ".*" || matches[6] != "$",
+		caseSensitive:  caseSensitive,
+		wildcardBefore: wildcardBefore,
+		word:           word,
+		wildcardAfter:  wildcardAfter,
 		fullPattern:    pattern,
 	}, nil
 }
@@ -90,27 +118,44 @@ func containsSingleDotWildcard(pattern string) bool {
 func (r *simpleRegex) Match(buf []byte) bool {
 	var contains func([]byte, []byte) bool
 	var equal func([]byte, []byte) bool
+	var hasSuffix func([]byte, []byte) bool
+	var hasPrefix func([]byte, []byte) bool
+
 	if r.caseSensitive {
 		contains = bytes.Contains
 		equal = bytes.Equal
+		hasSuffix = bytes.HasSuffix
+		hasPrefix = bytes.HasPrefix
 	} else {
 		contains = utils.ContainsAnyCase
 		equal = bytes.EqualFold
+		hasSuffix = func(s, suffix []byte) bool {
+			if len(s) < len(suffix) {
+				return false
+			}
+			return bytes.EqualFold(s[len(s)-len(suffix):], suffix)
+		}
+		hasPrefix = func(s, prefix []byte) bool {
+			if len(s) < len(prefix) {
+				return false
+			}
+			return bytes.EqualFold(s[:len(prefix)], prefix)
+		}
 	}
 
-	if r.wildcardBefore && r.wildcardAfter {
+	switch {
+	case r.wildcardBefore && r.wildcardAfter:
 		return contains(buf, r.word)
-	}
 
-	if r.wildcardBefore {
-		return len(buf) >= len(r.word) && equal(buf[len(buf)-len(r.word):], r.word)
-	}
+	case r.wildcardBefore && !r.wildcardAfter:
+		return hasSuffix(buf, r.word)
 
-	if r.wildcardAfter {
-		return len(buf) >= len(r.word) && equal(buf[:len(r.word)], r.word)
-	}
+	case !r.wildcardBefore && r.wildcardAfter:
+		return hasPrefix(buf, r.word)
 
-	return equal(buf, r.word)
+	default:
+		return equal(buf, r.word)
+	}
 }
 
 func (r *simpleRegex) String() string {
