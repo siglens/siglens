@@ -25,10 +25,16 @@ import (
 	"strings"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/es/query"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
+	"github.com/siglens/siglens/pkg/segment"
+	segquery "github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/reader/record"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 type CaseConversionInfo struct {
@@ -283,6 +289,59 @@ func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOp
 		}},
 	}}
 	return &criteria
+}
+
+func getDefaultAstAndAggNode(qid uint64, timeRange *dtu.TimeRange) (*structs.ASTNode, *structs.QueryAggregators, error) {
+	aggNode := structs.InitDefaultQueryAggregations()
+	astNode, err := query.GetMatchAllASTNode(qid, timeRange)
+	if err != nil {
+		log.Errorf("qid=%v, GetColValues: match all ast node failed! %+v", qid, err)
+		return nil, nil, err
+	}
+	aggNode.OutputTransforms = &structs.OutputTransforms{OutputColumns: &structs.ColumnsRequest{}}
+
+	return astNode, aggNode, nil
+}
+
+// Executes simple query to return a single column values in a given table
+func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, aggNode *structs.QueryAggregators, timeRange *dtu.TimeRange, qid uint64, orgid int64, ctx *fasthttp.RequestCtx) ([]interface{}, error) {
+	var err error
+
+	if astNode == nil {
+		astNode, aggNode, err = getDefaultAstAndAggNode(qid, timeRange)
+		if err != nil {
+			log.Errorf("qid=%v, GetColValues: default ast node failed! %+v", qid, err)
+			return nil, err
+		}
+	} else {
+		if aggNode == nil {
+			aggNode = structs.InitDefaultQueryAggregations()
+		}
+		if aggNode.OutputTransforms == nil {
+			aggNode.OutputTransforms = &structs.OutputTransforms{OutputColumns: &structs.ColumnsRequest{}}
+		}
+		if aggNode.OutputTransforms.OutputColumns == nil {
+			aggNode.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
+		}
+	}
+
+	aggNode.OutputTransforms.OutputColumns.IncludeColumns = append(make([]string, 0), cname)
+
+	ti := structs.InitTableInfo(indexNameIn, orgid, false, ctx)
+	qc := structs.InitQueryContextWithTableInfo(ti, segquery.MAX_GRP_BUCKS, 0, orgid, false)
+	queryResult := segment.ExecuteQuery(astNode, aggNode, qid, qc)
+	allJsons, _, err := record.GetJsonFromAllRrcOldPipeline(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggNode, queryResult.AllColumnsInAggs)
+	if err != nil {
+		log.Errorf("qid=%v, GetColValues: fetching JSON records from All RRC failed! %+v", qid, err)
+		return nil, err
+	}
+
+	colVals := make([]interface{}, 0)
+	for _, row := range allJsons {
+		colVals = append(colVals, row[cname])
+	}
+
+	return colVals, nil
 }
 
 func ParseTimeRange(startEpoch, endEpoch uint64, aggs *QueryAggregators, qid uint64) (*dtu.TimeRange, error) {
