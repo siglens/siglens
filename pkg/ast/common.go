@@ -25,9 +25,7 @@ import (
 	"strings"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
-	"github.com/siglens/siglens/pkg/es/query"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
-	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
@@ -285,18 +283,6 @@ func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOp
 		}},
 	}}
 	return &criteria
-}
-
-func getDefaultAstAndAggNode(qid uint64, timeRange *dtu.TimeRange) (*structs.ASTNode, *structs.QueryAggregators, error) {
-	aggNode := structs.InitDefaultQueryAggregations()
-	astNode, err := query.GetMatchAllASTNode(qid, timeRange)
-	if err != nil {
-		log.Errorf("qid=%v, GetColValues: match all ast node failed! %+v", qid, err)
-		return nil, nil, err
-	}
-	aggNode.OutputTransforms = &structs.OutputTransforms{OutputColumns: &structs.ColumnsRequest{}}
-
-	return astNode, aggNode, nil
 }
 
 func ParseTimeRange(startEpoch, endEpoch uint64, aggs *QueryAggregators, qid uint64) (*dtu.TimeRange, error) {
