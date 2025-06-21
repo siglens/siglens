@@ -139,7 +139,7 @@ type Hooks struct {
 	ProcessVersionInfoHook func(ctx *fasthttp.RequestCtx)
 
 	// RBAC
-	CanAccessIndexes func(indx []string, ctx *fasthttp.RequestCtx) bool
+	FilteroutUnauthorizedIndexes func(indexes []string, ctx *fasthttp.RequestCtx) []string
 }
 
 type HtmlSnippets struct {

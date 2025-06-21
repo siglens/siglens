@@ -32,22 +32,30 @@ import (
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
-var VTableBaseDir string
-var VTableMappingsDir string
-var VTableTemplatesDir string
-var VTableAliasesDir string
+var (
+	VTableBaseDir      string
+	VTableMappingsDir  string
+	VTableTemplatesDir string
+	VTableAliasesDir   string
+)
 
-const VIRTUAL_TAB_FILENAME = "/virtualtablenames"
-const VIRTUAL_TAB_FILE_EXT = ".txt"
+const (
+	VIRTUAL_TAB_FILENAME = "/virtualtablenames"
+	VIRTUAL_TAB_FILE_EXT = ".txt"
+)
 
 var vTableBaseFileName string
 
-var globalTableAccessLock sync.RWMutex = sync.RWMutex{}
-var vTableRawFileAccessLock sync.RWMutex = sync.RWMutex{}
+var (
+	globalTableAccessLock   sync.RWMutex = sync.RWMutex{}
+	vTableRawFileAccessLock sync.RWMutex = sync.RWMutex{}
+)
 
 var aliasToIndexNames map[int64]map[string]map[string]bool = make(map[int64]map[string]map[string]bool)
 
@@ -143,8 +151,8 @@ func GetFilePathForRemoteNode(node string, orgid int64) string {
 }
 
 func CreateVirtTableBaseDirs(vTableBaseDir string, vTableMappingsDir string,
-	vTableTemplatesDir string, vTableAliasesDir string) error {
-
+	vTableTemplatesDir string, vTableAliasesDir string,
+) error {
 	err := os.MkdirAll(vTableBaseDir, 0764)
 	if err != nil {
 		log.Errorf("createVirtTableBaseDir: failed to create vTableBaseDir=%v, err=%v", vTableBaseDir, err)
@@ -263,7 +271,6 @@ func BulkAddVirtualTableNames(myIdToVTableMap map[int64]map[string]struct{}) err
 			if err != nil {
 				log.Errorf("BulkAddVirtualTableNames: Error in adding virtual table names for myid=%d, err:%v", id, err)
 			}
-
 		}(myid, vTableNamesMap)
 	}
 
@@ -287,8 +294,7 @@ func IsVirtualTablePresent(tname *string, orgid int64) bool {
 }
 
 func AddVirtualTableAndMapping(tname *string, mapping *string, orgid int64) error {
-
-	//todo for dupe entries, write a goroutine that wakes up once per day (random time) and reads the
+	// todo for dupe entries, write a goroutine that wakes up once per day (random time) and reads the
 	// central place of virtualtablenames.txt and de-dupes the table names by creating a lock
 
 	err := AddVirtualTable(tname, orgid)
@@ -297,7 +303,6 @@ func AddVirtualTableAndMapping(tname *string, mapping *string, orgid int64) erro
 	}
 
 	return AddMapping(tname, mapping, orgid)
-
 }
 
 func AddMapping(tname *string, mapping *string, orgid int64) error {
@@ -374,7 +379,6 @@ func LoadVirtualTableNamesFromFile(fileName string, vTableMap map[string]bool) e
 }
 
 func AddAliases(indexName string, aliases []string, orgid int64) error {
-
 	if indexName == "" {
 		log.Errorf("AddAliases: indexName is null. len(indexName)=%v", len(indexName))
 		return errors.New("indexName is null")
@@ -427,7 +431,6 @@ func GetAllAliasesAsMapArray(orgid int64) (map[string][]string, error) {
 }
 
 func GetAliasesAsArray(indexName string, orgid int64) ([]string, error) {
-
 	retVal := []string{}
 
 	aliasNames, err := GetAliases(indexName, orgid)
@@ -442,7 +445,6 @@ func GetAliasesAsArray(indexName string, orgid int64) ([]string, error) {
 }
 
 func GetAliases(indexName string, orgid int64) (map[string]bool, error) {
-
 	var sb1 strings.Builder
 	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
@@ -475,11 +477,9 @@ func GetAliases(indexName string, orgid int64) (map[string]bool, error) {
 	}
 
 	return retval, nil
-
 }
 
 func writeAliasFile(indexName *string, allnames map[string]bool, orgid int64) error {
-
 	var sb1 strings.Builder
 	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
@@ -546,7 +546,6 @@ func initializeAliasToIndexMap() error {
 }
 
 func putAliasToIndexInMem(aliasName string, indexName string, orgid int64) {
-
 	if aliasName == "" {
 		log.Errorf("putAliasToIndexInMem: aliasName is empty. len(aliasName)=%v", len(aliasName))
 		return
@@ -596,7 +595,6 @@ func GetIndexNameFromAlias(aliasName string, orgid int64) (string, error) {
 }
 
 func IsAlias(nameToCheck string, orgid int64) (bool, string) {
-
 	if valMap, ok := aliasToIndexNames[orgid][nameToCheck]; ok {
 		for indexName := range valMap {
 			return true, indexName
@@ -607,7 +605,6 @@ func IsAlias(nameToCheck string, orgid int64) (bool, string) {
 }
 
 func RemoveAliases(indexName string, aliases []string, orgid int64) error {
-
 	if indexName == "" {
 		log.Errorf("RemoveAliases: indexName is null.len(indexName)=%v", len(indexName))
 		return errors.New("indexName is null")
@@ -662,13 +659,11 @@ func removeAliasFile(indexName *string, orgid int64) error {
 	}
 
 	return nil
-
 }
 
 // returns all indexNames that the input corresponding to after expanding "*" && aliases
 // if isElastic is false, indices containing .kibana will not be matched
-func ExpandAndReturnIndexNames(indexNameIn string, orgid int64, isElastic bool) []string {
-
+func ExpandAndReturnIndexNames(indexNameIn string, orgid int64, isElastic bool, ctx *fasthttp.RequestCtx) []string {
 	finalResultsMap := make(map[string]bool)
 
 	// we don't support  <remoteCluster:indexPattern>, so we will just convert this to indexPattern
@@ -745,7 +740,7 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid int64, isElastic bool) 
 			return []string{}
 		}
 		finalResults := []string{indexNameIn}
-		return finalResults
+		return filterOutUnauthorized(finalResults, ctx)
 	} else {
 		finalResults := make([]string, indexCount)
 		i := 0
@@ -754,10 +749,16 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid int64, isElastic bool) 
 			i++
 		}
 		finalResults = finalResults[:i]
-		sort.Strings(finalResults)
+		sort.Strings(filterOutUnauthorized(finalResults, ctx))
 		return finalResults
 	}
+}
 
+func filterOutUnauthorized(indexes []string, ctx *fasthttp.RequestCtx) []string {
+	if hook := hooks.GlobalHooks.FilteroutUnauthorizedIndexes; ctx != nil && hook != nil {
+		return hook(indexes, ctx)
+	}
+	return indexes
 }
 
 func isIndexExcluded(indexName string) bool {
