@@ -44,9 +44,6 @@ func newMockDatabase() *mockDatabase {
 }
 
 func (m *mockDatabase) CreateContact(contact *alertutils.Contact) error {
-	if contact.ContactName == "fail" {
-		return errors.New("forced create error")
-	}
 	contact.ContactId = fmt.Sprintf("%d", m.nextID)
 	m.nextID++
 	m.contacts[contact.OrgId] = append(m.contacts[contact.OrgId], *contact)
