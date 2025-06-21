@@ -431,6 +431,14 @@
     font-size: var(--font-size-lg);
 }
 
+.text-bold {
+    font-weight: 500;
+}
+
+.text-bolder {
+    font-weight: 700;
+}
+
 /* Button Utility Classes */
 .btn {
     height: var(--height-sm);
@@ -1661,7 +1669,6 @@ progress.hidden {
 
 #setting-container {
     box-shadow: var(--box-shadow);
-    padding: 6px;
     display: none;
     position: absolute;
     top: 40px;
@@ -1669,8 +1676,13 @@ progress.hidden {
     border-radius: 5px;
     z-index: 9;
     font-size: 12px !important;
-    background: var(--index-drop-down-box-bg-color);
+    background: var(--timepicker-bg-color);
     border: 1px solid var(--timepicker-border-color);
+    width: 190px;
+}
+
+#setting-container>div {
+    padding: 12px;
 }
 
 /* cluster stats start */
@@ -2197,7 +2209,7 @@ table.dataTable thead td {
     height: 100%;
     background-color: var(--ui-widget-overlay-bg-color);
     opacity: .75;
-    z-index: 1;
+    z-index: 2;
 }
 
 .rule-name-error {
@@ -2613,6 +2625,7 @@ input[type="text"].active {
     color: var(--table-or-regular-text-color);
     display: block;
     padding: 8px;
+    z-index: 2;
 }
 
 #daterangepicker.active {
@@ -3312,6 +3325,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     height: 30px;
     border-bottom: 1px solid var(--border-color-regular);
     background-color: var(--db-bg-color);
+    z-index: 1;
 }
 
 .panel div.panel-header p {
@@ -4234,7 +4248,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 #orgGridBtns {
-    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 
@@ -5485,7 +5501,6 @@ p#versionInfo {
 
 #alert-details {
     height: 100%;
-    overflow: hidden;
 }
 
 #history-grid {
@@ -5548,8 +5563,7 @@ p#versionInfo {
     margin-top: -47px;
 }
 
-#alerting #ag-grid,
-.users-data-table #ag-grid {
+#alerting #ag-grid {
     border: 1px solid var(--search-input-border);
     box-shadow: var(--box-shadow);
     border-radius: 5px;
@@ -6691,6 +6705,7 @@ p#versionInfo {
     padding: 8px;
     display: none;
     padding-top: 0;
+    position: relative;
 }
 
 .total-unique-series {
@@ -7714,7 +7729,7 @@ p#versionInfo {
     right: 0;
     height: 40px;
     border-bottom: 1px solid var(--alerting-table-line-color);
-    z-index: 1;
+    z-index: 2;
 }
 
 /* Hamburger Icon */

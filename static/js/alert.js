@@ -213,6 +213,9 @@ async function initializeFromUrl() {
     const params = new URLSearchParams(window.location.search);
     let alertType = params.get('type') || 'logs';
 
+    await toggleAlertTypeUI(alertType);
+    handleFormValidationTooltip(alertType);
+
     // Edit Mode
     if (params.has('id')) {
         alertType = await loadExistingAlert(params.get('id'));
@@ -242,9 +245,6 @@ async function initializeFromUrl() {
     if (!isEditMode && !isFromMetrics && alertType !== 'logs') {
         addQueryElement();
     }
-
-    handleFormValidationTooltip(alertType);
-    toggleAlertTypeUI(alertType);
 }
 
 async function loadExistingAlert(alertId) {
@@ -311,6 +311,9 @@ function saveAlert() {
 
     const url = isEditMode && !isFromMetrics ? 'api/alerts/update' : 'api/alerts/create';
 
+    const saveButton = $('#save-alert-btn');
+    const originalText = saveButton.text();
+
     $.ajax({
         method: 'post',
         url: url,
@@ -323,10 +326,14 @@ function saveAlert() {
         crossDomain: true,
     })
         .then(() => {
+            saveButton.text('Saving...');
+            setTimeout(() => {
+                window.location.href = '../all-alerts.html';
+            }, 1000);
             $('#alert-form')[0].reset();
-            window.location.href = '../all-alerts.html';
         })
         .catch((err) => {
+            saveButton.prop('disabled', false).text(originalText);
             showToast(err.responseJSON?.error || 'Failed to save alert', 'error');
         });
 }
@@ -408,6 +415,7 @@ async function fillAlertForm(res) {
         if (index === '') {
             setIndexDisplayValue('*');
         } else {
+            selectedSearchIndex = index;
             setIndexDisplayValue(index);
         }
 
@@ -429,6 +437,7 @@ async function fillAlertForm(res) {
             queryLanguage: 'Splunk QL',
         };
 
+        showLogsLoading();
         fetchLogsPanelData(data, -1)
             .then((res) => {
                 alertChart(res);
@@ -515,6 +524,7 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
         indexName: selectedSearchIndex,
         queryLanguage: queryLanguage,
     };
+    showLogsLoading();
     fetchLogsPanelData(data, -1)
         .then((res) => {
             alertChart(res);
@@ -847,7 +857,7 @@ function prepareLogsChartData(res, hits) {
 function handleErrors(error) {
     const logsExplorer = document.getElementById('logs-explorer');
     const errorText = error.responseJSON?.error || error.statusText || 'Failed to fetch logs data';
-    
+
     logsExplorer.style.display = 'flex';
     logsExplorer.innerHTML = `
         <div style="color: #666; text-align: center; padding: 20px; font-size: 16px; font-style: italic;">
@@ -905,4 +915,10 @@ function showEmptyChart(logsExplorer) {
             },
         },
     });
+}
+
+function showLogsLoading() {
+    const logsExplorer = document.getElementById('logs-explorer');
+    logsExplorer.style.display = 'flex';
+    logsExplorer.innerHTML = '<div class="panel-loading"></div>';
 }

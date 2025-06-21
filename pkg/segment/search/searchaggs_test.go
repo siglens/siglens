@@ -20,6 +20,8 @@ package search
 import (
 	"fmt"
 	"math/rand"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -163,7 +165,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *testing.T
 		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
-			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
+			assert.Equal(t, 1, len(resultMap), "The Last Segment should return a resultMap with a single key.")
 			assert.True(t, resultMap["CHECK_NEXT_AGG"], "The Last Segment should return a resultMap with a key CHECK_NEXT_AGG set to true.")
 			assert.Equal(t, 1, len(recs), "MeasureAggs: Should return only a single record containing result of the aggregation.")
 			for _, record := range recs {
@@ -485,4 +487,83 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 			assert.Nil(t, resultMap, "The resultMap should be nil until the last segment is processed")
 		}
 	}
+}
+
+func Test_PerformGroupByAggsWithRexColumns(t *testing.T) {
+	rawRecs := map[string]map[string]interface{}{
+		"rec1": {"_raw": "user=abc@alpha.com", "other_field": "value1"},
+		"rec2": {"_raw": "user=def@beta.com", "other_field": "value2"},
+		"rec3": {"_raw": "user=ghi@alpha.com", "other_field": "value3"},
+		"rec4": {"_raw": "user=jkl@gamma.com", "other_field": "value4"},
+		"rec5": {"_raw": "user=mno@beta.com", "other_field": "value5"},
+	}
+
+	rex := regexp.MustCompile(`(?i)user=.*@(?P<rex_field>[^ ]+)`)
+	recs := make(map[string]map[string]interface{}, len(rawRecs))
+	for id, r := range rawRecs {
+		recCopy := map[string]interface{}{
+			"other_field": r["other_field"],
+		}
+		if m := rex.FindStringSubmatch(r["_raw"].(string)); m != nil {
+			recCopy["rex_field"] = m[1]
+		}
+		recs[id] = recCopy
+	}
+
+	finalCols := map[string]bool{
+		"rex_field":   true,
+		"other_field": true,
+		"count(*)":    true,
+	}
+
+	nodeResult := &structs.NodeResult{
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.GroupByType,
+			GroupByRequest: &structs.GroupByRequest{
+				GroupByColumns: []string{"rex_field"},
+				MeasureOperations: []*structs.MeasureAggregator{{
+					MeasureCol:  "*",
+					MeasureFunc: sutils.Count,
+					StrEnc:      "count(*)",
+					ValueColRequest: &structs.ValueExpr{
+						ValueExprMode:  structs.VEMMultiValueExpr,
+						MultiValueExpr: &structs.MultiValueExpr{FieldName: "rex_field"},
+					},
+				}},
+				BucketCount: 3000,
+			},
+		},
+		GroupByCols:    []string{"rex_field"},
+		FinalColumns:   finalCols,
+		QueryStartTime: time.Now(),
+	}
+
+	flags := PerformAggsOnRecs(
+		nodeResult,
+		&structs.QueryAggregators{Limit: 0},
+		recs,
+		finalCols,
+		1,
+		true,
+		42,
+	)
+	assert.Equal(t, map[string]bool{"CHECK_NEXT_AGG": true}, flags)
+
+	assert.Len(t, recs, 3)
+
+	got := map[string]int{}
+	for _, r := range recs {
+		domain := r["rex_field"].(string)
+		cnt, err := strconv.Atoi(fmt.Sprint(r["count(*)"]))
+		assert.NoError(t, err)
+		got[domain] = cnt
+	}
+
+	want := map[string]int{
+		"alpha.com": 2,
+		"beta.com":  2,
+		"gamma.com": 1,
+	}
+	assert.Equal(t, want, got)
 }

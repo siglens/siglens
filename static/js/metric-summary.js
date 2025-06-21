@@ -20,14 +20,27 @@
 let stDate = 'now-1h';
 let endDate = 'now';
 let allMetrics = []; // To store all metrics initially
-
+let metricsPagination;
 let gridDiv = null;
+
 $(document).ready(() => {
     datePickerHandler(stDate, endDate, stDate);
     setupEventHandlers();
 
     $('.range-item').on('click', fetchAllMetrics);
     $('#customrange-btn').on('dateRangeValid', fetchAllMetrics);
+
+    //eslint-disable-next-line no-undef
+    metricsPagination = createPagination('metrics-pagination', {
+        pageSize: 50,
+        pageSizeOptions: [25, 50, 100, 200],
+        onPageChange: (page, pageSize) => {
+            displayMetricsPaginated(page, pageSize);
+        },
+        onPageSizeChange: (pageSize) => {
+            displayMetricsPaginated(1, pageSize);
+        },
+    });
 
     fetchAllMetrics();
 
@@ -63,7 +76,10 @@ function fetchAllMetrics() {
     }).then(function (res) {
         if (res && res.metricNames && Array.isArray(res.metricNames)) {
             allMetrics = res.metricNames; // Store all metrics
-            displaydata(allMetrics);
+
+            metricsPagination.updateState(allMetrics.length, 1);
+            metricsPagination.show();
+            displayMetricsPaginated(1, metricsPagination.getPageSize());
         } else {
             console.error('Invalid response format:', res);
         }
@@ -72,11 +88,30 @@ function fetchAllMetrics() {
 
 function filterMetrics() {
     const searchTerm = $('#metric-search-input').val().trim().toLowerCase();
-    const filteredMetrics = allMetrics.filter((metric) => metric.toLowerCase().includes(searchTerm));
-    displaydata(filteredMetrics);
+    const filteredMetrics = getFilteredMetrics(searchTerm);
+
+    // Update pagination with filtered data
+    metricsPagination.updateState(filteredMetrics.length, 1);
+    displayMetricsPaginated(1, metricsPagination.getPageSize());
 }
 
-function displaydata(metrics) {
+function getFilteredMetrics(searchTerm) {
+    if (!searchTerm) return allMetrics;
+    return allMetrics.filter((metric) => metric.toLowerCase().includes(searchTerm));
+}
+
+function displayMetricsPaginated(page, pageSize) {
+    const searchTerm = $('#metric-search-input').val().trim().toLowerCase();
+    const dataToShow = getFilteredMetrics(searchTerm);
+
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const pageData = dataToShow.slice(startIndex, endIndex);
+
+    displayData(pageData);
+}
+
+function displayData(metrics) {
     const metricRows = metrics.map((metric) => ({ metricName: metric }));
 
     if (gridDiv === null) {
@@ -85,30 +120,27 @@ function displaydata(metrics) {
         new agGrid.Grid(gridDiv, gridOptions);
     }
 
-    gridOptions.api.setColumnDefs([{ headerName: 'Metric Name', field: 'metricName' }]);
     gridOptions.api.setRowData(metricRows);
     gridOptions.api.sizeColumnsToFit();
 }
 
-// AG Grid options with pagination and sorting icons enabled
 var gridOptions = {
     headerHeight: 26,
     rowHeight: 34,
-    pagination: true,
-    paginationAutoPageSize: true,
+    pagination: false,
+    suppressDragLeaveHidesColumns: true,
     defaultColDef: {
         sortable: true,
         filter: false,
         resizable: false,
         cellStyle: { 'text-align': 'left' },
+        cellClass: 'align-center-grid d-flex',
         minWidth: 120,
         animateRows: true,
-        readOnlyEdit: true,
-        autoHeight: true,
-        icons: {
-            sortAscending: '<i class="fa fa-sort-alpha-down"/>',
-            sortDescending: '<i class="fa fa-sort-alpha-up"/>',
-        },
+    },
+    icons: {
+        sortAscending: '<i class="fa fa-sort-alpha-down"/>',
+        sortDescending: '<i class="fa fa-sort-alpha-up"/>',
     },
     onGridReady: function (params) {
         params.api.sizeColumnsToFit();
