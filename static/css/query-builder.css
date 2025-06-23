@@ -342,7 +342,7 @@ input.form-control {
 
 .custom-reset-button:hover,
 .custom-reset-button:focus {
-    background-color: var(--drop-down-btn-bg-hover);  /* Grey background on hover */
+    background-color: var(--drop-down-btn-bg-hover); 
     border-color: var(--border-btn-color);
     outline: none;
 }
