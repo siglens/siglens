@@ -97,8 +97,6 @@ func getAllSearchRequestsFromCmi(currQuery *structs.SearchQuery, timeRange *dtu.
 	searchRequestResults := make(chan *structs.SegmentSearchRequest, sizeChannel)
 	searchRequestErrors := make(chan error, sizeChannel)
 
-	dualCaseCheckEnabled := config.IsDualCaseCheckEnabled()
-
 	colsToCheck, wildcardColQuery := currQuery.GetAllColumnsInQuery()
 	delete(colsToCheck, config.GetTimeStampKey()) // timestamp should not be checked in cmi
 	var blockWG sync.WaitGroup
@@ -108,7 +106,7 @@ func getAllSearchRequestsFromCmi(currQuery *structs.SearchQuery, timeRange *dtu.
 			go func(key, indName string, blkT *BlockTracker) {
 				defer blockWG.Done()
 				finalReq, totalBlockCount, filteredBlockCount, err := metadata.RunCmiCheck(key, indName, timeRange, blkT, bloomKeys, originalBloomKeys, bloomOp,
-					rangeFilter, rangeOp, isRange, wildCardValue, currQuery, colsToCheck, wildcardColQuery, qid, isQueryPersistent, pqid, dualCaseCheckEnabled)
+					rangeFilter, rangeOp, isRange, wildCardValue, currQuery, colsToCheck, wildcardColQuery, qid, isQueryPersistent, pqid)
 				if err != nil {
 					log.Errorf("qid=%d, getAllSearchRequestsFromCmi: Failed to get search request from cmi: %+v", qid, err)
 					searchRequestErrors <- err

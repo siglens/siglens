@@ -26,7 +26,7 @@ import (
 // literal can either be a string or a json.Number
 type ExpressionInput struct {
 	ColumnValue         *DtypeEnclosure // column value: "0", "abc", "abcd*", "0.213". This value will be normalized to Lower Case if the search is case insensitive.
-	OriginalColumnValue *DtypeEnclosure // original column value. Similar to Column Value, but is only created when dualCaseCheck is enabled and the search is case insensitive
+	OriginalColumnValue *DtypeEnclosure // original column value. Similar to Column Value, but is only created when the search is case insensitive
 	ColumnName          string          // column name for expression: "col1", "col2", ... "colN"
 }
 

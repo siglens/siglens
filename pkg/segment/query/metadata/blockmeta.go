@@ -68,8 +68,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 	rangeFilter map[string]string, rangeOp sutils.FilterOperator, isRange bool,
 	wildCardValue bool, currQuery *structs.SearchQuery,
 	colsToCheck map[string]bool, wildcardCol bool,
-	qid uint64, isQueryPersistent bool, pqid string,
-	dualCaseCheckEnabled bool) (*structs.SegmentSearchRequest, uint64, uint64, error) {
+	qid uint64, isQueryPersistent bool, pqid string) (*structs.SegmentSearchRequest, uint64, uint64, error) {
 
 	isMatchAll := currQuery.IsMatchAll()
 
@@ -101,7 +100,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 	if !isMatchAll && !missingBlockCMI {
 		doCmiChecks(smi, timeFilteredBlocks, qid, rangeFilter, rangeOp, colsToCheck,
 			currQuery, isRange, wildcardCol, wildCardValue, bloomKeys, originalBloomKeys,
-			bloomOp, dualCaseCheckEnabled)
+			bloomOp)
 	}
 
 	filteredBlockCount := uint64(0)
@@ -126,7 +125,7 @@ func doCmiChecks(smi *metadata.SegmentMicroIndex, timeFilteredBlocks map[uint16]
 	colsToCheck map[string]bool,
 	currQuery *structs.SearchQuery, isRange bool, wildcardCol bool,
 	wildCardValue bool, bloomKeys map[string]bool, originalBloomKeys map[string]string,
-	bloomOp sutils.LogicalOperator, dualCaseCheckEnabled bool) {
+	bloomOp sutils.LogicalOperator) {
 
 	for blockToCheck := range timeFilteredBlocks {
 		if blockToCheck >= uint16(len(smi.BlockSummaries)) {
@@ -147,9 +146,9 @@ func doCmiChecks(smi *metadata.SegmentMicroIndex, timeFilteredBlocks map[uint16]
 			}
 			if !wildCardValue && !negateMatch {
 				if wildcardCol {
-					doBloomCheckAllCol(smi, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, dualCaseCheckEnabled, qid)
+					doBloomCheckAllCol(smi, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, qid)
 				} else {
-					doBloomCheckForCol(smi, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, colsToCheck, dualCaseCheckEnabled, qid)
+					doBloomCheckForCol(smi, blockToCheck, bloomKeys, originalBloomKeys, bloomOp, timeFilteredBlocks, colsToCheck, qid)
 				}
 			}
 		}
@@ -216,9 +215,9 @@ func doRangeCheckForCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck 
 
 func doBloomCheckForCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool, originalBloomKeys map[string]string,
 	bloomOp sutils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool,
-	colsToCheck map[string]bool, dualCaseEnabled bool, qid uint64) {
+	colsToCheck map[string]bool, qid uint64) {
 
-	checkInOriginalKeys := dualCaseEnabled && len(originalBloomKeys) > 0
+	checkInOriginalKeys := len(originalBloomKeys) > 0
 
 	var matchedNeedleInBlock = true
 	for entry := range bloomKeys {
@@ -258,10 +257,9 @@ func doBloomCheckForCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck 
 }
 
 func doBloomCheckAllCol(segMicroIndex *metadata.SegmentMicroIndex, blockToCheck uint16, bloomKeys map[string]bool, originalBloomKeys map[string]string,
-	bloomOp sutils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool,
-	dualCaseCheckEnabled bool, qid uint64) {
+	bloomOp sutils.LogicalOperator, timeFilteredBlocks map[uint16]map[string]bool, qid uint64) {
 
-	checkInOriginalKeys := dualCaseCheckEnabled && len(originalBloomKeys) > 0
+	checkInOriginalKeys := len(originalBloomKeys) > 0
 
 	var matchedNeedleInBlock = true
 	var allEntriesMissing bool = false
