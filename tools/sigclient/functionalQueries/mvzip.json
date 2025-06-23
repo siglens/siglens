@@ -1,0 +1,61 @@
+{
+    "queryText": "city=boston | eval mv1=http_method.\",\".batch.\",\".account_status.\",\".http_status | eval mv2=latency.\",\".app_name.\",\".app_version | makemv delim=\",\" mv1 | makemv delim=\",\" mv2 | eval zipped = mvzip(mv1, mv2, \":\") | head 5 | fields zipped, ident",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 5,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": [
+            "ident"
+        ],
+        "records": [
+            {
+                "ident": "0a7902e4-2869-45e5-99de-22b1aeecfede",
+                "zipped": [
+                    "GET:8592022",
+                    "batch-75:LightGrayream",
+                    "active:5.17.17"
+                ]
+            },
+            {
+                "ident": "5644ebc3-afb2-4b47-a411-8510b027dbf9",
+                "zipped": [
+                    "POST:6410194",
+                    "batch-683:Kangaroocan",
+                    "inactive:1.14.17"
+                ]
+            },
+            {
+                "ident": "b40f3267-3d65-4ffb-a88f-51af0bdff718",
+                "zipped": [
+                    ":2719463"
+                ]
+            },
+            {
+                "ident": "59e37369-feb2-40ac-a01f-3636d234a8e6",
+                "zipped": [
+                    "PATCH:9286131",
+                    "batch-792:LightGreencovey",
+                    "inactive:3.17.20"
+                ]
+            },
+            {
+                "ident": "452922de-6bb7-4552-9dcf-e76360d78795",
+                "zipped": [
+                    "DELETE:7446604",
+                    "batch-364:Doorride",
+                    "active:1.10.12"
+                ]
+            }
+        ],
+        "allColumns": [
+            "ident",
+            "zipped"
+        ],
+        "columnsOrder": [
+            "zipped",
+            "ident"
+        ]
+    }
+}
