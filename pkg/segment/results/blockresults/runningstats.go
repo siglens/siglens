@@ -777,7 +777,7 @@ func (rr *RunningBucketResults) AddEvalResultsForCardinality(runningStats *[]run
 		return 0, nil
 	}
 
-	_, err := agg.PerformAggEvalForCardinality(rr.currStats[i], hll, fieldToValue)
+	err := agg.PerformAggEvalForCardinality(rr.currStats[i], hll, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
 	}

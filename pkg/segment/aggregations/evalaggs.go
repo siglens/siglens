@@ -817,18 +817,18 @@ func ComputeAggEvalForVarp(measureAgg *structs.MeasureAggregator, sstMap map[str
 	return nil
 }
 
-func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, hll *utils.GobbableHll, fieldToValue map[string]sutils.CValueEnclosure) (float64, error) {
+func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, hll *utils.GobbableHll, fieldToValue map[string]sutils.CValueEnclosure) error {
 	if len(fieldToValue) == 0 {
 		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
 		if err != nil {
-			return 0.0, fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request function: %v", err)
+			return fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request function: %v", err)
 		}
 		hll.AddRaw(xxhash.Sum64String(valueStr))
 	} else {
 		if measureAgg.ValueColRequest.BooleanExpr != nil {
 			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
 			if err != nil {
-				return 0.0, fmt.Errorf("PerformAggEvalForCardinality: there are some errors in the eval function that is inside the values function: %v", err)
+				return fmt.Errorf("PerformAggEvalForCardinality: there are some errors in the eval function that is inside the values function: %v", err)
 			}
 			if boolResult {
 				hll.AddRaw(1) // sentinel value
@@ -836,12 +836,14 @@ func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, hll *ut
 		} else {
 			cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
 			if err != nil {
-				return 0.0, fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request function: %v", err)
+				return fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request function: %v", err)
 			}
 			hll.AddRaw(xxhash.Sum64String(cellValueStr))
 		}
 	}
-	return float64(hll.Cardinality()), nil
+
+	// it is slow to compute hll.Cardinality() after each record, so we do not compute it after inserting each record (see ComputeAggEvalForCardinality)
+	return nil
 }
 
 // Always pass a non-nil strSet when using this function
@@ -896,7 +898,7 @@ func PerformAggEvalForList(measureAgg *structs.MeasureAggregator, currentList []
 
 func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
-	result := 0.0
+	var result int64
 	var err error
 	var hll *utils.GobbableHll
 	_, ok := runningEvalStats[measureAgg.String()]
@@ -911,10 +913,11 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 	}
 
 	if len(fields) == 0 {
-		result, err = PerformAggEvalForCardinality(measureAgg, hll, nil)
+		err = PerformAggEvalForCardinality(measureAgg, hll, nil)
 		if err != nil {
 			return fmt.Errorf("ComputeAggEvalForCardinality: Error while performing eval agg for cardinality, err: %v", err)
 		}
+		result = int64(hll.Cardinality())
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
@@ -929,16 +932,17 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 				return fmt.Errorf("ComputeAggEvalForCardinality: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
-			result, err = PerformAggEvalForCardinality(measureAgg, hll, fieldToValue)
+			err = PerformAggEvalForCardinality(measureAgg, hll, fieldToValue)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForCardinality: Error while performing eval agg for cardinality, err: %v", err)
 			}
 		}
+		result = int64(hll.Cardinality())
 	}
 
 	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_SIGNED_NUM,
-		CVal:  int64(result),
+		CVal:  result,
 	}
 
 	return nil
