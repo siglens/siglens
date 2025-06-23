@@ -50,7 +50,7 @@ func (p *tojsonProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			for _, option := range p.options.FieldsDtypes {
 				compiledRgx := option.Regex.GetCompiledRegex()
 				if compiledRgx.Match([]byte(cname)) {
-					if option.Dtype == structs.TJ_PP {
+					if option.Dtype == structs.TJ_PostProcess {
 						columnToDtype[cname] = p.options.DefaultType.Dtype
 					} else {
 						columnToDtype[cname] = option.Dtype

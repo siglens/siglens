@@ -51,6 +51,21 @@ func stringToToJsonDtype(dtype string) structs.ToJsonDtypes {
     return optionDtype
 }
 
+type ToJsonCmdOption struct {
+	OptionType ToJsonCmd
+	Value      any
+}
+
+type ToJsonCmd uint8
+
+const (
+    TJ_CMD_FUNCTION ToJsonCmd = iota
+    TJ_CMD_DEFAULT_TYPE
+    TJ_CMD_FILL_NULL
+    TJ_CMD_INCLUDE_INTERNAL
+    TJ_CMD_OUTPUT_FIELD
+)
+
 func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (int64, error) {
     var epoch int64 = 0
     var err error
@@ -5426,15 +5441,15 @@ ToJsonFunctionOption <- (dtype:("auto" / "bool" / "json" / "num" / "str" / "none
         err = gobRegex.SetRegex(regex.FieldName)
     }
     if err != nil {
-        return nil, fmt.Errorf("spl peg: Regex compile: %v", err)
+        return nil, fmt.Errorf("spl peg: Regex compile for tojson: %v", err)
     }
     optionDtype := stringToToJsonDtype(string(dtype.([]byte)))
     option := &structs.ToJsonFieldsDtypeOptions {
         Dtype: optionDtype,
         Regex: &gobRegex,
     }
-    return &structs.ToJsonCmdOption {
-        OptionType: "tojson-function",
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_FUNCTION,
         Value: option,
     }, nil
 }
@@ -5452,14 +5467,14 @@ ToJsonFunctionPostProcess <- regexPattern:StringExpr {
         err = gobRegex.SetRegex(regex.FieldName)
     }
     if err != nil {
-        return nil, fmt.Errorf("spl peg: Regex compile: %v", err)
+        return nil, fmt.Errorf("spl peg: Regex compile for tojson: %v", err)
     }
     option := &structs.ToJsonFieldsDtypeOptions {
-        Dtype: structs.TJ_PP,
+        Dtype: structs.TJ_PostProcess,
         Regex: &gobRegex,
     }
-    return &structs.ToJsonCmdOption {
-        OptionType: "tojson-function",
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_FUNCTION,
         Value: option,
     }, nil
 }
@@ -5471,36 +5486,36 @@ DefaultTypeOption <- "default_type" EQUAL dtype:("auto" / "bool" / "json" / "num
         Dtype: optionDtype,
         Regex: &gobRegex,
     }
-    return &structs.ToJsonCmdOption {
-        OptionType: "default_type",
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_DEFAULT_TYPE,
         Value: option,
     }, nil
 }
 
 FillNullOption <- "fill_null" EQUAL boolVal:Boolean {
-    return &structs.ToJsonCmdOption {
-        OptionType: "fill_null",
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_FILL_NULL,
         Value: boolVal.(bool),
     }, nil
 }
 
 IncludeInternalOption <- "include_internal" EQUAL boolVal:Boolean {
-    return &structs.ToJsonCmdOption {
-        OptionType: "include_internal",
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_INCLUDE_INTERNAL,
         Value: boolVal.(bool),
     }, nil
 }
 
 OutputFieldOption <- "output_field" EQUAL strVal:String {
-    return &structs.ToJsonCmdOption {
-        OptionType: "output_field",
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_OUTPUT_FIELD,
         Value: strVal.(string),
     }, nil
 }
 
 ToJsonBlock <- PIPE CMD_TOJSON options:(ToJsonOption)* {
     defaultDtypeRegex := utils.GobbableRegex{}
-    err := defaultDtypeRegex.SetRegex(`\*`)
+    err := defaultDtypeRegex.SetRegex(`.*`)
     if err != nil {
         return nil, fmt.Errorf("spl peg: Regex Compile: %v", err)
     }
@@ -5521,22 +5536,22 @@ ToJsonBlock <- PIPE CMD_TOJSON options:(ToJsonOption)* {
         AllFields: true,
     }
     for _, opt := range options.([]interface{}) {
-        if option, ok := opt.(*structs.ToJsonCmdOption); ok {
+        if option, ok := opt.(*ToJsonCmdOption); ok {
             switch option.OptionType {
-            case "tojson-function":
+            case TJ_CMD_FUNCTION:
                 if toJsonDefaultOptions.AllFields {
                     toJsonDefaultOptions.FieldsDtypes[0] = option.Value.(*structs.ToJsonFieldsDtypeOptions)
                     toJsonDefaultOptions.AllFields = false
                 } else {
                     toJsonDefaultOptions.FieldsDtypes = append(toJsonDefaultOptions.FieldsDtypes, option.Value.(*structs.ToJsonFieldsDtypeOptions))
                 }
-            case "default_type":
+            case TJ_CMD_DEFAULT_TYPE:
                 toJsonDefaultOptions.DefaultType = option.Value.(*structs.ToJsonFieldsDtypeOptions)
-            case "fill_null":
+            case TJ_CMD_FILL_NULL:
                 toJsonDefaultOptions.FillNull = option.Value.(bool)
-            case "include_internal":
+            case TJ_CMD_INCLUDE_INTERNAL:
                 toJsonDefaultOptions.IncludeInternal = option.Value.(bool)
-            case "output_field":
+            case TJ_CMD_OUTPUT_FIELD:
                 toJsonDefaultOptions.OutputField = option.Value.(string)
             default:
                 return nil, fmt.Errorf("ToJsonBlock: Received unexpected option; option-%v", option.OptionType)

@@ -376,11 +376,6 @@ type ToJsonExpr struct {
 	AllFields       bool
 }
 
-type ToJsonCmdOption struct {
-	OptionType string
-	Value      any
-}
-
 type ToJsonFieldsDtypeOptions struct {
 	Dtype ToJsonDtypes
 	Regex *utils.GobbableRegex
@@ -395,7 +390,8 @@ const (
 	TJ_Json
 	TJ_Num
 	TJ_Str
-	TJ_PP // post process
+	// Data type will be set later during processing
+	TJ_PostProcess
 )
 
 // Only NewColName and one of the other fields should have a value
@@ -1570,7 +1566,7 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"isnum":            {},
 	"isnotnull":        {},
 	"spath":            {},
-	// "eventcount":       {},
+	"eventcount":       {},
 }
 
 type StatsFuncChecker struct{}
