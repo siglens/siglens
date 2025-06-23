@@ -26,6 +26,7 @@ gentimes_2.json
 mv_to_json_array.json
 mvsort.json
 mvzip.json
+mvmap.json
 multi_value.json
 mvappend.json
 mvdedup.json

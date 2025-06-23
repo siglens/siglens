@@ -1,14 +1,22 @@
 {
-    "queryText": "city=Boston | eval results=\"1,2,3\" | makemv delim=\",\" results | eval mapped=mvmap(results, value*10) | fields mapped",
+    "queryText": "search * | head 1 | eval results=\"1,2,3\" | makemv delim=\",\" results | eval mapped=mvmap(results, value*10) | fields mapped",
     "expectedResult": {
         "totalMatched": {
             "value": 1,
             "relation": "eq"
         },
         "qtype": "logs-query",
-        "uniqueKeyCols": ["mapped"],
+        "uniqueKeyCols": [
+            "mapped"
+        ],
         "records": [
-            { "mapped": ["10", "20", "30"] }
+            {
+                "mapped": [
+                    "10",
+                    "20",
+                    "30"
+                ]
+            }
         ],
         "allColumns": [
             "mapped"
