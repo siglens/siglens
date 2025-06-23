@@ -141,7 +141,7 @@ class Pagination {
             <i class="fa fa-angle-double-right"></i>
         </button>
         <span class="pagination-info fixed-pagination-text">
-            Showing ${formatNumber(startRecord)}-${formatNumber(endRecord)} of ${formatNumber(this.totalRecords)} records
+            Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${this.totalRecords.toLocaleString()} records
         </span>`;
 
         pagesContainer.innerHTML = html;
@@ -184,11 +184,4 @@ function createPagination(containerId, options = {}) {
     const instance = new Pagination(containerId, options);
     window.paginationInstances[containerId] = instance;
     return instance;
-}
-function formatNumber(num) {
-    return num.toLocaleString('en-US', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-        useGrouping: true
-    });
 }

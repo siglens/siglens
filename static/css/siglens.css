@@ -7537,8 +7537,8 @@ p#versionInfo {
 
 .pagination-info {
     display: inline-block;
-    font-family: 'Roboto Mono', 'Courier New', monospace;
-    min-width: 300px;
+    font-family: 'Roboto Mono';
+    min-width: 250px;
     text-align: left;
     white-space: nowrap;
     padding: 0 10px;
