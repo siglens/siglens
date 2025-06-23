@@ -753,7 +753,6 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid int64, isElastic bool) 
 			finalResults[i] = indexName
 			i++
 		}
-		finalResults = finalResults[:i]
 		sort.Strings(finalResults)
 		return finalResults
 	}

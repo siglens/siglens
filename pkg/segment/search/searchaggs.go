@@ -1168,6 +1168,12 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		return
 	}
 
+	// Allocate a block of RRCs to avoid overhead of many allocations and GC
+	// tracking many items. If we need more RRCs, we'll allocate a new block.
+	const rrcsBlockSize = 256 // Kind of arbitrary.
+	rrcs := make([]sutils.RecordResultContainer, rrcsBlockSize)
+	nextRrcsIdx := 0
+
 	segKeyEnc := allSearchResults.GetAddSegEnc(searchReq.SegmentKey)
 	numRecsMatched := uint16(0)
 	for recNum := uint(0); recNum < uint(recIT.AllRecLen); recNum++ {
@@ -1189,16 +1195,23 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		}
 		numRecsMatched++
 
-		rrc := &sutils.RecordResultContainer{
-			SegKeyInfo: sutils.SegKeyInfo{
-				SegKeyEnc: segKeyEnc,
-				IsRemote:  false,
-			},
-			BlockNum:         blockStatus.BlockNum,
-			RecordNum:        recNumUint16,
-			VirtualTableName: searchReq.VirtualTableName,
-			TimeStamp:        recTs,
+		if nextRrcsIdx >= rrcsBlockSize {
+			// Allocate a new block.
+			rrcs = make([]sutils.RecordResultContainer, rrcsBlockSize)
+			nextRrcsIdx = 0
 		}
+
+		rrc := &rrcs[nextRrcsIdx]
+		nextRrcsIdx++
+		rrc.SegKeyInfo = sutils.SegKeyInfo{
+			SegKeyEnc: segKeyEnc,
+			IsRemote:  false,
+		}
+		rrc.BlockNum = blockStatus.BlockNum
+		rrc.RecordNum = recNumUint16
+		rrc.VirtualTableName = searchReq.VirtualTableName
+		rrc.TimeStamp = recTs
+
 		blkResults.Add(rrc)
 
 	}
