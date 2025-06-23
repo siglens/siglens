@@ -831,7 +831,9 @@ func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, hll *ut
 				return fmt.Errorf("PerformAggEvalForCardinality: there are some errors in the eval function that is inside the values function: %v", err)
 			}
 			if boolResult {
-				hll.AddRaw(1) // sentinel value
+				// sentinel value, this corresponds to all bits set, which makes it a good sentinel value for this
+				// implementation of HLL
+				hll.AddRaw(uint64(0xffffffffffffffff))
 			}
 		} else {
 			cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
@@ -1310,11 +1312,36 @@ func AddMeasureAggInRunningStatsForLatestOrEarliest(m *structs.MeasureAggregator
 	return idx, nil
 }
 
-func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+func AddMeasureAggInRunningStatsForCardinality(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
 
 	fields := m.ValueColRequest.GetFields()
 	if len(fields) == 0 {
-		return idx, fmt.Errorf("AddMeasureAggInRunningStatsForValuesOrCardinality: Incorrect number of fields for aggCol: %v", m.String())
+		return idx, fmt.Errorf("AddMeasureAggInRunningStatsForCardinality: Incorrect number of fields for aggCol: %v", m.String())
+	}
+
+	// Use the index of agg to map to the corresponding index of the runningStats result, so that we can determine which index of the result set contains the result we need.
+	*allReverseIndex = append(*allReverseIndex, idx)
+	for _, field := range fields {
+		if _, ok := colToIdx[field]; !ok {
+			colToIdx[field] = make([]int, 0)
+		}
+		colToIdx[field] = append(colToIdx[field], idx)
+		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+			MeasureCol:      field,
+			MeasureFunc:     sutils.Cardinality,
+			ValueColRequest: m.ValueColRequest,
+			StrEnc:          m.StrEnc,
+		})
+		idx++
+	}
+	return idx, nil
+}
+
+func AddMeasureAggInRunningStatsForValues(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+
+	fields := m.ValueColRequest.GetFields()
+	if len(fields) == 0 {
+		return idx, fmt.Errorf("AddMeasureAggInRunningStatsForValues: Incorrect number of fields for aggCol: %v", m.String())
 	}
 
 	// Use the index of agg to map to the corresponding index of the runningStats result, so that we can determine which index of the result set contains the result we need.
