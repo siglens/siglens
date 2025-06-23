@@ -334,20 +334,19 @@ input.form-control {
     margin-top: -6px;
     transition: all 0.2s ease-in-out;
     white-space: nowrap;
+    appearance: none;
+    box-shadow: none;
+    border-style: solid;
+    display: none;
 }
 
-.custom-reset-button.active {
-    background-color: var(--tab-active-background); 
-    border: 1px solid var(--purple-1);   
-    color: var(--text-color);
-}
-
-.custom-reset-button:hover:not(.active),
-.custom-reset-button:focus:not(.active) {
-    background-color: var(--drop-down-btn-bg-hover);
+.custom-reset-button:hover,
+.custom-reset-button:focus {
+    background-color: var(--drop-down-btn-bg-hover);  /* Grey background on hover */
     border-color: var(--border-btn-color);
     outline: none;
 }
+
 
 .search-img {
     background-image: url("../assets/search-img.svg");
