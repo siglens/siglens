@@ -2264,3 +2264,100 @@ func Test_GetDefaultTimechartSpanOptions(t *testing.T) {
 		})
 	}
 }
+
+func Test_Spath_JSON(t *testing.T) {
+
+	type args struct {
+		data          string
+		path          string
+		expectedValue string
+	}
+
+	var testCases = []args{
+		{
+			data:          `{"name": "John", "age": 30, "city": "New York"}`,
+			path:          `city`,
+			expectedValue: `New York`,
+		},
+		{
+			data:          `{"name": "John", "age": 30, "city": "New York"}`,
+			path:          `address.city`,
+			expectedValue: ``,
+		},
+		{
+			data:          `[{"name": "John", "age": 30, "city": "New York"}, {"name": "Alice", "age": 25, "city": "Los Angeles"}]`,
+			path:          `{0}.city`,
+			expectedValue: "New York",
+		},
+		{
+			data:          `[{"name": "John", "age": 30, "city": "New York"}, {"name": "Alice", "age": 25, "city": "Los Angeles"}]`,
+			path:          `{}.city`,
+			expectedValue: `["New York","Los Angeles"]`,
+		},
+		{
+			data: `[{"name": "John", "age": 30, "city": "New York"}, {"name": "Alice", "age": 25, "city": "Los Angeles"}]`,
+			path: `{}`,
+			// the JSON module we're using produces a string with the fields sorted lexicographically
+			expectedValue: `[{"age":30,"city":"New York","name":"John"},{"age":25,"city":"Los Angeles","name":"Alice"}]`,
+		},
+		{
+			data:          `{"people": [{"name": "John", "age": 30, "city": "New York"}, {"name": "Alice", "age": 25}]}`,
+			path:          `people{}.city`,
+			expectedValue: `["New York"]`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		actualValue, err := extractValueFromJSON(testCase.data, testCase.path)
+		assert.Nil(t, err)
+		assert.Equal(t, testCase.expectedValue, actualValue)
+	}
+}
+
+func Test_Spath_XML(t *testing.T) {
+
+	type args struct {
+		data          string
+		path          string
+		expectedValue string
+	}
+
+	var testCases = []args{
+		{
+			data:          `<person><name>John</name><age>30</age><city>New York</city></person>`,
+			path:          `person.city`,
+			expectedValue: "New York",
+		},
+		{
+			data:          `<person><name>John</name><age>30</age><city>New York</city></person>`,
+			path:          `person.address.city`,
+			expectedValue: "",
+		},
+		{
+			data:          `<name>John</name>`,
+			path:          `name`,
+			expectedValue: "John",
+		},
+		{
+			data:          `<people><person><name>John</name><age>30</age><city>New York</city></person><person><name>Alice</name><age>25</age><city>Los Angeles</city></person></people>`,
+			path:          `people.person{1}.city`, // XML uses 1-indexing
+			expectedValue: "New York",
+		},
+		{
+			data:          `<people><person><name>John</name><age>30</age><city>New York</city></person><person><name>Alice</name><age>25</age><city>Los Angeles</city></person></people>`,
+			path:          `people.person.city`,
+			expectedValue: "<city>New York</city><city>Los Angeles</city>",
+		},
+		{
+			data:          `<people><person><pet>Cat</pet><pet>Dog</pet></person><person><pet>Hamster</pet><pet>Goldfish</pet></person></people>`,
+			path:          `people.person.pet`,
+			expectedValue: "<pet>Cat</pet><pet>Dog</pet><pet>Hamster</pet><pet>Goldfish</pet>",
+		},
+	}
+
+	for _, testCase := range testCases {
+		actualValue, err := extractValueFromXML(testCase.data, testCase.path)
+		assert.Nil(t, err)
+		assert.Equal(t, testCase.expectedValue, actualValue)
+	}
+}
