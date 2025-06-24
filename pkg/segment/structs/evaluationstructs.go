@@ -2600,30 +2600,24 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 
 		log.Infof("TextExpr.EvaluateText: fieldToValue: %#v, inputColName: %s, path: %s", fieldToValue, inputColName, path)
 		// Get the input column value
-		inputVal, errJSON := getValueAsString(fieldToValue, inputColName)
+		fieldValueStr, errJSON := getValueAsString(fieldToValue, inputColName)
 		// inputVal, ok := fieldToValue[inputColName]
 		if errJSON != nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: input column '%s' not found", inputColName)
 		}
 
-		// Convert the input value to a string
-		inputStr := inputVal
-
-		// Now you have the input string and the path, you can implement the logic to extract the value from the structured data (JSON, XML, etc.)
-		// This part depends on how your structured data extraction works.
-		// For example, if it's JSON, you might use the `jsonparser` library:
-		log.Infof("Extract value from JSON: inputStr: %s, path: %s", inputStr, path)
-		extractedValue, errJSON := extractInnerJSONObj(inputStr, path)
-		if errJSON == nil {
+		extractedValue := extractInnerJSONObj(fieldValueStr, path)
+		if extractedValue != "" {
 			return extractedValue, nil
 		}
 
-		extractedValue, errXML := extractInnerXMLObj(inputStr, path)
-		if errXML == nil {
+		extractedValue = extractInnerXMLObj(fieldValueStr, path)
+		if extractedValue != "" {
 			return extractedValue, nil
 		}
 
-		return "", fmt.Errorf("TextExpr.EvaluateText: error extracting value from JSON: %v, error extracting value from XML: %v", errJSON, errXML)
+		// This fails silently
+		return "", nil
 
 	}
 	if self.Op == "max" {
@@ -2783,18 +2777,18 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]sutils.
 	return str, nil
 }
 
-func extractInnerJSONObj(outerJSON, path string) (string, error) {
+func extractInnerJSONObj(outerJSON, path string) string {
 
 	var outerObj interface{}
 
 	err := json.Unmarshal([]byte(outerJSON), &outerObj)
 	if err != nil {
-		return "", fmt.Errorf("extractInnerJSONObj: error unmarshalling input string: %v", err)
+		return ""
 	}
 
 	// This is an invalid path; we check for this here since this would cause issues later on
 	if strings.Contains(path, ".{") {
-		return "", fmt.Errorf("extractInnerJSONObj: invalid path '%s' contains '.{'", path)
+		return ""
 	}
 
 	// we convert path into a format that is easier to work with
@@ -2805,42 +2799,40 @@ func extractInnerJSONObj(outerJSON, path string) (string, error) {
 	}
 	parts := strings.Split(newPath, ".")
 
-	innerObj, err := extractInnerJSONObjUsingParts(outerObj, parts)
-
-	if err != nil {
-		return "", fmt.Errorf("extractInnerJSONObj: error extracting object at path %s in %s: %v", path, outerJSON, err)
-	}
+	innerObj := extractInnerJSONObjUsingParts(outerObj, parts)
 
 	switch innerObj := innerObj.(type) {
 	case string:
-		return innerObj, nil
+		return innerObj
 	case nil:
-		return "", nil
+		return ""
 	default:
 		jsonBytes, err := json.Marshal(innerObj)
 		if err != nil {
-			return "", fmt.Errorf("extractValueFromJSON: error marshalling value to string: %v", err)
+			return ""
 		}
 
 		jsonStr := string(jsonBytes)
 
-		return jsonStr, nil
+		return jsonStr
 	}
 }
 
 // helper function for extractInnerJSONObj
-func extractInnerJSONObjUsingParts(currentObj interface{}, parts []string) (interface{}, error) {
+func extractInnerJSONObjUsingParts(currentObj interface{}, parts []string) interface{} {
 
 	if len(parts) == 0 {
+		// this means that we are at the end of the path, so we return the current object
+
 		// splunk requires that we specify the indices of the array
 		// e.g. field1.array1{0}
 		// For accessing all records in array1, use field1.array1{} or field1.array1{}{}, etc.
 		// Do not use field1.array1
 		switch currentObj.(type) {
 		case []interface{}:
-			return nil, nil
+			return nil
 		default:
-			return currentObj, nil
+			return currentObj
 		}
 	}
 
@@ -2855,30 +2847,27 @@ func extractInnerJSONObjUsingParts(currentObj interface{}, parts []string) (inte
 				var resultArr []interface{}
 				for _, subObj := range currentObj {
 					// query each element in the array and concatenate the results
-					resultSubObj, err := extractInnerJSONObjUsingParts(subObj, parts[1:])
-					if err != nil {
-						return nil, err
-					}
+					resultSubObj := extractInnerJSONObjUsingParts(subObj, parts[1:])
 					if resultSubObj != nil {
 						resultArr = append(resultArr, resultSubObj)
 					}
 				}
-				return resultArr, nil
+				return resultArr
 			}
 
 			index, err := strconv.Atoi(firstPart[1 : len(firstPart)-1]) // remove the curly braces and convert to int
 			if err != nil {
-				return nil, fmt.Errorf("extractValueFromJSONpathParts: could not convert index to integer '%s': %v", firstPart, err)
+				return nil
 			}
 
 			if index < 0 || index >= len(currentObj) { // index out of bounds
-				return nil, nil
+				return nil
 			}
 
 			// recursively query nested JSON object
 			return extractInnerJSONObjUsingParts(currentObj[index], parts[1:])
 		default:
-			return nil, fmt.Errorf("extractValueFromJSONpathParts: expected an array at part '%s', but found a different type", firstPart)
+			return nil
 		}
 	} else {
 		// part is a field name
@@ -2887,27 +2876,27 @@ func extractInnerJSONObjUsingParts(currentObj interface{}, parts []string) (inte
 			nestedObject, ok := value[firstPart]
 
 			if !ok { // key doesn't exist
-				return nil, nil
+				return nil
 			}
 
 			return extractInnerJSONObjUsingParts(nestedObject, parts[1:])
 		default:
-			return nil, fmt.Errorf("extractValueFromJSONpathParts: expected a JSON object at '%s', but found a different type", firstPart)
+			return nil
 		}
 	}
 }
 
-func extractInnerXMLObj(inputStr, path string) (string, error) {
+func extractInnerXMLObj(inputStr, path string) string {
 
 	doc := etree.NewDocument()
 	err := doc.ReadFromString(inputStr)
 	if err != nil {
-		return "", fmt.Errorf("extractInnerXMLObj: error unmarshalling input string: %v", err)
+		return ""
 	}
 
 	// This is an invalid path; we check for this here since this would cause issues later on
 	if strings.Contains(path, ".{") {
-		return "", fmt.Errorf("extractInnerXMLObj: invalid path '%s' contains '.{'", path)
+		return ""
 	}
 
 	// we convert path into a format that is easier to work with
@@ -2918,11 +2907,7 @@ func extractInnerXMLObj(inputStr, path string) (string, error) {
 	}
 	parts := strings.Split(newPath, ".")
 
-	innerObj, err := extractInnerXMLObjUsingParts(&doc.Element, parts)
-
-	if err != nil {
-		return "", fmt.Errorf("extractInnerXMLObj: error extracting object at path %s in %s: %v", path, inputStr, err)
-	}
+	innerObj := extractInnerXMLObjUsingParts(&doc.Element, parts)
 
 	var sb strings.Builder
 	switch innerObj := innerObj.(type) {
@@ -2938,64 +2923,63 @@ func extractInnerXMLObj(inputStr, path string) (string, error) {
 			subObj.WriteTo(&sb, &etree.WriteSettings{})
 		}
 	case nil:
-		return "", nil
+		return ""
 	case string:
 	default:
 		// this should never happen
-		return "", fmt.Errorf("extractValueFromXMLpathParts: unexpected type %T", innerObj)
+		return ""
 	}
 
-	return sb.String(), nil
+	return sb.String()
 }
 
 // helper function for extractValueFromJSON
-func extractInnerXMLObjUsingParts(value *etree.Element, parts []string) (interface{}, error) {
+func extractInnerXMLObjUsingParts(value *etree.Element, parts []string) interface{} {
 
 	if len(parts) == 0 {
-		return value, nil
+		return value
 	}
 
 	firstPart := parts[0]
 
-	valueArr := value.SelectElements(firstPart)
+	subObjArr := value.SelectElements(firstPart)
 
 	if len(parts) >= 2 && len(parts[1]) >= 2 && parts[1][0] == '{' && parts[1][len(parts[1])-1] == '}' {
 		// the next 'part' is an array index such as {3}
 
 		index, err := strconv.Atoi(parts[1][1 : len(parts[1])-1]) // remove the curly braces and convert to int
 		if err != nil {
-			return nil, nil
+			return nil
 		}
 
 		// index out of bounds
 		index-- // converting from 1-indexing (XML) to 0-indexing (Go)
-		if index < 0 || index >= len(valueArr) {
-			return nil, nil
+		if index < 0 || index >= len(subObjArr) {
+			return nil
 		}
-		return extractInnerXMLObjUsingParts(valueArr[index], parts[2:])
-	} else if len(valueArr) == 0 {
-		return nil, nil
-	} else if len(valueArr) == 1 {
-		return extractInnerXMLObjUsingParts(valueArr[0], parts[1:])
+		return extractInnerXMLObjUsingParts(subObjArr[index], parts[2:])
+	} else if len(subObjArr) == 0 {
+		return nil
+	} else if len(subObjArr) == 1 {
+		return extractInnerXMLObjUsingParts(subObjArr[0], parts[1:])
 	} else {
 		var resultArr []*etree.Element
-		for _, element := range valueArr {
-			resultElement, err := extractInnerXMLObjUsingParts(element, parts[1:])
-			if err != nil {
-				return nil, err
-			}
+		for _, subObj := range subObjArr {
+			resultElement := extractInnerXMLObjUsingParts(subObj, parts[1:])
 			switch resultElement := resultElement.(type) {
 			case *etree.Element:
 				resultArr = append(resultArr, resultElement)
 			case []*etree.Element:
 				resultArr = append(resultArr, resultElement...)
 			case nil:
-				return nil, nil
+				// do nothing
 			default:
-				return nil, fmt.Errorf("extractValueFromXMLpathParts: unexpected type %T", resultElement)
+				// this should never happen
+				log.Errorf("Unsupported element type %T in extractInnerXMLObjUsingParts", resultElement)
+				return nil
 			}
 		}
-		return resultArr, nil
+		return resultArr
 	}
 }
 
