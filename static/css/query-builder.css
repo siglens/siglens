@@ -318,34 +318,33 @@ input.form-control {
 }
 
 .custom-reset-button {
-    background-color: var(--default-tab);
-    color: var(--text-color);
+    background-color: transparent;
+    color: #4B5563;
     font-family: Inter, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
     font-size: 12px;
     padding: 3px 10px;
-    border: 1px solid var(--border-btn-color);
-    border-radius: 4px;
+    border: none;
+    border-radius: 6px;
     cursor: pointer;
     height: 26px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-left: 1px; 
+    margin-left: 1px;
     margin-top: -6px;
-    transition: all 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out;
     white-space: nowrap;
-    appearance: none;
-    box-shadow: none;
-    border-style: solid;
-    display: none;
+    text-decoration: underline; 
 }
 
 .custom-reset-button:hover,
 .custom-reset-button:focus {
-    background-color: var(--drop-down-btn-bg-hover); 
-    border-color: var(--border-btn-color);
+    background-color: #f3f4f6;
+    text-decoration: none;  
     outline: none;
 }
+
+
 
 
 .search-img {
