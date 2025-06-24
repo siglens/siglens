@@ -2308,7 +2308,7 @@ func Test_Spath_JSON(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		actualValue, err := extractValueFromJSON(testCase.data, testCase.path)
+		actualValue, err := extractInnerJSONObj(testCase.data, testCase.path)
 		assert.Nil(t, err)
 		assert.Equal(t, testCase.expectedValue, actualValue)
 	}
@@ -2356,7 +2356,7 @@ func Test_Spath_XML(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		actualValue, err := extractValueFromXML(testCase.data, testCase.path)
+		actualValue, err := extractInnerXMLObj(testCase.data, testCase.path)
 		assert.Nil(t, err)
 		assert.Equal(t, testCase.expectedValue, actualValue)
 	}
