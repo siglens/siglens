@@ -105,8 +105,6 @@ $(document).ready(function () {
     if (firstBoxSet.size > 0) $('#search-filter-text').hide();
     else $('#search-filter-text').show();
     setShowColumnInfoDialog();
-
-     $('.custom-reset-button').hide();
     updateResetButtonVisibility();
 });
 
@@ -124,6 +122,7 @@ tags.addEventListener('click', function (event) {
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
         cancelInfo(event);
+        updateResetButtonVisibility();
     }
 });
 tagSecond.addEventListener('click', function (event) {
@@ -286,6 +285,7 @@ async function ThirdFilterStart(evt) {
                     $('#column-third').val('');
                     $(this).blur();
                     getSearchText();
+                    updateResetButtonVisibility();
                 }
                 if (thirdBoxSet.size > 0) $('#aggregations').hide();
                 else $('#aggregations').show();
@@ -892,6 +892,7 @@ $('#tags').on('click', 'li', function (event) {
         getSearchText();
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
+        updateResetButtonVisibility();
     }
 });
 
@@ -903,6 +904,7 @@ function restoreOriginalFilter(tagElement) {
 
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
+        updateResetButtonVisibility();
     }
 }
 
@@ -1037,6 +1039,7 @@ function restoreOriginalSecondFilter(tagElement) {
 
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
+        updateResetButtonVisibility();
     }
 }
 
@@ -1088,8 +1091,6 @@ $('#tags-third').on('click', 'li', function (event) {
                             tag.innerText = ui.item.value;
                             tag.innerHTML += '<button class="delete-button">×</button>';
                             tagThird.appendChild(tag);
-
-                            updateResetButtonVisibility();
 
                             var dom = $('#tags-third');
                             var x = dom[0].scrollWidth;
@@ -1143,6 +1144,8 @@ $('#tags-third').on('click', 'li', function (event) {
         getSearchText();
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
+
+         updateResetButtonVisibility();
     }
 });
 
@@ -1154,7 +1157,10 @@ function restoreOriginalThirdFilter(tagElement) {
 
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
+        updateResetButtonVisibility();
         getSearchText();
+
+
     }
 }
 
@@ -1194,6 +1200,7 @@ $('.custom-reset-button').on('click', function (e) {
 
     $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
     $('#filter-input').val('*');
+    
 
     updateResetButtonVisibility();
 });

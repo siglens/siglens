@@ -26,7 +26,6 @@ $(document).ready(async () => {
     // Call the function for each tooltip
     createTooltip('#add-index', 'Add New Index');
     createTooltip('#date-picker-btn', 'Pick the Time Window');
-    createTooltip('#reset-query-btn','Clear all')
     createTooltip('#query-builder-btn', 'Run Query');
     createTooltip('#logs-settings', 'Settings');
     createTooltip('#saveq-btn', 'Save Query');
