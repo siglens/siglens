@@ -33,7 +33,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antchfx/xmlquery"
+	"github.com/beevik/etree"
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 
@@ -2792,108 +2792,211 @@ func extractValueFromJSON(inputStr, path string) (string, error) {
 		return "", fmt.Errorf("extractValueFromJSON: error unmarshalling input string: %v", err)
 	}
 
+	// This is an invalid path; we check for this here since this would cause issues later on
 	if strings.Contains(path, ".{") {
-		// This is an invalid path; we check for this here since this would cause issues later on
 		return "", fmt.Errorf("extractValueFromJSON: invalid path '%s' contains '.{'", path)
 	}
 
-	newPath := strings.ReplaceAll(path, "{", ".{") // this makes it easier to parse arrays
-	if newPath[0] == '.' {
-		newPath = newPath[1:] // remove leading dot if present
-	}
-	parts := strings.Split(newPath, ".") // separate field names, array indices
+	// we convert path into a format that is easier to work with
 	// e.g. "field1.field2.array{0}{1}.field3" -> "field1.field2.array.{0}.{1}.field3" -> ["field1", "field2", "array", "{0}", "{1}", "field3"]
+	newPath := strings.ReplaceAll(path, "{", ".{")
+	if newPath[0] == '.' {
+		newPath = newPath[1:]
+	}
+	parts := strings.Split(newPath, ".")
 
-	// This also means that malformed queries such as "*|eval field1=spath(field2.array.{0})" will work, since we are not performing validation
+	finalValue, err := extractValueFromJSONpathParts(value, parts)
 
-	for _, part := range parts {
-		if len(part) >= 2 && part[0] == '{' && part[len(part)-1] == '}' {
-			// part is an array index, e.g. "{5}", "{}"
+	if err != nil {
+		return "", fmt.Errorf("extractValueFromJSON: error extracting object at path %s in %s: %v", path, inputStr, err)
+	}
 
-			switch value.(type) {
-			case []interface{}:
-				if len(part) == 2 {
-					// TODO: support {}
-					return "", fmt.Errorf("{} is not yet supported in spath queries")
-				}
+	switch finalValue := finalValue.(type) {
+	case string:
+		return finalValue, nil
+	case nil:
+		return "", nil
+	default:
+		jsonBytes, err := json.Marshal(finalValue)
+		if err != nil {
+			return "", fmt.Errorf("extractValueFromJSON: error marshalling value to string: %v", err)
+		}
 
-				index, err := strconv.Atoi(part[1 : len(part)-1]) // remove the curly braces and convert to int
-				if err != nil {
-					return "", fmt.Errorf("extractValueFromJSON: could not convert index to integer '%s' in path '%s': %v", part, path, err)
-				}
+		valueStr := string(jsonBytes)
 
-				if index < 0 || index >= len(value.([]interface{})) {
-					return "", fmt.Errorf("extractValueFromJSON: index '%d' out of bounds for array at path '%s'", index, path)
-				}
-				value = value.([]interface{})[index] // update value
+		return valueStr, nil
+	}
+}
 
-			default:
-				return "", fmt.Errorf("extractValueFromJSON: expected an array at path '%s', but found a different type", path)
-			}
-		} else {
-			// part is a field name
-			switch value.(type) {
-			case map[string]interface{}:
+// helper function for extractValueFromJSON
+func extractValueFromJSONpathParts(value interface{}, parts []string) (interface{}, error) {
 
-				_, ok := value.(map[string]interface{})[part]
-				if !ok {
-					return "", fmt.Errorf("extractValueFromJSON: key '%s' not found in JSON object at path '%s'", part, path)
-				}
-				value = value.(map[string]interface{})[part] // update value
-			default:
-				return "", fmt.Errorf("extractValueFromJSON: expected a JSON object at path '%s', but found a different type", path)
-			}
+	if len(parts) == 0 {
+		// splunk requires that we specify the indices of the array
+		// e.g. field1.array1{0}
+		// For accessing all records in array1, use field1.array1{} or field1.array1{}{}, etc.
+		// Do not use field1.array1
+		switch value.(type) {
+		case []interface{}:
+			return nil, nil
+		default:
+			return value, nil
 		}
 	}
 
-	jsonBytes, err := json.Marshal(value)
-	if err != nil {
-		return "", fmt.Errorf("extractValueFromJSON: error marshalling value to string: %v", err)
+	firstPart := parts[0]
+
+	if len(firstPart) >= 2 && firstPart[0] == '{' && firstPart[len(firstPart)-1] == '}' {
+		// part is an array index, e.g. "{5}", "{}"
+
+		switch value := value.(type) {
+		case []interface{}:
+			if len(firstPart) == 2 {
+				var resultArr []interface{}
+				for _, element := range value {
+					// query each element in the array and concatenate the results
+					json_obj, err := extractValueFromJSONpathParts(element, parts[1:])
+					if err != nil {
+						return nil, err
+					}
+					if json_obj != nil {
+						resultArr = append(resultArr, json_obj)
+					}
+				}
+				return resultArr, nil
+			}
+
+			index, err := strconv.Atoi(firstPart[1 : len(firstPart)-1]) // remove the curly braces and convert to int
+			if err != nil {
+				return nil, fmt.Errorf("extractValueFromJSONpathParts: could not convert index to integer '%s': %v", firstPart, err)
+			}
+
+			if index < 0 || index >= len(value) { // index out of bounds
+				return nil, nil
+			}
+
+			// recursively query nested JSON object
+			return extractValueFromJSONpathParts(value[index], parts[1:])
+		default:
+			return nil, fmt.Errorf("extractValueFromJSONpathParts: expected an array at part '%s', but found a different type", firstPart)
+		}
+	} else {
+		// part is a field name
+		switch value := value.(type) {
+		case map[string]interface{}:
+			nestedObject, ok := value[firstPart]
+
+			if !ok { // key doesn't exist
+				return nil, nil
+			}
+
+			return extractValueFromJSONpathParts(nestedObject, parts[1:])
+		default:
+			return nil, fmt.Errorf("extractValueFromJSONpathParts: expected a JSON object at '%s', but found a different type", firstPart)
+		}
 	}
-
-	valueStr := string(jsonBytes)
-
-	return valueStr, nil
-
 }
 
 func extractValueFromXML(inputStr, path string) (string, error) {
 
-	forbidden := []string{
-		"/",    // XPath node separator
-		"@",    // Attribute selection
-		"[",    // XPath predicate
-		"]",    // XPath predicate
-		"(",    // XPath function calls
-		")",    // XPath function calls
-		"..",   // XPath parent node
-		"*",    // XPath wildcard
-		"|",    // XPath union
-		"text", // XPath node types
-		"node", // XPath node types
-	}
-
-	// TODO: replace this with regex or some other faster alternative
-	for _, f := range forbidden {
-		if strings.Contains(path, f) {
-			return "", fmt.Errorf("validateSpathPath: path contains unsupported XPath syntax '%s'", f)
-		}
-	}
-
-	doc, err := xmlquery.Parse(strings.NewReader(inputStr))
+	doc := etree.NewDocument()
+	err := doc.ReadFromString(inputStr)
 	if err != nil {
-		return "", fmt.Errorf("extractValueFromXML: error parsing input XML: %v", err)
+		return "", fmt.Errorf("extractValueFromXML: error unmarshalling input string: %v", err)
 	}
 
-	// Convert dot notation path to XPath by replacing dots with slashes
-	xpath := "/" + strings.ReplaceAll(path, ".", "/")
-
-	node := xmlquery.FindOne(doc, xpath)
-	if node == nil {
-		return "", fmt.Errorf("extractValueFromXML: node not found at path '%s'", path)
+	// This is an invalid path; we check for this here since this would cause issues later on
+	if strings.Contains(path, ".{") {
+		return "", fmt.Errorf("extractValueFromXML: invalid path '%s' contains '.{'", path)
 	}
 
-	return node.InnerText(), nil
+	// we convert path into a format that is easier to work with
+	// e.g. "field1.field2.array{0}.field3" -> "field1.field2.array.{0}.field3" -> ["field1", "field2", "array", "{0}", "field3"]
+	newPath := strings.ReplaceAll(path, "{", ".{")
+	if newPath[0] == '.' {
+		newPath = newPath[1:]
+	}
+	parts := strings.Split(newPath, ".")
+
+	finalValue, err := extractValueFromXMLpathParts(&doc.Element, parts)
+
+	if err != nil {
+		return "", fmt.Errorf("extractValueFromXML: error extracting object at path %s in %s: %v", path, inputStr, err)
+	}
+
+	var sb strings.Builder
+	switch finalValue := finalValue.(type) {
+	case *etree.Element:
+		if len(finalValue.ChildElements()) == 0 {
+			// <name>Alice</name> -> Alice
+			sb.WriteString(finalValue.Text())
+		} else {
+			finalValue.WriteTo(&sb, &etree.WriteSettings{})
+		}
+	case []*etree.Element:
+		for _, element := range finalValue {
+			element.WriteTo(&sb, &etree.WriteSettings{})
+		}
+	case nil:
+		return "", nil
+	case string:
+	default:
+		// this should never happen
+		return "", fmt.Errorf("extractValueFromXMLpathParts: unexpected type %T", finalValue)
+	}
+
+	return sb.String(), nil
+}
+
+// helper function for extractValueFromJSON
+func extractValueFromXMLpathParts(value *etree.Element, parts []string) (interface{}, error) {
+
+	if len(parts) == 0 {
+		return value, nil
+	}
+
+	firstPart := parts[0]
+
+	valueArr := value.SelectElements(firstPart)
+
+	if len(parts) >= 2 && len(parts[1]) >= 2 && parts[1][0] == '{' && parts[1][len(parts[1])-1] == '}' {
+		// the next 'part' is an array index such as {3}
+
+		index, err := strconv.Atoi(parts[1][1 : len(parts[1])-1]) // remove the curly braces and convert to int
+		if err != nil {
+			return nil, nil
+		}
+
+		// index out of bounds
+		index-- // converting from 1-indexing (XML) to 0-indexing (Go)
+		if index < 0 || index >= len(valueArr) {
+			return nil, nil
+		}
+		return extractValueFromXMLpathParts(valueArr[index], parts[2:])
+	} else if len(valueArr) == 0 {
+		return nil, nil
+	} else if len(valueArr) == 1 {
+		return extractValueFromXMLpathParts(valueArr[0], parts[1:])
+	} else {
+		var resultArr []*etree.Element
+		for _, element := range valueArr {
+			resultElement, err := extractValueFromXMLpathParts(element, parts[1:])
+			if err != nil {
+				return nil, err
+			}
+			switch resultElement := resultElement.(type) {
+			case *etree.Element:
+				resultArr = append(resultArr, resultElement)
+			case []*etree.Element:
+				resultArr = append(resultArr, resultElement...)
+			case nil:
+				return nil, nil
+			default:
+				return nil, fmt.Errorf("extractValueFromXMLpathParts: unexpected type %T", resultElement)
+			}
+		}
+		return resultArr, nil
+	}
 }
 
 func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {

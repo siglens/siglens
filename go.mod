@@ -1,6 +1,8 @@
 module github.com/siglens/siglens
 
-go 1.21
+go 1.21.0
+
+toolchain go1.21.13
 
 require (
 	github.com/FastFilter/xorfilter v0.1.4
@@ -104,6 +106,7 @@ require (
 )
 
 require (
+	github.com/beevik/etree v1.5.1
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/go-co-op/gocron v1.31.1
