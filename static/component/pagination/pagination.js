@@ -140,7 +140,7 @@ class Pagination {
                 onclick="window.paginationInstances['${this.containerId}'].goToPage(${totalPages})">
             <i class="fa fa-angle-double-right"></i>
         </button>
-        <span class="pagination-info fixed-pagination-text">
+        <span class="pagination-info">
             Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${this.totalRecords.toLocaleString()} records
         </span>`;
 
