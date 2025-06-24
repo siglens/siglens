@@ -220,16 +220,20 @@ func Test_containsSingleDotWildcard(t *testing.T) {
 		pattern string
 		want    bool
 	}{
-		{"foo.bar", true},
-		{"foo.*bar", false},
-		{"foo\\.bar", false},
-		{"foo.bar.*", true},
-		{"foo.*", false},
-		{"foo", false},
-		{"foo\\.*bar", false},
-		{"foo.*bar.*baz", false},
-		{"foo.bar.baz", true},
-		{"foo\\..*bar", false},
+		{`foo.bar`, true},
+		{`foo.*bar`, false},
+		{`foo\.bar`, false},   // Escaped dot
+		{`foo\\.bar`, true},   // Escaped backslash followed by dot
+		{`foo\\\.bar`, false}, // Escaped backslash followed by escaped dot
+		{`foo.bar.*`, true},
+		{`foo.*`, false},
+		{`foo`, false},
+		{`foo\.*bar`, false},
+		{`foo.*bar.*baz`, false},
+		{`foo.bar.baz`, true},
+		{`foo\..*bar`, false},
+		{`foo\\\\.bar`, true},   // Two escaped backslashes followed by dot
+		{`foo\\\\\.bar`, false}, // Two escaped backslashes followed by escaped dot
 	}
 
 	for _, tt := range tests {

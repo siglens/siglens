@@ -70,8 +70,8 @@ func New(pattern string) (Regex, error) {
 	leadingWildcard := matches[3] == ".*"
 	trailingWildcard := matches[5] == ".*"
 
-	wildcardBefore := leadingWildcard
-	wildcardAfter := trailingWildcard
+	wildcardBefore := matches[3] == ".*" || !hasStartAnchor
+	wildcardAfter := matches[5] == ".*"
 
 	if !hasStartAnchor && !leadingWildcard {
 		wildcardBefore = true
