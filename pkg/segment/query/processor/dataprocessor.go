@@ -846,7 +846,7 @@ func NewTimechartDP(options *timechartOptions) *DataProcessor {
 		isBottleneckCmd:       true,
 		isTransformingCmd:     true,
 		isTwoPassCmd:          false,
-		isMergeableBottleneck: false, // TODO: implement merging, then set to true.
+		isMergeableBottleneck: true,
 		processorLock:         &sync.Mutex{},
 	}
 }

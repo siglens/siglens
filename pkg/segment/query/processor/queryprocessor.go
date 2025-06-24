@@ -438,7 +438,7 @@ func SetupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataPro
 
 		if mergeIndex > 0 {
 			switch dataProcessors[mergeIndex-1].processor.(type) {
-			case *statsProcessor:
+			case *statsProcessor, *timechartProcessor:
 				// We'll likely want to set this for other stats-like commands
 				// as well when we implement parallelizing those. But I'm not
 				// sure why this is an option because I'm not sure when we ever
