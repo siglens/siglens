@@ -1,0 +1,43 @@
+{
+    "queryText": "* | head 5 | tojson num(json_data) fill_null=false | fields \"_raw\", ident",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 5,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": [
+            "ident"
+        ],
+        "records": [
+            {
+                "_raw": "{}",
+                "ident": "53298903-1d62-4a5b-8440-a5fa4f421f82"
+            },
+            {
+                "_raw": "{}",
+                "ident": "0a7902e4-2869-45e5-99de-22b1aeecfede"
+            },
+            {
+                "_raw": "{}",
+                "ident": "0ec06992-1291-4bfb-93b3-f7165aacff57"
+            },
+            {
+                "_raw": "{}",
+                "ident": "2248e26a-b9ee-4c82-984e-c16f6a3c0b85"
+            },
+            {
+                "_raw": "{}",
+                "ident": "4afee752-a830-4f73-bb23-7208b9baac32"
+            }
+        ],
+        "allColumns": [
+            "_raw",
+            "ident"
+        ],
+        "columnsOrder": [
+            "_raw",
+            "ident"
+        ]
+    }
+}

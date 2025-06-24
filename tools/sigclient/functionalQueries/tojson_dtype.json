@@ -1,0 +1,43 @@
+{
+    "queryText": "* | head 5 | tojson num(latitude) str(app_name) json(json_data) | fields \"_raw\", ident",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 5,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": [
+            "ident"
+        ],
+        "records": [
+            {
+                "_raw": "{\"app_name\":\"Scoldfly\",\"app_name_c1\":\"Elkpaint\",\"app_name_c2\":\"Librarygive\",\"json_data\":{\"credit_cards\":[{\"cvv\":\"258\",\"exp\":\"05/26\",\"number\":\"4011788701588054\",\"type\":\"Hiper\"},{\"cvv\":\"952\",\"exp\":\"10/28\",\"number\":\"340874124906709\",\"type\":\"Discover\"},{\"cvv\":\"899\",\"exp\":\"08/33\",\"number\":\"6062822252082028\",\"type\":\"Maestro\"}],\"ip_address\":\"211.243.99.181\",\"numbers\":[],\"person\":{\"address\":{\"city\":\"Buffalo\",\"country\":\"Taiwan, Province of China\",\"state\":\"Arkansas\",\"zip\":\"68852\"},\"contact\":null,\"gender\":\"female\",\"hobbies\":[\"Vegetable farming\",\"Biology\",\"Audiophile\"],\"name\":{\"first_name\":\"Vida\",\"last_name\":\"Collins\"}}},\"latitude\":88.569134,\"latitude_c1\":-74.11123,\"latitude_c2\":-33.69112}",
+                "ident": "53298903-1d62-4a5b-8440-a5fa4f421f82"
+            },
+            {
+                "_raw": "{\"app_name\":\"LightGrayream\",\"app_name_c1\":\"Maroonclub\",\"app_name_c2\":\"Zebrashould\",\"json_data\":{\"credit_cards\":[{\"cvv\":\"273\",\"exp\":\"05/35\",\"number\":\"622126677476608018\",\"type\":\"American Express\"},{\"cvv\":\"653\",\"exp\":\"05/32\",\"number\":\"500000255240785666\",\"type\":\"Discover\"},{\"cvv\":\"520\",\"exp\":\"10/26\",\"number\":\"6363682958884358\",\"type\":\"UnionPay\"}],\"ip_address\":\"36.99.100.193\",\"numbers\":[],\"person\":{\"address\":null,\"contact\":null,\"gender\":\"female\",\"hobbies\":[\"Fossicking\",\"Genealogy\",\"Hacking\",\"Paintball\",\"Cheerleading\",\"Meditation\"],\"name\":{\"first_name\":\"Shaun\",\"last_name\":\"Altenwerth\"}}},\"latitude\":2.183694,\"latitude_c1\":-9.851586,\"latitude_c2\":-70.473288}",
+                "ident": "0a7902e4-2869-45e5-99de-22b1aeecfede"
+            },
+            {
+                "_raw": "{\"app_name\":\"Coyotebeing\",\"app_name_c1\":\"Regimentcrawl\",\"app_name_c2\":\"Beaversing\",\"json_data\":{\"credit_cards\":[{\"cvv\":\"518\",\"exp\":\"05/30\",\"number\":\"349029973132839\",\"type\":\"Mastercard\"},{\"cvv\":\"426\",\"exp\":\"06/27\",\"number\":\"6062824148083749\",\"type\":\"American Express\"}],\"ip_address\":\"114.176.140.61\",\"numbers\":[7318309110,1137898282,5989224160,9826404508],\"person\":{\"address\":null,\"contact\":null,\"gender\":\"female\",\"hobbies\":[\"Weaving\",\"Pickleball\",\"Bodybuilding\"],\"name\":{\"first_name\":\"Gerda\",\"last_name\":\"Kuhn\"}}},\"latitude\":-40.084092,\"latitude_c1\":-53.64013,\"latitude_c2\":80.555337}",
+                "ident": "0ec06992-1291-4bfb-93b3-f7165aacff57"
+            },
+            {
+                "_raw": "{\"app_name\":\"Bowhad\",\"app_name_c1\":\"MediumVioletRedflock\",\"app_name_c2\":\"Blockwould\",\"json_data\":{\"credit_cards\":null,\"ip_address\":\"156.11.54.142\",\"numbers\":[],\"person\":{\"address\":{\"city\":\"Fort Wayne\",\"country\":\"\",\"state\":\"Florida\",\"zip\":\"\"},\"contact\":null,\"gender\":\"male\",\"hobbies\":[],\"name\":{\"first_name\":\"Jake\",\"last_name\":\"Klein\"}}},\"latitude\":58.197737,\"latitude_c1\":43.109848,\"latitude_c2\":-59.620384}",
+                "ident": "2248e26a-b9ee-4c82-984e-c16f6a3c0b85"
+            },
+            {
+                "_raw": "{\"app_name\":\"Bisquegroup\",\"app_name_c1\":\"Magentanumber\",\"app_name_c2\":\"Freedomhad\",\"json_data\":{\"credit_cards\":[{\"cvv\":\"944\",\"exp\":\"03/27\",\"number\":\"6440391762307872\",\"type\":\"American Express\"},{\"cvv\":\"254\",\"exp\":\"05/35\",\"number\":\"180096758540280128\",\"type\":\"UnionPay\"}],\"ip_address\":\"95.45.107.187\",\"numbers\":[6492640173],\"person\":{\"address\":{\"city\":\"Boise\",\"country\":\"Heard Island and McDonald Islands\",\"state\":\"Ohio\",\"zip\":\"31824\"},\"contact\":null,\"gender\":\"male\",\"hobbies\":[\"Sun bathing\",\"Furniture building\"],\"name\":{\"first_name\":\"Brennan\",\"last_name\":\"Stokes\"}}},\"latitude\":-84.18722,\"latitude_c1\":-87.944912,\"latitude_c2\":55.102556}",
+                "ident": "4afee752-a830-4f73-bb23-7208b9baac32"
+            }
+        ],
+        "allColumns": [
+            "_raw",
+            "ident"
+        ],
+        "columnsOrder": [
+            "_raw",
+            "ident"
+        ]
+    }
+}

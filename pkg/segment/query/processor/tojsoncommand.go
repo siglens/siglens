@@ -32,8 +32,6 @@ type tojsonProcessor struct {
 	options *structs.ToJsonExpr
 }
 
-var SkipValue = new(struct{})
-
 // stores the result as a string. If another command needs the json, it needs to unmarshal the string first
 func (p *tojsonProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if iqr == nil {
@@ -95,8 +93,8 @@ func (p *tojsonProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			if err != nil {
 				continue
 			}
-			convertedVal := ConvertToValidToJsonDtype(strVal, val.Dtype, dtype, cname, p.options.FillNull, p.options.DefaultType.Dtype)
-			if convertedVal == SkipValue {
+			convertedVal, skip := ConvertToValidToJsonDtype(strVal, val.Dtype, dtype, cname, p.options.FillNull, p.options.DefaultType.Dtype)
+			if skip {
 				continue
 			}
 			res[i][cname] = convertedVal
@@ -117,9 +115,8 @@ func (p *tojsonProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		cVal.CVal = string(jsonBytes)
 		rowJsons[i] = cVal
 	}
-
 	jsonField := map[string][]sutils.CValueEnclosure{
-		p.options.OutputField: rowJsons,
+		strings.ReplaceAll(p.options.OutputField, "\"", ""): rowJsons,
 	}
 	err = iqr.AppendKnownValues(jsonField)
 	if err != nil {
@@ -128,52 +125,52 @@ func (p *tojsonProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	return iqr, nil
 }
 
-func ConvertToValidToJsonDtype(val string, inDtype sutils.SS_DTYPE, dtype structs.ToJsonDtypes, cname string, fillNull bool, defaultDtype structs.ToJsonDtypes) any {
-	returnNull := func(fillNull bool) any {
+func ConvertToValidToJsonDtype(val string, inDtype sutils.SS_DTYPE, dtype structs.ToJsonDtypes, cname string, fillNull bool, defaultDtype structs.ToJsonDtypes) (any, bool) {
+	returnNull := func(fillNull bool) (any, bool) {
 		if fillNull {
-			return nil
+			return nil, false
 		} else {
-			return SkipValue
+			return nil, true
 		}
 	}
 	switch dtype {
 	case structs.TJ_None:
 		num, err := utils.FastParseFloat([]byte(val))
 		if err != nil {
-			return val
+			return val, false
 		} else {
-			return num
+			return num, false
 		}
 	case structs.TJ_Auto:
 		switch val {
 		case "true":
-			return true
+			return true, false
 		case "false":
-			return false
+			return false, false
 		case "null":
-			return nil
+			return nil, false
 		case "":
-			return nil
+			return nil, false
 		default:
 			num, err := utils.FastParseFloat([]byte(val))
 			if err != nil {
 				var v any
 				err := json.Unmarshal([]byte(val), &v)
 				if err == nil {
-					return v
+					return v, false
 				} else {
-					return val
+					return val, false
 				}
 			} else {
-				return num
+				return num, false
 			}
 		}
 	case structs.TJ_Bool:
 		switch strings.ToLower(val) {
 		case "true", "t", "yes":
-			return true
+			return true, false
 		case "false", "f", "no", "0":
-			return false
+			return false, false
 		default:
 			return returnNull(fillNull)
 		}
@@ -184,25 +181,25 @@ func ConvertToValidToJsonDtype(val string, inDtype sutils.SS_DTYPE, dtype struct
 			err := json.Unmarshal([]byte(val), &v)
 			if err != nil {
 				if inDtype == sutils.SS_DT_STRING {
-					return val
+					return val, false
 				} else {
 					return returnNull(fillNull)
 				}
 			} else {
-				return v
+				return v, false
 			}
 		} else {
-			return num
+			return num, false
 		}
 	case structs.TJ_Num:
 		num, err := utils.FastParseFloat([]byte(val))
 		if err != nil {
 			return returnNull(fillNull)
 		} else {
-			return num
+			return num, false
 		}
 	case structs.TJ_Str:
-		return val
+		return val, false
 	default:
 		return returnNull(fillNull)
 	}
