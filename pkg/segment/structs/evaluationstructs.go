@@ -659,7 +659,7 @@ func getBoolCValueEnclosure(boolVal bool) *sutils.CValueEnclosure {
 // with the value specified by fieldToValue. if the field is not present in the fieldToValue map
 // then NULL is returned.
 func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.CValueEnclosure) (*sutils.CValueEnclosure, error) {
-	log.Infof("BoolExpr.Evaluate: Evaluating BoolExpr: %v", self)
+
 	if self.IsTerminal {
 		switch self.ValueOp {
 		case "in":
@@ -894,7 +894,6 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (
 // with the value specified by fieldToValue.
 // Will be evaluated to either true, false, or NULL.
 func (self *BoolExpr) EvaluateWithNull(fieldToValue map[string]sutils.CValueEnclosure) (sutils.CValueEnclosure, error) {
-	log.Infof("BoolExpr.EvaluateWithNull: Evaluating BoolExpr: %v", self)
 	if self.IsTerminal {
 		cValEnc, err := self.evaluateToCValueEnclosure(fieldToValue)
 		if err != nil {
@@ -1058,7 +1057,6 @@ func isIPInCIDR(cidrStr, ipStr string) (bool, error) {
 }
 
 func isInValueList(fieldToValue map[string]sutils.CValueEnclosure, value *ValueExpr, valueList []*ValueExpr) (bool, error) {
-	log.Infof("isInValueList: Evaluating if value is in valueList: %v", valueList)
 	valueStr, err := value.EvaluateToString(fieldToValue)
 	if utils.IsNonNilValueError(err) {
 		return false, utils.WrapErrorf(err, "isInValueList: can not evaluate to String: %v", err)
@@ -1217,7 +1215,6 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 // A ValueExpr can be evaluated to a string or float, so if this fails you may
 // want to call ValueExpr.EvaluateToFloat().
 func (self *ValueExpr) EvaluateToString(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
-	log.Infof("ValueExpr.EvaluateToString: fieldToValue %#v, self: %#v", fieldToValue, self)
 	switch self.ValueExprMode {
 	case VEMStringExpr:
 		str, err := self.StringExpr.Evaluate(fieldToValue)
@@ -1279,8 +1276,6 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]sutils.CValueEnc
 }
 
 func (self *StringExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
-	log.Infof("StringExpr.Evaluate: Evaluating StringExpr %#v", self)
-	log.Infof("StringExpr.Evaluate: has textexpr %#v", self.TextExpr)
 	switch self.StringExprMode {
 	case SEMRawString:
 		return self.RawString, nil
@@ -1371,7 +1366,7 @@ func (valueExpr *ValueExpr) EvaluateValueExpr(fieldToValue map[string]sutils.CVa
 // fails, it will try to evaluate it to a string. If that fails, it will return
 // an error.
 func (expr *ValueExpr) EvaluateValueExprToNumberOrString(fieldToValue map[string]sutils.CValueEnclosure) (interface{}, error) {
-	log.Infof("ValueExpr.EvaluateValueExprToNumberOrString: Evaluating ValueExpr %#v", expr)
+
 	switch expr.ValueExprMode {
 	case VEMNumericExpr, VEMStringExpr:
 		// Nothing to do
@@ -1505,7 +1500,6 @@ func (self *StringExpr) GetFields() []string {
 // values specified by fieldToValue. Each field listed by GetFields() must be in
 // fieldToValue.
 func (self *ConcatExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
-	log.Infof("ConcatExpr.Evaluate: Evaluating ConcatExpr %#v", self)
 	result := ""
 	for _, atom := range self.Atoms {
 		if atom.IsField {
@@ -2424,8 +2418,6 @@ func parseTime(dateStr, format string) (time.Time, error) {
 }
 
 func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
-	log.Infof("Called evaluateText for TextExpr: %#v and field %#v", self, fieldToValue)
-
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
 	case "strftime":
@@ -2598,7 +2590,6 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 			path = inputValue // Use the value of the field as the actual path
 		}
 
-		log.Infof("TextExpr.EvaluateText: fieldToValue: %#v, inputColName: %s, path: %s", fieldToValue, inputColName, path)
 		// Get the input column value
 		fieldValueStr, errJSON := getValueAsString(fieldToValue, inputColName)
 		// inputVal, ok := fieldToValue[inputColName]
@@ -2694,7 +2685,6 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 		}
 	}
 
-	log.Infof("TextExpr.EvaluateText: Evaluating text expression with Op: %s, Param: %v, Val: %v", self.Op, self.Param, self.Val)
 	cellValueStr, err := self.Param.Evaluate(fieldToValue)
 	if err != nil {
 		return "", utils.WrapErrorf(err, "TextExpr.EvaluateText: can not evaluate text as a str: %v", err)
@@ -3123,13 +3113,11 @@ func (self *TextExpr) GetFields() []string {
 			fields = append(fields, self.SPathExpr.GetFields()...)
 		}
 
-		log.Infof("getFields() returns %#v when called on TextExpr %#v", fields, self)
 		return fields
 	}
 	for _, expr := range self.ValueList {
 		fields = append(fields, expr.GetFields()...)
 	}
-	log.Infof("getFields() returns %#v when called on TextExpr %#v", fields, self)
 	return fields
 
 }
