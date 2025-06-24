@@ -407,7 +407,7 @@ func SetupQueryParallelism(firstAggHasStats bool, chainFactory func() []*DataPro
 				limit:        firstDpChain[mergeIndex].mergeSettings.limit,
 			}
 		}
-		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergerDP(settings, true))
+		firstDpChain = utils.Insert(firstDpChain, mergeIndex+1, NewMergerDP(settings))
 		mergeIndex++
 	}
 
