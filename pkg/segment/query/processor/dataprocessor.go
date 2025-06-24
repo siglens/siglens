@@ -1002,13 +1002,13 @@ func NewMergerDP(mergeSettings mergeSettings, mergingBottlenecks bool) *DataProc
 		streams:               make([]*CachedStream, 0),
 		mergeSettings:         mergeSettings,
 		processor:             &mergeProcessor{mergeSettings: mergeSettings},
-		inputOrderMatters:     !mergingBottlenecks,
-		ignoresInputOrder:     mergingBottlenecks,
+		inputOrderMatters:     !mergeSettings.mergingStats,
+		ignoresInputOrder:     mergeSettings.mergingStats,
 		isPermutingCmd:        false,
-		isBottleneckCmd:       mergingBottlenecks,
+		isBottleneckCmd:       mergeSettings.mergingStats,
 		isTransformingCmd:     false,
 		isTwoPassCmd:          false,
-		isMergeableBottleneck: mergingBottlenecks,
+		isMergeableBottleneck: mergeSettings.mergingStats,
 		processorLock:         &sync.Mutex{},
 	}
 }
