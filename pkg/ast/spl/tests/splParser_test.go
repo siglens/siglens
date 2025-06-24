@@ -11547,7 +11547,7 @@ func Test_ToJson_Expr(t *testing.T) {
 	assert.True(t, agg.AllFields)
 	assert.Len(t, agg.FieldsDtypes, 1)
 	assert.Equal(t, structs.TJ_None, agg.FieldsDtypes[0].Dtype)
-	assert.Equal(t, "\\*", agg.FieldsDtypes[0].Regex.GetRawRegex())
+	assert.Equal(t, ".*", agg.FieldsDtypes[0].Regex.GetRawRegex())
 
 	res, err = spl.Parse("", queryWDtype)
 	assert.Nil(t, err)
