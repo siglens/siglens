@@ -2852,6 +2852,9 @@ func extractInnerJSONObjUsingParts(currentObj interface{}, parts []string) inter
 						resultArr = append(resultArr, resultSubObj)
 					}
 				}
+				if len(resultArr) == 0 {
+					return nil
+				}
 				return resultArr
 			}
 
@@ -2978,6 +2981,9 @@ func extractInnerXMLObjUsingParts(value *etree.Element, parts []string) interfac
 				log.Errorf("Unsupported element type %T in extractInnerXMLObjUsingParts", resultElement)
 				return nil
 			}
+		}
+		if len(resultArr) == 0 {
+			return nil
 		}
 		return resultArr
 	}
