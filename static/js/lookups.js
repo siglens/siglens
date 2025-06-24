@@ -71,6 +71,7 @@ const gridOptions = {
             getLookupFile(params.data.name);
         }
     },
+    suppressDragLeaveHidesColumns: true,
 };
 let eGridDiv = $('#ag-grid')[0];
 //eslint-disable-next-line no-undef

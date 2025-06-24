@@ -347,7 +347,7 @@ const sqgridOptions = {
     localeText: {
         noRowsToShow: 'No Saved Query Found',
     },
-    //  domLayout: 'autoHeight',
+    suppressDragLeaveHidesColumns: true,
 };
 
 function displaySavedQueries(res, flag) {
