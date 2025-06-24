@@ -92,6 +92,8 @@ type IQR struct {
 	measureColumns []string
 
 	statsResults *IQRStatsResults
+
+	isDirty bool // Has the IQR been modified since the last validate()?
 }
 
 // When a new field is added to IQR, it should be added to SerializableIQR.
@@ -124,6 +126,7 @@ func NewIQR(qid uint64) *IQR {
 		measureColumns:   make([]string, 0),
 		columnIndex:      make(map[string]int),
 		statsResults:     &IQRStatsResults{},
+		isDirty:          true,
 	}
 
 	return iqr
@@ -146,6 +149,10 @@ func (iqr *IQR) GetQID() uint64 {
 func (iqr *IQR) validate() error {
 	if iqr == nil {
 		return fmt.Errorf("IQR is nil")
+	}
+
+	if !iqr.isDirty {
+		return nil
 	}
 
 	if iqr.mode == invalidMode {
@@ -171,6 +178,7 @@ func (iqr *IQR) validate() error {
 		}
 	}
 
+	iqr.isDirty = false
 	return nil
 }
 
@@ -180,6 +188,8 @@ func (iqr *IQR) AppendRRCs(rrcs []*sutils.RecordResultContainer, segEncToKey map
 		log.Errorf("IQR.AppendRRCs: validation failed: %v", err)
 		return err
 	}
+
+	iqr.isDirty = true
 
 	switch iqr.mode {
 	case notSet:
@@ -221,6 +231,8 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]sutils.CValueEnclosur
 		log.Errorf("IQR.AppendKnownValues: validation failed: %v", err)
 		return err
 	}
+
+	iqr.isDirty = true
 
 	if iqr.mode == notSet {
 		// We have no RRCs, so these values don't correspond to RRCs.
@@ -554,6 +566,8 @@ func (iqr *IQR) Append(other *IQR) error {
 		return err
 	}
 
+	iqr.isDirty = true
+
 	if iqr.mode == withRRCs && other.mode == withoutRRCs {
 		if iqr.qid != other.qid {
 			return utils.TeeErrorf("IQR.Append: inconsistent qids (%v and %v)", iqr.qid, other.qid)
@@ -714,6 +728,8 @@ func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool, lim
 		log.Errorf("IQR.Sort: validation failed: %v", err)
 		return err
 	}
+
+	iqr.isDirty = true
 
 	if less == nil {
 		return utils.TeeErrorf("qid=%v, IQR.Sort: the less function is nil", iqr.qid)
@@ -1008,6 +1024,7 @@ func mergeMetadata(iqrs []*IQR, allocateForAllRecords bool) (*IQR, error) {
 // The IQRs must have the same stats type.
 // The bool return value indicates whether the result should be a stats result.
 func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) (bool, error) {
+	iqr.isDirty = true
 
 	// Filter out IQRs with no stats or invalid stats types
 	validIqrs := make([]*IQR, 0, len(iqrs))
@@ -1142,6 +1159,8 @@ func (iqr *IQR) GetRRCs() []*sutils.RecordResultContainer {
 }
 
 func (iqr *IQR) AddColumnsToDelete(cnames map[string]struct{}) {
+	iqr.isDirty = true
+
 	for cname := range cnames {
 		iqr.deletedColumns[cname] = struct{}{}
 		delete(iqr.knownValues, cname)
@@ -1149,6 +1168,8 @@ func (iqr *IQR) AddColumnsToDelete(cnames map[string]struct{}) {
 }
 
 func (iqr *IQR) AddColumnIndex(cnamesToIndex map[string]int) {
+	iqr.isDirty = true
+
 	for cname, index := range cnamesToIndex {
 		iqr.columnIndex[cname] = index
 	}
@@ -1159,6 +1180,8 @@ func (iqr *IQR) Discard(numRecords int) error {
 		log.Errorf("IQR.discard: validation failed: %v", err)
 		return err
 	}
+
+	iqr.isDirty = true
 
 	if iqr.mode == notSet {
 		return nil
@@ -1189,6 +1212,8 @@ func (iqr *IQR) DiscardAfter(numRecords uint64) error {
 		return err
 	}
 
+	iqr.isDirty = true
+
 	if numRecords > uint64(iqr.NumberOfRecords()) {
 		return nil
 	}
@@ -1216,6 +1241,8 @@ func (iqr *IQR) DiscardRows(rowsToDiscard []int) error {
 		log.Errorf("IQR.DiscardRows: validation failed: %v", err)
 		return err
 	}
+
+	iqr.isDirty = true
 
 	if iqr.mode == notSet {
 		return nil
@@ -1250,6 +1277,8 @@ func (iqr *IQR) ReverseRecords() error {
 		return err
 	}
 
+	iqr.isDirty = true
+
 	if iqr.mode == notSet {
 		return nil
 	}
@@ -1270,6 +1299,8 @@ func (iqr *IQR) RenameColumn(oldName, newName string) error {
 		log.Errorf("IQR.RenameColumn: validation failed: %v", err)
 		return err
 	}
+
+	iqr.isDirty = true
 
 	// delete newName since it would be overwritten
 	delete(iqr.knownValues, newName)
@@ -1463,6 +1494,8 @@ func (iqr *IQR) SetIqrStatsResults(statsType structs.QueryType, segStatsMap map[
 		return err
 	}
 
+	iqr.isDirty = true
+
 	if iqr.statsResults == nil {
 		iqr.statsResults = &IQRStatsResults{}
 	}
@@ -1483,6 +1516,8 @@ func (iqr *IQR) SetIqrStatsResults(statsType structs.QueryType, segStatsMap map[
 }
 
 func (iqr *IQR) SetStatsAggregationResult(aggregationResult map[string]*structs.AggregationResult) {
+	iqr.isDirty = true
+
 	if iqr.statsResults == nil {
 		iqr.statsResults = &IQRStatsResults{}
 	}
@@ -1503,6 +1538,8 @@ func (iqr *IQR) CreateStatsResults(bucketHolderArr []*structs.BucketHolder, meas
 		log.Errorf("IQR.AppendStatsResults: validation failed: %v", err)
 		return err
 	}
+
+	iqr.isDirty = true
 
 	iqr.mode = withoutRRCs
 	for col := range iqr.knownValues {
@@ -1562,6 +1599,8 @@ func (iqr *IQR) CreateGroupByStatsResults(searchResults *segresults.SearchResult
 		return err
 	}
 
+	iqr.isDirty = true
+
 	if searchResults == nil {
 		return nil
 	}
@@ -1584,6 +1623,8 @@ func (iqr *IQR) CreateSegmentStatsResults(searchResults *segresults.SearchResult
 		log.Errorf("IQR.CreateGroupByStatsResults: validation failed: %v", err)
 		return err
 	}
+
+	iqr.isDirty = true
 
 	if searchResults == nil {
 		return nil

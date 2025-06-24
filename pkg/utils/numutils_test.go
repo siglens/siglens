@@ -69,3 +69,31 @@ func TestFastParseFloat(t *testing.T) {
 		}
 	}
 }
+
+func Test_HumanizeUints(t *testing.T) {
+	testCases := map[uint64]string{
+		0:       "0",
+		100:     "100",
+		1000:    "1,000",
+		9999:    "9,999",
+		10000:   "10,000",
+		999999:  "999,999",
+		1000000: "1,000,000",
+		// padding
+		1001:     "1,001",
+		12000345: "12,000,345",
+		1002003:  "1,002,003",
+		//
+		18446744073709551615: "18,446,744,073,709,551,615",
+		// different part lengths
+		123456789012345678: "123,456,789,012,345,678",
+		12345678901234567:  "12,345,678,901,234,567",
+		1234567890123456:   "1,234,567,890,123,456",
+		//
+	}
+
+	for test, answer := range testCases {
+		humanizedVal := HumanizeUints(test)
+		assert.Equal(t, answer, humanizedVal)
+	}
+}
