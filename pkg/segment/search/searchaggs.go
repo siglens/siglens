@@ -1085,14 +1085,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 				}
 				// If current col will be used by eval funcs, we should store the raw data and process it
 				if colUsage == sutils.WithEvalUsage || colUsage == sutils.BothUsage {
-					e := sutils.CValueEnclosure{}
-					err := e.ConvertValue(rawVal)
-					if err != nil {
-						log.Errorf("applySegmentStatsUsingDictEncoding: %v", err)
-						continue
-					}
-
-					if e.Dtype != sutils.SS_DT_STRING {
+					if rawVal.Dtype != sutils.SS_DT_STRING {
 						retVal[colName] = true
 						continue
 					}
@@ -1109,7 +1102,8 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 
 						lStats[colName] = stats
 					}
-					stats.Records = append(stats.Records, &e)
+					rawValCopy := rawVal
+					stats.Records = append(stats.Records, &rawValCopy)
 
 					// Current col only used by eval statements
 					if colUsage == sutils.WithEvalUsage {
