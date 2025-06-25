@@ -1000,7 +1000,7 @@
   top: 90px;
   cursor: default;
   box-shadow: var(--box-shadow);
-  z-index: 0;
+  z-index: 1;
 }
 
 #add-widget-options .editPanelMenu-options {
