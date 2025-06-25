@@ -170,7 +170,7 @@ func GetTopNPersistentSearches(intable string, orgid int64) (map[string]*structs
 			// at the time, then that would have not expanded to real indexnames, we do it now
 			found := false
 			for idxname := range pqinfo.AllTables {
-				indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(idxname, orgid, false, nil) // TODO: This needs to set user in the context and pass. If this is called as a system operation we need system user?
+				indexNamesRetrieved := vtable.ExpandAndReturnAllIndexNames(idxname, orgid, false) // TODO: This needs to set user in the context and pass. If this is called as a system operation we need system user?
 				for _, t := range indexNamesRetrieved {
 					pqinfo.AllTables[t] = true // for future so that we don't enter this idxname expansion block
 					if t == intable {

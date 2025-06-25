@@ -151,8 +151,8 @@ func GetFilePathForRemoteNode(node string, orgid int64) string {
 }
 
 func CreateVirtTableBaseDirs(vTableBaseDir string, vTableMappingsDir string,
-	vTableTemplatesDir string, vTableAliasesDir string) error {
-
+	vTableTemplatesDir string, vTableAliasesDir string,
+) error {
 	err := os.MkdirAll(vTableBaseDir, 0764)
 	if err != nil {
 		log.Errorf("createVirtTableBaseDir: failed to create vTableBaseDir=%v, err=%v", vTableBaseDir, err)
@@ -271,7 +271,6 @@ func BulkAddVirtualTableNames(myIdToVTableMap map[int64]map[string]struct{}) err
 			if err != nil {
 				log.Errorf("BulkAddVirtualTableNames: Error in adding virtual table names for myid=%d, err:%v", id, err)
 			}
-
 		}(myid, vTableNamesMap)
 	}
 
@@ -304,7 +303,6 @@ func AddVirtualTableAndMapping(tname *string, mapping *string, orgid int64) erro
 	}
 
 	return AddMapping(tname, mapping, orgid)
-
 }
 
 func AddMapping(tname *string, mapping *string, orgid int64) error {
@@ -381,7 +379,6 @@ func LoadVirtualTableNamesFromFile(fileName string, vTableMap map[string]bool) e
 }
 
 func AddAliases(indexName string, aliases []string, orgid int64) error {
-
 	if indexName == "" {
 		log.Errorf("AddAliases: indexName is null. len(indexName)=%v", len(indexName))
 		return errors.New("indexName is null")
@@ -434,7 +431,6 @@ func GetAllAliasesAsMapArray(orgid int64) (map[string][]string, error) {
 }
 
 func GetAliasesAsArray(indexName string, orgid int64) ([]string, error) {
-
 	retVal := []string{}
 
 	aliasNames, err := GetAliases(indexName, orgid)
@@ -449,7 +445,6 @@ func GetAliasesAsArray(indexName string, orgid int64) ([]string, error) {
 }
 
 func GetAliases(indexName string, orgid int64) (map[string]bool, error) {
-
 	var sb1 strings.Builder
 	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
@@ -482,11 +477,9 @@ func GetAliases(indexName string, orgid int64) (map[string]bool, error) {
 	}
 
 	return retval, nil
-
 }
 
 func writeAliasFile(indexName *string, allnames map[string]bool, orgid int64) error {
-
 	var sb1 strings.Builder
 	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
@@ -553,7 +546,6 @@ func initializeAliasToIndexMap() error {
 }
 
 func putAliasToIndexInMem(aliasName string, indexName string, orgid int64) {
-
 	if aliasName == "" {
 		log.Errorf("putAliasToIndexInMem: aliasName is empty. len(aliasName)=%v", len(aliasName))
 		return
@@ -603,7 +595,6 @@ func GetIndexNameFromAlias(aliasName string, orgid int64) (string, error) {
 }
 
 func IsAlias(nameToCheck string, orgid int64) (bool, string) {
-
 	if valMap, ok := aliasToIndexNames[orgid][nameToCheck]; ok {
 		for indexName := range valMap {
 			return true, indexName
@@ -614,7 +605,6 @@ func IsAlias(nameToCheck string, orgid int64) (bool, string) {
 }
 
 func RemoveAliases(indexName string, aliases []string, orgid int64) error {
-
 	if indexName == "" {
 		log.Errorf("RemoveAliases: indexName is null.len(indexName)=%v", len(indexName))
 		return errors.New("indexName is null")
@@ -669,7 +659,10 @@ func removeAliasFile(indexName *string, orgid int64) error {
 	}
 
 	return nil
+}
 
+func ExpandAndReturnAllIndexNames(indexNameIn string, orgid int64, isElastic bool) []string {
+	return ExpandAndReturnIndexNames(indexNameIn, orgid, isElastic, nil)
 }
 
 // returns all indexNames that the input corresponding to after expanding "*" && aliases
