@@ -264,6 +264,10 @@ func (iqr *IQR) AppendKnownValues(knownValues map[string][]sutils.CValueEnclosur
 }
 
 func (iqr *IQR) NumberOfRecords() int {
+	if iqr == nil {
+		return 0
+	}
+
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.NumberOfRecords: validation failed: %v", err)
 		return 0
