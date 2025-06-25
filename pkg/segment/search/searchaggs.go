@@ -966,8 +966,14 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			nonDeColsKeyIndices[timestampColKeyIdx] = timestampKey
 		}
 
+		// Convert to slice to optimize read-only iteration.
+		nonDeIdxAndNames := utils.MapToSlice(nonDeColsKeyIndices)
+
 		for _, recNum := range sortedMatchedRecs {
-			for colKeyIdx, cname := range nonDeColsKeyIndices {
+			for _, kvPair := range nonDeIdxAndNames {
+				colKeyIdx := kvPair.Key
+				cname := kvPair.Value
+
 				isTsCol := colKeyIdx == timestampColKeyIdx
 				err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum,
 					recNum, qid, isTsCol, &cValEnc)
