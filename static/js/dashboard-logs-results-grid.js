@@ -202,6 +202,8 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
         new agGrid.Grid(panelGridDiv, panelGridOptions);
     }
     if (panelId != -1) {
+        panelLogsRowData = [];
+
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
         panelGridOptions = createPanelGridOptions(currentPanel);
 
