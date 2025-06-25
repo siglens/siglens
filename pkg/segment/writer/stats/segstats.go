@@ -46,7 +46,7 @@ func GetDefaultTimeStats() *TimeStats {
 
 func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	inNumType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
-	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool, hasPercFunc bool) {
+	fltVal float64, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool, hasPercFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -377,7 +377,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 
 	floatVal, err := strconv.ParseFloat(strVal, 64)
 	if err == nil {
-		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, strVal, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 		return
 	}
 

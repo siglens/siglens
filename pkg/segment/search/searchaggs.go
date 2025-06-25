@@ -1012,16 +1012,13 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 					var floatVal float64
 					var intVal int64
 					var valueType sutils.SS_IntUintFloatTypes
-					var numStr string
 					var err error
 					if cValEnc.IsFloat() {
 						valueType = sutils.SS_FLOAT64
 						floatVal, err = cValEnc.GetFloatValue()
-						numStr = fmt.Sprintf("%v", floatVal)
 					} else {
 						valueType = sutils.SS_INT64
 						intVal, err = cValEnc.GetIntValue()
-						numStr = fmt.Sprintf("%v", intVal)
 					}
 
 					if err != nil {
@@ -1029,7 +1026,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 						continue
 					}
 
-					stats.AddSegStatsNums(localStats, cname, valueType, intVal, 0, floatVal, numStr, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+					stats.AddSegStatsNums(localStats, cname, valueType, intVal, 0, floatVal, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				}
 			}
 		}
@@ -1145,10 +1142,10 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				case sutils.SS_DT_SIGNED_NUM:
 					val := rawVal.CVal.(int64)
-					stats.AddSegStatsNums(lStats, colName, sutils.SS_INT64, val, 0, 0, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+					stats.AddSegStatsNums(lStats, colName, sutils.SS_INT64, val, 0, 0, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				case sutils.SS_DT_FLOAT:
 					val := rawVal.CVal.(float64)
-					stats.AddSegStatsNums(lStats, colName, sutils.SS_FLOAT64, 0, 0, val, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+					stats.AddSegStatsNums(lStats, colName, sutils.SS_FLOAT64, 0, 0, val, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				default:
 					// This means the column is not dict encoded. So add it to the return value
 					retVal[colName] = true
