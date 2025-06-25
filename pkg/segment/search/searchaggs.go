@@ -220,14 +220,16 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		}
 	}
 
-	measureColKeyIdxAndIndices := make(map[int][]int)
+	idxToIndicies := make(map[int][]int)
 	for cName, indices := range measureInfo {
 		cKeyidx, ok := multiColReader.GetColKeyIndex(cName)
 		if ok {
-			measureColKeyIdxAndIndices[cKeyidx] = indices
+			idxToIndicies[cKeyidx] = indices
 			colsToReadIndices[cKeyidx] = struct{}{}
 		}
 	}
+	// Convert to a slice to optimize for read-only iteration.
+	measureColKeyIdxAndIndices := utils.MapToSlice(idxToIndicies)
 
 	err := multiColReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
 	if err != nil {
@@ -326,7 +328,10 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			}
 		}
 
-		for colKeyIdx, indices := range measureColKeyIdxAndIndices {
+		for _, kvPair := range measureColKeyIdxAndIndices {
+			colKeyIdx := kvPair.Key
+			indices := kvPair.Value
+
 			err := multiColReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
 				qid, false, &retCVal)
 			if err != nil {
