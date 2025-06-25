@@ -1402,7 +1402,6 @@ func handleMVRange(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEn
 		}
 		var stepVal interface{} = raw
 		switch v := stepVal.(type) {
-
 		case float64:
 			step = int64(v)
 		case int64:
@@ -1481,13 +1480,54 @@ func handleMVRange(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEn
 
 func parseExtendedDuration(s string) (time.Duration, error) {
 	if strings.HasSuffix(s, "d") {
-		daysStr := strings.TrimSuffix(s, "d")
-		days, err := strconv.Atoi(daysStr)
+		valueStr := strings.TrimSuffix(s, "d")
+		value, err := strconv.Atoi(valueStr)
 		if err != nil {
 			return 0, err
 		}
-		return time.Hour * 24 * time.Duration(days), nil
+		return time.Hour * 24 * time.Duration(value), nil
 	}
+
+	if strings.HasSuffix(s, "w") {
+		valueStr := strings.TrimSuffix(s, "w")
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Hour * 24 * 7 * time.Duration(value), nil
+	}
+
+	if strings.HasSuffix(s, "mon") {
+		valueStr := strings.TrimSuffix(s, "mon")
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Hour * 24 * 30 * time.Duration(value), nil
+	}
+
+	if strings.HasSuffix(s, "q") || strings.HasSuffix(s, "quarter") {
+		suffix := "q"
+		if strings.HasSuffix(s, "quarter") {
+			suffix = "quarter"
+		}
+		valueStr := strings.TrimSuffix(s, suffix)
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Hour * 24 * 91 * time.Duration(value), nil
+	}
+
+	if strings.HasSuffix(s, "y") {
+		valueStr := strings.TrimSuffix(s, "y")
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Hour * 24 * 365 * time.Duration(value), nil
+	}
+
 	return 0, fmt.Errorf("unsupported duration format: %s", s)
 }
 
