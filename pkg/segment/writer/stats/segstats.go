@@ -74,9 +74,19 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 		}
 	}
 
-	bb.Reset()
-	_, _ = bb.WriteString(numstr)
-	stats.InsertIntoHll(bb.B)
+	bytes := [8]byte{}
+	switch inNumType {
+	case SS_UINT8, SS_UINT16, SS_UINT32, SS_UINT64:
+		utils.Uint64ToBytesLittleEndianInplace(uintVal, bytes[:])
+	case SS_INT8, SS_INT16, SS_INT32, SS_INT64:
+		utils.Int64ToBytesLittleEndianInplace(intVal, bytes[:])
+	case SS_FLOAT64:
+		utils.Float64ToBytesLittleEndianInplace(fltVal, bytes[:])
+	default:
+		log.Warnf("AddSegStatsNums: unsupported inNumType: %v", inNumType)
+		return
+	}
+	stats.InsertIntoHll(bytes[:])
 	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 }
 
