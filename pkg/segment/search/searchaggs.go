@@ -1066,14 +1066,18 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 			retVal[colName] = true
 			continue
 		}
-		results := make(map[uint16]map[string]interface{})
-		ok := mcr.GetDictEncCvalsFromColFileOldPipeline(results, colName, blockNum, filterdRecNums, qid)
+		results := map[string][]sutils.CValueEnclosure{
+			colName: make([]sutils.CValueEnclosure, len(filterdRecNums)),
+		}
+		ok := mcr.GetDictEncCvalsFromColFile(results, colName, blockNum, filterdRecNums, qid)
 		if !ok {
 			log.Errorf("qid=%d, segmentStatsWorker failed to get dict cvals for col %s", qid, colName)
 			continue
 		}
-		for recNum, cMap := range results {
-			for colName, rawVal := range cMap {
+
+		for colName, rawVals := range results {
+			for i, rawVal := range rawVals {
+				recNum := filterdRecNums[i]
 				addValsToTimeStats(lStats, colName, latestTs, earliestTs, rawVal, mcr, needLatestOrEarliest, blockNum, recNum, qid)
 				colUsage, exists := aggColUsage[colName]
 				if !exists {
@@ -1113,7 +1117,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 					}
 				}
 
-				if rawVal == nil {
+				if rawVal.IsNull() {
 					continue
 				}
 
@@ -1130,12 +1134,15 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 					hasPercFunc = false
 				}
 
-				switch val := rawVal.(type) {
-				case string:
+				switch rawVal.Dtype {
+				case sutils.SS_DT_STRING:
+					val := rawVal.CVal.(string)
 					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
-				case int64:
+				case sutils.SS_DT_SIGNED_NUM:
+					val := rawVal.CVal.(int64)
 					stats.AddSegStatsNums(lStats, colName, sutils.SS_INT64, val, 0, 0, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
-				case float64:
+				case sutils.SS_DT_FLOAT:
+					val := rawVal.CVal.(float64)
 					stats.AddSegStatsNums(lStats, colName, sutils.SS_FLOAT64, 0, 0, val, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				default:
 					// This means the column is not dict encoded. So add it to the return value
