@@ -1339,6 +1339,99 @@ func handleMVAppend(self *MultiValueExpr, fieldToValue map[string]sutils.CValueE
 	return finalMVSlice, nil
 }
 
+func (self *BoolExpr) ExtractSingleField() string {
+	if self.IsTerminal {
+		if self.LeftValue == nil {
+			return ""
+		}
+
+		if self.LeftValue.ValueExprMode == VEMStringExpr &&
+			self.LeftValue.StringExpr != nil &&
+			self.LeftValue.StringExpr.StringExprMode == SEMField {
+			return self.LeftValue.StringExpr.FieldName
+		}
+
+		if self.LeftValue.ValueExprMode == VEMNumericExpr &&
+			self.LeftValue.NumericExpr != nil &&
+			self.LeftValue.NumericExpr.ValueIsField {
+			return self.LeftValue.NumericExpr.Value
+		}
+		if self.LeftValue.ValueExprMode == VEMMultiValueExpr &&
+			self.LeftValue.MultiValueExpr != nil &&
+			self.LeftValue.MultiValueExpr.MultiValueExprMode == MVEMField {
+			return self.LeftValue.MultiValueExpr.FieldName
+		}
+	} else {
+		if self.LeftBool != nil {
+			leftField := self.LeftBool.ExtractSingleField()
+			if leftField != "" {
+				if self.RightBool == nil {
+					return leftField
+				}
+
+				rightField := self.RightBool.ExtractSingleField()
+				if rightField != "" && rightField == leftField {
+					// If both sides reference the same field, we can use that field
+					return leftField
+				}
+
+				return leftField
+			}
+		}
+
+		if self.RightBool != nil {
+			return self.RightBool.ExtractSingleField()
+		}
+	}
+
+	return ""
+}
+
+func handleMVFilter(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.Condition == nil {
+		return []string{}, fmt.Errorf("handleMVFilter: missing predicate condition")
+	}
+
+	targetField := self.Condition.ExtractSingleField()
+	if targetField == "" {
+		return []string{}, fmt.Errorf("handleMVFilter: unable to extract field from condition")
+	}
+
+	mvRaw, ok := fieldToValue[targetField]
+	if !ok || mvRaw.Dtype != sutils.SS_DT_STRING_SLICE {
+		return []string{}, fmt.Errorf("handleMVFilter: field %s is not a multivalue field", targetField)
+	}
+
+	var mvSlice []string
+	if mvRaw.CVal != nil {
+		mvSlice = mvRaw.CVal.([]string)
+	} else {
+		return []string{}, nil
+	}
+
+	result := []string{}
+
+	for _, val := range mvSlice {
+		tempFieldToValue := map[string]sutils.CValueEnclosure{
+			targetField: {
+				Dtype: sutils.SS_DT_STRING,
+				CVal:  val,
+			},
+		}
+
+		ok, err := self.Condition.Evaluate(tempFieldToValue)
+		if err != nil {
+			return []string{}, fmt.Errorf("handleMVFilter: condition evaluation failed: %v", err)
+		}
+
+		if ok {
+			result = append(result, val)
+		}
+	}
+
+	return result, nil
+}
+
 func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvindex requires one multiValueExpr argument")
@@ -1417,6 +1510,8 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 		return handleMVDedup(self, fieldToValue)
 	case "mvappend":
 		return handleMVAppend(self, fieldToValue)
+	case "mvfilter":
+		return handleMVFilter(self, fieldToValue)
 	default:
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: invalid Op %v", self.Op)
 	}
