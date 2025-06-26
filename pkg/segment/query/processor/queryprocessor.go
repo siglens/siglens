@@ -550,6 +550,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewTransactionDP(queryAgg.TransactionExpr)
 	} else if queryAgg.WhereExpr != nil {
 		return NewWhereDP(queryAgg.WhereExpr)
+	} else if queryAgg.ToJsonExpr != nil {
+		return NewToJsonDP(queryAgg.ToJsonExpr)
 	} else {
 		return nil
 	}
