@@ -119,7 +119,7 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File,
 
 	for colName, colFD := range colFDs {
 		if colName == tsKey {
-			blkRecCount := make(map[uint16]uint16)
+			blkRecCount := make(map[uint16]uint16, len(blockSummaries))
 			for blkIdx, blkSum := range blockSummaries {
 				blkRecCount[uint16(blkIdx)] = blkSum.RecCount
 			}
