@@ -19,7 +19,10 @@ package utils
 
 import (
 	"container/heap"
+	"math/rand"
+	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -99,4 +102,28 @@ func Test_TopN(t *testing.T) {
 
 	assert.Equal(t, 5, len(top5))
 	assert.Equal(t, []int{9, 9, 9, 8, 7}, top5)
+}
+
+func Test_TopN_Random(t *testing.T) {
+	seed := time.Now().UnixNano()
+	rng := rand.New(rand.NewSource(seed))
+	numItems := 50
+	data := make([]int, numItems)
+	for i := 0; i < numItems; i++ {
+		data[i] = rng.Intn(100)
+	}
+
+	compareFn := func(a, b int) bool {
+		return a > b
+	}
+
+	actualTop10 := GetTopN(10, data, compareFn)
+
+	// Find the expectd top 10 values.
+	sort.Slice(data, func(i, j int) bool {
+		return compareFn(data[i], data[j])
+	})
+	expectedTop10 := data[:10]
+
+	assert.Equal(t, expectedTop10, actualTop10, "Mismatch for seed %d", seed)
 }
