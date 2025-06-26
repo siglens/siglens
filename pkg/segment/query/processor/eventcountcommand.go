@@ -69,7 +69,7 @@ func (p *EventcountProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 		indexSet := make(map[string]bool)
 		for _, indexPattern := range p.options.Indices {
 			// Use ExpandAndReturnIndexNames to expand patterns like * and _*
-			expanded := vtable.ExpandAndReturnIndexNames(indexPattern, 0, false)
+			expanded := vtable.ExpandAndReturnIndexNames(indexPattern, int64(0), false)
 			for _, idx := range expanded {
 				indexSet[idx] = true
 			}
