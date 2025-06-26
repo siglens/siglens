@@ -87,7 +87,7 @@ func (h *Heap[T]) PopValue() T {
 	return heap.Pop(h).(*HeapItem[T]).Value
 }
 
-func (h *Heap[T]) Peek() T {
+func (h *Heap[T]) peek() T {
 	if h.Len() == 0 {
 		var zero T
 		return zero
@@ -108,7 +108,7 @@ func GetTopN[T any](N int, items []T, less lessFunc[T]) []T {
 			h.PushValue(item)
 		} else {
 			// Heap at capacity, only push if item is better than current minimum
-			if less(item, h.Peek()) {
+			if less(item, h.peek()) {
 				h.PopValue()
 				h.PushValue(item)
 			}
