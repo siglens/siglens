@@ -20,7 +20,6 @@ package segread
 import (
 	"errors"
 	"fmt"
-	"math"
 	"os"
 
 	"github.com/siglens/siglens/pkg/blob"
@@ -41,14 +40,6 @@ var (
 	ErrGetSegVarpCurrSegStatNil    = errors.New("GetSegVarp: currSegStat is nil")
 	ErrGetSegVarpSegStatNonNumeric = errors.New("GetSegVarp: current segStats is non-numeric")
 	ErrGetVarpInvalidDtype         = errors.New("getVarp: invalid data type")
-
-	ErrGetSegStdevCurrSegStatNil    = errors.New("GetSegStdev: currSegStat is nil")
-	ErrGetSegStdevSegStatNonNumeric = errors.New("GetSegStdev: current segStats is non-numeric")
-	ErrGetStdevInvalidDtype         = errors.New("getStdev: invalid data type")
-
-	ErrGetSegStdevpCurrSegStatNil    = errors.New("GetSegStdevp: currSegStat is nil")
-	ErrGetSegStdevpSegStatNonNumeric = errors.New("GetSegStdevp: current segStats is non-numeric")
-	ErrGetStdevpInvalidDtype         = errors.New("getStdevp: invalid data type")
 )
 
 func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, error) {
@@ -738,7 +729,7 @@ func GetSegVarp(runningSegStat *structs.SegStats,
 	return &rSst, err
 }
 
-// Helper function to calculate the population variance
+// Helper function to calculate the variance
 func getVarp(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64, error) {
 	if count == 0 { // population variance requires at least 1 record
 		return 0, nil
@@ -754,120 +745,6 @@ func getVarp(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64,
 		return 0, ErrGetVarpInvalidDtype
 	}
 	return variance, nil
-}
-
-func GetSegStdev(runningSegStat *structs.SegStats,
-	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
-
-	if currSegStat == nil {
-		return nil, ErrGetSegStdevCurrSegStatNil
-	}
-
-	if !currSegStat.IsNumeric {
-		return nil, ErrGetSegStdevSegStatNonNumeric
-	}
-
-	// Initialize result with default values
-	rSst := sutils.NumTypeEnclosure{
-		Ntype:    sutils.SS_DT_FLOAT,
-		IntgrVal: 0,
-		FloatVal: 0.0,
-	}
-
-	// If running segment statistics are nil, return the current segment's sample standard deviation
-	if runningSegStat == nil {
-		stdev, err := getStdev(currSegStat.NumStats.Sum, currSegStat.NumStats.Sumsq, currSegStat.NumStats.NumericCount)
-		rSst.FloatVal = stdev
-		return &rSst, err
-	}
-
-	// Update running segment statistics
-	runningSegStat.NumStats.NumericCount += currSegStat.NumStats.NumericCount
-	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, sutils.Sum)
-	if err != nil {
-		return nil, err
-	}
-	runningSegStat.NumStats.Sumsq += currSegStat.NumStats.Sumsq
-
-	// Calculate and return the stdev
-	stdev, err := getStdev(runningSegStat.NumStats.Sum, runningSegStat.NumStats.Sumsq, runningSegStat.NumStats.NumericCount)
-	rSst.FloatVal = stdev
-	return &rSst, err
-}
-
-// Helper function to calculate the sample standard deviation
-func getStdev(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64, error) {
-	if count < 2 { // sample standard deviation requires at least 2 records
-		return 0, nil
-	}
-
-	var stdev float64
-	switch sum.Ntype {
-	case sutils.SS_DT_FLOAT:
-		stdev = math.Sqrt((sumsq - (sum.FloatVal * sum.FloatVal / float64(count))) / float64(count-1))
-	case sutils.SS_DT_SIGNED_NUM:
-		stdev = math.Sqrt((sumsq - (float64(sum.IntgrVal) * float64(sum.IntgrVal) / float64(count))) / float64(count-1))
-	default:
-		return 0, ErrGetStdevInvalidDtype
-	}
-	return stdev, nil
-}
-
-func GetSegStdevp(runningSegStat *structs.SegStats,
-	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
-
-	if currSegStat == nil {
-		return nil, ErrGetSegStdevpCurrSegStatNil
-	}
-
-	if !currSegStat.IsNumeric {
-		return nil, ErrGetSegStdevpSegStatNonNumeric
-	}
-
-	// Initialize result with default values
-	rSst := sutils.NumTypeEnclosure{
-		Ntype:    sutils.SS_DT_FLOAT,
-		IntgrVal: 0,
-		FloatVal: 0.0,
-	}
-
-	// If running segment statistics are nil, return the current segment's population standard deviation
-	if runningSegStat == nil {
-		stdevp, err := getStdevp(currSegStat.NumStats.Sum, currSegStat.NumStats.Sumsq, currSegStat.NumStats.NumericCount)
-		rSst.FloatVal = stdevp
-		return &rSst, err
-	}
-
-	// Update running segment statistics
-	runningSegStat.NumStats.NumericCount += currSegStat.NumStats.NumericCount
-	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, sutils.Sum)
-	if err != nil {
-		return nil, err
-	}
-	runningSegStat.NumStats.Sumsq += currSegStat.NumStats.Sumsq
-
-	// Calculate and return the stdevp
-	stdevp, err := getStdevp(runningSegStat.NumStats.Sum, runningSegStat.NumStats.Sumsq, runningSegStat.NumStats.NumericCount)
-	rSst.FloatVal = stdevp
-	return &rSst, err
-}
-
-// Helper function to calculate the population standard deviation
-func getStdevp(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64, error) {
-	if count == 0 { // population standard deviation requires at least 1 record
-		return 0, nil
-	}
-
-	var stdevp float64
-	switch sum.Ntype {
-	case sutils.SS_DT_FLOAT:
-		stdevp = math.Sqrt((sumsq - (sum.FloatVal * sum.FloatVal / float64(count))) / float64(count))
-	case sutils.SS_DT_SIGNED_NUM:
-		stdevp = math.Sqrt((sumsq - (float64(sum.IntgrVal) * float64(sum.IntgrVal) / float64(count))) / float64(count))
-	default:
-		return 0, ErrGetStdevpInvalidDtype
-	}
-	return stdevp, nil
 }
 
 func GetSegList(runningSegStat *structs.SegStats,
