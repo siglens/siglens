@@ -87,6 +87,14 @@ func (h *Heap[T]) PopValue() T {
 	return heap.Pop(h).(*HeapItem[T]).Value
 }
 
+func (h *Heap[T]) Peek() T {
+	if h.Len() == 0 {
+		var zero T
+		return zero
+	}
+	return h.items[0].Value
+}
+
 func GetTopN[T any](N int, items []T, less lessFunc[T]) []T {
 	// Create min-heap (smaller items at root)
 	h := NewHeap(func(a, b T) bool {
@@ -95,11 +103,15 @@ func GetTopN[T any](N int, items []T, less lessFunc[T]) []T {
 
 	// Process all items
 	for _, item := range items {
-		h.PushValue(item)
-
-		// If we have more than N items, remove the smallest
-		if h.Len() > N {
-			h.PopValue()
+		if h.Len() < N {
+			// Heap not at capacity, push directly
+			h.PushValue(item)
+		} else {
+			// Heap at capacity, only push if item is better than current minimum
+			if less(item, h.Peek()) {
+				h.PopValue()
+				h.PushValue(item)
+			}
 		}
 	}
 
