@@ -704,6 +704,39 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 				return validateBoolExprError(err, "BoolExpr.Evaluate: can not evaluate Eval In function")
 			}
 			return getBoolCValueEnclosure(inFlag), nil
+		case "isobject":
+			val, err := self.LeftValue.EvaluateToString(fieldToValue)
+			if err != nil {
+				return validateBoolExprError(err, "BoolExpr.Evaluate: can not evaluate to string in isobject")
+			}
+			var v any
+			err = json.Unmarshal([]byte(val), &v)
+			if err != nil {
+				return getBoolCValueEnclosure(false), nil
+			} else {
+				return getBoolCValueEnclosure(true), nil
+			}
+		case "ismv":
+			err := fmt.Errorf("error while evaluating ismv")
+			if self.LeftValue.NumericExpr != nil {
+				fields := self.GetFields()
+				if len(fields) == 1 {
+					val, ok := fieldToValue[fields[0]]
+					if ok {
+						if val.Dtype == sutils.SS_DT_STRING_SLICE {
+							return getBoolCValueEnclosure(true), nil
+						} else {
+							return getBoolCValueEnclosure(false), nil
+						}
+					} else {
+						return validateBoolExprError(err, "BoolExpr.Evaluate: Field doesn't exist")
+					}
+				} else {
+					return validateBoolExprError(err, "BoolExpr.Evaluate: ismv takes exactly one argument")
+				}
+			} else {
+				return validateBoolExprError(err, "BoolExpr.Evaluate: ismv requires atleast one argument")
+			}
 		case "isbool":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
@@ -711,7 +744,6 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 			}
 			isBool := strings.ToLower(val) == "true" || strings.ToLower(val) == "false" || val == "0" || val == "1"
 			return getBoolCValueEnclosure(isBool), nil
-
 		case "isint":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
