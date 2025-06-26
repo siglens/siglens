@@ -1109,6 +1109,7 @@ func (iqr *IQR) MergeIQRStatsResults(iqrs []*IQR) (bool, error) {
 			blockRes.TimeAggregation = statsRes.timeBuckets
 
 			searchResults.AddBlockResults(blockRes)
+			blockRes.Close()
 		}
 	}
 
