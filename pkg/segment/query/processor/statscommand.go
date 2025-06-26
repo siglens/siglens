@@ -18,7 +18,6 @@
 package processor
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -320,15 +319,9 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 			if values[i].IsString() {
 				stats.AddSegStatsStr(segStatsMap, colName, values[i].CVal.(string), p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 			} else if values[i].IsNumeric() {
-				stringVal, err := values[i].GetString()
-				if err != nil {
-					p.errorData.cValueGetStringErr[colName] = err
-					stringVal = fmt.Sprintf("%v", values[i].CVal)
-				}
-
 				if values[i].IsFloat() {
 					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_FLOAT64, 0, 0, values[i].CVal.(float64),
-						stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+						p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				} else {
 					intVal, err := values[i].GetIntValue()
 					if err != nil {
@@ -337,7 +330,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 						intVal = 0
 					}
 
-					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_INT64, intVal, 0, 0, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				}
 			} else {
 				p.errorData.notSupportedStatsType[colName] = struct{}{}

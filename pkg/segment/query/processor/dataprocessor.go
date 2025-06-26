@@ -846,7 +846,7 @@ func NewTimechartDP(options *timechartOptions) *DataProcessor {
 		isBottleneckCmd:       true,
 		isTransformingCmd:     true,
 		isTwoPassCmd:          false,
-		isMergeableBottleneck: false, // TODO: implement merging, then set to true.
+		isMergeableBottleneck: true,
 		processorLock:         &sync.Mutex{},
 	}
 }
@@ -935,7 +935,7 @@ func NewSortDP(options *structs.SortExpr) *DataProcessor {
 		isPermutingCmd:        true,
 		isBottleneckCmd:       true,
 		isTwoPassCmd:          false,
-		isMergeableBottleneck: false, // TODO: implement merging, then set to true.
+		isMergeableBottleneck: true,
 		processorLock:         &sync.Mutex{},
 	}
 }
@@ -997,6 +997,11 @@ func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 }
 
 func NewMergerDP(mergeSettings mergeSettings) *DataProcessor {
+	// Note that many of the settings refer to mergingStats rather than a more
+	// general mergingBottleneck variable. This is because even if we're
+	// merging bottlenecks, this mergerDP doesn't necessarily have the same
+	// properties as the commands we're merging (e.g., if we're merging sorted
+	// results, we can stream the result instead of bottlenecking).
 	return &DataProcessor{
 		name:                  "merger",
 		streams:               make([]*CachedStream, 0),
