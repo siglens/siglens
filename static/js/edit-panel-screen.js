@@ -1081,7 +1081,6 @@ async function runQueryBtnHandler() {
     delete currentPanel.queryRes;
     resetEditPanel();
     panelGridDiv = null;
-    panelLogsRowData = [];
     $('.panelDisplay .ag-root-wrapper').remove();
     $('.panelDisplay #empty-response').empty();
     $('.panelDisplay #empty-response').hide();
