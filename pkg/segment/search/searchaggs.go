@@ -815,6 +815,7 @@ func applyAggregationsToSingleBlockFastPath(aggs *structs.QueryAggregators,
 		queryMetrics.IncrementNumBlocksWithMatch(1)
 	}
 	allSearchResults.AddBlockResults(blkResults)
+	blkResults.Close()
 }
 
 func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSearchRecords *SegmentSearchStatus,

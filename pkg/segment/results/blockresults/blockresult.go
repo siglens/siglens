@@ -97,6 +97,7 @@ type RunningBucketResultsJSON struct {
 	Count        uint64                       `json:"count"`
 }
 
+// Callers should call Close() when done with the BlockResults.
 func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) (*BlockResults, error) {
 	blockRes := &BlockResults{aggs: aggs}
 	if aggs != nil && aggs.TimeHistogram != nil {
