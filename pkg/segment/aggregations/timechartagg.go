@@ -376,16 +376,6 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 		fallthrough
 	case sutils.EarliestTime:
 		fallthrough
-	case sutils.Sumsq:
-		fallthrough
-	case sutils.Var:
-		fallthrough
-	case sutils.Varp:
-		fallthrough
-	case sutils.Stdev:
-		fallthrough
-	case sutils.Stdevp:
-		fallthrough
 	case sutils.Sum:
 		aggFunc = sutils.Sum
 	case sutils.Cardinality:

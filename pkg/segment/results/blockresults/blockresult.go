@@ -144,7 +144,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 		var mFunc sutils.AggregateFunctions
 		var overrodeMeasureAgg *structs.MeasureAggregator
 		switch m.MeasureFunc {
-		case sutils.Sum, sutils.Max, sutils.Min, sutils.List, sutils.Sumsq:
+		case sutils.Sum, sutils.Max, sutils.Min, sutils.List:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, m.MeasureFunc, &allReverseIndex, colToIdx, idx)
 				if err != nil {
@@ -154,22 +154,6 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 				continue
 			} else {
 				mFunc = m.MeasureFunc
-			}
-		case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
-			if m.ValueColRequest != nil {
-				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, m.MeasureFunc, &allReverseIndex, colToIdx, idx)
-				if err != nil {
-					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for %v, err: %v", m.MeasureFunc, err)
-				}
-				idx = curId
-				continue
-			} else {
-				curId, err := aggregations.AddMeasureAggInRunningStatsForDeviation(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
-				if err != nil {
-					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for %v, err: %v", m.MeasureFunc, err)
-				}
-				idx = curId
-				continue
 			}
 		case sutils.Range:
 			if m.ValueColRequest != nil {
@@ -983,66 +967,6 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 		cTypeVal := runningStats[valIdx].rawVal
 		eVal.CVal = cTypeVal.CVal
 		eVal.Dtype = cTypeVal.Dtype
-	case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
-		var dev float64
-		if mInfo.ValueColRequest != nil {
-			incrementIdxBy = 1
-
-			if len(mInfo.ValueColRequest.GetFields()) == 0 {
-				batchErr.AddError("GroupByBuckets.AddResultToStatRes:VAR/VARP/STDEV/STDEVP", fmt.Errorf("zero fields of ValueColRequest for deviation statistic: %v", mInfoStr))
-				return
-			}
-			valIdx := gb.reverseMeasureIndex[idx]
-			if runningStats[valIdx].devStat != nil {
-				dev = runningStats[valIdx].devStat.GetDeviationAgg(mInfo.MeasureFunc)
-			} else {
-				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
-				return
-			}
-
-			eVal.CVal = dev
-			eVal.Dtype = sutils.SS_DT_FLOAT
-		} else {
-			// it is used by timechart
-			// we need 3 values: sum, sumsq, count
-			// so incrementIdxBy will be 3
-			// order should be the same as defined in evalaggs.go -> @AddMeasureAggInRunningStatsForDeviation
-			// sum is present at index idx
-			// sumsq is present at index idx+1
-			// count is present at index idx+2
-			incrementIdxBy = 3
-
-			devStat := &structs.DeviationStat{}
-			var err error
-
-			sumIdx := gb.reverseMeasureIndex[idx]
-			runningStats[sumIdx].syncRawValue()
-			devStat.Sum, err = runningStats[sumIdx].rawVal.GetFloatValue()
-			if err != nil {
-				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
-				return
-			}
-
-			sumsqIdx := gb.reverseMeasureIndex[idx+1]
-			runningStats[sumsqIdx].syncRawValue()
-			devStat.Sumsq, err = runningStats[sumsqIdx].rawVal.GetFloatValue()
-			if err != nil {
-				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
-				return
-			}
-
-			countIdx := gb.reverseMeasureIndex[idx+2]
-			runningStats[countIdx].syncRawValue()
-			devStat.Count, err = runningStats[countIdx].rawVal.GetIntValue()
-			if err != nil {
-				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
-				return
-			}
-
-			dev = devStat.GetDeviationAgg(mInfo.MeasureFunc)
-			eVal.CVal = dev
-			eVal.Dtype = sutils.SS_DT_FLOAT
-		}
 	default:
 		incrementIdxBy = 1
 
