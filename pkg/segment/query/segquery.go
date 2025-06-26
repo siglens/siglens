@@ -459,7 +459,6 @@ func GetNodeResultsForRRCCmd(queryInfo *QueryInformation, sTime time.Time, allSe
 			ErrList: []error{err},
 		}
 	}
-
 	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary, false)
 }
 
