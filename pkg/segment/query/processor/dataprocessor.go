@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 type processor interface {
@@ -714,7 +715,7 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 }
 
 // NewEventcountDP creates a new EventcountProcessor
-func NewEventcountDP(qid uint64, options *structs.EventCountExpr, limit uint64) *DataProcessor {
+func NewEventcountDP(qid uint64, options *structs.EventCountExpr, limit uint64, ctx *fasthttp.RequestCtx) *DataProcessor {
 	return &DataProcessor{
 		name:    "eventcount",
 		streams: make([]*CachedStream, 0),
@@ -723,6 +724,7 @@ func NewEventcountDP(qid uint64, options *structs.EventCountExpr, limit uint64) 
 			options: options,
 			limit:   limit,
 			eof:     false,
+			ctx:     ctx,
 		},
 	}
 }

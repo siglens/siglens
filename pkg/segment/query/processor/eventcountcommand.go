@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
+	"github.com/valyala/fasthttp"
 )
 
 type EventcountProcessor struct {
@@ -34,11 +35,12 @@ type EventcountProcessor struct {
 	qid     uint64
 	limit   uint64
 	eof     bool
+	ctx     *fasthttp.RequestCtx // Context for request-specific operations
 }
 
+// Change the method signature to match the interface
 func (p *EventcountProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	if inpIqr != nil {
-		// Since eventcount is a data generator, input should be nil
 		return nil, fmt.Errorf("eventcountProcessor.Process: IQR is non-nil")
 	}
 
@@ -50,14 +52,11 @@ func (p *EventcountProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, fmt.Errorf("eventcountProcessor.Process: EventCount options is nil")
 	}
 
-	// Create a new IQR to hold the results
 	newIQR := iqr.NewIQR(p.qid)
 
-	// Get indices either from options or list all available ones
 	var expandedIndices []string
 	if p.options.ListVix {
-		// Get all available indices
-		allTables, err := vtable.GetVirtualTableNames(0) // 0 is default orgid
+		allTables, err := vtable.GetVirtualTableNames(0)
 		if err != nil {
 			return nil, fmt.Errorf("eventcountProcessor.Process: Error listing virtual tables: %v", err)
 		}
@@ -65,17 +64,14 @@ func (p *EventcountProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 			expandedIndices = append(expandedIndices, tableName)
 		}
 	} else if len(p.options.Indices) > 0 {
-		// Process each index pattern
 		indexSet := make(map[string]bool)
 		for _, indexPattern := range p.options.Indices {
-			// Use ExpandAndReturnIndexNames to expand patterns like * and _*
-			expanded := vtable.ExpandAndReturnIndexNames(indexPattern, int64(0), false)
+			// Use the struct field p.ctx
+			expanded := vtable.ExpandAndReturnIndexNames(indexPattern, int64(0), false, p.ctx)
 			for _, idx := range expanded {
 				indexSet[idx] = true
 			}
 		}
-
-		// Convert the set back to a slice
 		for idx := range indexSet {
 			expandedIndices = append(expandedIndices, idx)
 		}
