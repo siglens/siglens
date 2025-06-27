@@ -459,7 +459,7 @@ func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid int64) {
 		utils.WriteJsonResponse(ctx, responseBody)
 		return
 	}
-	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid, ctx)
+	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
 	if indicesNotFound == len(convertedIndexNames) {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
@@ -472,8 +472,8 @@ func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 }
 
-func deleteIndex(inIndexName string, myid int64, ctx *fasthttp.RequestCtx) ([]string, int) {
-	convertedIndexNames := vtable.ExpandAndReturnIndexNames(inIndexName, myid, true, ctx)
+func deleteIndex(inIndexName string, myid int64) ([]string, int) {
+	convertedIndexNames := vtable.ExpandAndReturnIndexNames(inIndexName, myid, true)
 	indicesNotFound := 0
 	for _, indexName := range convertedIndexNames {
 

@@ -36,6 +36,7 @@ import (
 )
 
 func Test_extractRangeFilter(t *testing.T) {
+
 	// 1.0 > col1
 	leftLiteralEncoded, err := CreateDtypeEnclosure(1.0, 0)
 	if err != nil {
@@ -88,7 +89,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 		TimeRange:          timeRange,
 	}
 	searchNode := ConvertASTNodeToSearchNode(simpleNode, 0)
-	ti := InitTableInfo(IndexName, 0, false, nil)
+	ti := InitTableInfo(IndexName, 0, false)
 	queryInfo, err := InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 0, &DistributedQueryService{}, 0, 0, false)
 	assert.NoError(t, err)
@@ -181,7 +182,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 }
 
 func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	ti := InitTableInfo(IndexName, 0, false, nil)
+	ti := InitTableInfo(IndexName, 0, false)
 	zeroValue, _ := CreateDtypeEnclosure(0, 0)
 	valueFilter := FilterCriteria{
 		ExpressionFilter: &ExpressionFilter{
