@@ -6751,6 +6751,11 @@ p#versionInfo {
 
 #pqs-id-details {
     height: 80vh;
+    width: 514px !important;
+}
+
+.text-cursor {
+    cursor: text !important;
 }
 
 #clear-pqs-info,
