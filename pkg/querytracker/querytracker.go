@@ -19,7 +19,6 @@ package querytracker
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -27,6 +26,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"encoding/json"
 
 	"github.com/imdario/mergo"
 	jsoniter "github.com/json-iterator/go"
@@ -40,30 +41,24 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const (
-	MAX_QUERIES_TO_TRACK  = 100    // this limits how many PQS searches we are doing
-	MAX_CANDIDATE_QUERIES = 10_000 // this limits how many unique queries we use in our stats calculations
-)
+const MAX_QUERIES_TO_TRACK = 100     // this limits how many PQS searches we are doing
+const MAX_CANDIDATE_QUERIES = 10_000 // this limits how many unique queries we use in our stats calculations
 
 // queries will get booted out if they have not been seen for below time
-const (
-	STALE_QUERIES_EXPIRY_SECS = 3 * 24 * 60 * 60
-	STALE_SLEEP_SECS          = 1800
-)
+const STALE_QUERIES_EXPIRY_SECS = 3 * 24 * 60 * 60
+const STALE_SLEEP_SECS = 1800
 
 const FLUSH_SLEEP_SECS = 120
 
 const MAX_NUM_GROUPBY_COLS = 10
 
-var (
-	localPersistentQueries  = map[string]*PersistentSearchNode{} // map[pqid] ==> *PersistentQuery
-	allNodesPQsSorted       = []*PersistentSearchNode{}
-	persistentInfoLock      = sync.RWMutex{}
-	groupByOverrideLock     = sync.RWMutex{}
-	localPersistentAggs     = map[string]*PersistentAggregation{} // map[pqid] ==> *PersistentAggregation
-	allPersistentAggsSorted = []*PersistentAggregation{}
-	localGroupByOverride    = map[string]*PersistentGroupBy{}
-)
+var localPersistentQueries = map[string]*PersistentSearchNode{} // map[pqid] ==> *PersistentQuery
+var allNodesPQsSorted = []*PersistentSearchNode{}
+var persistentInfoLock = sync.RWMutex{}
+var groupByOverrideLock = sync.RWMutex{}
+var localPersistentAggs = map[string]*PersistentAggregation{} // map[pqid] ==> *PersistentAggregation
+var allPersistentAggsSorted = []*PersistentAggregation{}
+var localGroupByOverride = map[string]*PersistentGroupBy{}
 
 type PersistentSearchNode struct {
 	SearchNode *structs.SearchNode
@@ -148,9 +143,11 @@ func removeOldEntries() {
 		log.Infof("RemoveStaleEntries: removed criteria not met, query len=%v, aggs len=%+v", len(allNodesPQsSorted),
 			len(allPersistentAggsSorted))
 	}
+
 }
 
 func GetTopNPersistentSearches(intable string, orgid int64) (map[string]*structs.SearchNode, error) {
+
 	res := make(map[string]*structs.SearchNode)
 	if !config.IsPQSEnabled() {
 		return res, nil
@@ -170,7 +167,7 @@ func GetTopNPersistentSearches(intable string, orgid int64) (map[string]*structs
 			// at the time, then that would have not expanded to real indexnames, we do it now
 			found := false
 			for idxname := range pqinfo.AllTables {
-				indexNamesRetrieved := vtable.ExpandAndReturnAllIndexNames(idxname, orgid, false) // TODO: This needs to set user in the context and pass. If this is called as a system operation we need system user?
+				indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(idxname, orgid, false)
 				for _, t := range indexNamesRetrieved {
 					pqinfo.AllTables[t] = true // for future so that we don't enter this idxname expansion block
 					if t == intable {
@@ -187,6 +184,25 @@ func GetTopNPersistentSearches(intable string, orgid int64) (map[string]*structs
 	}
 
 	return res, nil
+}
+
+func GetPersistentColumns(intable string, orgid int64) (map[string]bool, error) {
+	persistentQueries, err := GetTopNPersistentSearches(intable, orgid)
+
+	if err != nil {
+		log.Errorf("GetPersistentColumns: error getting persistent queries: %v", err)
+		return map[string]bool{}, err
+	}
+
+	pqsCols := make(map[string]bool)
+	for _, searchNode := range persistentQueries {
+		allColumns, _ := searchNode.GetAllColumnsToSearch()
+		for col := range allColumns {
+			pqsCols[col] = true
+		}
+	}
+
+	return pqsCols, nil
 }
 
 type colUsage struct {
@@ -292,6 +308,7 @@ func GetTopPersistentAggs(table string) (map[string]struct{}, map[string]bool) {
 }
 
 func UpdateQTUsage(tableName []string, sn *structs.SearchNode, aggs *structs.QueryAggregators, searchText string) {
+
 	if len(tableName) == 0 {
 		return
 	}
@@ -303,6 +320,7 @@ func UpdateQTUsage(tableName []string, sn *structs.SearchNode, aggs *structs.Que
 }
 
 func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode, searchText string) {
+
 	if sn == nil {
 		return
 	}
@@ -350,6 +368,7 @@ func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode, searchTex
 }
 
 func updateAggsUsage(tableName []string, aggs *structs.QueryAggregators, searchText string) {
+
 	if aggs == nil || aggs.IsAggsEmpty() || aggs.HasValueColRequest() {
 		return
 	}
@@ -394,6 +413,7 @@ func updateAggsUsage(tableName []string, aggs *structs.QueryAggregators, searchT
 }
 
 func GetQTUsageInfo(tableName []string, sn *structs.SearchNode) (*PersistentSearchNode, error) {
+
 	if sn == nil {
 		return nil, errors.New("sn was nil")
 	}
@@ -418,6 +438,7 @@ func GetQTUsageInfo(tableName []string, sn *structs.SearchNode) (*PersistentSear
 }
 
 func IsQueryPersistent(tableName []string, sn *structs.SearchNode) (bool, error) {
+
 	if sn == nil {
 		return false, errors.New("sn was nil")
 	}
@@ -525,6 +546,7 @@ func flushPQueriesToDisk() {
 }
 
 func readSavedQueryInfo() {
+
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath() + "querynodes/" + config.GetHostID() + "/pqueries/")
 	baseDir := sb.String()
@@ -738,12 +760,13 @@ func getAggPQSById(pqid string) (map[string]interface{}, error) {
 }
 
 func RefreshExternalPQInfo(fNames []string) error {
+
 	allNodesPQs := make(map[string]*PersistentSearchNode)
 	persistentInfoLock.Lock()
 	defer persistentInfoLock.Unlock()
 
 	for _, file := range fNames {
-		tempPersistentQueries := map[string]*PersistentSearchNode{}
+		var tempPersistentQueries = map[string]*PersistentSearchNode{}
 		content, err := os.ReadFile(file)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -791,7 +814,7 @@ func RefreshExternalPQInfo(fNames []string) error {
 		}
 	}
 
-	// Sort the slice in descending order of TotalUsage
+	//Sort the slice in descending order of TotalUsage
 	sort.Slice(allNodesPQsSorted, func(i, j int) bool {
 		return allNodesPQsSorted[i].TotalUsage > allNodesPQsSorted[j].TotalUsage
 	})
@@ -804,7 +827,7 @@ func RefreshExternalAggsInfo(fNames []string) error {
 	defer persistentInfoLock.Unlock()
 
 	for _, file := range fNames {
-		tempAggs := map[string]*PersistentAggregation{}
+		var tempAggs = map[string]*PersistentAggregation{}
 		content, err := os.ReadFile(file)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -852,7 +875,7 @@ func RefreshExternalAggsInfo(fNames []string) error {
 		}
 	}
 
-	// Sort the slice in descending order of TotalUsage
+	//Sort the slice in descending order of TotalUsage
 	sort.Slice(allNodesPQsSorted, func(i, j int) bool {
 		return allNodesPQsSorted[i].TotalUsage > allNodesPQsSorted[j].TotalUsage
 	})
@@ -890,7 +913,7 @@ func PostPqsAggCols(ctx *fasthttp.RequestCtx) {
 	}
 
 	readJSON := make(map[string]interface{})
-	jsonc := jsoniter.ConfigCompatibleWithStandardLibrary
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
 	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
 	decoder.UseNumber()
 	err := decoder.Decode(&readJSON)
@@ -977,7 +1000,6 @@ func parsePostPqsAggBody(jsonSource map[string]interface{}) error {
 	localGroupByOverride[tableName] = pqsAggs
 	return nil
 }
-
 func processPostAggs(inputValueParam interface{}) (map[string]bool, error) {
 	// asserts that inputValueParam is a slice of strings
 	switch inputValueParam.(type) {

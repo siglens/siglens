@@ -33,6 +33,7 @@ func MockGetMyIds() []int64 {
 }
 
 func Test_AddGetVTables(t *testing.T) {
+
 	config.InitializeDefaultConfig(t.TempDir())
 	_ = InitVTable(MockGetMyIds)
 
@@ -59,8 +60,7 @@ func Test_AddGetVTables(t *testing.T) {
 		"idx-blah1": true,
 		"idx-blah2": true,
 		"idx-blah3": true,
-		"idx-blah4": true,
-	}
+		"idx-blah4": true}
 	//	t.Logf("result=%v", result)
 
 	assert.EqualValues(t, expected, result, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", expected, result))
@@ -68,9 +68,11 @@ func Test_AddGetVTables(t *testing.T) {
 	// special test code only to override the default paths and have idempotent tests
 	os.RemoveAll(VTableBaseDir)
 	os.RemoveAll("data/")
+
 }
 
 func Test_AddAliases(t *testing.T) {
+
 	_ = InitVTable(MockGetMyIds)
 	// special test code only to override the default paths and have idempotent tests
 
@@ -98,10 +100,11 @@ func Test_AddAliases(t *testing.T) {
 
 	// special test code only to override the default paths and have idempotent tests
 	os.RemoveAll(VTableBaseDir)
-	// os.RemoveAll(vTableBaseDir)
+	//os.RemoveAll(vTableBaseDir)
 }
 
 func Test_GetIndexNameFromAlias(t *testing.T) {
+
 	_ = InitVTable(MockGetMyIds)
 	os.RemoveAll(VTableBaseDir)
 
@@ -132,6 +135,7 @@ func Test_GetIndexNameFromAlias(t *testing.T) {
 }
 
 func Test_AddRemoveAlias(t *testing.T) {
+
 	_ = InitVTable(MockGetMyIds)
 	os.RemoveAll(VTableBaseDir)
 
@@ -164,9 +168,11 @@ func Test_AddRemoveAlias(t *testing.T) {
 
 	// special test code only to override the default paths and have idempotent tests
 	os.RemoveAll(VTableBaseDir)
+
 }
 
 func Test_DeleteVirtualTable(t *testing.T) {
+
 	indexName := "valtix2"
 
 	_ = InitVTable(MockGetMyIds)
@@ -203,26 +209,28 @@ func Test_DeleteVirtualTable(t *testing.T) {
 	assert.Equal(t, flag, false)
 	os.RemoveAll(fname)
 	os.RemoveAll(config.GetRunningConfig().DataPath)
+
 }
 
-func Test_ExpandAndReturnAllIndexNames(t *testing.T) {
+func Test_ExpandAndReturnIndexNames(t *testing.T) {
+
 	indexPattern := "idx-blah1"
-	indicesEntries := ExpandAndReturnAllIndexNames(indexPattern, 0, false)
+	indicesEntries := ExpandAndReturnIndexNames(indexPattern, 0, false)
 	indicesExpected := "idx-blah1"
 	assert.Equal(t, indicesExpected, indicesEntries[0])
 
 	indexPattern = "traces"
-	indicesEntries = ExpandAndReturnAllIndexNames(indexPattern, 0, false)
+	indicesEntries = ExpandAndReturnIndexNames(indexPattern, 0, false)
 	indicesExpected = "traces"
 	assert.Equal(t, indicesExpected, indicesEntries[0])
 
 	indexPattern = "service-dependency"
-	indicesEntries = ExpandAndReturnAllIndexNames(indexPattern, 0, false)
+	indicesEntries = ExpandAndReturnIndexNames(indexPattern, 0, false)
 	indicesExpected = "service-dependency"
 	assert.Equal(t, indicesExpected, indicesEntries[0])
 
 	indexPattern = "red-traces"
-	indicesEntries = ExpandAndReturnAllIndexNames(indexPattern, 0, false)
+	indicesEntries = ExpandAndReturnIndexNames(indexPattern, 0, false)
 	indicesExpected = "red-traces"
 	assert.Equal(t, indicesExpected, indicesEntries[0])
 
