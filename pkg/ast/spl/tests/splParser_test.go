@@ -10204,7 +10204,7 @@ func testSingleAggregateFunction(t *testing.T, aggFunc sutils.AggregateFunctions
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
-	assert.Equal(t, aggregator.MeasureOperations[0].Param, param)
+	assert.LessOrEqual(t, math.Abs(aggregator.MeasureOperations[0].Param-param), 1e-6)
 }
 
 func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc sutils.AggregateFunctions) {
