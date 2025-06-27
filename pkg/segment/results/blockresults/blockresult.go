@@ -246,12 +246,21 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 				mFunc = sutils.Perc
 			}
 		case sutils.Cardinality:
-			fallthrough
+			if m.ValueColRequest != nil {
+				curId, err := aggregations.AddMeasureAggInRunningStatsForCardinality(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for cardinality, err: %v", err)
+				}
+				idx = curId
+				continue
+			} else {
+				mFunc = m.MeasureFunc
+			}
 		case sutils.Values:
 			if m.ValueColRequest != nil {
-				curId, err := aggregations.AddMeasureAggInRunningStatsForValuesOrCardinality(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+				curId, err := aggregations.AddMeasureAggInRunningStatsForValues(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
 				if err != nil {
-					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for values/cardinality, err: %v", err)
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for cardinality, err: %v", err)
 				}
 				idx = curId
 				continue
@@ -889,12 +898,12 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 
 			runningStats[valIdx].syncRawValue()
-			strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
+			hll, ok := runningStats[valIdx].rawVal.CVal.(*utils.GobbableHll)
 			if !ok {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
 			}
-			eVal.CVal = uint64(len(strSet))
+			eVal.CVal = hll.Cardinality()
 			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 		} else {
 			finalVal := runningStats[valIdx].hll.Cardinality()
