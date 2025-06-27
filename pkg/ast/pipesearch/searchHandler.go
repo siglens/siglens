@@ -258,8 +258,8 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 
 // ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
 func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
-	orgid int64, ctx *fasthttp.RequestCtx,
-) (*structs.PipeSearchResponseOuter, *dtypeutils.TimeRange, error) {
+	orgid int64) (*structs.PipeSearchResponseOuter, *dtypeutils.TimeRange, error) {
+
 	dbPanelId := "-1"
 	queryStart := time.Now()
 
@@ -274,7 +274,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
 	readJSON["endEpoch"] = queryParams.EndTime
 	readJSON["state"] = "query"
 
-	httpRespOuter, isScrollMax, timeRange, err := ParseAndExecutePipeRequest(readJSON, qid, orgid, queryStart, dbPanelId, ctx)
+	httpRespOuter, isScrollMax, timeRange, err := ParseAndExecutePipeRequest(readJSON, qid, orgid, queryStart, dbPanelId)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -286,7 +286,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
 	return httpRespOuter, timeRange, nil
 }
 
-func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myid int64, queryStart time.Time, dbPanelId string, ctx *fasthttp.RequestCtx) (*structs.PipeSearchResponseOuter, bool, *dtypeutils.TimeRange, error) {
+func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myid int64, queryStart time.Time, dbPanelId string) (*structs.PipeSearchResponseOuter, bool, *dtypeutils.TimeRange, error) {
 	var err error
 
 	nowTs := utils.GetCurrentTimeInMs()
@@ -296,7 +296,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 		return nil, true, nil, nil
 	}
 
-	ti := structs.InitTableInfo(indexNameIn, myid, false, ctx)
+	ti := structs.InitTableInfo(indexNameIn, myid, false)
 	log.Infof("qid=%v, ParseAndExecutePipeRequest: index=[%s], searchString=[%v] , startEpoch: %v, endEpoch: %v",
 		qid, ti.String(), searchText, startEpoch, endEpoch)
 
@@ -330,7 +330,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	}
 	// This is for SPL queries where the index name is parsed from the query
 	if len(parsedIndexNames) > 0 {
-		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), myid, false, ctx)
+		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), myid, false)
 	}
 
 	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
@@ -342,13 +342,14 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	}
 	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
 		indexNameIn = aggs.TableName
-		ti = structs.InitTableInfo(indexNameIn, myid, false, ctx) // Re-initialize ti with the updated indexNameIn
+		ti = structs.InitTableInfo(indexNameIn, myid, false) // Re-initialize ti with the updated indexNameIn
 	}
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	qc.IncludeNulls = includeNulls
 	qc.RawQuery = searchText
 	return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc, limit)
+
 }
 
 func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
@@ -392,7 +393,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		log.Errorf("qid=%v, ProcessPipeSearchRequest: failed to decode search request body! err: %+v", qid, err)
 	}
 
-	httpRespOuter, isScrollMax, _, err := ParseAndExecutePipeRequest(readJSON, qid, myid, queryStart, dbPanelId, ctx)
+	httpRespOuter, isScrollMax, _, err := ParseAndExecutePipeRequest(readJSON, qid, myid, queryStart, dbPanelId)
 	if err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Error processing search request: %v", err), "", err)
 		return
@@ -416,12 +417,13 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 	resp.Qtype = qType.String()
 	utils.WriteJsonResponse(ctx, resp)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+
 }
 
 func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
 	timechartRoot *structs.ASTNode, timechartAggs *structs.QueryAggregators,
-	qc *structs.QueryContext, sizeLimit uint64,
-) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
+	qc *structs.QueryContext, sizeLimit uint64) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
+
 	isAsync := conn != nil
 
 	runTimechartQuery := (timechartRoot != nil && timechartAggs != nil)
@@ -654,6 +656,7 @@ func initEmptyBuckets(
 	timeScaler sutils.TimeUnit,
 	interval int,
 ) (map[string]*structs.BucketHolder, error) {
+
 	runningTs := time.UnixMilli(int64(timeRange.StartEpochMs))
 	endEpoch := time.UnixMilli(int64(timeRange.EndEpochMs))
 	bucketHolderMap := make(map[string]*structs.BucketHolder)

@@ -64,7 +64,6 @@ var json = jsoniter.ConfigFastest
 var loadDataBytes0 = []byte(`{"index" : { "_index" : "bidx-0"} }
 {"address":"91982 Plain side, New Orleans, North Dakota 65104","app_name":"Oxcould","app_version":"4.3.15","batch":"batch-89","city":"New Orleans","country":"Chile","first_name":"Luigi","gender":"male","group":"group 2","hobby":"Cosplaying","http_method":"HEAD","http_status":404,"ident":"23a1949c-c32d-47ab-a573-47859fac0e76","image":"https://picsum.photos/381/329","job_company":"TopCoder","job_description":"Dynamic","job_level":"Markets","job_title":"Liaison","last_name":"Tromp","latency":2891953,"latitude":33.139514,"longitude":114.767227,"question":"Sustainable gentrify yr meditation Godard salvia vice migas drinking fanny pack?","ssn":"660889936","state":"North Dakota","street":"91982 Plain side","url":"https://www.internationalextend.info/networks","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_5 rv:3.0) Gecko/1915-11-28 Firefox/35.0","user_color":"DodgerBlue","user_email":"graceheaney@beatty.io","user_phone":"2597778030","weekday":"Saturday","zip":"65104"}
 `)
-
 var loadDataBytes1 = []byte(`{"index" : { "_index" : "bidx-1"} }
 {"address":"91982 Plain side, New Orleans, North Dakota 65104","app_name":"Oxcould","app_version":"4.3.15","batch":"batch-89","city":"New Orleans","country":"Chile","first_name":"Luigi","gender":"male","group":"group 2","hobby":"Cosplaying","http_method":"HEAD","http_status":404,"ident":"23a1949c-c32d-47ab-a573-47859fac0e76","image":"https://picsum.photos/381/329","job_company":"TopCoder","job_description":"Dynamic","job_level":"Markets","job_title":"Liaison","last_name":"Tromp","latency":2891953,"latitude":33.139514,"longitude":114.767227,"question":"Sustainable gentrify yr meditation Godard salvia vice migas drinking fanny pack?","ssn":"660889936","state":"North Dakota","street":"91982 Plain side","url":"https://www.internationalextend.info/networks","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_5 rv:3.0) Gecko/1915-11-28 Firefox/35.0","user_color":"DodgerBlue","user_email":"graceheaney@beatty.io","user_phone":"2597778030","weekday":"Saturday","zip":"65104"}
 `)
@@ -89,6 +88,7 @@ func websocketHandler(ctx *fasthttp.RequestCtx) {
 
 		pipesearch.ProcessPipeSearchWebsocket(conn, 0, ctx)
 	})
+
 	if err != nil {
 		log.Printf("Upgrade error: %v", err)
 		return
@@ -100,6 +100,7 @@ func startServer() {
 }
 
 func Benchmark_EndToEnd(b *testing.B) {
+
 	/*
 	   go test -run=Bench -bench=Benchmark_EndToEnd  -cpuprofile cpuprofile.out -o rawsearch_cpu
 	   go tool pprof ./rawsearch_cpu cpuprofile.out
@@ -146,6 +147,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 	index := "*"
 
 	logQueries := []string{
+
 		"* | timechart avg(latency) by http_method span=1h",
 		"* | timechart avg(latency) by http_method span=1h",
 		"* | stats avg(http_status) by hobby, http_method",
@@ -227,6 +229,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 	}
 	log.Infof("Finished benchmark: allTimes: %v", allTimes)
 	log.Infof("Average time: %v", timeSum/float64(len(logQueries)*count))
+
 }
 
 func Benchmark_RRCToJson(b *testing.B) {
@@ -282,7 +285,7 @@ func Benchmark_RRCToJson(b *testing.B) {
 			Ascending: false,
 		},
 	}
-	qc := structs.InitQueryContext("ind-v1", sizeLimit, 0, 0, false, nil)
+	qc := structs.InitQueryContext("ind-v1", sizeLimit, 0, 0, false)
 	res := segment.ExecuteQuery(queryNode, simpleValueHistogram, uint64(0), qc)
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -308,6 +311,7 @@ func Benchmark_RRCToJson(b *testing.B) {
 	   go tool pprof ./rawsearch_mem memprofile.out
 
 	*/
+
 }
 
 func Benchmark_esBulkIngest(b *testing.B) {
@@ -536,7 +540,7 @@ func Benchmark_E2E_AgileTree(b *testing.B) {
 	aggs := &structs.QueryAggregators{
 		GroupByRequest: grpByRequest,
 	}
-	qc := structs.InitQueryContext("ind-v1", sizeLimit, 0, 0, false, nil)
+	qc := structs.InitQueryContext("ind-v1", sizeLimit, 0, 0, false)
 	b.ResetTimer()
 	for i := 0; i < count; i++ {
 		sTime := time.Now()
@@ -561,6 +565,7 @@ func Benchmark_E2E_AgileTree(b *testing.B) {
 	   go tool pprof ./rawsearch_mem memprofile.out
 
 	*/
+
 }
 
 func Benchmark_S3_segupload(b *testing.B) {
@@ -610,6 +615,7 @@ func Benchmark_S3_segupload(b *testing.B) {
 	   go tool pprof ./rawsearch_mem memprofile.out
 
 	*/
+
 }
 
 func benchmarkBloom(strs [][]byte) {
