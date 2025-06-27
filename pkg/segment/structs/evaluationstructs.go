@@ -33,6 +33,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/beevik/etree"
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 
@@ -1171,6 +1172,241 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 	return stringsList, nil
 }
 
+func extractInnerJSONObj(outerJSON, path string) []string {
+
+	var outerObj interface{}
+
+	err := json.Unmarshal([]byte(outerJSON), &outerObj)
+	if err != nil {
+		return nil
+	}
+
+	// This is an invalid path; we check for this here since this would cause issues later on
+	if strings.Contains(path, ".{") {
+		return nil
+	}
+
+	// we convert path into a format that is easier to work with
+	// e.g. "field1.field2.array{0}{1}.field3" -> "field1.field2.array.{0}.{1}.field3" -> ["field1", "field2", "array", "{0}", "{1}", "field3"]
+	newPath := strings.ReplaceAll(path, "{", ".{")
+	if newPath[0] == '.' {
+		newPath = newPath[1:]
+	}
+	parts := strings.Split(newPath, ".")
+
+	return extractInnerJSONObjUsingParts(outerObj, parts)
+}
+
+// helper function for extractInnerJSONObj
+func extractInnerJSONObjUsingParts(currentObj interface{}, parts []string) []string {
+
+	if len(parts) == 0 {
+		// this means that we are at the end of the path, so we return the current object
+
+		// splunk requires that we specify the indices of the array
+		// e.g. field1.array1{0}
+		// For accessing all records in array1, use field1.array1{} or field1.array1{}{}, etc.
+		// Do not use field1.array1
+		switch currentObj := currentObj.(type) {
+		case []interface{}:
+			return nil
+		case string:
+			return []string{currentObj} // this is handled separately because we don't want extra quotes
+		case map[string]interface{}, bool, float64, nil:
+			jsonBytes, err := json.Marshal(currentObj)
+			if err != nil {
+				return nil
+			}
+
+			// single-element array containing the only data
+			return []string{string(jsonBytes)}
+		default:
+			// should not happen
+			log.Errorf("extractInnerJSONObjUsingParts: unexpected type for array element: %T", currentObj)
+			return nil
+		}
+	}
+
+	firstPart := parts[0]
+
+	if len(firstPart) >= 2 && firstPart[0] == '{' && firstPart[len(firstPart)-1] == '}' {
+		// part is an array index, e.g. "{5}", "{}"
+
+		switch currentObj := currentObj.(type) {
+		case []interface{}:
+			if firstPart == "{}" {
+				var result []string
+				for _, subObj := range currentObj {
+					// query each json object in the array
+					matched := extractInnerJSONObjUsingParts(subObj, parts[1:])
+					if matched != nil {
+						result = append(result, matched...)
+					}
+				}
+				if len(result) == 0 {
+					return nil
+				}
+				return result
+			}
+
+			// firstPart = {<index>}
+			index, err := strconv.Atoi(firstPart[1 : len(firstPart)-1]) // remove the curly braces and convert to int
+			if err != nil {
+				return nil
+			}
+
+			if index < 0 || index >= len(currentObj) { // index out of bounds
+				return nil
+			}
+
+			// recursively query inner JSON object
+			return extractInnerJSONObjUsingParts(currentObj[index], parts[1:])
+		default:
+			return nil
+		}
+	} else {
+		// part is a field name
+		switch value := currentObj.(type) {
+		case map[string]interface{}:
+			nestedObject, ok := value[firstPart]
+
+			if !ok { // key doesn't exist
+				return nil
+			}
+
+			return extractInnerJSONObjUsingParts(nestedObject, parts[1:])
+		default:
+			return nil
+		}
+	}
+}
+
+func extractInnerXMLObj(inputStr, path string) []string {
+
+	doc := etree.NewDocument()
+	err := doc.ReadFromString(inputStr)
+	if err != nil {
+		return nil
+	}
+
+	// This is an invalid path; we check for this here since this would cause issues later on
+	if strings.Contains(path, ".{") {
+		return nil
+	}
+
+	// we convert path into a format that is easier to work with
+	// e.g. "field1.field2.array{0}.field3" -> "field1.field2.array.{0}.field3" -> ["field1", "field2", "array", "{0}", "field3"]
+	newPath := strings.ReplaceAll(path, "{", ".{")
+	if newPath[0] == '.' {
+		newPath = newPath[1:]
+	}
+	parts := strings.Split(newPath, ".")
+
+	return extractInnerXMLObjUsingParts(&doc.Element, parts)
+}
+
+// helper function for extractValueFromJSON
+func extractInnerXMLObjUsingParts(value *etree.Element, parts []string) []string {
+
+	if len(parts) == 0 {
+		var sb strings.Builder
+		if len(value.ChildElements()) == 0 {
+			// <name>Alice</name> -> Alice
+			sb.WriteString(value.Text())
+			return []string{sb.String()}
+		} else {
+			// return a string array of length 2 {text, childelements}
+			value.WriteTo(&sb, &etree.WriteSettings{})
+			return []string{sb.String()}
+		}
+	}
+
+	firstPart := parts[0]
+
+	if len(firstPart) >= 3 && firstPart[0] == '{' && firstPart[1] == '@' && firstPart[len(firstPart)-1] == '}' {
+		// firstPart is an attribute name, e.g. "{@attr1}"
+
+		attr := value.SelectAttr(firstPart[2 : len(firstPart)-1])
+		if attr == nil {
+			return nil
+		}
+		return []string{attr.Value}
+	}
+
+	// zero, one or more of the sub-objects with the tag stored in firstPart
+	subObjArr := value.SelectElements(firstPart)
+
+	if len(parts) >= 2 && len(parts[1]) > 2 && parts[1][0] == '{' && parts[1][1] != '@' && parts[1][len(parts[1])-1] == '}' {
+		// parts[0] = "array_name"
+		// parts[1] = "{index}"
+
+		index, err := strconv.Atoi(parts[1][1 : len(parts[1])-1]) // remove the curly braces and convert to int
+		if err != nil {
+			return nil
+		}
+
+		index-- // converting from 1-indexing (XML) to 0-indexing (Go)
+		if index < 0 || index >= len(subObjArr) {
+			return nil
+		}
+		return extractInnerXMLObjUsingParts(subObjArr[index], parts[2:])
+	} else if len(subObjArr) == 0 {
+		return nil
+	} else if len(subObjArr) == 1 {
+		return extractInnerXMLObjUsingParts(subObjArr[0], parts[1:])
+	} else {
+		var result []string
+		for _, subObj := range subObjArr {
+			matched := extractInnerXMLObjUsingParts(subObj, parts[1:])
+			if matched != nil {
+				result = append(result, matched...)
+			}
+		}
+		if len(result) == 0 {
+			return nil
+		}
+		return result
+	}
+}
+
+func handleSpath(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	// eval spath(value, path)
+	if len(self.StringExprParams) != 2 {
+		return nil, fmt.Errorf("MultiValueExpr.Evaluate: spath requires two arguments")
+	}
+	valueStr, err := self.StringExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
+		return nil, fmt.Errorf("MultiValueExpr.Evaluate: cannot evaluate input value as a string: %v", err)
+	}
+
+	// Spath only considers the first 5000 characters in the value and attempts to extract the value
+	// even though this may result in an invalid JSON / XML, in which case it fails silently
+	// https://docs.splunk.com/Documentation/SplunkCloud/latest/SearchReference/Spath#Overriding_the_spath_extraction_character_limit
+	if len(valueStr) > 5000 {
+		valueStr = valueStr[:5000]
+	}
+
+	pathStr, err := self.StringExprParams[1].Evaluate(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("MultiValueExpr.Evaluate: cannot evaluate path as a string: %v", err)
+	}
+
+	extractedValue := extractInnerJSONObj(valueStr, pathStr)
+	if extractedValue != nil {
+		return extractedValue, nil
+	}
+
+	extractedValue = extractInnerXMLObj(valueStr, pathStr)
+	if extractedValue != nil {
+		return extractedValue, nil
+	}
+
+	// If both JSON and XML value extraction fail, spath returns nil
+	return nil, nil
+}
+
 func handleMVSort(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
 		return []string{}, fmt.Errorf("handleMVSort: mvsort requires one multiValueExpr argument")
@@ -1405,6 +1641,8 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 	switch self.Op {
 	case "split":
 		return handleSplit(self, fieldToValue)
+	case "spath":
+		return handleSpath(self, fieldToValue)
 	case "mvindex":
 		return handleMVIndex(self, fieldToValue)
 	case "mvsort":
