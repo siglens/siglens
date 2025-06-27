@@ -126,7 +126,7 @@ type Hooks struct {
 	// Distributed query
 	InitDistributedQueryServiceHook func(querySummary interface{}, allSegFileResults interface{}, distQueryId string, segKeyEnc uint32) interface{}
 	FilterQsrsHook                  func(qsrs interface{}, queryInfoAsAny interface{}, isRotated bool) (interface{}, error)
-	GetDistributedStreamsHook       func(chainedDp interface{}, searcher interface{}, queryInfo interface{}, shouldDistribute bool) (interface{}, error)
+	GetDistributedStreamsHook       func(createDpChain func() any, searcher interface{}, skippedStats bool, queryInfo interface{}, shouldDistribute bool) (interface{}, error)
 
 	// Handling ingestion
 	BeforeHandlingBulkRequest func(ctx *fasthttp.RequestCtx, myid int64) (bool, uint64)
@@ -135,8 +135,11 @@ type Hooks struct {
 	RotateSegment             func(segstore interface{}, streamId string, forceRotate bool) (bool, error)
 	AfterSegmentRotation      func(segmeta interface{}) error
 
-	//Version
+	// Version
 	ProcessVersionInfoHook func(ctx *fasthttp.RequestCtx)
+
+	// RBAC
+	FilteroutUnauthorizedIndexes func(indexes []string, ctx *fasthttp.RequestCtx) []string
 }
 
 type HtmlSnippets struct {
@@ -166,6 +169,9 @@ type JsSnippets struct {
 
 	OrgUpperNavTabs string
 	OrgUpperNavUrls string
+
+	SecurityNavLink      string
+	SecurityUpperNavTabs string
 
 	OrgAllSlos string
 

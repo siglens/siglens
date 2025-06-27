@@ -443,6 +443,9 @@ function runFilterBtnHandler(evt) {
     var currentPage = window.location.pathname;
     if (currentPage === '/alert.html') {
         let data = getQueryParamsData();
+        
+        //eslint-disable-next-line no-undef
+        showLogsLoading();
         fetchLogsPanelData(data, -1)
             .then((res) => {
                 alertChart(res);
@@ -551,8 +554,13 @@ function handleLogOptionChange(viewType) {
             if (params.value === '' || params.value === null || params.value === undefined) {
                 return '-';
             }
-
-            return typeof params.value === 'number' ? formatNumber(params.value) : params.value;
+            if (typeof params.value === 'number') {
+                return formatNumber(params.value);
+            } else if (typeof params.value === 'object' && params.value !== null) {
+                return JSON.stringify(params.value);
+            } else {
+                return String(params.value);
+            }
         };
         logsColumnDefs.forEach((colDef) => {
             if (colDef.field !== 'timestamp') {

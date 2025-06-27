@@ -18,7 +18,6 @@
 package processor
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -50,6 +49,8 @@ type statsProcessor struct {
 	errorData            *ErrorData
 	hasFinalResult       bool
 	setAsIqrStatsResults bool
+
+	gaveResults bool
 }
 
 func NewStatsProcessor(options *structs.StatsExpr) *statsProcessor {
@@ -73,6 +74,10 @@ func (p *statsProcessor) SetAsIqrStatsResults() {
 }
 
 func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
+	if p.gaveResults {
+		return nil, io.EOF
+	}
+
 	// Initialize error data
 	if p.errorData == nil {
 		p.errorData = &ErrorData{
@@ -84,6 +89,7 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 
 	// If inputIQR is nil, we are done with the input
 	if inputIQR == nil {
+		defer func() { p.gaveResults = true }()
 		return p.extractFinalStatsResults()
 	} else {
 		p.qid = inputIQR.GetQID()
@@ -173,6 +179,10 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	unsetRecord := make(map[string]sutils.CValueEnclosure)
 	timestampkey := config.GetTimeStampKey()
 
+	// We're going to to iterate measureInfo many times.
+	// Convert to a slice once to avoid map iteration overhead.
+	measureInfoSlice := utils.MapToSlice(measureInfo)
+
 	for i := 0; i < numOfRecords; i++ {
 		record := inputIQR.GetRecord(i)
 
@@ -188,7 +198,8 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 			p.bucketKeyWorkingBuf, bucketKeyBufIdx = cValue.WriteToBytesWithType(p.bucketKeyWorkingBuf, bucketKeyBufIdx)
 		}
 
-		for cname, indices := range measureInfo {
+		for _, kvPair := range measureInfoSlice {
+			cname, indices := kvPair.Key, kvPair.Value
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
 				p.errorData.readColumns[cname] = err
@@ -196,7 +207,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 			}
 
 			for _, idx := range indices {
-				if internalMops[idx].MeasureFunc != sutils.LatestTime {
+				if internalMops[idx].MeasureFunc != sutils.LatestTime && internalMops[idx].MeasureFunc != sutils.EarliestTime {
 					measureResults[idx] = *cValue
 				} else {
 					tsCVal, tsErr := record.ReadColumn(timestampkey)
@@ -257,27 +268,17 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 
 	segStatsMap := make(map[string]*structs.SegStats)
 
-	measureColsMap, aggColUsage, valuesUsage, listUsage := search.GetSegStatsMeasureCols(p.options.MeasureOperations)
+	measureColsMap, aggColUsage, valuesUsage, listUsage, percUsage := search.GetSegStatsMeasureCols(p.options.MeasureOperations)
 	timestampKey := config.GetTimeStampKey()
-	var hasTsBasedOperations, hasOtherOperations bool
+	var hasTsBasedOperations bool
 	allAggs := p.searchResults.GetAggs().MeasureOperations
 	for operation := range allAggs {
-		if allAggs[operation].MeasureFunc == sutils.LatestTime || allAggs[operation].MeasureFunc == sutils.EarliestTime {
+		if allAggs[operation].MeasureFunc == sutils.LatestTime || allAggs[operation].MeasureFunc == sutils.EarliestTime || allAggs[operation].MeasureFunc == sutils.Latest || allAggs[operation].MeasureFunc == sutils.Earliest {
 			hasTsBasedOperations = true
-		} else {
-			hasOtherOperations = true
 		}
 	}
-	if _, ok := aggColUsage[timestampKey]; !ok && !hasTsBasedOperations {
+	if _, ok := aggColUsage[timestampKey]; !ok {
 		delete(measureColsMap, timestampKey)
-	}
-	if !hasOtherOperations {
-		for i := range measureColsMap {
-			if i != timestampKey {
-				delete(measureColsMap, i)
-				delete(aggColUsage, i)
-			}
-		}
 	}
 
 	for colName := range measureColsMap {
@@ -291,32 +292,37 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 			p.errorData.readColumns[colName] = err
 			continue
 		}
+		var tsVals []sutils.CValueEnclosure
+		if hasTsBasedOperations {
+			tsVals, err = inputIQR.ReadColumn(timestampKey)
+			if err != nil {
+				p.errorData.readColumns[timestampKey] = err
+				continue
+			}
+		}
 
 		for i := range values {
 			hasValuesFunc := valuesUsage[colName]
 			hasListFunc := listUsage[colName]
+			hasPercFunc := percUsage[colName]
+			if hasTsBasedOperations {
+				uintVal, err := tsVals[i].GetUIntValue()
+				if err != nil {
+					log.Errorf("qid=%v, statsProcessor.processMeasureOperations: cannot get uint value from %v col; err=%v", qid, colName, err)
+				}
+				stats.AddSegStatsUNIXTime(segStatsMap, colName, uintVal, values[i], true)
+				stats.AddSegStatsUNIXTime(segStatsMap, colName, uintVal, values[i], false)
+				stats.AddSegStatsLatestEarliestVal(segStatsMap, colName, &tsVals[i], values[i].CVal, true)
+				stats.AddSegStatsLatestEarliestVal(segStatsMap, colName, &tsVals[i], values[i].CVal, false)
+			}
 
 			if values[i].IsString() {
-				stats.AddSegStatsStr(segStatsMap, colName, values[i].CVal.(string), p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+				stats.AddSegStatsStr(segStatsMap, colName, values[i].CVal.(string), p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 			} else if values[i].IsNumeric() {
-				stringVal, err := values[i].GetString()
-				if err != nil {
-					p.errorData.cValueGetStringErr[colName] = err
-					stringVal = fmt.Sprintf("%v", values[i].CVal)
-				}
-
 				if values[i].IsFloat() {
 					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_FLOAT64, 0, 0, values[i].CVal.(float64),
-						stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+						p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				} else {
-					if colName == timestampKey {
-						uintVal, err := values[i].GetUIntValue()
-						if err != nil {
-							log.Errorf("qid=%v, statsProcessor.processMeasureOperations: cannot get uint value from %v col; err=%v", qid, colName, err)
-						} else {
-							stats.AddSegStatsUNIXTime(segStatsMap, colName, uintVal, values[i], true)
-						}
-					}
 					intVal, err := values[i].GetIntValue()
 					if err != nil {
 						// This should never happen
@@ -324,7 +330,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 						intVal = 0
 					}
 
-					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(segStatsMap, colName, sutils.SS_INT64, intVal, 0, 0, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				}
 			} else {
 				p.errorData.notSupportedStatsType[colName] = struct{}{}

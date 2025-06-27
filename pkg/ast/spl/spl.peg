@@ -32,6 +32,40 @@ import (
     log "github.com/sirupsen/logrus"
 )
 
+func stringToToJsonDtype(dtype string) structs.ToJsonDtypes {
+    var optionDtype structs.ToJsonDtypes
+    switch dtype {
+    case "auto":
+        optionDtype = structs.TJ_Auto
+    case "bool":
+        optionDtype = structs.TJ_Bool
+    case "json":
+        optionDtype = structs.TJ_Json
+    case "num":
+        optionDtype = structs.TJ_Num
+    case "str":
+        optionDtype = structs.TJ_Str
+    default:
+        optionDtype = structs.TJ_None
+    }
+    return optionDtype
+}
+
+type ToJsonCmdOption struct {
+	OptionType ToJsonCmd
+	Value      any
+}
+
+type ToJsonCmd uint8
+
+const (
+    TJ_CMD_FUNCTION ToJsonCmd = iota
+    TJ_CMD_DEFAULT_TYPE
+    TJ_CMD_FILL_NULL
+    TJ_CMD_INCLUDE_INTERNAL
+    TJ_CMD_OUTPUT_FIELD
+)
+
 func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (int64, error) {
     var epoch int64 = 0
     var err error
@@ -141,8 +175,6 @@ func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
         return sutils.Estdc
     case "estdc_error":
         return sutils.EstdcError
-    case "median":
-        return sutils.Median
     case "mode":
         return sutils.Mode
     case "stdev":
@@ -169,7 +201,7 @@ func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
         return sutils.LatestTime
     case "rate":
         return sutils.StatsRate
-    case "perc":
+    case "perc", "p", "median":
         return sutils.Perc
     case "exactperc":
         return sutils.ExactPerc
@@ -479,6 +511,7 @@ type StringSearchRequest struct {
     value interface{}
     originalValue interface{}
     caseInsensitive bool
+    isTerm bool // used to match TERM() from SPL
 }
 
 }
@@ -784,7 +817,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock / ToJsonBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -3599,7 +3632,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
         ValueIsField: false,
-        Value: str.(string),
+        Value: removeQuotes(str.(string)),
         NumericExprMode: structs.NEMLenString,
     }
 
@@ -3864,13 +3897,13 @@ AggFunction <- agg:(AggCount / AggPercCommon / AggCommon) {
     return agg, nil
 }
 
-// TODO Processing Logic: varp, var, sumsq, stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
+// TODO Processing Logic: stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
 CommonAggName <- ("values" / "varp" / "var" / "sumsq" / "sum" / "stdevp" / "stdev" / "rate" / "range" / "mode" / "min" / "median" / "mean" / "max" / 
 "list" / "latest_time" / "latest" / "last" / "first" / "estdc_error" / "estdc" / "earliest_time" / "earliest" / "distinct_count" / "dc" / "avg") {
     return string(c.text), nil
 }
 
-CommonPercAggName <- ("upperperc" / "exactperc" / "perc") {
+CommonPercAggName <- ("upperperc" / "exactperc" / "perc" / "p") {
     return string(c.text), nil
 }
 
@@ -3935,16 +3968,32 @@ AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
     }
 
+    var valueColRequest *structs.ValueExpr
+    switch measureFunc {
+        case sutils.Sumsq, sutils.Var, sutils.Varp:
+            // This ensures that sumsq, var, and varp, are computed using the raw records
+            valueColRequest = &structs.ValueExpr{
+                ValueExprMode: structs.VEMNumericExpr,
+                NumericExpr: &structs.NumericExpr{
+                    IsTerminal:      true,
+                    ValueIsField:    true,
+                    Value:           field.(string),
+                    NumericExprMode: structs.NEMNumberField,
+                },
+            }
+    }
+
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: measureFunc,
+        ValueColRequest: valueColRequest,
     }
 
     return agg, nil
 }
 
-PercentileStr <- numStr:(FloatAsString / IntegerAsString) {
-    floatVal, err := strconv.ParseFloat(numStr.(string), 64)
+PercentileVal <- numStr:(FloatAsString / IntegerAsString) {
+    floatVal, err := utils.FastParseFloat([]byte(numStr.(string)))
     if err != nil {
         return nil, fmt.Errorf("Invalid percentage value: %v", numStr.(string))
     }
@@ -3952,10 +4001,10 @@ PercentileStr <- numStr:(FloatAsString / IntegerAsString) {
         return nil, fmt.Errorf("Invalid percentage value must be between 0 and 100: %v", numStr.(string))
     }
 
-    return numStr.(string), nil
+    return floatVal, nil
 }
 
-AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
     if measureFunc == sutils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
@@ -3966,12 +4015,12 @@ AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "
         MeasureFunc: measureFunc,
         StrEnc: string(c.text),
         ValueColRequest: valueExpr.(*structs.ValueExpr),
-        Param: percentileStr.(string),
+        Param: percentileVal.(float64),
     }
 
     return agg, nil
 }
-/ aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN field:FieldName R_PAREN {
+/ aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN field:FieldName R_PAREN {
     measureFunc := GetAggregateFunction(aggName.(string))
     if measureFunc == sutils.Invalid {
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
@@ -3980,7 +4029,38 @@ AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: measureFunc,
-        Param: percentileStr.(string),
+        Param: percentileVal.(float64),
+    }
+
+    return agg, nil
+}
+/ ("median") L_PAREN field:FieldName R_PAREN {
+     measureFunc := GetAggregateFunction("median")
+    if measureFunc == sutils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        StrEnc: string(c.text),
+        MeasureFunc: measureFunc,
+        Param: float64(50),
+    }
+
+    return agg, nil
+}
+/ ("median") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+    measureFunc := GetAggregateFunction("median")
+    if measureFunc == sutils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: measureFunc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
+        Param: float64(50),
     }
 
     return agg, nil
@@ -4044,6 +4124,7 @@ NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(
             Values: ssr.value,
             OriginalValues: ssr.originalValue,
             CaseInsensitive: ssr.caseInsensitive,
+            IsTerm: ssr.isTerm,
         },
     }
     return node, nil
@@ -4059,11 +4140,13 @@ UnnamedFieldWithStringValue <- stringSearchReq:(CaseSensitiveString / CaseInsens
             Values: ssr.value,
             OriginalValues: ssr.originalValue,
             CaseInsensitive: ssr.caseInsensitive,
+            IsTerm: ssr.isTerm,
         },
     }
     return node, nil
 }
 
+// https://docs.splunk.com/Documentation/SplunkCloud/latest/Search/UseCASEandTERMtomatchphrases
 CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
     return &StringSearchRequest{
         value: value,
@@ -4072,7 +4155,17 @@ CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
     }, nil
 }
 
-CaseInsensitiveString <- value:String {
+// https://docs.splunk.com/Documentation/SplunkCloud/latest/Search/UseCASEandTERMtomatchphrases
+CaseInsensitiveString <- "TERM" L_PAREN value:String R_PAREN {
+    return &StringSearchRequest{
+        value: strings.ToLower(value.(string)),
+        originalValue: value,
+        caseInsensitive: true,
+        isTerm: true,
+    }, nil
+}
+
+/ value:String {
     return &StringSearchRequest{
         value: strings.ToLower(value.(string)),
         originalValue: value,
@@ -5331,9 +5424,149 @@ AppendBlock <- PIPE CMD_APPEND options:(AppendCmdOption SPACE?)* subsearch:Subse
     }, nil
 }
 
+ToJsonOption <- SPACE option:(ToJsonFunctionOption / DefaultTypeOption / FillNullOption / IncludeInternalOption / OutputFieldOption / ToJsonFunctionPostProcess) {
+    return option, nil
+}
+
+ToJsonFunctionOption <- (dtype:("auto" / "bool" / "json" / "num" / "str" / "none") L_PAREN regexPattern:StringExpr R_PAREN) {
+    regex, ok := regexPattern.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
+    }
+    gobRegex := utils.GobbableRegex{}
+    var err error
+    if regex.RawString != "" {
+        err = gobRegex.SetRegex(regex.RawString)
+    } else {
+        err = gobRegex.SetRegex(regex.FieldName)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex compile for tojson: %v", err)
+    }
+    optionDtype := stringToToJsonDtype(string(dtype.([]byte)))
+    option := &structs.ToJsonFieldsDtypeOptions {
+        Dtype: optionDtype,
+        Regex: &gobRegex,
+    }
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_FUNCTION,
+        Value: option,
+    }, nil
+}
+
+ToJsonFunctionPostProcess <- regexPattern:StringExpr {
+    regex, ok := regexPattern.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
+    }
+    gobRegex := utils.GobbableRegex{}
+    var err error
+    if regex.RawString != "" {
+        err = gobRegex.SetRegex(regex.RawString)
+    } else {
+        err = gobRegex.SetRegex(regex.FieldName)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex compile for tojson: %v", err)
+    }
+    option := &structs.ToJsonFieldsDtypeOptions {
+        Dtype: structs.TJ_PostProcess,
+        Regex: &gobRegex,
+    }
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_FUNCTION,
+        Value: option,
+    }, nil
+}
+
+DefaultTypeOption <- "default_type" EQUAL dtype:("auto" / "bool" / "json" / "num" / "str" / "none") {
+    optionDtype := stringToToJsonDtype(string(dtype.([]byte)))
+    gobRegex := utils.GobbableRegex{}
+    option := &structs.ToJsonFieldsDtypeOptions {
+        Dtype: optionDtype,
+        Regex: &gobRegex,
+    }
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_DEFAULT_TYPE,
+        Value: option,
+    }, nil
+}
+
+FillNullOption <- "fill_null" EQUAL boolVal:Boolean {
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_FILL_NULL,
+        Value: boolVal.(bool),
+    }, nil
+}
+
+IncludeInternalOption <- "include_internal" EQUAL boolVal:Boolean {
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_INCLUDE_INTERNAL,
+        Value: boolVal.(bool),
+    }, nil
+}
+
+OutputFieldOption <- "output_field" EQUAL strVal:String {
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_OUTPUT_FIELD,
+        Value: strVal.(string),
+    }, nil
+}
+
+ToJsonBlock <- PIPE CMD_TOJSON options:(ToJsonOption)* {
+    defaultDtypeRegex := utils.GobbableRegex{}
+    err := defaultDtypeRegex.SetRegex(`.*`)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex Compile: %v", err)
+    }
+    toJsonDefaultOptions := &structs.ToJsonExpr {
+        FieldsDtypes: []*structs.ToJsonFieldsDtypeOptions {
+            &structs.ToJsonFieldsDtypeOptions {
+                Dtype: structs.TJ_None,
+                Regex: &defaultDtypeRegex,
+            },
+        }, 
+        DefaultType: &structs.ToJsonFieldsDtypeOptions {
+            Dtype: structs.TJ_None,
+            Regex: &utils.GobbableRegex{},
+        },
+        FillNull: false,
+        IncludeInternal: false,
+        OutputField: "_raw",
+        AllFields: true,
+    }
+    for _, opt := range options.([]interface{}) {
+        if option, ok := opt.(*ToJsonCmdOption); ok {
+            switch option.OptionType {
+            case TJ_CMD_FUNCTION:
+                if toJsonDefaultOptions.AllFields {
+                    toJsonDefaultOptions.FieldsDtypes[0] = option.Value.(*structs.ToJsonFieldsDtypeOptions)
+                    toJsonDefaultOptions.AllFields = false
+                } else {
+                    toJsonDefaultOptions.FieldsDtypes = append(toJsonDefaultOptions.FieldsDtypes, option.Value.(*structs.ToJsonFieldsDtypeOptions))
+                }
+            case TJ_CMD_DEFAULT_TYPE:
+                toJsonDefaultOptions.DefaultType = option.Value.(*structs.ToJsonFieldsDtypeOptions)
+            case TJ_CMD_FILL_NULL:
+                toJsonDefaultOptions.FillNull = option.Value.(bool)
+            case TJ_CMD_INCLUDE_INTERNAL:
+                toJsonDefaultOptions.IncludeInternal = option.Value.(bool)
+            case TJ_CMD_OUTPUT_FIELD:
+                toJsonDefaultOptions.OutputField = option.Value.(string)
+            default:
+                return nil, fmt.Errorf("ToJsonBlock: Received unexpected option; option-%v", option.OptionType)
+            }
+        }
+    }
+
+    return &structs.QueryAggregators {
+        ToJsonExpr: toJsonDefaultOptions,
+    }, nil
+}
+
 
 // All commands except CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP / CMD_APPEND)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP / CMD_APPEND / CMD_TOJSON)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -5368,6 +5601,7 @@ CMD_INPUTLOOKUP <- "inputlookup" SPACE
 EVAL_CONCAT <- SPACE? ("." / "+") SPACE?
 CMD_MVEXPAND <- "mvexpand"
 CMD_APPEND <- "append" SPACE
+CMD_TOJSON <- "tojson"
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
 MAJOR_BREAK <- [[\]<>(){}|!;,'"*\n\r \t&?+] / "%21" / "%26" /

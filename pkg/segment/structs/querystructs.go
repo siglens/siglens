@@ -21,9 +21,8 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
-	"strings"
-
 	"strconv"
+	"strings"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -31,6 +30,7 @@ import (
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 // New struct for passin query params
@@ -71,9 +71,9 @@ type MatchFilter struct {
 	MatchWords          [][]byte               // all words to search for. The values will be normalized to Lower case if the query is case insensitive
 	MatchWordsOriginal  [][]byte               // all original words to search for. Will be set only if dualcasecheck is enabled and query is case insensitive.
 	MatchOperator       sutils.LogicalOperator // how to combine matchWords
-	MatchPhrase         []byte                 //whole string to search for in case of MatchPhrase query. The value will be normalized to Lower case if the query is case insensitive
-	MatchPhraseOriginal []byte                 //original string to search for in case of MatchPhrase query. Will be set only if dualcasecheck is enabled and query is case insensitive.
-	MatchDictArray      *MatchDictArrayRequest //array to search for in case of jaeger query
+	MatchPhrase         []byte                 // whole string to search for in case of MatchPhrase query. The value will be normalized to Lower case if the query is case insensitive
+	MatchPhraseOriginal []byte                 // original string to search for in case of MatchPhrase query. Will be set only if dualcasecheck is enabled and query is case insensitive.
+	MatchDictArray      *MatchDictArrayRequest // array to search for in case of jaeger query
 	MatchType           MatchFilterType
 	NegateMatch         bool
 	RegexpString        string // Do not manually set this. Use SetRegexp(). This is only public to allow for GOB encoding MatchFilter.
@@ -97,6 +97,7 @@ type FilterCriteria struct {
 	MatchFilter             *MatchFilter      // match filter to check multiple words in a column
 	ExpressionFilter        *ExpressionFilter // expression filter to check a single expression in a column
 	FilterIsCaseInsensitive bool              // if the filter is case sensitive
+	FilterIsTerm            bool              // if the filter is a TERM() filter
 }
 
 // A condition struct defines the FilterConditions and ASTNodes that exist as a part of a single condition
@@ -136,8 +137,8 @@ type SegmentByTimeAndColSizes struct {
 	TotalRecords         uint32
 }
 
-func InitTableInfo(rawRequest string, orgid int64, es bool) *TableInfo {
-	indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(rawRequest, orgid, es)
+func InitTableInfo(rawRequest string, orgid int64, es bool, ctx *fasthttp.RequestCtx) *TableInfo {
+	indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(rawRequest, orgid, es, ctx)
 	ti := &TableInfo{rawRequest: rawRequest}
 	if es {
 		nonKibana, kibana := filterKibanaIndices(indexNamesRetrieved)
@@ -220,8 +221,8 @@ func getIndexNamesCleanLogs(indices []string) string {
 	return indicesStr
 }
 
-func InitQueryContext(indexRequest string, sizeLimit uint64, scroll int, orgid int64, es bool) *QueryContext {
-	ti := InitTableInfo(indexRequest, orgid, es)
+func InitQueryContext(indexRequest string, sizeLimit uint64, scroll int, orgid int64, es bool, ctx *fasthttp.RequestCtx) *QueryContext {
+	ti := InitTableInfo(indexRequest, orgid, es, ctx)
 	return &QueryContext{
 		TableInfo: ti,
 		SizeLimit: sizeLimit,
@@ -338,7 +339,6 @@ func (e *ExpressionFilter) GetAllColumns() map[string]bool {
 	if e.LeftInput != nil && e.LeftInput.Expression != nil {
 		if e.LeftInput.Expression.RightInput != nil && len(e.LeftInput.Expression.RightInput.ColumnName) > 0 {
 			allCols[e.LeftInput.Expression.RightInput.ColumnName] = true
-
 		}
 		if e.LeftInput.Expression.LeftInput != nil && len(e.LeftInput.Expression.LeftInput.ColumnName) > 0 {
 			allCols[e.LeftInput.Expression.LeftInput.ColumnName] = true

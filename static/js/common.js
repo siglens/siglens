@@ -68,6 +68,7 @@ let aggGridOptions = {
     columnDefs: aggsColumnDefs,
     rowData: [],
     animateRows: true,
+    suppressDragLeaveHidesColumns: true,
     defaultColDef: {
         flex: 1,
         minWidth: 100,
@@ -217,7 +218,6 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
                     columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
                 }
             }
-            $('#avail-field-container ').css('display', 'none');
             renderPanelAggsGrid(columnOrder, res, panelId);
         }
         //for logs-query
@@ -233,7 +233,6 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             } else {
                 selectedFieldsList = columnOrder;
             }
-            $('#avail-field-container ').css('display', 'inline-flex');
             renderAvailableFields(columnOrder);
             renderPanelLogsGrid(columnOrder, res.hits.records, panelId, currentPanel);
         }
@@ -276,12 +275,6 @@ function fetchLogsPanelData(data, panelId) {
 function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
     return new Promise(function (resolve, reject) {
         $('body').css('cursor', 'progress');
-
-        if (currentPanel && currentPanel.isNewPanel === true && (!data.searchText || data.searchText.trim() === '')) {
-            $('body').css('cursor', 'default');
-            resolve();
-            return;
-        }
 
         if (queryRes) {
             renderChartByChartType(data, queryRes, panelId, currentPanel);

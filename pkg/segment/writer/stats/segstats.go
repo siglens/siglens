@@ -1,5 +1,4 @@
 // Copyright (c) 2021-2024 SigScalr, Inc.
-//
 // This file is part of SigLens Observability Solution
 //
 // This program is free software: you can redistribute it and/or modify
@@ -22,6 +21,8 @@ import (
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 
 	bbp "github.com/valyala/bytebufferpool"
 )
@@ -34,9 +35,18 @@ func GetDefaultNumStats() *NumericStats {
 	}
 }
 
+func GetDefaultTimeStats() *TimeStats {
+	return &TimeStats{
+		LatestTs:    CValueEnclosure{Dtype: SS_DT_BACKFILL},
+		EarliestTs:  CValueEnclosure{Dtype: SS_DT_BACKFILL},
+		LatestVal:   CValueEnclosure{Dtype: SS_DT_BACKFILL},
+		EarliestVal: CValueEnclosure{Dtype: SS_DT_BACKFILL},
+	}
+}
+
 func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	inNumType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
-	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
+	fltVal float64, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool, hasPercFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -64,10 +74,72 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 		}
 	}
 
-	bb.Reset()
-	_, _ = bb.WriteString(numstr)
-	stats.InsertIntoHll(bb.B)
-	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc)
+	bytes := [8]byte{}
+	switch inNumType {
+	case SS_UINT8, SS_UINT16, SS_UINT32, SS_UINT64:
+		utils.Uint64ToBytesLittleEndianInplace(uintVal, bytes[:])
+	case SS_INT8, SS_INT16, SS_INT32, SS_INT64:
+		utils.Int64ToBytesLittleEndianInplace(intVal, bytes[:])
+	case SS_FLOAT64:
+		utils.Float64ToBytesLittleEndianInplace(fltVal, bytes[:])
+	default:
+		log.Warnf("AddSegStatsNums: unsupported inNumType: %v", inNumType)
+		return
+	}
+	stats.InsertIntoHll(bytes[:])
+	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+}
+
+func AddSegStatsLatestEarliestVal(segstats map[string]*SegStats, cname string, currTs *CValueEnclosure, currRawVal interface{}, updateLatest bool) {
+	var stats *SegStats
+	var ok bool
+	stats, ok = segstats[cname]
+	if !ok {
+		var latestTs uint64 = 0
+		var isNumeric bool = false
+		switch currRawVal.(type) {
+		case string:
+			isNumeric = false
+		case int64, float64:
+			isNumeric = true
+		}
+		stats = &SegStats{
+			IsNumeric: isNumeric,
+			Count:     0,
+			NumStats:  GetDefaultNumStats(),
+			TimeStats: GetDefaultTimeStats(),
+		}
+		stats.TimeStats.LatestTs.CVal = latestTs
+		stats.CreateNewHll()
+		segstats[cname] = stats
+	}
+	var nonEncVal uint64
+	var err error
+	if updateLatest {
+		nonEncVal, err = stats.TimeStats.LatestTs.GetUIntValue()
+	} else {
+		nonEncVal, err = stats.TimeStats.EarliestTs.GetUIntValue()
+	}
+	if err == nil {
+		if nonEncVal == currTs.CVal.(uint64) {
+			var ssDtype SS_DTYPE
+			switch currRawVal.(type) {
+			case string:
+				ssDtype = SS_DT_STRING
+			case int64:
+				ssDtype = SS_DT_SIGNED_NUM
+			case float64:
+				ssDtype = SS_DT_FLOAT
+			}
+			if updateLatest {
+				stats.TimeStats.LatestVal.Dtype = ssDtype
+				stats.TimeStats.LatestVal.CVal = currRawVal
+			} else {
+				stats.TimeStats.EarliestVal.Dtype = ssDtype
+				stats.TimeStats.EarliestVal.CVal = currRawVal
+			}
+		}
+	}
 }
 
 func AddSegStatsUNIXTime(segstats map[string]*SegStats, cname string, val uint64, rawValue interface{}, updateLatest bool) {
@@ -87,17 +159,37 @@ func AddSegStatsUNIXTime(segstats map[string]*SegStats, cname string, val uint64
 			IsNumeric: isNumeric,
 			Count:     0,
 			NumStats:  GetDefaultNumStats(),
-			LatestTs:  CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: latestTs},
+			TimeStats: GetDefaultTimeStats(),
 		}
+		stats.TimeStats.LatestTs.CVal = latestTs
 		stats.CreateNewHll()
 		segstats[cname] = stats
 	}
 
 	if updateLatest {
-		nonEncVal, err := stats.LatestTs.GetUIntValue()
-		if err == nil {
-			if nonEncVal < val {
-				stats.LatestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+		if stats.TimeStats.LatestTs.Dtype == SS_DT_BACKFILL {
+			stats.TimeStats.LatestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+		} else {
+			nonEncVal, err := stats.TimeStats.LatestTs.GetUIntValue()
+			if err == nil {
+				if nonEncVal < val {
+					stats.TimeStats.LatestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+				}
+			} else {
+				log.Errorf("AddSegStatsUNIXTime: unable to get uint value from TimeStats.LatestTs; err: %v", err)
+			}
+		}
+	} else {
+		if stats.TimeStats.EarliestTs.Dtype == SS_DT_BACKFILL {
+			stats.TimeStats.EarliestTs = CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: val}
+		} else {
+			nonEncVal, err := stats.TimeStats.EarliestTs.GetUIntValue()
+			if err == nil {
+				if nonEncVal > val {
+					stats.TimeStats.EarliestTs.CVal = val
+				}
+			} else {
+				log.Errorf("AddSegStatsUNIXTime: unable to get uint value from TimeStats.EarliestTs; err: %v", err)
 			}
 		}
 	}
@@ -122,7 +214,7 @@ func AddSegStatsCount(segstats map[string]*SegStats, cname string,
 }
 
 func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
-	uintVal uint64, fltVal float64, colUsage AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
+	uintVal uint64, fltVal float64, colUsage AggColUsageMode, hasValuesFunc bool, hasListFunc bool, hasPercFunc bool) {
 
 	stats.Count++
 	stats.NumStats.NumericCount++
@@ -153,6 +245,15 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		}
 	}
 
+	if hasPercFunc {
+		if stats.TDigest == nil {
+			t, err := utils.CreateNewTDigest()
+			if err == nil {
+				stats.TDigest = t
+			}
+		}
+	}
+
 	// we just use the Min stats for stored val comparison but apply the same
 	// logic to max and sum
 	switch inNumType {
@@ -175,6 +276,12 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 					CVal:  fltVal,
 				})
 			}
+			if hasPercFunc {
+				err := stats.TDigest.InsertIntoTDigest(fltVal)
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
+			}
 		} else {
 			stats.NumStats.Sum.FloatVal = float64(stats.NumStats.Sum.IntgrVal) + fltVal
 			stats.NumStats.Sum.Ntype = SS_DT_FLOAT
@@ -191,6 +298,12 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 					Dtype: SS_DT_FLOAT,
 					CVal:  fltVal,
 				})
+			}
+			if hasPercFunc {
+				err := stats.TDigest.InsertIntoTDigest(fltVal)
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
 			}
 		}
 	// incoming is NON-float
@@ -212,6 +325,12 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 					CVal:  float64(inIntgrVal),
 				})
 			}
+			if hasPercFunc {
+				err := stats.TDigest.InsertIntoTDigest(float64(inIntgrVal))
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
+			}
 		} else {
 			stats.NumStats.Sum.IntgrVal = stats.NumStats.Sum.IntgrVal + inIntgrVal
 
@@ -228,13 +347,19 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 					CVal:  inIntgrVal,
 				})
 			}
+			if hasPercFunc {
+				err := stats.TDigest.InsertIntoTDigest(float64(inIntgrVal))
+				if err != nil {
+					log.Errorf("processStats: unable to add val: %v to digest tree; err: %v", fltVal, err)
+				}
+			}
 		}
 	}
 
 }
 
 func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
-	bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool) {
+	bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool, hasPercFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -252,7 +377,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 
 	floatVal, err := strconv.ParseFloat(strVal, 64)
 	if err == nil {
-		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, strVal, bb, aggColUsage, hasValuesFunc, hasListFunc)
+		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 		return
 	}
 

@@ -152,7 +152,7 @@ function createTable(data) {
             flex: 0,
             valueFormatter: (params) => formatEpochToReadable(params.value),
         },
-        { headerName: 'Search Text', field: 'search_text', sortable: true, filter: true, flex: 1 },
+        { headerName: 'Search Text', field: 'search_text', sortable: true, filter: true, flex: 1, cellClass: 'text-cursor align-center-grid' },
     ];
 
     const aggregationRowData = data.promoted_aggregations.map((item) => ({
@@ -172,8 +172,8 @@ function createTable(data) {
     const aggregationGridOptions = {
         columnDefs: columnDefs,
         rowData: aggregationRowData,
-        onRowClicked: function (event) {
-            if (event.data.id && event.data.id !== 'Total Tracked Aggregations') {
+        onCellClicked: function (event) {
+            if (event.data.id && event.data.id !== 'Total Tracked Aggregations' && event.colDef.field !== 'search_text') {
                 fetchDetails(event.data.id);
             }
         },
@@ -184,6 +184,9 @@ function createTable(data) {
         headerHeight: 26,
         rowHeight: 34,
         pinnedBottomRowData: [aggregationTotalRow],
+        suppressDragLeaveHidesColumns: true,
+        suppressRowClickSelection: true,
+        enableCellTextSelection: true,
     };
 
     const searchRowData = data.promoted_searches.map((item) => ({
@@ -203,8 +206,8 @@ function createTable(data) {
     const searchGridOptions = {
         columnDefs: columnDefs,
         rowData: searchRowData,
-        onRowClicked: function (event) {
-            if (event.data.id && event.data.id !== 'Total Tracked Searches') {
+        onCellClicked: function (event) {
+            if (event.data.id && event.data.id !== 'Total Tracked Searches' && event.colDef.field !== 'search_text') {
                 fetchDetails(event.data.id);
             }
         },
@@ -215,6 +218,9 @@ function createTable(data) {
         headerHeight: 26,
         rowHeight: 34,
         pinnedBottomRowData: [searchTotalRow],
+        suppressRowClickSelection: true,
+        enableCellTextSelection: true,
+        suppressDragLeaveHidesColumns: true,
     };
 
     $('#ag-grid-promoted-aggregations').empty();

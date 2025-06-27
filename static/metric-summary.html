@@ -122,8 +122,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
 
                     <div class="mt-3 h-100 mb-2" id="tracing-container">
-                        <div id="ag-grid" class="ag-theme-mycustomtheme" style="padding-bottom:40px">
+                        <div id="ag-grid" class="ag-theme-mycustomtheme mb-0" style="height:calc(100% - 80px);">
                         </div>
+                        <div id="metrics-pagination"></div>
                     </div>
                 </div>
             </div>
@@ -137,6 +138,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/ag-grid-seg-stats.js?cb={{ AppVersion }}"></script>
     <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
     <script src="./js/metric-summary.js?cb={{ AppVersion }}"></script>
+    <script src="./component/pagination/pagination.js?cb={{ AppVersion }}"></script>
     <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}

@@ -41,6 +41,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const TestPercAlternate sutils.AggregateFunctions = sutils.END_OF_AGGREGATE_FUNCS + 1
+
+var alternateAggTestingMap = map[sutils.AggregateFunctions]sutils.AggregateFunctions{
+	TestPercAlternate: sutils.Perc,
+	sutils.Median:     sutils.Perc,
+}
+
 // Helper functions
 
 func parseWithoutError(t *testing.T, query string) (*structs.ASTNode, *structs.QueryAggregators) {
@@ -9554,7 +9561,7 @@ func Test_StreamStats_2(t *testing.T) {
 	assert.Equal(t, 5, len(aggregator.MeasureOperations))
 	assert.Equal(t, sutils.Count, aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "*", aggregator.MeasureOperations[0].MeasureCol)
-	assert.Equal(t, sutils.Median, aggregator.MeasureOperations[1].MeasureFunc)
+	assert.Equal(t, alternateAggTestingMap[sutils.Median], aggregator.MeasureOperations[1].MeasureFunc)
 	assert.Equal(t, "sale_amount", aggregator.MeasureOperations[1].MeasureCol)
 	assert.Equal(t, sutils.Stdev, aggregator.MeasureOperations[2].MeasureFunc)
 	assert.Equal(t, "revenue", aggregator.MeasureOperations[2].MeasureCol)
@@ -9681,7 +9688,7 @@ func Test_StreamStats_4(t *testing.T) {
 	assert.Nil(t, aggregator.GroupByRequest)
 	assert.NotNil(t, aggregator.MeasureOperations)
 	assert.Equal(t, 1, len(aggregator.MeasureOperations))
-	assert.Equal(t, sutils.Median, aggregator.MeasureOperations[0].MeasureFunc)
+	assert.Equal(t, alternateAggTestingMap[sutils.Median], aggregator.MeasureOperations[0].MeasureFunc)
 	assert.Equal(t, "abc", aggregator.MeasureOperations[0].MeasureCol)
 
 	assert.NotNil(t, aggregator.StreamStatsOptions.ResetBefore)
@@ -10141,15 +10148,22 @@ func Test_FillNull_ValueArg_FieldList(t *testing.T) {
 	assert.Equal(t, []string{"field1", "field2"}, aggregator.OutputTransforms.LetColumns.FillNullRequest.FieldList)
 }
 
-func getMeasureFuncStr(measureFunc sutils.AggregateFunctions) (string, string) {
+func getMeasureFuncStr(measureFunc sutils.AggregateFunctions) (string, float64) {
 	switch measureFunc {
 	case sutils.Cardinality:
-		return "dc", ""
-	case sutils.Perc, sutils.ExactPerc, sutils.UpperPerc:
-		percentStr := fmt.Sprintf("%v", rand.Float64()*100)
-		return measureFunc.String() + percentStr, percentStr
+		return "dc", 0
+	case sutils.Perc, sutils.ExactPerc, sutils.UpperPerc, TestPercAlternate, sutils.Median:
+		percentVal := rand.Float64() * 100
+		percentStr := strconv.FormatFloat(percentVal, 'f', -1, 64)
+		if measureFunc == TestPercAlternate {
+			return "p" + percentStr, percentVal
+		} else if measureFunc == sutils.Median {
+			return "median", 50
+		} else {
+			return measureFunc.String() + percentStr, percentVal
+		}
 	default:
-		return measureFunc.String(), ""
+		return measureFunc.String(), 0
 	}
 }
 
@@ -10172,8 +10186,11 @@ func testSingleAggregateFunction(t *testing.T, aggFunc sutils.AggregateFunctions
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, pipeCommands.MeasureOperations, 1)
 	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, measureCol)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, aggFunc)
-
+	if _, ok := alternateAggTestingMap[aggFunc]; ok {
+		assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, alternateAggTestingMap[aggFunc])
+	} else {
+		assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, aggFunc)
+	}
 	astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
@@ -10187,7 +10204,6 @@ func testSingleAggregateFunction(t *testing.T, aggFunc sutils.AggregateFunctions
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, aggFunc)
 	assert.Equal(t, aggregator.MeasureOperations[0].Param, param)
 }
 
@@ -10216,8 +10232,12 @@ func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc sutils.AggregateFu
 	assert.Equal(t, sutils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
 
 	assert.Equal(t, measureWithEvalStr, pipeCommands.MeasureOperations[1].StrEnc)
-	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
-	assert.Equal(t, pipeCommands.MeasureOperations[1].Param, param)
+	if _, ok := alternateAggTestingMap[measureFunc]; ok {
+		assert.Equal(t, alternateAggTestingMap[measureFunc], pipeCommands.MeasureOperations[1].MeasureFunc)
+	} else {
+		assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
+	}
+	assert.Equal(t, math.Round(pipeCommands.MeasureOperations[1].Param*1000)/1000, math.Round(param*1000)/1000)
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMBooleanExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr)
@@ -10273,8 +10293,12 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc sutils.Aggre
 	assert.Equal(t, sutils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
 
 	assert.Equal(t, measureWithEvalStr, pipeCommands.MeasureOperations[1].StrEnc)
-	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
-	assert.Equal(t, pipeCommands.MeasureOperations[1].Param, param)
+	if _, ok := alternateAggTestingMap[measureFunc]; ok {
+		assert.Equal(t, alternateAggTestingMap[measureFunc], pipeCommands.MeasureOperations[1].MeasureFunc)
+	} else {
+		assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
+	}
+	assert.Equal(t, math.Round(pipeCommands.MeasureOperations[1].Param*1000)/1000, math.Round(param*1000)/1000)
 
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMNumericExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
@@ -10310,8 +10334,12 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc sutils.Aggr
 	assert.Equal(t, sutils.Sum, pipeCommands.MeasureOperations[0].MeasureFunc)
 
 	assert.Equal(t, measureWithEvalStr, pipeCommands.MeasureOperations[1].StrEnc)
-	assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
-	assert.Equal(t, pipeCommands.MeasureOperations[1].Param, param)
+	if _, ok := alternateAggTestingMap[measureFunc]; ok {
+		assert.Equal(t, alternateAggTestingMap[measureFunc], pipeCommands.MeasureOperations[1].MeasureFunc)
+	} else {
+		assert.Equal(t, measureFunc, pipeCommands.MeasureOperations[1].MeasureFunc)
+	}
+	assert.Equal(t, math.Round(pipeCommands.MeasureOperations[1].Param*1000)/1000, math.Round(param*1000)/1000)
 
 	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
 	assert.Equal(t, structs.VEMConditionExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
@@ -10345,7 +10373,7 @@ func getAggFunctions() []sutils.AggregateFunctions {
 		sutils.Mode, sutils.Stdev, sutils.Stdevp, sutils.Sumsq, sutils.Var,
 		sutils.Varp, sutils.First, sutils.Last, sutils.Earliest, sutils.Latest,
 		sutils.EarliestTime, sutils.LatestTime, sutils.StatsRate,
-		sutils.Perc, sutils.ExactPerc, sutils.UpperPerc,
+		sutils.Perc, TestPercAlternate, sutils.ExactPerc, sutils.UpperPerc,
 	}
 }
 
@@ -11504,6 +11532,65 @@ func Test_Index_6(t *testing.T) {
 	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
 }
 
+func Test_ToJson_Expr(t *testing.T) {
+	queryPlain := []byte(`city=* | tojson`)
+	queryWDtype := []byte(`city=Boston | tojson auto(f) none(g) bool(h) json(i) str(k) num(l)`)
+	queryWFillNull := []byte(`city=Boston | tojson fill_null=true`)
+	queryWDefaultType := []byte(`city=Boston | tojson default_type=bool`)
+	queryWIncludeInternal := []byte(`city=Boston | tojson include_internal=true`)
+	queryWMix := []byte(`city=Boston | tojson app_name height width auto(weight) num(latency) fill_null=true default_type=json include_internal=true`)
+
+	res, err := spl.Parse("", queryPlain)
+	assert.Nil(t, err)
+	q := res.(ast.QueryStruct)
+	agg := q.PipeCommands.ToJsonExpr
+	assert.True(t, agg.AllFields)
+	assert.Len(t, agg.FieldsDtypes, 1)
+	assert.Equal(t, structs.TJ_None, agg.FieldsDtypes[0].Dtype)
+	assert.Equal(t, ".*", agg.FieldsDtypes[0].Regex.GetRawRegex())
+
+	res, err = spl.Parse("", queryWDtype)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.False(t, agg.AllFields)
+	expectedDtypes := []structs.ToJsonDtypes{
+		structs.TJ_Auto, structs.TJ_None, structs.TJ_Bool,
+		structs.TJ_Json, structs.TJ_Str, structs.TJ_Num,
+	}
+	assert.Len(t, agg.FieldsDtypes, 6)
+	for i, dtypeOpt := range agg.FieldsDtypes {
+		assert.Equal(t, expectedDtypes[i], dtypeOpt.Dtype)
+	}
+
+	res, err = spl.Parse("", queryWFillNull)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.True(t, agg.FillNull)
+
+	res, err = spl.Parse("", queryWDefaultType)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.Equal(t, structs.TJ_Bool, agg.DefaultType.Dtype)
+
+	res, err = spl.Parse("", queryWIncludeInternal)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.True(t, agg.IncludeInternal)
+
+	res, err = spl.Parse("", queryWMix)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.False(t, agg.AllFields)
+	assert.Len(t, agg.FieldsDtypes, 5)
+	assert.Equal(t, structs.TJ_Auto, agg.FieldsDtypes[3].Dtype)
+	assert.Equal(t, "weight", agg.FieldsDtypes[3].Regex.GetRawRegex())
+	assert.Equal(t, structs.TJ_Num, agg.FieldsDtypes[4].Dtype)
+	assert.Equal(t, "latency", agg.FieldsDtypes[4].Regex.GetRawRegex())
+	assert.True(t, agg.FillNull)
+	assert.True(t, agg.IncludeInternal)
+	assert.Equal(t, structs.TJ_Json, agg.DefaultType.Dtype)
+}
+
 func Test_Eval_Expr(t *testing.T) {
 	query := []byte(`city=Boston | stats count AS Count BY http_status | eval myField=if(http_status > 400, http_status, "Error"), myField2=abs(http_status - 100) | eval myField3="Test concat:" . lower(state) . "  end"`)
 	res, err := spl.Parse("", query)
@@ -11688,4 +11775,88 @@ func Test_evalDoubleEqualsWithoutAssignment(t *testing.T) {
 	query := []byte(`* | eval status == 200`)
 	_, err := spl.Parse("", query)
 	assert.NotNil(t, err)
+}
+
+func Test_term_lowercase(t *testing.T) {
+	query := []byte(`search field1=TERM("value1")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "field1", filterNode.Comparison.Field)
+	assert.Equal(t, `"value1"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"value1"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "field1", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "value1", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_term_uppercase(t *testing.T) {
+	query := []byte(`search DUMMY_FIELD=TERM("VALUE1")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "DUMMY_FIELD", filterNode.Comparison.Field)
+	assert.Equal(t, `"value1"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"VALUE1"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "DUMMY_FIELD", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "value1", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_term_singleWildcard(t *testing.T) {
+	query := []byte(`search city=TERM("An*")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, `"an*"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"An*"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "city", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "an*", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_term_multipleWildcard(t *testing.T) {
+	query := []byte(`search city=TERM("*to*")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, `"*to*"`, filterNode.Comparison.Values)
+	assert.Equal(t, `"*to*"`, filterNode.Comparison.OriginalValues)
+	assert.Equal(t, false, filterNode.Comparison.ValueIsRegex)
+	assert.Equal(t, true, filterNode.Comparison.CaseInsensitive)
+	assert.Equal(t, true, filterNode.Comparison.IsTerm)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "city", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "*to*", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }

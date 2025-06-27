@@ -23,6 +23,11 @@ import (
 	"sync"
 )
 
+type KVPair[K comparable, V any] struct {
+	Key   K
+	Value V
+}
+
 // GetOrCreateNestedMap returns the inner map corresponding to key1 from the outer map.
 // If the key1 does not exist in the outer map, a new inner map is created and returned.
 func GetOrCreateNestedMap[K1 comparable, K2 comparable, V any](m map[K1]map[K2]V, key1 K1) map[K2]V {
@@ -82,6 +87,16 @@ func MapsConflict[K comparable, V comparable](map1 map[K]V, map2 map[K]V) bool {
 	}
 
 	return false
+}
+
+func MapToSlice[K comparable, V any](m map[K]V) []KVPair[K, V] {
+	slice := make([]KVPair[K, V], 0, len(m))
+
+	for key, value := range m {
+		slice = append(slice, KVPair[K, V]{Key: key, Value: value})
+	}
+
+	return slice
 }
 
 func MapToSet[K comparable, V any](m map[K]V) map[K]struct{} {

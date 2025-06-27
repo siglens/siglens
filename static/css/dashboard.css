@@ -802,6 +802,7 @@
   border-right: none;
   border-radius: 1px 0;
   cursor: pointer;
+  z-index: 1;
 }
 
 #panel-desc-info {
@@ -999,7 +1000,7 @@
   top: 90px;
   cursor: default;
   box-shadow: var(--box-shadow);
-  z-index: 0;
+  z-index: 1;
 }
 
 #add-widget-options .editPanelMenu-options {

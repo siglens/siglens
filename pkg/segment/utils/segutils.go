@@ -165,7 +165,7 @@ func CreateDtypeEnclosure(inVal interface{}, qid uint64) (*DtypeEnclosure, error
 	return &dte, nil
 }
 
-func (dte *DtypeEnclosure) UpdateRegexp(caseInsensitive bool) {
+func (dte *DtypeEnclosure) UpdateRegexp(caseInsensitive bool, isTerm bool) {
 	if dte == nil {
 		return
 	}
@@ -174,11 +174,9 @@ func (dte *DtypeEnclosure) UpdateRegexp(caseInsensitive bool) {
 		return
 	}
 
-	if strings.Contains(dte.StringVal, "*") {
-		rawRegex := dtu.ReplaceWildcardStarWithRegex(dte.StringVal)
-		if caseInsensitive {
-			rawRegex = "(?i)" + rawRegex
-		}
+	if strings.Contains(dte.StringVal, "*") || isTerm {
+
+		rawRegex := dtu.SPLToRegex(dte.StringVal, caseInsensitive, isTerm)
 
 		compiledRegex, err := regexp.Compile(rawRegex)
 		if err != nil {
