@@ -6828,8 +6828,7 @@ p#versionInfo {
 }
 
 #cancel-upload-btn,
-#cancel-overwrite-btn,
-#cancel-delete-btn {
+#cancel-overwrite-btn {
     margin-right: 10px;
 }
 
