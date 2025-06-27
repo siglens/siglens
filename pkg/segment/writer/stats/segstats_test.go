@@ -49,11 +49,11 @@ func Test_addSegStatsNums(t *testing.T) {
 	sst := make(map[string]*SegStats)
 	bb := bbp.Get()
 
-	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, "2345", bb, nil, false, false, false)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, bb, nil, false, false, false)
 	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
 	assert.Equal(t, int64(2345), sst[cname].Min.CVal)
 
-	AddSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), "345.1", bb, nil, false, false, false)
+	AddSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), bb, nil, false, false, false)
 	assert.Equal(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
 	assert.Equal(t, float64(345.1), sst[cname].Min.CVal)
 
@@ -69,9 +69,9 @@ func Test_addSegStatsNumsMixed(t *testing.T) {
 	bb := bbp.Get()
 
 	AddSegStatsStr(sst, cname, "abc", bb, nil, false, false, false)
-	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(100), 0, "100", bb, nil, false, false, false)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(100), 0, bb, nil, false, false, false)
 	AddSegStatsStr(sst, cname, "def", bb, nil, false, false, false)
-	AddSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(123.45), "123.45", bb, nil, false, false, false)
+	AddSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(123.45), bb, nil, false, false, false)
 	AddSegStatsStr(sst, cname, "20", bb, nil, false, false, false)
 	AddSegStatsStr(sst, cname, "xyz", bb, nil, false, false, false)
 
@@ -98,17 +98,17 @@ func Test_addSegStatsNumsForEvalFunc(t *testing.T) {
 	aggColUsage["duration"] = WithEvalUsage
 	aggColUsage["latitude"] = NoEvalUsage
 
-	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(111), 0, "111", bb, aggColUsage, false, false, false)
-	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(333), 0, "333", bb, aggColUsage, false, false, false)
-	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(222), 0, "222", bb, aggColUsage, false, false, false)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(111), 0, bb, aggColUsage, false, false, false)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(333), 0, bb, aggColUsage, false, false, false)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(222), 0, bb, aggColUsage, false, false, false)
 	assert.Len(t, sst[cname].Records, 3)
 	assert.Equal(t, int64(111), sst[cname].Records[0].CVal)
 	assert.Equal(t, int64(333), sst[cname].Records[1].CVal)
 	assert.Equal(t, int64(222), sst[cname].Records[2].CVal)
 
 	aggColUsage["latitude"] = NoEvalUsage
-	AddSegStatsNums(sst, cname2, SS_FLOAT64, 0, 0, 40.7128, "40.7128", bb, aggColUsage, false, false, false)
-	AddSegStatsNums(sst, cname2, SS_FLOAT64, 0, 0, -10.5218, "-10.5218", bb, aggColUsage, false, false, false)
+	AddSegStatsNums(sst, cname2, SS_FLOAT64, 0, 0, 40.7128, bb, aggColUsage, false, false, false)
+	AddSegStatsNums(sst, cname2, SS_FLOAT64, 0, 0, -10.5218, bb, aggColUsage, false, false, false)
 	assert.Len(t, sst[cname2].Records, 0)
 }
 
