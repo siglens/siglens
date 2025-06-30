@@ -555,8 +555,6 @@ function handleLogOptionChange(viewType) {
 
     if (viewType === VIEW_TYPES.TABLE) {
         columnUpdates.cellRenderer = (params) => {
-            console.log(params.value);
-            console.log(typeof params.value);
             if (params.value === '' || params.value === null || params.value === undefined) {
                 return '-';
             }
