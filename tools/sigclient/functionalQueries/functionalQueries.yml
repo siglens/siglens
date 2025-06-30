@@ -119,4 +119,4 @@ variable_col_tests/var_eval_stats_where.json
 # search_eval_timechart_filldown.json  // filldown command not supported
 
 ## Inconsistent results
-# streamstats_without_sort.json
+streamstats_without_sort.json

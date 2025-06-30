@@ -6,8 +6,7 @@
             "relation": "gte"
         },
         "qtype": "logs-query",
-        "records": 
-        [
+        "records": [
             {
                 "avg": 301,
                 "city": "Boston",
@@ -21,6 +20,7 @@
                 "min": 301,
                 "range": 0,
                 "sum": 301,
+                "timestamp": 1751295599998,
                 "values": [
                     "301"
                 ]
@@ -38,6 +38,7 @@
                 "min": 301,
                 "range": 0,
                 "sum": 602,
+                "timestamp": 1751295599901,
                 "values": [
                     "301"
                 ]
@@ -55,6 +56,7 @@
                 "min": 500,
                 "range": 0,
                 "sum": 500,
+                "timestamp": 1751295599827,
                 "values": [
                     "500"
                 ]
@@ -72,6 +74,7 @@
                 "min": 500,
                 "range": 0,
                 "sum": 1000,
+                "timestamp": 1751295599783,
                 "values": [
                     "500"
                 ]
@@ -89,6 +92,7 @@
                 "min": 301,
                 "range": 0,
                 "sum": 602,
+                "timestamp": 1751295599759,
                 "values": [
                     "301"
                 ]
@@ -106,6 +110,7 @@
                 "min": 500,
                 "range": 0,
                 "sum": 500,
+                "timestamp": 1751295599746,
                 "values": [
                     "500"
                 ]
@@ -123,6 +128,7 @@
                 "min": 500,
                 "range": 0,
                 "sum": 1000,
+                "timestamp": 1751295599691,
                 "values": [
                     "500"
                 ]
@@ -140,6 +146,7 @@
                 "min": 404,
                 "range": 96,
                 "sum": 1404,
+                "timestamp": 1751295599625,
                 "values": [
                     "404",
                     "500"
@@ -158,45 +165,48 @@
                 "min": 200,
                 "range": 0,
                 "sum": 200,
+                "timestamp": 1751295599436,
                 "values": [
                     "200"
                 ]
             },
             {
-                "avg": 301.3333333333333,
+                "avg": 302,
                 "city": "Boston",
-                "cnt": 3,
-                "dc": 2,
+                "cnt": 1,
+                "dc": 1,
                 "first_name": "Alexis",
                 "group": "group 1",
                 "http_status": 302,
                 "last_name": "Konopelski",
                 "max": 302,
-                "min": 301,
-                "range": 1,
-                "sum": 904,
+                "min": 302,
+                "range": 0,
+                "sum": 302,
+                "timestamp": 1751295598992,
                 "values": [
-                    "301",
                     "302"
                 ]
             }
         ],
         "allColumns": [
-            "group",
-            "cnt",
-            "avg",
             "last_name",
-            "dc",
             "http_status",
-            "city",
-            "first_name",
-            "range",
+            "group",
+            "values",
+            "cnt",
+            "sum",
             "max",
             "min",
-            "values",
-            "sum"
+            "range",
+            "first_name",
+            "avg",
+            "dc",
+            "timestamp",
+            "city"
         ],
         "columnsOrder": [
+            "timestamp",
             "city",
             "first_name",
             "last_name",
