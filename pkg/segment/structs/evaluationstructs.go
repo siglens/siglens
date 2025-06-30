@@ -726,7 +726,7 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 				return validateBoolExprError(err, "BoolExpr.Evaluate: 'isnum' can not evaluate to String")
 			}
 
-			_, parseErr := strconv.ParseFloat(val, 64)
+			_, parseErr := utils.FastParseFloat([]byte(val))
 			return getBoolCValueEnclosure(parseErr == nil), nil
 		case "isstr":
 			_, floatErr := self.LeftValue.EvaluateToFloat(fieldToValue)
@@ -2377,7 +2377,18 @@ func (self *NumericExpr) getSigFigs(strVal string, fltVal float64) int {
 func splPrintfHumanizeHelper(verbCounter int, value any, formatValues []any, buffer *[]byte, verb byte, parseInt func(string) (int64, error), parseFloat func(string) (float64, error)) {
 	var strVal string
 	formatValues[verbCounter] = value
-	formattedVal := fmt.Sprintf(string(append(*buffer, verb)), formatValues...)
+	numFlagsWConsumeArgs := 0
+	lastPercentPos := -1
+	for i := len(*buffer) - 1; i >= 0; i-- {
+		if (*buffer)[i] == '%' {
+			lastPercentPos = i
+			break
+		} else if (*buffer)[i] == '*' {
+			numFlagsWConsumeArgs++
+		}
+	}
+	//  only use the last verb for formatting. i.e the buffer from the lastPercentPos
+	formattedVal := fmt.Sprintf(string(append((*buffer)[lastPercentPos:], verb)), formatValues[(verbCounter-numFlagsWConsumeArgs):verbCounter+1]...)
 	// can't use precomputed hasDecimal since formatting may remove the decimal
 	hasDecimal := strings.Contains(formattedVal, ".")
 	// remove spaces, leading zeros, signs from the left.
@@ -2435,6 +2446,11 @@ func splPrintfHumanizeHelper(verbCounter int, value any, formatValues []any, buf
 	}
 	strVal = removedLeft + strVal + removedRight
 	formatValues[verbCounter] = strVal
+	if numFlagsWConsumeArgs != 0 {
+		for i := verbCounter - numFlagsWConsumeArgs; i < verbCounter; i++ {
+			formatValues[i] = nil
+		}
+	}
 	// Clear any formatting flags from the previous '%' token.
 	// For example, consider the format string "%.5g": the rounding has already been applied earlier
 	// when we initially processed this format using sprintf.
@@ -2442,13 +2458,7 @@ func splPrintfHumanizeHelper(verbCounter int, value any, formatValues []any, buf
 	// If we now substitute the formatted value 's' directly into the format string, like replacing %g with %s,
 	// the format string becomes "%.5s". This causes the final sprintf call to re-apply formatting (like rounding or truncation),
 	// which is incorrect because the value has already been rounded once.
-	lastPercentPos := -1
-	for i := len(*buffer) - 1; i >= 0; i-- {
-		if (*buffer)[i] == '%' {
-			lastPercentPos = i
-			break
-		}
-	}
+
 	if lastPercentPos != -1 {
 		*buffer = (*buffer)[:lastPercentPos]
 	}
@@ -3127,8 +3137,15 @@ func handlePrintf(self *TextExpr, fieldToValue map[string]sutils.CValueEnclosure
 			return "", err
 		}
 		verbCounter++
+		humanizeRes = false
 	}
-	val := fmt.Sprintf(string(formatResult), formatValues...)
+	cleanedFormattedArr := formatValues[:0]
+	for _, v := range formatValues {
+		if v != nil {
+			cleanedFormattedArr = append(cleanedFormattedArr, v)
+		}
+	}
+	val := fmt.Sprintf(string(formatResult), cleanedFormattedArr...)
 	return val, nil
 }
 
