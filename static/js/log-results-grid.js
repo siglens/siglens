@@ -70,17 +70,6 @@ const gridOptions = {
     suppressRowVirtualisation: false,
 };
 
-//eslint-disable-next-line no-unused-vars
-const myCellRenderer = (params) => {
-    if (typeof params.data !== 'object' || params.data === null) return '';
-    const value = params.data[params.colName];
-    if (value == null || value === '') return '';
-    if (Array.isArray(value)) {
-        return JSON.stringify(JSON.unflatten(value));
-    }
-    return value;
-};
-
 JSON.unflatten = function (data) {
     if (Object(data) !== data || Array.isArray(data)) return data;
     //eslint-disable-next-line no-useless-escape

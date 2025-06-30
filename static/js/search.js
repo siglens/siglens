@@ -1181,7 +1181,6 @@ function renderLogsGrid(columnOrder, hits) {
             return {
                 field: colName,
                 headerName: colName,
-                cellRenderer: myCellRenderer,
                 cellRendererParams: { colName: colName },
             };
         }

@@ -443,7 +443,7 @@ function runFilterBtnHandler(evt) {
     var currentPage = window.location.pathname;
     if (currentPage === '/alert.html') {
         let data = getQueryParamsData();
-        
+
         //eslint-disable-next-line no-undef
         showLogsLoading();
         fetchLogsPanelData(data, -1)
@@ -529,6 +529,10 @@ function saveqInputHandler(evt) {
     $(this).addClass('active');
 }
 
+function escapeHtml(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function handleLogOptionChange(viewType) {
     const logsContainer = $('#logs-result-container');
     const viewButtons = $('#views-container .btn-group .btn');
@@ -559,7 +563,7 @@ function handleLogOptionChange(viewType) {
             } else if (typeof params.value === 'object' && params.value !== null) {
                 return JSON.stringify(params.value);
             } else {
-                return String(params.value);
+                return escapeHtml(params.value);
             }
         };
         logsColumnDefs.forEach((colDef) => {
@@ -625,7 +629,7 @@ function configureLogsColumn(viewType) {
             .forEach(([key, value], index) => {
                 const colSep = index > 0 ? '<span class="col-sep"> | </span>' : '';
 
-                const formattedValue = typeof value === 'number' ? formatNumber(value) : isSingleLine ? (typeof value === 'object' && value !== null ? JSON.stringify(value) : value) : formatLogsValue(value);
+                const formattedValue = typeof value === 'number' ? formatNumber(value) : isSingleLine ? (typeof value === 'object' && value !== null ? JSON.stringify(value) : escapeHtml(value)) : formatLogsValue(value);
                 logParts.push(`${colSep}<span class="cname-hide-${string2Hex(key)}"><b>${key}</b> ${formattedValue}</span>`);
             });
 
@@ -655,11 +659,14 @@ function configureLogsColumn(viewType) {
 
 function formatLogsValue(value) {
     if (typeof value === 'string') {
-        return value.replace(/\n/g, '<br>');
+        const escapedValue = escapeHtml(value);
+        return escapedValue.replace(/\n/g, '<br>');
     } else if (typeof value === 'object' && value !== null) {
-        return JSON.stringify(JSON.unflatten(value), null, 2).replace(/\n/g, '<br>');
+        const jsonString = JSON.stringify(JSON.unflatten(value), null, 2);
+        const escapedJson = escapeHtml(jsonString);
+        return escapedJson.replace(/\n/g, '<br>');
     } else {
-        return String(value);
+        return escapeHtml(value);
     }
 }
 
