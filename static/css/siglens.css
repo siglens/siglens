@@ -7522,7 +7522,6 @@ p#versionInfo {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-width: 400px;
 }
 
 .page-size-select {
