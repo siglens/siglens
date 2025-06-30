@@ -20,7 +20,7 @@ package utils
 import "testing"
 
 func BenchmarkIntOption(b *testing.B) {
-	option := NewUnsetOption[int]()
+	option := None[int]()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {

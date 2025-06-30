@@ -1776,7 +1776,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         newName := newFieldName.(string)
         letColReq.NewColName = newName
         binOptions := binCmdOption.(*structs.BinCmdOptions)
-        binOptions.NewFieldName = utils.NewOptionWithValue(newName)
+        binOptions.NewFieldName = utils.Some(newName)
     }
 
     letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
@@ -1807,7 +1807,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
     if newFieldName != nil {
         newName := newFieldName.(string)
         letColReq.NewColName = newName
-        binCmdOption.NewFieldName = utils.NewOptionWithValue(newName)
+        binCmdOption.NewFieldName = utils.Some(newName)
     }
 
     letColReq.BinRequest = binCmdOption
@@ -5159,7 +5159,7 @@ FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
 }
 
 MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limitStr:MvexpandLimit? {
-    limit := utils.NewUnsetOption[int64]()
+    limit := utils.None[int64]()
     if limitStr != nil {
         value, err := strconv.ParseInt(limitStr.(string), 10, 64)
         if err != nil {

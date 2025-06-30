@@ -411,7 +411,7 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]sutils.CValueEnclosure, e
 		}
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
-	batchKeyLess := utils.NewUnsetOption[func(uint32, uint32) bool]()
+	batchKeyLess := utils.None[func(uint32, uint32) bool]()
 	batchOperation := func(rrcs []*sutils.RecordResultContainer) map[string][]sutils.CValueEnclosure {
 		if len(rrcs) == 0 {
 			return nil
@@ -518,7 +518,7 @@ func (iqr *IQR) readGenericColFromRRCs(cname string) ([]sutils.CValueEnclosure, 
 		}
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
-	batchKeyLess := utils.NewUnsetOption[func(uint32, uint32) bool]()
+	batchKeyLess := utils.None[func(uint32, uint32) bool]()
 	batchOperation := func(rrcs []*sutils.RecordResultContainer) ([]sutils.CValueEnclosure, error) {
 		if len(rrcs) == 0 || rrcs[0] == nil {
 			return nil, nil

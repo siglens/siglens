@@ -834,7 +834,7 @@ func setMergeSettings(dpChain []*DataProcessor) mergeSettings {
 				curMergeSettings.sortExpr = processor.options
 				curMergeSettings.reverse = false
 				curMergeSettings.less = processor.lessDirectRead
-				curMergeSettings.limit = utils.NewOptionWithValue[uint64](processor.options.Limit)
+				curMergeSettings.limit = utils.Some[uint64](processor.options.Limit)
 			case *tailProcessor:
 				curMergeSettings.reverse = !curMergeSettings.reverse
 				if curMergeSettings.less != nil {
