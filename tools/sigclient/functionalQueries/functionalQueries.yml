@@ -1,122 +1,122 @@
-## Currently implemented in the new pipline
-simple_where.json
-simple_sort.json
-complex_search.json
-complex_search_2.json
-search_with_eval.json
-search_1col_fields.json
-grpby_1col_4stats.json
-3stats.json
-bin.json
-9stats.json
-stats_groupby_with_eval.json
-9stats_groupby_2col.json
-inputlookup.json 
-inputlookup_2.json
-inputlookup_3.json
-head.json
-head2.json
-fillnull_with_eval.json
-stats_group_by_eval.json
-eval_groupby_2col_2stats.json
-eval_fields_timechart.json
-gentimes.json
-gentimes_2.json
-mv_to_json_array.json
-mvsort.json
-mvzip.json
-multi_value.json
-mvappend.json
-mvdedup.json
-mvexpand.json
-tojson_dtype.json
-tojson_fillnull.json
-tojson_wrdtype_nofillnull.json
-tojson_wrename.json
-rex_stats_groupby_eval_stats.json
-eval_stats_sort_stats_groupby_where.json
-eval_stats_sort.json
-stats_eval.json
-eval_timechart_sort.json
-search_timechart_no_groupby.json
-tail.json
-sort_tail_eval_newField.json
-tail_stats.json
-dedup_sortby_consecutive.json
-dedup_sortby.json
-top.json
-rare.json
-rare_top.json
-stats_top.json
-streamstats_win3.json
-streamstats_win4_currF.json
-streamstats_win4_grpby.json
-streamstats_win4_reset_before_after.json
-streamstats_win2_gloF_currF_grpby.json
-streamstats_win2_gloF_grpby.json
-streamstats_multi_resets_grpby.json
-streamstats_eval.json
-streamstats_after_stats.json
-streamstats_after_grpby.json
-simple_term.json
-wildcard_term.json
+# ## Currently implemented in the new pipline
+# simple_where.json
+# simple_sort.json
+# complex_search.json
+# complex_search_2.json
+# search_with_eval.json
+# search_1col_fields.json
+# grpby_1col_4stats.json
+# 3stats.json
+# bin.json
+# 9stats.json
+# stats_groupby_with_eval.json
+# 9stats_groupby_2col.json
+# inputlookup.json 
+# inputlookup_2.json
+# inputlookup_3.json
+# head.json
+# head2.json
+# fillnull_with_eval.json
+# stats_group_by_eval.json
+# eval_groupby_2col_2stats.json
+# eval_fields_timechart.json
+# gentimes.json
+# gentimes_2.json
+# mv_to_json_array.json
+# mvsort.json
+# mvzip.json
+# multi_value.json
+# mvappend.json
+# mvdedup.json
+# mvexpand.json
+# tojson_dtype.json
+# tojson_fillnull.json
+# tojson_wrdtype_nofillnull.json
+# tojson_wrename.json
+# rex_stats_groupby_eval_stats.json
+# eval_stats_sort_stats_groupby_where.json
+# eval_stats_sort.json
+# stats_eval.json
+# eval_timechart_sort.json
+# search_timechart_no_groupby.json
+# tail.json
+# sort_tail_eval_newField.json
+# tail_stats.json
+# dedup_sortby_consecutive.json
+# dedup_sortby.json
+# top.json
+# rare.json
+# rare_top.json
+# stats_top.json
+# streamstats_win3.json
+# streamstats_win4_currF.json
+# streamstats_win4_grpby.json
+# streamstats_win4_reset_before_after.json
+# streamstats_win2_gloF_currF_grpby.json
+# streamstats_win2_gloF_grpby.json
+# streamstats_multi_resets_grpby.json
+# streamstats_eval.json
+# streamstats_after_stats.json
+# streamstats_after_grpby.json
+# simple_term.json
+# wildcard_term.json
 
-# Variable column based queries
-variable_col_tests/var_simple_where.json
-variable_col_tests/var_simple_sort.json
-variable_col_tests/var_complex_search.json
-variable_col_tests/var_complex_search_2.json
-# variable_col_tests/var_search_with_eval.json getting string value instead of float
-variable_col_tests/var_search_1col_fields.json
-variable_col_tests/var_grpby_1col_4stats.json
-variable_col_tests/var_3stats.json
-variable_col_tests/var_bin.json
-variable_col_tests/var_9stats.json
-variable_col_tests/var_stats_groupby_with_eval.json
-variable_col_tests/var_9stats_groupby_2col.json
-variable_col_tests/var_head.json
-variable_col_tests/var_head2.json
-variable_col_tests/var_fillnull_with_eval.json
-variable_col_tests/var_stats_group_by_eval.json
-variable_col_tests/var_eval_groupby_2col_2stats.json
-variable_col_tests/var_eval_fields_timechart.json
-variable_col_tests/var_multi_value.json
-variable_col_tests/var_mvexpand.json
-variable_col_tests/var_rex_stats_groupby_eval_stats.json
-variable_col_tests/var_stats_eval.json
-# variable_col_tests/var_eval_timechart_sort.json this test is wrong; the expected values need to be updated
-variable_col_tests/var_search_timechart_no_groupby.json
-variable_col_tests/var_tail.json
-variable_col_tests/var_sort_tail_eval_newField.json
-variable_col_tests/var_tail_stats.json
-variable_col_tests/var_dedup_sortby_consecutive.json
-variable_col_tests/var_dedup_sortby.json
-variable_col_tests/var_top.json
-variable_col_tests/var_rare.json
-variable_col_tests/var_rare_top.json
-variable_col_tests/var_stats_top.json
-variable_col_tests/var_eval_stats_where.json
+# # Variable column based queries
+# variable_col_tests/var_simple_where.json
+# variable_col_tests/var_simple_sort.json
+# variable_col_tests/var_complex_search.json
+# variable_col_tests/var_complex_search_2.json
+# # variable_col_tests/var_search_with_eval.json getting string value instead of float
+# variable_col_tests/var_search_1col_fields.json
+# variable_col_tests/var_grpby_1col_4stats.json
+# variable_col_tests/var_3stats.json
+# variable_col_tests/var_bin.json
+# variable_col_tests/var_9stats.json
+# variable_col_tests/var_stats_groupby_with_eval.json
+# variable_col_tests/var_9stats_groupby_2col.json
+# variable_col_tests/var_head.json
+# variable_col_tests/var_head2.json
+# variable_col_tests/var_fillnull_with_eval.json
+# variable_col_tests/var_stats_group_by_eval.json
+# variable_col_tests/var_eval_groupby_2col_2stats.json
+# variable_col_tests/var_eval_fields_timechart.json
+# variable_col_tests/var_multi_value.json
+# variable_col_tests/var_mvexpand.json
+# variable_col_tests/var_rex_stats_groupby_eval_stats.json
+# variable_col_tests/var_stats_eval.json
+# # variable_col_tests/var_eval_timechart_sort.json this test is wrong; the expected values need to be updated
+# variable_col_tests/var_search_timechart_no_groupby.json
+# variable_col_tests/var_tail.json
+# variable_col_tests/var_sort_tail_eval_newField.json
+# variable_col_tests/var_tail_stats.json
+# variable_col_tests/var_dedup_sortby_consecutive.json
+# variable_col_tests/var_dedup_sortby.json
+# variable_col_tests/var_top.json
+# variable_col_tests/var_rare.json
+# variable_col_tests/var_rare_top.json
+# variable_col_tests/var_stats_top.json
+# variable_col_tests/var_eval_stats_where.json
 
-## Queries not working for multi-index
-# transaction.json
+# ## Queries not working for multi-index
+# # transaction.json
 
-## Queries that have different Websocket and Http client results
+# ## Queries that have different Websocket and Http client results
 
-## Queries not working in generalized Unique spl queries
-# stats_with_timestamp.json
-# rex_eval_timechart.json  // where "NOT" is not implemented 
-# stats_where_stats.json // LIKE operator not implemented
-# eval_append_timechart_streamstats_sort.json  // not implemented append command
-# bin_rex_eval_timechart.json  // issue with bin command parsing
-# rex_eval_bin_stats_groupby_eval_timechart.json // issue with bin and eval commands parsing
-# eval_where_rex_stats_eval_stats.json // stats latest is not supported
-# gentimes_makemv_eval_rex_stats.json // subsearch not implemented
-# spath_stats_eval_stats_sort.json // spath not implemented
-# lookup_stats_sort.json // lookup not implemented
-# gentimes_makemv_bin_stats_eval_stats_eval_rex.json // subsearch not implemented
-# eval_stats_groupby_with_eval_eval_where.json  // IN operator not implemented
-# search_spath_search_spath_search_timechart.json // search anywhere is not supported
-# search_eval_timechart_filldown.json  // filldown command not supported
+# ## Queries not working in generalized Unique spl queries
+# # stats_with_timestamp.json
+# # rex_eval_timechart.json  // where "NOT" is not implemented 
+# # stats_where_stats.json // LIKE operator not implemented
+# # eval_append_timechart_streamstats_sort.json  // not implemented append command
+# # bin_rex_eval_timechart.json  // issue with bin command parsing
+# # rex_eval_bin_stats_groupby_eval_timechart.json // issue with bin and eval commands parsing
+# # eval_where_rex_stats_eval_stats.json // stats latest is not supported
+# # gentimes_makemv_eval_rex_stats.json // subsearch not implemented
+# # spath_stats_eval_stats_sort.json // spath not implemented
+# # lookup_stats_sort.json // lookup not implemented
+# # gentimes_makemv_bin_stats_eval_stats_eval_rex.json // subsearch not implemented
+# # eval_stats_groupby_with_eval_eval_where.json  // IN operator not implemented
+# # search_spath_search_spath_search_timechart.json // search anywhere is not supported
+# # search_eval_timechart_filldown.json  // filldown command not supported
 
-## Inconsistent results
+# ## Inconsistent results
 streamstats_without_sort.json

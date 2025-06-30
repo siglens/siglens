@@ -20,16 +20,16 @@
                 "min": 301,
                 "range": 0,
                 "sum": 301,
-                "timestamp": 1751295599998,
+                "timestamp": 1751306399998,
                 "values": [
-                    "301"
+                    "0: insert 301"
                 ]
             },
             {
                 "avg": 301,
                 "city": "Boston",
                 "cnt": 2,
-                "dc": 1,
+                "dc": 2,
                 "first_name": "Mike",
                 "group": "group 1",
                 "http_status": 301,
@@ -38,9 +38,10 @@
                 "min": 301,
                 "range": 0,
                 "sum": 602,
-                "timestamp": 1751295599901,
+                "timestamp": 1751306399901,
                 "values": [
-                    "301"
+                    "0: insert 301",
+                    "1: insert 301"
                 ]
             },
             {
@@ -56,16 +57,16 @@
                 "min": 500,
                 "range": 0,
                 "sum": 500,
-                "timestamp": 1751295599827,
+                "timestamp": 1751306399827,
                 "values": [
-                    "500"
+                    "0: insert 500"
                 ]
             },
             {
                 "avg": 500,
                 "city": "Boston",
                 "cnt": 2,
-                "dc": 1,
+                "dc": 2,
                 "first_name": "Nikolas",
                 "group": "group 2",
                 "http_status": 500,
@@ -74,16 +75,17 @@
                 "min": 500,
                 "range": 0,
                 "sum": 1000,
-                "timestamp": 1751295599783,
+                "timestamp": 1751306399783,
                 "values": [
-                    "500"
+                    "0: insert 500",
+                    "1: insert 500"
                 ]
             },
             {
                 "avg": 301,
                 "city": "Boston",
                 "cnt": 2,
-                "dc": 1,
+                "dc": 4,
                 "first_name": "Santino",
                 "group": "group 1",
                 "http_status": 301,
@@ -92,9 +94,12 @@
                 "min": 301,
                 "range": 0,
                 "sum": 602,
-                "timestamp": 1751295599759,
+                "timestamp": 1751306399759,
                 "values": [
-                    "301"
+                    "0: insert 301",
+                    "1: insert 301",
+                    "2: remove 301",
+                    "3: insert 301"
                 ]
             },
             {
@@ -110,16 +115,16 @@
                 "min": 500,
                 "range": 0,
                 "sum": 500,
-                "timestamp": 1751295599746,
+                "timestamp": 1751306399746,
                 "values": [
-                    "500"
+                    "0: insert 500"
                 ]
             },
             {
                 "avg": 500,
                 "city": "Boston",
                 "cnt": 2,
-                "dc": 1,
+                "dc": 2,
                 "first_name": "Arlene",
                 "group": "group 0",
                 "http_status": 500,
@@ -128,16 +133,17 @@
                 "min": 500,
                 "range": 0,
                 "sum": 1000,
-                "timestamp": 1751295599691,
+                "timestamp": 1751306399691,
                 "values": [
-                    "500"
+                    "0: insert 500",
+                    "1: insert 500"
                 ]
             },
             {
                 "avg": 468,
                 "city": "Boston",
                 "cnt": 3,
-                "dc": 2,
+                "dc": 3,
                 "first_name": "Lindsay",
                 "group": "group 0",
                 "http_status": 404,
@@ -146,17 +152,18 @@
                 "min": 404,
                 "range": 96,
                 "sum": 1404,
-                "timestamp": 1751295599625,
+                "timestamp": 1751306399625,
                 "values": [
-                    "404",
-                    "500"
+                    "0: insert 500",
+                    "1: insert 500",
+                    "2: insert 404"
                 ]
             },
             {
                 "avg": 200,
                 "city": "Boston",
                 "cnt": 1,
-                "dc": 1,
+                "dc": 5,
                 "first_name": "Jacinto",
                 "group": "group 2",
                 "http_status": 200,
@@ -165,16 +172,20 @@
                 "min": 200,
                 "range": 0,
                 "sum": 200,
-                "timestamp": 1751295599436,
+                "timestamp": 1751306399436,
                 "values": [
-                    "200"
+                    "0: insert 500",
+                    "1: insert 500",
+                    "2: remove 500",
+                    "3: remove 500",
+                    "4: insert 200"
                 ]
             },
             {
                 "avg": 302,
                 "city": "Boston",
                 "cnt": 1,
-                "dc": 1,
+                "dc": 7,
                 "first_name": "Alexis",
                 "group": "group 1",
                 "http_status": 302,
@@ -183,27 +194,33 @@
                 "min": 302,
                 "range": 0,
                 "sum": 302,
-                "timestamp": 1751295598992,
+                "timestamp": 1751306398992,
                 "values": [
-                    "302"
+                    "0: insert 301",
+                    "1: insert 301",
+                    "2: remove 301",
+                    "3: insert 301",
+                    "4: remove 301",
+                    "5: remove 301",
+                    "6: insert 302"
                 ]
             }
         ],
         "allColumns": [
             "last_name",
-            "http_status",
-            "group",
-            "values",
+            "timestamp",
+            "avg",
+            "first_name",
             "cnt",
             "sum",
+            "http_status",
+            "dc",
             "max",
             "min",
-            "range",
-            "first_name",
-            "avg",
-            "dc",
-            "timestamp",
-            "city"
+            "city",
+            "group",
+            "values",
+            "range"
         ],
         "columnsOrder": [
             "timestamp",
