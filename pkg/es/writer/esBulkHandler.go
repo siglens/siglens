@@ -169,7 +169,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 			items = append(items, newArr...)
 		}
 
-		esAction, indexName, idVal := extractIndexAndValidateAction(line)
+		esAction, indexName, idVal := ExtractIndexAndValidateAction(line)
 
 		switch esAction {
 
@@ -284,7 +284,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	}
 }
 
-func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
+func ExtractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 	val, dType, _, err := jp.Get(rawJson, INDEX_TOP_STR)
 	if err == nil && dType == jp.Object {
 		idVal, err := jp.GetString(val, "_id")
