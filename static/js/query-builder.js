@@ -105,6 +105,7 @@ $(document).ready(function () {
     if (firstBoxSet.size > 0) $('#search-filter-text').hide();
     else $('#search-filter-text').show();
     setShowColumnInfoDialog();
+    updateResetButtonVisibility();
 });
 
 const tags = document.getElementById('tags');
@@ -121,6 +122,7 @@ tags.addEventListener('click', function (event) {
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
         cancelInfo(event);
+        updateResetButtonVisibility();
     }
 });
 tagSecond.addEventListener('click', function (event) {
@@ -283,6 +285,7 @@ async function ThirdFilterStart(evt) {
                     $('#column-third').val('');
                     $(this).blur();
                     getSearchText();
+                    updateResetButtonVisibility();
                 }
                 if (thirdBoxSet.size > 0) $('#aggregations').hide();
                 else $('#aggregations').show();
@@ -370,6 +373,7 @@ function filterComplete(evt) {
         getSearchText();
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
+        updateResetButtonVisibility();
     }
 }
 function secondFilterComplete(evt) {
@@ -407,6 +411,7 @@ function secondFilterComplete(evt) {
         getSearchText();
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
+        updateResetButtonVisibility();
     }
 }
 
@@ -887,6 +892,7 @@ $('#tags').on('click', 'li', function (event) {
         getSearchText();
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
+        updateResetButtonVisibility();
     }
 });
 
@@ -898,6 +904,7 @@ function restoreOriginalFilter(tagElement) {
 
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
+        updateResetButtonVisibility();
     }
 }
 
@@ -1032,6 +1039,7 @@ function restoreOriginalSecondFilter(tagElement) {
 
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
+        updateResetButtonVisibility();
     }
 }
 
@@ -1136,6 +1144,8 @@ $('#tags-third').on('click', 'li', function (event) {
         getSearchText();
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
+
+         updateResetButtonVisibility();
     }
 });
 
@@ -1147,6 +1157,70 @@ function restoreOriginalThirdFilter(tagElement) {
 
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
+        updateResetButtonVisibility();
         getSearchText();
+
+
     }
 }
+
+// Reset the query builder
+
+$('.custom-reset-button').on('click', function (e) {
+    e.stopPropagation();
+
+    $(this).addClass('active');
+
+    firstBoxSet = new Set();
+    let tags = document.getElementById('tags');
+    if (tags) {
+        while (tags.firstChild) {
+            tags.removeChild(tags.firstChild);
+        }
+        $('#search-filter-text').show();
+    }
+
+    secondBoxSet = new Set();
+    let tagsSecond = document.getElementById('tags-second');
+    if (tagsSecond) {
+        while (tagsSecond.firstChild) {
+            tagsSecond.removeChild(tagsSecond.firstChild);
+        }
+        $('#aggregate-attribute-text').show();
+    }
+
+    thirdBoxSet = new Set();
+    let tagsThird = document.getElementById('tags-third');
+    if (tagsThird) {
+        while (tagsThird.firstChild) {
+            tagsThird.removeChild(tagsThird.firstChild);
+        }
+        $('#aggregations').show();
+    }
+
+    $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
+    $('#filter-input').val('*');
+    
+
+    updateResetButtonVisibility();
+});
+
+$(document).on('click', function (e) {
+    if (!$(e.target).closest('.custom-reset-button').length) {
+        $('.custom-reset-button').removeClass('active');
+    }
+});
+
+function updateResetButtonVisibility() {
+    const hasFilters =
+        (firstBoxSet && firstBoxSet.size > 0) ||
+        (secondBoxSet && secondBoxSet.size > 0) ||
+        (thirdBoxSet && thirdBoxSet.size > 0);
+
+    if (hasFilters) {
+        $('.custom-reset-button').show();
+    } else {
+        $('.custom-reset-button').hide();
+    }
+}
+
