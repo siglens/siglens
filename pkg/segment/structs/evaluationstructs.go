@@ -720,7 +720,7 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 			err := fmt.Errorf("error while evaluating ismv")
 			if self.LeftValue.NumericExpr != nil {
 				fields := self.GetFields()
-				if len(fields) == 1 {
+				if len(fields) != 0 {
 					val, ok := fieldToValue[fields[0]]
 					if ok {
 						if val.Dtype == sutils.SS_DT_STRING_SLICE {
