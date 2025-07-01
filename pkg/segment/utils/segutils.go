@@ -211,15 +211,7 @@ func enclosureFromJsonNumber(num json.Number, dte *DtypeEnclosure) {
 	}
 }
 
-func ConvertUintBytesToMB(bytes uint64) uint64 {
-	return bytes / 1048576
-}
-
-func ConvertIntBytesToMB(bytes int64) int64 {
-	return bytes / 1048576
-}
-
-func ConvertFloatBytesToMB(bytes float64) float64 {
+func BytesToMiB[T ~uint64 | ~float64](bytes T) T {
 	return bytes / 1048576
 }
 
