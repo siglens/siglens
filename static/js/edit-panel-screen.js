@@ -22,6 +22,7 @@ let selectedUnitTypeIndex = -1;
 let selectedDataTypeIndex = -1;
 let prevSelectedDataTypeIndex = -2;
 let selectedLogLinesViewTypeIndex = -1;
+let initialSearchDashboardData = {};
 
 let mapChartTypeToIndex = new Map([
     ['Line Chart', 0],
