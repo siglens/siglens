@@ -407,7 +407,10 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 				return result, valExist, nil
 			}
 		}
-		ssResults.PercTDigest.InsertIntoTDigest(colValue.CVal.(float64))
+		err = ssResults.PercTDigest.InsertIntoTDigest(colValue.CVal.(float64))
+		if err != nil {
+			return result, valExist, err
+		}
 		// always between 0 and 100 (enforced by the peg parser)
 		percentile := measureAgg.Param / 100
 		ssResults.CurrResult.CVal = ssResults.PercTDigest.GetQuantile(percentile)
