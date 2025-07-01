@@ -66,6 +66,20 @@ func InitMemoryLimiter() {
 	go rebalanceMemoryAllocationLoop()
 }
 
+func GetFreeMemoryBytes() uint64 {
+	capacity := memory.GlobalMemoryTracker.TotalAllocatableBytes
+	usedBytes := memory.GlobalMemoryTracker.RotatedCMIBytesInMemory +
+		memory.GlobalMemoryTracker.SegSearchRequestedBytes +
+		memory.GlobalMemoryTracker.SegWriterUsageBytes +
+		memory.GlobalMemoryTracker.SegStoreSummary.GetUsedMemoryBytes()
+
+	if usedBytes > capacity {
+		return 0
+	}
+
+	return capacity - usedBytes
+}
+
 func printMemoryManagerSummary() {
 	numLoadedUnrotated, totalUnrotated := writer.GetUnrotatedMetadataInfo()
 	unrotaedSize := writer.GetSizeOfUnrotatedMetadata()
