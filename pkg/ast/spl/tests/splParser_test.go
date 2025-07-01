@@ -2870,6 +2870,24 @@ func Test_rexBlockOverideExistingFieldWithGroupBy(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.RexColRequest.RexColNames, []string{"http_status", "weekday", "third"})
 }
 
+func Test_rexEscapedQuotes(t *testing.T) {
+	query := []byte(`city=Boston | rex field=combined "error=(?P<error>\"[^\"]*\")"`)
+	_, err := spl.Parse("", query)
+	assert.Nil(t, err)
+
+	query = []byte(`city=Boston | rex field=combined "error=(?P<error>\\\\\"[^\"]*\")"`)
+	_, err = spl.Parse("", query)
+	assert.Nil(t, err) // Odd number of escapes, so quote is escaped.
+
+	query = []byte(`city=Boston | rex field=combined "error=(?P<error>\\"[^\"]*\")"`)
+	_, err = spl.Parse("", query)
+	assert.NotNil(t, err) // Even number of escapes, so quote isn't escaped.
+
+	query = []byte(`city=Boston | rex field=combined "error=(?P<error>\"[^"]*\")"`)
+	_, err = spl.Parse("", query)
+	assert.NotNil(t, err) // Didn't escape quote in [^"]
+}
+
 func Test_statisticBlockWithoutStatsGroupBy(t *testing.T) {
 	query := []byte(`city=Boston | rare 3 http_method, gender by country, http_status useother=true otherstr=testOther percentfield=http_method countfield=gender showperc=false`)
 	res, err := spl.Parse("", query)
