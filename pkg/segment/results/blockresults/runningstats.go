@@ -1123,17 +1123,19 @@ func hllAddRawCval(hll *utils.GobbableHll, cval *sutils.CValueEnclosure) error {
 	case sutils.SS_DT_STRING_SLICE:
 		hll.AddRaw(xxhash.Sum64String(fmt.Sprintf("%v", cval.CVal.([]string))))
 	case sutils.SS_DT_BOOL:
+		// for boolean-valued fields, the cardinality is small, and this implementation of HLL stores the values explicitly for smaller cardinalities
+		// so we don't need to worry about hashing and the statistical properties associated with it.
 		if cval.CVal.(bool) {
-			hll.AddRaw(uint64(1))
+			hll.AddRaw(1) // 1, 2 serve as sentinel values
 		} else {
-			hll.AddRaw(uint64(0))
+			hll.AddRaw(2) // cannot use AddRaw(0), 0 is not a valid value for AddRaw(). See: Hll.AddRaw()
 		}
 	case sutils.SS_DT_UNSIGNED_NUM:
-		hll.AddRaw(cval.CVal.(uint64))
+		hll.AddRaw(xxhash.Sum64(utils.Uint64ToBytesLittleEndian(cval.CVal.(uint64))))
 	case sutils.SS_DT_SIGNED_NUM:
-		hll.AddRaw(uint64(cval.CVal.(int64)))
+		hll.AddRaw(xxhash.Sum64(utils.Int64ToBytesLittleEndian(cval.CVal.(int64))))
 	case sutils.SS_DT_FLOAT:
-		hll.AddRaw(xxhash.Sum64String(fmt.Sprintf("%f", cval.CVal.(float64))))
+		hll.AddRaw(xxhash.Sum64(utils.Float64ToBytesLittleEndian(cval.CVal.(float64))))
 	case sutils.SS_DT_BACKFILL:
 		return utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetString: nil value"))
 	default:

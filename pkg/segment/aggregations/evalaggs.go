@@ -830,10 +830,10 @@ func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, hll *ut
 			if err != nil {
 				return fmt.Errorf("PerformAggEvalForCardinality: there are some errors in the eval function that is inside the values function: %v", err)
 			}
+			// for boolean-valued fields, the cardinality is small, and this implementation of HLL stores the values explicitly for smaller cardinalities
+			// so we don't need to worry about hashing and the statistical properties associated with it.
 			if boolResult {
-				// sentinel value, this corresponds to all bits set, which makes it a good sentinel value for this
-				// implementation of HLL
-				hll.AddRaw(uint64(0xffffffffffffffff))
+				hll.AddRaw(1) // this serves as a sentinel value
 			}
 		} else {
 			cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
