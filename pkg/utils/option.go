@@ -28,12 +28,12 @@ type Option[T any] struct {
 	hasValue bool // This will never be true if `value` is nil.
 }
 
-func NewUnsetOption[T any]() Option[T] {
+func None[T any]() Option[T] {
 	return Option[T]{hasValue: false}
 }
 
-func NewOptionWithValue[T any](value T) Option[T] {
-	option := NewUnsetOption[T]()
+func Some[T any](value T) Option[T] {
+	option := None[T]()
 	option.Set(value)
 
 	return option

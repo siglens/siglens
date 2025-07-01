@@ -123,7 +123,7 @@ func processSegmentAndIndexStats(allSegmetas []*structs.SegMeta, allCnts map[str
 	}
 
 	for indexName := range uniqueIndexes {
-		stats, err := segwriter.GetIndexSizeStats(indexName, utils.NewUnsetOption[int64]())
+		stats, err := segwriter.GetIndexSizeStats(indexName, utils.None[int64]())
 		if err != nil {
 			log.Errorf("processSegmentAndIndexStats: failed to get stats=%v for index=%v err=%v",
 				stats, indexName, err)
@@ -137,7 +137,7 @@ func processSegmentAndIndexStats(allSegmetas []*structs.SegMeta, allCnts map[str
 		totalCmiSize += stats.TotalCmiSize
 		totalCsgSize += stats.TotalCsgSize
 
-		_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, utils.NewUnsetOption[int64]())
+		_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, utils.None[int64]())
 		for col := range columnNamesSet {
 			uniqueColumns[col] = struct{}{}
 		}

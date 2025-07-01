@@ -170,6 +170,9 @@ type JsSnippets struct {
 	OrgUpperNavTabs string
 	OrgUpperNavUrls string
 
+	SecurityNavLink      string
+	SecurityUpperNavTabs string
+
 	OrgAllSlos string
 
 	PanelFlag         bool
