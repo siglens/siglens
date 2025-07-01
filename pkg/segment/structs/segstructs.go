@@ -262,6 +262,7 @@ type RunningStreamStatsResults struct {
 	RangeStat           *RangeStat
 	CardinalityMap      map[string]int
 	CardinalityHLL      *utils.GobbableHll
+	PercTDigest         *utils.GobbableTDigest
 	ValuesMap           map[string]struct{}
 }
 
