@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 type processor interface {
@@ -290,6 +291,8 @@ func (dp *DataProcessor) IsDataGenerator() bool {
 		// TODO: why does IsFirstCommand matter here? Maybe this function
 		// should be renamed; maybe we can merge this with GeneratesData().
 		return dp.processor.(*inputlookupProcessor).options.IsFirstCommand
+	case *EventcountProcessor:
+		return true
 	default:
 		return false
 	}
@@ -297,7 +300,7 @@ func (dp *DataProcessor) IsDataGenerator() bool {
 
 func (dp *DataProcessor) GeneratesData() bool {
 	switch dp.processor.(type) {
-	case *gentimesProcessor, *inputlookupProcessor:
+	case *gentimesProcessor, *inputlookupProcessor, *EventcountProcessor:
 		return true
 	default:
 		return false
@@ -310,6 +313,8 @@ func (dp *DataProcessor) SetLimitForDataGenerator(limit uint64) {
 		dp.processor.(*gentimesProcessor).limit = limit
 	case *inputlookupProcessor:
 		dp.processor.(*inputlookupProcessor).limit = limit
+	case *EventcountProcessor:
+		dp.processor.(*EventcountProcessor).limit = limit
 	default:
 		return
 	}
@@ -321,6 +326,8 @@ func (dp *DataProcessor) IsEOFForDataGenerator() bool {
 		return dp.processor.(*gentimesProcessor).IsEOF()
 	case *inputlookupProcessor:
 		return dp.processor.(*inputlookupProcessor).IsEOF()
+	case *EventcountProcessor:
+		return dp.processor.(*EventcountProcessor).IsEOF()
 	default:
 		return false
 	}
@@ -332,6 +339,8 @@ func (dp *DataProcessor) CheckAndSetQidForDataGenerator(qid uint64) {
 		dp.processor.(*gentimesProcessor).qid = qid
 	case *inputlookupProcessor:
 		dp.processor.(*inputlookupProcessor).qid = qid
+	case *EventcountProcessor:
+		dp.processor.(*EventcountProcessor).qid = qid
 	default:
 	}
 }
@@ -702,6 +711,21 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 		isBottleneckCmd:   false,
 		isTwoPassCmd:      false,
 		processorLock:     &sync.Mutex{},
+	}
+}
+
+// NewEventcountDP creates a new EventcountProcessor
+func NewEventcountDP(qid uint64, options *structs.EventCountExpr, limit uint64, ctx *fasthttp.RequestCtx) *DataProcessor {
+	return &DataProcessor{
+		name:    "eventcount",
+		streams: make([]*CachedStream, 0),
+		processor: &EventcountProcessor{
+			qid:     qid,
+			options: options,
+			limit:   limit,
+			eof:     false,
+			ctx:     ctx,
+		},
 	}
 }
 

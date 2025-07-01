@@ -1565,7 +1565,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"isnum":            {},
 	"isnotnull":        {},
 	"spath":            {},
-	"eventcount":       {},
 }
 
 type StatsFuncChecker struct{}
@@ -1582,7 +1581,7 @@ func (c EvalFuncChecker) IsUnsupported(funcName string) bool {
 	return found
 }
 
-var unsupportedLetColumnCommands = []string{"FormatResults", "EventCountRequest"}
+var unsupportedLetColumnCommands = []string{"FormatResults"}
 
 func CheckUnsupportedFunctions(post *QueryAggregators) error {
 
@@ -1650,10 +1649,6 @@ func checkUnsupportedLetColumnCommand(agg *QueryAggregators) error {
 			case "FormatResults":
 				if letColumns.FormatResults != nil {
 					return fmt.Errorf("checkUnsupportedFunctions: using format command is not yet supported")
-				}
-			case "EventCountRequest":
-				if letColumns.EventCountRequest != nil {
-					return fmt.Errorf("checkUnsupportedFunctions: using eventcount command is not yet supported")
 				}
 			}
 		}
