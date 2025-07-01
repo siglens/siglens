@@ -239,13 +239,6 @@ $(document).ready(function () {
         $('#overview-button').addClass('active');
         displayPanelView(panelIndex);
     });
-    let ele = $('#available-fields .select-unselect-header');
-
-    if (theme === 'light') {
-        ele.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
-    } else {
-        ele.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
-    }
 });
 
 //eslint-disable-next-line no-unused-vars
@@ -327,6 +320,9 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
                 codeToBuilderParsing(queryText);
             }
             setDashboardQueryModeHandler(queryMode);
+
+            // Set initialSearchDashboardData
+            initialSearchDashboardData = currentPanel.queryData;
         }
 
         $('.index-container, .queryInput-container, #query-language-btn').css('display', 'inline-flex');
@@ -1101,6 +1097,13 @@ async function runQueryBtnHandler() {
         currentPanel.queryData = data;
 
         $('.panelDisplay .panEdit-panel').hide();
+
+        // Clear Selected Fields if index changes
+        if (initialSearchDashboardData && initialSearchDashboardData.indexName !== selectedSearchIndex) {
+            currentPanel.selectedFields = [];
+        }
+        availColNames = [];
+
         //eslint-disable-next-line no-undef
         initialSearchDashboardData = data;
         await runPanelLogsQuery(data, -1, currentPanel);

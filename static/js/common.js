@@ -21,7 +21,6 @@
 /*eslint-disable*/
 let timestampDateFmt = 'MMM Do, YYYY @ HH:mm:ss';
 let defaultColumnCount = 2;
-let shouldCloseAllDetails = false;
 let filterStartDate = 'now-15m';
 let filterEndDate = 'now';
 let displayStart = moment().subtract(15, 'minutes').valueOf();
@@ -86,7 +85,7 @@ let aggGridOptions = {
     },
     enableCellTextSelection: true,
     suppressRowClickSelection: true,
-    ensureDomOrder: true
+    ensureDomOrder: true,
 };
 /*eslint-enable*/
 {{ .CommonExtraFunctions }}
@@ -104,7 +103,7 @@ function showError(mainText, subText) {
 
     $('#progress-div').html(``);
     $('#record-searched').html(``);
-    
+
     wsState = 'query';
 }
 
@@ -228,12 +227,15 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             } else {
                 columnOrder = res.allColumns;
             }
-            if (currentPanel.selectedFields) {
-                selectedFieldsList = currentPanel.selectedFields;
-            } else {
-                selectedFieldsList = columnOrder;
+
+
+            if (!currentPanel.selectedFields || currentPanel.selectedFields.length === 0) {
+                currentPanel.selectedFields = columnOrder;
             }
-            renderAvailableFields(columnOrder);
+
+            let columnCount = columnOrder.length;
+
+            renderAvailableFields(columnOrder, columnCount, currentPanel);
             renderPanelLogsGrid(columnOrder, res.hits.records, panelId, currentPanel);
         }
         allResultsDisplayed--;
@@ -299,7 +301,6 @@ function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
 }
 
 function panelProcessEmptyQueryResults(errorMsg, panelId) {
-
     let msg;
     if (errorMsg !== '') {
         msg = errorMsg;
@@ -1159,25 +1160,25 @@ function ExpandableJsonCellRenderer(type = 'events') {
 
         initAceEditor(container, jsonData) {
             const editor = ace.edit(container);
-            editor.session.setMode("ace/mode/json");
+            editor.session.setMode('ace/mode/json');
             editor.setOptions({
                 readOnly: true,
                 showPrintMargin: false,
                 highlightActiveLine: false,
                 highlightGutterLine: false,
-                fontSize: "12px",
+                fontSize: '12px',
                 showGutter: true,
-                wrap: true
+                wrap: true,
             });
-            
+
             editor.setValue(JSON.stringify(jsonData, null, 2), -1);
-            
-            editor.selection.on('changeSelection', function(e) {
-                editor.renderer.$cursorLayer.element.style.display = "none";
+
+            editor.selection.on('changeSelection', function (e) {
+                editor.renderer.$cursorLayer.element.style.display = 'none';
             });
-            
+
             editor.resize();
-            
+
             return editor;
         }
 
