@@ -53,7 +53,7 @@ func ListIndicesHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 		for _, name := range allIndexNames {
 			indexNamesMap[name] = true
 		}
-		allIndexNamesList := vtable.ExpandAndReturnIndexNames("*", orgId, false, ctx)
+		allIndexNamesList := vtable.ExpandAndReturnIndexNames("*", orgId, false)
 		for _, name := range allIndexNamesList {
 			if _, exists := indexNamesMap[name]; !exists {
 				indexNamesMap[name] = true
@@ -61,7 +61,7 @@ func ListIndicesHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 			}
 		}
 	} else {
-		allIndexNames = vtable.ExpandAndReturnIndexNames("*", orgId, false, ctx)
+		allIndexNames = vtable.ExpandAndReturnIndexNames("*", orgId, false)
 	}
 	sort.Strings(allIndexNames)
 
@@ -134,6 +134,7 @@ func SendClusterDetails(ctx *fasthttp.RequestCtx) {
 }
 
 func ListColumnNamesHandler(ctx *fasthttp.RequestCtx, orgId int64) {
+
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("ListColumnNamesHandler: received empty search request body")
@@ -156,7 +157,7 @@ func ListColumnNamesHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	_, startEpoch, endEpoch, _, indexNameIn, _, _, _ := ParseSearchBody(readJSON, nowTs)
 
 	// todo get indexnames from multinode
-	allIndexNames := vtable.ExpandAndReturnIndexNames(indexNameIn, orgId, false, ctx)
+	allIndexNames := vtable.ExpandAndReturnIndexNames(indexNameIn, orgId, false)
 
 	tRange := new(dtu.TimeRange)
 	tRange.StartEpochMs = startEpoch

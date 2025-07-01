@@ -201,6 +201,7 @@ type QueryAggregators struct {
 	StatisticExpr   *StatisticExpr
 	TransactionExpr *TransactionArguments
 	WhereExpr       *BoolExpr
+	ToJsonExpr      *ToJsonExpr
 }
 
 type GenerateEvent struct {
@@ -259,7 +260,6 @@ type RunningStreamStatsResults struct {
 	NumProcessedRecords uint64              // kept for global stats where window = 0
 	SecondaryWindow     *utils.GobbableList // use secondary window for range
 	RangeStat           *RangeStat
-	DeviationStat       *DeviationStat
 	CardinalityMap      map[string]int
 	CardinalityHLL      *utils.GobbableHll
 	ValuesMap           map[string]struct{}
@@ -366,6 +366,33 @@ type AppendCmdOption struct {
 	OptionType string
 	Value      interface{}
 }
+
+type ToJsonExpr struct {
+	FieldsDtypes    []*ToJsonFieldsDtypeOptions
+	DefaultType     *ToJsonFieldsDtypeOptions
+	FillNull        bool
+	IncludeInternal bool
+	OutputField     string
+	AllFields       bool
+}
+
+type ToJsonFieldsDtypeOptions struct {
+	Dtype ToJsonDtypes
+	Regex *utils.GobbableRegex
+}
+
+type ToJsonDtypes uint8
+
+const (
+	TJ_None ToJsonDtypes = iota
+	TJ_Auto
+	TJ_Bool
+	TJ_Json
+	TJ_Num
+	TJ_Str
+	// Data type will be set later during processing
+	TJ_PostProcess
+)
 
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
@@ -598,47 +625,10 @@ type AvgStat struct {
 	Sum   float64
 }
 
-// Used for Stdev, Stdevp, Var, Varp
-type DeviationStat struct {
+type VarStat struct {
 	Count int64
 	Sum   float64
 	Sumsq float64
-}
-
-// Updates deviationStat to include the given floatValue
-func (deviationStat *DeviationStat) Insert(floatValue float64) {
-	deviationStat.Sum += floatValue
-	deviationStat.Sumsq += floatValue * floatValue
-	deviationStat.Count++
-}
-
-// returns var / varp / stdev / stdevp for a given DeviationStat
-func (deviationStat DeviationStat) GetDeviationAgg(aggFunc sutils.AggregateFunctions) float64 {
-	switch aggFunc {
-	case sutils.Var:
-		if deviationStat.Count >= 2 {
-			// sample variance = population variance * count / (count-1)
-			return (deviationStat.Sumsq - deviationStat.Sum*deviationStat.Sum/float64(deviationStat.Count)) / float64(deviationStat.Count-1)
-		}
-	case sutils.Varp:
-		if deviationStat.Count >= 1 {
-			// population variance = sumsq / count - (sum / count)^2
-			return (deviationStat.Sumsq - deviationStat.Sum*deviationStat.Sum/float64(deviationStat.Count)) / float64(deviationStat.Count)
-		}
-	case sutils.Stdev:
-		if deviationStat.Count >= 2 {
-			// sample standard deviation = sqrt(sample variance)
-			return math.Sqrt((deviationStat.Sumsq - deviationStat.Sum*deviationStat.Sum/float64(deviationStat.Count)) / float64(deviationStat.Count-1))
-		}
-	case sutils.Stdevp:
-		if deviationStat.Count >= 1 {
-			// population standard deviation = sqrt(population variance)
-			return math.Sqrt((deviationStat.Sumsq - deviationStat.Sum*deviationStat.Sum/float64(deviationStat.Count)) / float64(deviationStat.Count))
-		}
-	default:
-		log.Errorf("Called GetDeviationAgg with unsupported aggregate function: %s", aggFunc)
-	}
-	return 0.0
 }
 
 type FieldGetter interface {
@@ -663,10 +653,6 @@ var nonIngestStats = map[sutils.AggregateFunctions]string{
 	sutils.Earliest:     "",
 	sutils.Perc:         "",
 	sutils.Sumsq:        "",
-	sutils.Var:          "",
-	sutils.Varp:         "",
-	sutils.Stdev:        "",
-	sutils.Stdevp:       "",
 }
 
 // init SegStats from raw bytes of SegStatsJSON
@@ -1556,6 +1542,8 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 	sutils.UpperPerc:  {},
 	sutils.Median:     {},
 	sutils.Mode:       {},
+	sutils.Stdev:      {},
+	sutils.Stdevp:     {},
 	sutils.First:      {},
 	sutils.Last:       {},
 	sutils.StatsRate:  {},

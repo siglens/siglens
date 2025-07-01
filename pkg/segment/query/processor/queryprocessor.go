@@ -550,6 +550,8 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		return NewTransactionDP(queryAgg.TransactionExpr)
 	} else if queryAgg.WhereExpr != nil {
 		return NewWhereDP(queryAgg.WhereExpr)
+	} else if queryAgg.ToJsonExpr != nil {
+		return NewToJsonDP(queryAgg.ToJsonExpr)
 	} else {
 		return nil
 	}
@@ -832,7 +834,7 @@ func setMergeSettings(dpChain []*DataProcessor) mergeSettings {
 				curMergeSettings.sortExpr = processor.options
 				curMergeSettings.reverse = false
 				curMergeSettings.less = processor.lessDirectRead
-				curMergeSettings.limit = utils.NewOptionWithValue[uint64](processor.options.Limit)
+				curMergeSettings.limit = utils.Some[uint64](processor.options.Limit)
 			case *tailProcessor:
 				curMergeSettings.reverse = !curMergeSettings.reverse
 				if curMergeSettings.less != nil {

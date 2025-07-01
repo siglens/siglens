@@ -35,7 +35,8 @@ import (
 )
 
 func ProcessSingleDocGetRequest(ctx *fasthttp.RequestCtx, myid int64) {
-	response := utils.NewSingleESResponse()
+
+	var response = utils.NewSingleESResponse()
 
 	queryStart := time.Now()
 
@@ -78,7 +79,7 @@ func ProcessSingleDocGetRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	segment.LogASTNode("esGetSingleDocHandler", simpleNode, qid)
 	sizeLimit := uint64(1)
-	qc := structs.InitQueryContext(indexNameConverted, sizeLimit, 0, myid, true, ctx)
+	qc := structs.InitQueryContext(indexNameConverted, sizeLimit, 0, myid, true)
 	segment.LogQueryContext(qc, qid)
 	result := segment.ExecuteQuery(simpleNode, &QueryAggregators{}, qid, qc)
 

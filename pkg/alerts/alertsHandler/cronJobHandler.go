@@ -69,8 +69,8 @@ func AddCronJob(alertDataObj *alertutils.AlertDetails) (*gocron.Job, error) {
 		return &gocron.Job{}, err
 	}
 	s.StartAsync()
-	// TODO: for multinode set up, set create and set node_id to which this alert will be assigned
-	// TODO: node_id should be created using hash function
+	//TODO: for multinode set up, set create and set node_id to which this alert will be assigned
+	//TODO: node_id should be created using hash function
 	return cron_job, nil
 }
 
@@ -83,8 +83,8 @@ func AddMinionSearchCronJob(alertDataObj *alertutils.MinionSearch) (*gocron.Job,
 		return &gocron.Job{}, err
 	}
 	s.StartAsync()
-	// TODO: for multinode set up, set create and set node_id to which this alert will be assigned
-	// TODO: node_id should be created using hash function
+	//TODO: for multinode set up, set create and set node_id to which this alert will be assigned
+	//TODO: node_id should be created using hash function
 	return cron_job, nil
 }
 
@@ -277,7 +277,7 @@ func getMetricsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, parse
 }
 
 func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
-	searchResponse, timeRange, err := pipesearch.ProcessAlertsPipeSearchRequest(alertToEvaluate.QueryParams, alertToEvaluate.OrgId, nil) // TODO: CronJob should really record the user who created it. This user should then be set in the context and passed along.
+	searchResponse, timeRange, err := pipesearch.ProcessAlertsPipeSearchRequest(alertToEvaluate.QueryParams, alertToEvaluate.OrgId)
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateLogAlert: Error processing logs query. Alert=%+v, err=%+v", alertToEvaluate.AlertName, err)
 		return
@@ -331,6 +331,7 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 	}
 
 	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, alertDataMessage)
+
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error in handleAlertCondition. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
 	}
@@ -359,6 +360,7 @@ func evaluateConditions(serResVal float64, queryCond *alertutils.AlertQueryCondi
 }
 
 func evaluateMetricsQueryConditions(queryRes *mresults.MetricsResult, queryCond *alertutils.AlertQueryCondition, alertValue float64) []alertutils.MetricAlertData {
+
 	alertsDataList := make([]alertutils.MetricAlertData, 0)
 
 	for seriesId, tsMap := range queryRes.Results {
@@ -379,6 +381,7 @@ func evaluateMetricsQueryConditions(queryRes *mresults.MetricsResult, queryCond 
 }
 
 func evaluateLogsQueryConditions(searchResponse *structs.PipeSearchResponseOuter, queryCond *alertutils.AlertQueryCondition, alertValue float64) (bool, error) {
+
 	if searchResponse == nil {
 		err := fmt.Errorf("ALERTSERVICE: evaluateLogsQueryConditions: searchResponse is nil")
 		log.Error(err.Error())
@@ -459,6 +462,7 @@ func evaluateRecordsMeasureAggsAlertCondition(searchResponse *structs.PipeSearch
 					return true, nil
 				}
 			}
+
 		}
 	}
 
@@ -489,7 +493,7 @@ func updateMinionSearchStateAndCreateAlertHistory(msToEvaluate *alertutils.Minio
 }
 
 func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job) {
-	searchResponse, _, err := pipesearch.ProcessAlertsPipeSearchRequest(msToEvaluate.QueryParams, msToEvaluate.OrgId, nil) // TODO: CronJob should really record the user who created it. This user should then be set in the context and passed along.
+	searchResponse, _, err := pipesearch.ProcessAlertsPipeSearchRequest(msToEvaluate.QueryParams, msToEvaluate.OrgId)
 	if err != nil {
 		log.Errorf("MinionSearch: evaluate: Error processing logs query. Alert=%+v, err=%+v", msToEvaluate.AlertName, err)
 		return

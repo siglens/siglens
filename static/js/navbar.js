@@ -104,6 +104,7 @@ let navbarComponent = `
             <a href="./cluster-stats.html" class="nav-links link-myorg"><span class="icon-myorg"></span><span
                     class="nav-link-text">My Org</span></a>
         </div>
+        {{ .SecurityNavLink}}
         <div class="menu nav-usage-stats">
             <a href="./usage-stats.html" class="nav-links link-usage-stats"><span class="icon-usage-stats"></span><span
                     class="nav-link-text">Usage Stats</span></a>
@@ -395,7 +396,8 @@ const navigationStructure = {
     'usage-stats.html': {
         activeClass: 'nav-usage-stats',
         breadcrumbs: [{ name: 'Usage Stats'}]
-    }
+    },
+    {{ .SecurityUpperNavTabs}}
 };
 
 // Pages related to My Org section

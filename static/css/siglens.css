@@ -6751,6 +6751,11 @@ p#versionInfo {
 
 #pqs-id-details {
     height: 80vh;
+    width: 514px !important;
+}
+
+.text-cursor {
+    cursor: text !important;
 }
 
 #clear-pqs-info,
@@ -6823,8 +6828,7 @@ p#versionInfo {
 }
 
 #cancel-upload-btn,
-#cancel-overwrite-btn,
-#cancel-delete-btn {
+#cancel-overwrite-btn {
     margin-right: 10px;
 }
 
@@ -7518,7 +7522,6 @@ p#versionInfo {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-width: 400px;
 }
 
 .page-size-select {
