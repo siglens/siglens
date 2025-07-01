@@ -392,7 +392,7 @@ a: b
 			assert.Error(t, err)
 			continue
 		}
-		if sutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
+		if sutils.BytesToMiB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
 			assert.Equal(t, uint64(50), actualConfig.MemoryConfig.MaxUsagePercent)
 			// If memory is less than 8GB, config by default returns 50% as the threshold
 			// For testing purpose resetting it to 80%
