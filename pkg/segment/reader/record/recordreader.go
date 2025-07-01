@@ -226,7 +226,7 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContain
 	batchingFunc := func(rrc *sutils.RecordResultContainer) uint16 {
 		return rrc.BlockNum
 	}
-	batchKeyLess := utils.NewOptionWithValue(func(blockNum1, blockNum2 uint16) bool {
+	batchKeyLess := utils.Some(func(blockNum1, blockNum2 uint16) bool {
 		// We want to read the file in order, so read the blocks in order.
 		return blockNum1 < blockNum2
 	})
@@ -402,17 +402,15 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 	}
 
 	var isTsCol bool
-	for idx, recNum := range orderedRecNums {
+	for colKeyIdx, cname := range allColKeyIndices {
+		_, ok := dictEncCols[cname]
+		if ok {
+			continue
+		}
 
-		for colKeyIdx, cname := range allColKeyIndices {
+		isTsCol = (config.GetTimeStampKey() == cname)
 
-			_, ok := dictEncCols[cname]
-			if ok {
-				continue
-			}
-
-			isTsCol = (config.GetTimeStampKey() == cname)
-
+		for idx, recNum := range orderedRecNums {
 			var cValEnc sutils.CValueEnclosure
 
 			err := segReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,

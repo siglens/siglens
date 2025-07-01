@@ -22,6 +22,38 @@ let isFetching = false;
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
 
+function escapeHtml(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function createLogsCellRenderer() {
+    return (params) => {
+        let logString = '';
+        let counter = 0;
+
+        _.forEach(params.data, (value, key) => {
+            if (key === 'timestamp') {
+                return; // Skip timestamp field
+            }
+
+            let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
+
+            // Handle different value types and escape HTML
+            let formattedValue;
+            if (typeof value === 'object' && value !== null) {
+                const jsonString = JSON.stringify(JSON.unflatten(value), null, 2);
+                formattedValue = escapeHtml(jsonString);
+            } else {
+                formattedValue = escapeHtml(String(value));
+            }
+
+            logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}<b>${key}</b> ${formattedValue}</span>`;
+            counter++;
+        });
+        return logString;
+    };
+}
+
 let panelLogsColumnDefs = [
     {
         field: 'timestamp',
@@ -35,18 +67,7 @@ let panelLogsColumnDefs = [
     {
         field: 'logs',
         headerName: 'logs',
-        cellRenderer: (params) => {
-            let logString = '';
-            let counter = 0;
-
-            _.forEach(params.data, (value, key) => {
-                let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
-
-                logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}<b>${key}</b>` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
-                counter++;
-            });
-            return logString;
-        },
+        cellRenderer: createLogsCellRenderer(),
     },
 ];
 
@@ -198,6 +219,8 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
         new agGrid.Grid(panelGridDiv, panelGridOptions);
     }
     if (panelId != -1) {
+        panelLogsRowData = [];
+
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
         panelGridOptions = createPanelGridOptions(currentPanel);
 
@@ -337,7 +360,7 @@ function renderPanelAggsGrid(columnOrder, hits, panelId) {
         enableCellTextSelection: true,
         suppressRowClickSelection: true,
         suppressDragLeaveHidesColumns: true,
-        ensureDomOrder: true
+        ensureDomOrder: true,
     };
     $(`.panelDisplay .big-number-display-container`).hide();
     if (panelId == -1) panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
@@ -473,20 +496,22 @@ function resetPanelLogsColumnDefs() {
         {
             field: 'logs',
             headerName: 'logs',
-            cellRenderer: (params) => {
-                let logString = '';
-                let counter = 0;
-
-                _.forEach(params.data, (value, key) => {
-                    let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
-
-                    logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}<b>${key} </b>` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
-                    counter++;
-                });
-                return logString;
-            },
+            cellRenderer: createLogsCellRenderer(),
         },
     ];
 
     panelLogsRowData = [];
 }
+
+const myCellRenderer = (params) => {
+    if (typeof params.data !== 'object' || params.data === null) return '';
+    const value = params.data[params.colName];
+    if (value == null || value === '') return '';
+    
+    if (typeof value === 'object') {
+        const jsonString = JSON.stringify(JSON.unflatten(value));
+        return escapeHtml(jsonString);
+    }
+    
+    return escapeHtml(String(value));
+};

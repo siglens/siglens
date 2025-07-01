@@ -35,7 +35,7 @@ func Test_initIQR(t *testing.T) {
 	err := iqr.validate()
 	assert.NoError(t, err)
 
-	iqr = &IQR{}
+	iqr = &IQR{isDirty: true}
 	err = iqr.validate()
 	assert.Error(t, err)
 }

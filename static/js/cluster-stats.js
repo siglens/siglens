@@ -152,7 +152,7 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
     return TotalVolumeChart;
 }
 
-function processClusterStats(res) {
+async function processClusterStats(res) {
     {{ .ClusterStatsSetUserRole }}
 
 
@@ -466,7 +466,7 @@ function hidePopUpsOnUsageStats() {
     $('#del-index-btn').off('click');
 }
 
-function renderClusterStatsTables() {
+async function renderClusterStatsTables() {
     {{ .ClusterStatsSetUserRole }}
     {{ .ClusterStatsExtraFunctions }}
     $.ajax({

@@ -132,8 +132,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				AnalyticsEnabledConverted:   false,
 				AgileAggsEnabled:            "false",
 				AgileAggsEnabledConverted:   false,
-				DualCaseCheck:               "true",
-				DualCaseCheckConverted:      true,
 				SafeServerStart:             true,
 				Log:                         common.LogConfig{LogPrefix: "./pkg/ingestor/httpserver/", LogFileRotationSizeMB: 100, CompressLogFile: false},
 				CompressStatic:              "false",
@@ -145,7 +143,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				MemoryConfig: common.MemoryConfig{
 					MaxMemoryAllowedToUseInBytes: 200000,
 					MaxUsagePercent:              80,
-					LowMemoryMode:                utils.DefaultValue(false).Set(true),
+					LowMemoryMode:                utils.DefaultValue(false).With(true),
 					SearchPercent:                50,
 					CMIPercent:                   20,
 					MetadataPercent:              20,
@@ -154,7 +152,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				},
 				MaxAllowedColumns: 42,
 				TLS: common.TLSConfig{
-					MtlsEnabled:  utils.DefaultValue(false).Set(true),
+					MtlsEnabled:  utils.DefaultValue(false).With(true),
 					ClientCaPath: "/path/to/ca.pem",
 				},
 				PauseMode:          "true",
@@ -190,7 +188,6 @@ func Test_ExtractConfigData(t *testing.T) {
  MaxParallelS3IngestBuffers: 10
  pprofEnabled: Fa
  PQSEnabled: F
- dualCaseCheck: true
  analyticsEnabled: bad string
  AgileAggsEnabled: bad string
  queryTimeoutSecs: 0
@@ -238,8 +235,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				PProfEnabledConverted:       true,
 				PQSEnabled:                  "true",
 				PQSEnabledConverted:         true,
-				DualCaseCheck:               "true",
-				DualCaseCheckConverted:      true,
 				AnalyticsEnabled:            "true",
 				AnalyticsEnabledConverted:   true,
 				AgileAggsEnabled:            "true",
@@ -306,8 +301,6 @@ invalid input, we should error out
 				AnalyticsEnabledConverted:  true,
 				AgileAggsEnabled:           "true",
 				AgileAggsEnabledConverted:  true,
-				DualCaseCheck:              "true",
-				DualCaseCheckConverted:     true,
 				Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 				Tracing:                    common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 1},
 				UseNewQueryPipeline:        "true",
@@ -367,8 +360,6 @@ a: b
 				AnalyticsEnabledConverted:   true,
 				AgileAggsEnabled:            "true",
 				AgileAggsEnabledConverted:   true,
-				DualCaseCheck:               "true",
-				DualCaseCheckConverted:      true,
 				Log:                         common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 				CompressStatic:              "true",
 				CompressStaticConverted:     true,
