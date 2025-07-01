@@ -47,6 +47,9 @@ func ListIndicesHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var indexNamesMap map[string]bool
 	if hooks.GlobalHooks.AddMultiNodeIndexHook != nil {
 		allIndexNames = hooks.GlobalHooks.AddMultiNodeIndexHook(orgId)
+		if hook := hooks.GlobalHooks.FilteroutUnauthorizedIndexes; ctx != nil && hook != nil {
+			allIndexNames = hook(allIndexNames, ctx)
+		}
 	}
 	if len(allIndexNames) != 0 {
 		indexNamesMap = make(map[string]bool)

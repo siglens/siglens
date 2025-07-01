@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -743,17 +743,17 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid int64, isElastic bool, 
 		if isIndexExcluded(indexNameIn) {
 			return []string{}
 		}
-		finalResults := []string{indexNameIn}
-		return filterOutUnauthorized(finalResults, ctx)
+		results := []string{indexNameIn}
+		return filterOutUnauthorized(results, ctx)
 	} else {
-		finalResults := make([]string, indexCount)
+		results := make([]string, indexCount)
 		i := 0
 		for indexName := range finalResultsMap {
-			finalResults[i] = indexName
+			results[i] = indexName
 			i++
 		}
-		finalResults = finalResults[:i]
-		sort.Strings(filterOutUnauthorized(finalResults, ctx))
+		finalResults := filterOutUnauthorized(results[:i], ctx)
+		slices.Sort(finalResults)
 		return finalResults
 	}
 }
