@@ -1340,47 +1340,20 @@ func handleMVAppend(self *MultiValueExpr, fieldToValue map[string]sutils.CValueE
 }
 
 func (self *BoolExpr) ExtractSingleField() string {
-	if self.IsTerminal {
-		if self.LeftValue == nil {
-			return ""
-		}
+	
+	fields := self.GetFields()
+	if len(fields) == 0 {
+		return ""
+	}
 
-		if self.LeftValue.ValueExprMode == VEMStringExpr &&
-			self.LeftValue.StringExpr != nil &&
-			self.LeftValue.StringExpr.StringExprMode == SEMField {
-			return self.LeftValue.StringExpr.FieldName
-		}
+	uniqueFields := make(map[string]struct{})
+	for _, field := range fields {
+		uniqueFields[field] = struct{}{}
+	}
 
-		if self.LeftValue.ValueExprMode == VEMNumericExpr &&
-			self.LeftValue.NumericExpr != nil &&
-			self.LeftValue.NumericExpr.ValueIsField {
-			return self.LeftValue.NumericExpr.Value
-		}
-		if self.LeftValue.ValueExprMode == VEMMultiValueExpr &&
-			self.LeftValue.MultiValueExpr != nil &&
-			self.LeftValue.MultiValueExpr.MultiValueExprMode == MVEMField {
-			return self.LeftValue.MultiValueExpr.FieldName
-		}
-	} else {
-		if self.LeftBool != nil {
-			leftField := self.LeftBool.ExtractSingleField()
-			if leftField != "" {
-				if self.RightBool == nil {
-					return leftField
-				}
-
-				rightField := self.RightBool.ExtractSingleField()
-				if rightField != "" && rightField == leftField {
-					// If both sides reference the same field, we can use that field
-					return leftField
-				}
-
-				return leftField
-			}
-		}
-
-		if self.RightBool != nil {
-			return self.RightBool.ExtractSingleField()
+	if len(uniqueFields) == 1 {
+		for field := range uniqueFields {
+			return field
 		}
 	}
 
