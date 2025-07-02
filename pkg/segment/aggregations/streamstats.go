@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/cespare/xxhash"
@@ -233,15 +234,16 @@ func removeFrontElementFromWindow(window *utils.GobbableList, ssResults *structs
 			return fmt.Errorf("removeFrontElementFromWindow: Error: front element in the window does not have a string value, has value: %v, function: %v", frontElement.Value, measureAgg)
 		}
 		strValue := fmt.Sprintf("%v", frontElement.Value.CVal.(string))
-		_, exist := ssResults.CardinalityMap[strValue]
-		if exist {
-			ssResults.CardinalityMap[strValue]--
-			if ssResults.CardinalityMap[strValue] == 0 {
-				delete(ssResults.CardinalityMap, strValue)
-			}
-		} else {
-			return fmt.Errorf("removeFrontElementFromWindow: Error: cardinality map does not contain the value: %v which is present in the window", strValue)
-		}
+		ssResults.CardinalityMap[strconv.FormatInt(int64(len(ssResults.CardinalityMap)), 10)+": remove "+strValue] = 1
+		// _, exist := ssResults.CardinalityMap[strValue]
+		// if exist {
+		// 	ssResults.CardinalityMap[strValue]--
+		// 	if ssResults.CardinalityMap[strValue] == 0 {
+		// 		delete(ssResults.CardinalityMap, strValue)
+		// 	}
+		// } else {
+		// 	return fmt.Errorf("removeFrontElementFromWindow: Error: cardinality map does not contain the value: %v which is present in the window", strValue)
+		// }
 		ssResults.CurrResult.CVal = float64(len(ssResults.CardinalityMap))
 	}
 
@@ -561,12 +563,14 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 			ssResults.CardinalityMap = make(map[string]int, 0)
 		}
 		strValue := fmt.Sprintf("%v", colValue.CVal)
-		_, exist := ssResults.CardinalityMap[strValue]
-		if !exist {
-			ssResults.CardinalityMap[strValue] = 1
-		} else {
-			ssResults.CardinalityMap[strValue]++
-		}
+
+		ssResults.CardinalityMap[strconv.FormatInt(int64(len(ssResults.CardinalityMap)), 10)+": insert "+strValue] = 1
+		// _, exist := ssResults.CardinalityMap[strValue]
+		// if !exist {
+		// 	ssResults.CardinalityMap[strValue] = 1
+		// } else {
+		// 	ssResults.CardinalityMap[strValue]++
+		// }
 		ssResults.CurrResult.CVal = float64(len(ssResults.CardinalityMap))
 		cvalue := sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_STRING,
