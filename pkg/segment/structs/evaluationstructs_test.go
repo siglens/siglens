@@ -2359,6 +2359,70 @@ func Test_Spath_XML(t *testing.T) {
 			path:          `people.person.pet{@legs}`,
 			expectedValue: []string{`4`, `4`, `2.0`},
 		},
+		{
+			data:          `<people><person></person></people>`,
+			path:          `people.person`,
+			expectedValue: nil,
+		},
+	}
+
+	for _, testCase := range testCases {
+		actualValue := extractInnerXMLObj(testCase.data, testCase.path)
+		assert.Equal(t, testCase.expectedValue, actualValue)
+	}
+}
+
+func Test_Spath_XML_Unclear(t *testing.T) {
+	// this function contains some cases where we're not sure what the result should be
+	// but we return the same result that Splunk returns
+
+	type args struct {
+		data          string
+		path          string
+		expectedValue []string
+	}
+
+	var testCases = []args{
+		{
+			data:          `<root>a<tag/>b<tag2/>c<tag3/>d</root>`,
+			path:          `root`,
+			expectedValue: []string{`a`, `b`, `c`, `d`, `<tag/>b<tag2/>c<tag3/>`},
+		},
+		{
+			data:          `<root><tag/>b<tag2/>c<tag3/></root>`,
+			path:          `root`,
+			expectedValue: []string{`b`, `c`, `<tag/>b<tag2/>c<tag3/>`},
+		},
+		{
+			data:          `<root>a<tag/><tag2/><tag3/>d</root>`,
+			path:          `root`,
+			expectedValue: []string{`a`, `d`, `<tag/><tag2/><tag3/>`},
+		},
+		{
+			data:          `<root><tag/><tag2/><tag3/></root>`,
+			path:          `root`,
+			expectedValue: []string{`<tag/><tag2/><tag3/>`},
+		},
+		{
+			data:          `<root>pre<tag/>mid<tag/>post</root>`,
+			path:          `root`,
+			expectedValue: []string{`pre`, `mid`, `post`, `<tag/>mid<tag/>`},
+		},
+		{
+			data:          `<root><a>1<b/>2<c/>3</a>4</root>`,
+			path:          `root.a`,
+			expectedValue: []string{`1`, `2`, `3`, `<b/>2<c/>`},
+		},
+		{
+			data:          `<root><a>1<b/>2<c/>3</a>4</root>`,
+			path:          `root`,
+			expectedValue: []string{`4`, `<a>1<b/>2<c/>3</a>`},
+		},
+		{
+			data:          `<root>start<item id="x"/>mid<item id="y"/>stop</root>`,
+			path:          `root`,
+			expectedValue: []string{`start`, `mid`, `stop`, `<item id="x"/>mid<item id="y"/>`},
+		},
 	}
 
 	for _, testCase := range testCases {

@@ -1310,14 +1310,47 @@ func extractInnerXMLObjUsingParts(value *etree.Element, parts []string) []string
 
 	if len(parts) == 0 {
 		var sb strings.Builder
-		if len(value.ChildElements()) == 0 {
+		children := value.ChildElements()
+		numChildren := len(children)
+		if numChildren == 0 {
 			// <name>Alice</name> -> Alice
-			sb.WriteString(value.Text())
+			text := value.Text()
+			if text == "" {
+				return nil
+			}
+			sb.WriteString(text)
 			return []string{sb.String()}
 		} else {
-			// return a string array of length 2 {text, childelements}
-			value.WriteTo(&sb, &etree.WriteSettings{})
-			return []string{sb.String()}
+			// <root>a<tag/>b<tag2/>c<tag3/>d</root> -> ["a", "b", "c", "d", "<tag/>b<tag2/>c<tag3/>"]
+			// see evaluationstructs_test.go: Test_Spath_XML_Unclear for more examples
+			var result []string
+
+			text := value.Text()
+			if text != "" {
+				result = append(result, text)
+			}
+
+			for i, child := range children {
+				// add any textual data to the result array
+				text := child.Tail()
+				if text != "" {
+					result = append(result, text)
+				}
+
+				// add inner tags to the last element of the result array
+				child.WriteTo(&sb, &etree.WriteSettings{})
+				if i != numChildren-1 {
+					// for every inner tag except the last one, add the text immediately after it
+					// to the last element of the result array
+					sb.WriteString(child.Tail())
+				}
+			}
+
+			// construct the last element (which consists of all inner tags and any text data between them)
+			// and append it to the result array
+			// sb.String() is not empty since numChildren > 0
+			result = append(result, sb.String())
+			return result
 		}
 	}
 
