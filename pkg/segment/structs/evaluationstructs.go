@@ -2083,7 +2083,7 @@ func MatchAndExtractNamedGroups(str string, rexExp *regexp.Regexp) (map[string]s
 }
 
 func MatchAndPopulateNamedGroups(str string, rexExp *regexp.Regexp,
-	newColValues map[string][]sutils.CValueEnclosure, idx int) error {
+	newColValues map[string][]sutils.CValueEnclosure, idx int, numItems int) error {
 	match := rexExp.FindStringSubmatch(str)
 	if len(match) == 0 {
 		return fmt.Errorf("MatchAndPopulateNamedGroups: no str in field match the pattern")
@@ -2094,6 +2094,9 @@ func MatchAndPopulateNamedGroups(str string, rexExp *regexp.Regexp,
 	}
 
 	for i, name := range names {
+		if newColValues[name] == nil {
+			newColValues[name] = make([]sutils.CValueEnclosure, numItems)
+		}
 		if i != 0 && name != "" {
 			newColValues[name][idx].Dtype = sutils.SS_DT_STRING
 			newColValues[name][idx].CVal = match[i]
