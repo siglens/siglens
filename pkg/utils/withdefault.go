@@ -31,10 +31,17 @@ func DefaultValue[T comparable](defaultValue T) WithDefault[T] {
 	return WithDefault[T]{defaultValue: defaultValue}
 }
 
-func (w WithDefault[T]) Set(value T) WithDefault[T] {
+func (w *WithDefault[T]) Set(value T) {
 	w.value = value
 	w.isSet = true
-	return w
+}
+
+func (w WithDefault[T]) With(value T) WithDefault[T] {
+	return WithDefault[T]{
+		value:        value,
+		defaultValue: w.defaultValue,
+		isSet:        true,
+	}
 }
 
 func (w *WithDefault[T]) Value() T {

@@ -56,7 +56,6 @@ type runningStats struct {
 	hll       *utils.GobbableHll
 	rangeStat *structs.RangeStat
 	avgStat   *structs.AvgStat
-	devStat   *structs.DeviationStat
 	tDigest   *utils.GobbableTDigest
 }
 
@@ -104,9 +103,6 @@ func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []running
 			if err == nil {
 				retVal[i] = runningStats{tDigest: t}
 			}
-		} else if internalMeasureFns[i].MeasureFunc == sutils.Var || internalMeasureFns[i].MeasureFunc == sutils.Varp ||
-			internalMeasureFns[i].MeasureFunc == sutils.Stdev || internalMeasureFns[i].MeasureFunc == sutils.Stdevp {
-			retVal[i] = runningStats{devStat: &structs.DeviationStat{}}
 		}
 	}
 	return retVal
@@ -194,12 +190,6 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Latest/Earliest", err)
 			}
 			i += step
-		case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
-			step, err := rr.AddEvalResultsForDeviation(runningStats, measureResults, i, fieldToValue)
-			if err != nil {
-				batchErr.AddError("RunningBucketResults.AddMeasureResults:DeviationStat", err)
-			}
-			i += step
 		case sutils.Range:
 			step, err := rr.AddEvalResultsForRange(runningStats, measureResults, i, fieldToValue)
 			if err != nil {
@@ -235,9 +225,13 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				}
 				continue
 			}
-			fallthrough
+			step, err := rr.AddEvalResultsForCardinality(runningStats, measureResults, i, fieldToValue)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Cardinality", err)
+			}
+			i += step
 		case sutils.Values:
-			step, err := rr.AddEvalResultsForValuesOrCardinality(runningStats, measureResults, i, fieldToValue)
+			step, err := rr.AddEvalResultsForValues(runningStats, measureResults, i, fieldToValue)
 			if err != nil {
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Values", err)
 			}
@@ -246,12 +240,6 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			step, err := rr.AddEvalResultsForList(runningStats, measureResults, i, fieldToValue)
 			if err != nil {
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:List", err)
-			}
-			i += step
-		case sutils.Sumsq:
-			step, err := rr.AddEvalResultsForSumsq(runningStats, measureResults, i, fieldToValue)
-			if err != nil {
-				batchErr.AddError("RunningBucketResults.AddMeasureResults:Sumsq", err)
 			}
 			i += step
 		default:
@@ -323,25 +311,6 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				i += (len(fields) - 1)
 			} else {
 				batchErr.AddError("RunningBucketResults.mergeRunningStats:Avg", fmt.Errorf("ValueColRequest is nil"))
-			}
-		case sutils.Sumsq:
-			if rr.currStats[i].ValueColRequest != nil {
-				fields := rr.currStats[i].ValueColRequest.GetFields()
-				err := rr.ProcessReduceForEval(runningStats, toJoinRunningStats[i].rawVal, i, rr.currStats[i].MeasureFunc)
-				if err != nil {
-					batchErr.AddError("RunningBucketResults.mergeRunningStats:Sumsq", err)
-				}
-				i += (len(fields) - 1)
-			} else {
-				batchErr.AddError("RunningBucketResults.mergeRunningStats:Sumsq", fmt.Errorf("ValueColRequest is nil"))
-			}
-		case sutils.Var, sutils.Varp, sutils.Stdev, sutils.Stdevp:
-			if rr.currStats[i].ValueColRequest != nil {
-				fields := rr.currStats[i].ValueColRequest.GetFields()
-				(*runningStats)[i].devStat = ReduceDeviation((*runningStats)[i].devStat, toJoinRunningStats[i].devStat)
-				i += (len(fields) - 1)
-			} else {
-				batchErr.AddError(fmt.Sprintf("RunningBucketResults.mergeRunningStats:%v", rr.currStats[i].MeasureFunc), fmt.Errorf("ValueColRequest is nil"))
 			}
 		case sutils.Latest:
 			if rr.currStats[i].ValueColRequest == nil {
@@ -509,7 +478,7 @@ func ReduceForEval(e1 sutils.CValueEnclosure, e2 sutils.CValueEnclosure, fun sut
 	}
 
 	switch fun {
-	case sutils.Sum, sutils.Sumsq:
+	case sutils.Sum:
 		if e1.Dtype != e2.Dtype || e1.Dtype != sutils.SS_DT_FLOAT {
 			return e1, fmt.Errorf("ReduceForEval: unsupported CVal Dtype: %v", e1.Dtype)
 		}
@@ -551,20 +520,6 @@ func ReduceAvg(avgStat1 *structs.AvgStat, avgStat2 *structs.AvgStat) *structs.Av
 	return &structs.AvgStat{
 		Sum:   avgStat1.Sum + avgStat2.Sum,
 		Count: avgStat1.Count + avgStat2.Count,
-	}
-}
-
-func ReduceDeviation(devStat1 *structs.DeviationStat, devStat2 *structs.DeviationStat) *structs.DeviationStat {
-	if devStat1 == nil {
-		return devStat2
-	} else if devStat2 == nil {
-		return devStat1
-	}
-
-	return &structs.DeviationStat{
-		Count: devStat1.Count + devStat2.Count,
-		Sum:   devStat1.Sum + devStat2.Sum,
-		Sumsq: devStat1.Sumsq + devStat2.Sumsq,
 	}
 }
 
@@ -632,35 +587,12 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 	return numFields - 1, nil
 }
 
-func (rr *RunningBucketResults) AddEvalResultsForSumsq(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
-	if rr.currStats[i].ValueColRequest == nil {
-		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
-	}
-
-	numFields := len(fieldToValue)
-	if numFields == 0 {
-		return 0, utils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSumsq:NON_ZERO_FIELDS",
-			fmt.Errorf("need non zero number of fields in expression for eval stats for sumsq for aggCol: %v", rr.currStats[i].String()))
-	}
-
-	(*runningStats)[i].syncRawValue()
-	exists := (*runningStats)[i].rawVal.Dtype != sutils.SS_INVALID
-	result, err := agg.PerformEvalAggForSumsq(rr.currStats[i], 1, exists, (*runningStats)[i].rawVal, fieldToValue)
-	if err != nil {
-		return 0, utils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSumsq:PerformEvalAggForSumsq", err)
-	}
-	(*runningStats)[i].rawVal = result
-	(*runningStats)[i].number = nil
-
-	return numFields - 1, nil
-}
-
 func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStats,
 	measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
-
 	numFields := len(fieldToValue)
 	if numFields == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: Need non zero number of fields in expression for eval stats for avg for aggCol: %v", rr.currStats[i].String())
@@ -682,38 +614,6 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	(*runningStats)[i].rawVal = sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  avg,
-	}
-	(*runningStats)[i].number = nil
-
-	return numFields - 1, nil
-}
-
-func (rr *RunningBucketResults) AddEvalResultsForDeviation(runningStats *[]runningStats,
-	measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
-	(*runningStats)[i].syncRawValue()
-	if rr.currStats[i].ValueColRequest == nil {
-		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
-	}
-
-	numFields := len(fieldToValue)
-	if numFields == 0 {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForDeviation: Need non zero number of fields in expression for eval stats for range for aggCol: %v", rr.currStats[i].String())
-	}
-
-	(*runningStats)[i].syncRawValue()
-
-	exists := (*runningStats)[i].rawVal.Dtype != sutils.SS_INVALID
-
-	curr := rr.currStats[i]
-	devStat := (*runningStats)[i].devStat
-	result, err := agg.PerformAggEvalForDeviationAggs(curr, 1, exists, devStat, fieldToValue)
-	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForDeviation: failed to evaluate ValueColRequest, err: %v", err)
-	}
-
-	(*runningStats)[i].rawVal = sutils.CValueEnclosure{
-		Dtype: sutils.SS_DT_FLOAT,
-		CVal:  result.GetDeviationAgg(rr.currStats[i].MeasureFunc),
 	}
 	(*runningStats)[i].number = nil
 
@@ -855,7 +755,39 @@ func (rr *RunningBucketResults) AddEvalResultsForPerc(runningStats *[]runningSta
 	return len(fieldToValue) - 1, nil
 }
 
-func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+func (rr *RunningBucketResults) AddEvalResultsForCardinality(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+
+	(*runningStats)[i].syncRawValue()
+	if (*runningStats)[i].rawVal.CVal == nil {
+		(*runningStats)[i].rawVal = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_GOBBABLE_HLL_PTR,
+			CVal:  structs.CreateNewHll(),
+		}
+	}
+	hll := (*runningStats)[i].rawVal.CVal.(*utils.GobbableHll)
+
+	if rr.currStats[i].ValueColRequest == nil {
+		strVal, err := measureResults[i].GetString()
+		if err != nil {
+			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinality: failed to add measurement to running stats, err: %v", err)
+		}
+		hll.AddRaw(xxhash.Sum64String(strVal))
+		(*runningStats)[i].rawVal.CVal = hll
+		(*runningStats)[i].number = nil
+		return 0, nil
+	}
+
+	err := agg.PerformAggEvalForCardinality(rr.currStats[i], hll, fieldToValue)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
+	}
+	(*runningStats)[i].rawVal.CVal = hll
+	(*runningStats)[i].number = nil
+
+	return len(fieldToValue) - 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForValues(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
 
 	(*runningStats)[i].syncRawValue()
 	if (*runningStats)[i].rawVal.CVal == nil {
@@ -869,7 +801,7 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 	if rr.currStats[i].ValueColRequest == nil {
 		strVal, err := measureResults[i].GetString()
 		if err != nil {
-			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to add measurement to running stats, err: %v", err)
+			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValues: failed to add measurement to running stats, err: %v", err)
 		}
 		strSet[strVal] = struct{}{}
 		(*runningStats)[i].rawVal.CVal = strSet
@@ -877,9 +809,9 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 		return 0, nil
 	}
 
-	_, err := agg.PerformAggEvalForCardinality(rr.currStats[i], strSet, fieldToValue)
+	_, err := agg.PerformAggEvalForValues(rr.currStats[i], strSet, fieldToValue)
 	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValues: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
 	(*runningStats)[i].rawVal.CVal = strSet
 	(*runningStats)[i].number = nil
@@ -1191,17 +1123,19 @@ func hllAddRawCval(hll *utils.GobbableHll, cval *sutils.CValueEnclosure) error {
 	case sutils.SS_DT_STRING_SLICE:
 		hll.AddRaw(xxhash.Sum64String(fmt.Sprintf("%v", cval.CVal.([]string))))
 	case sutils.SS_DT_BOOL:
+		// for boolean-valued fields, the cardinality is small, and this implementation of HLL stores the values explicitly for smaller cardinalities
+		// so we don't need to worry about hashing and the statistical properties associated with it.
 		if cval.CVal.(bool) {
-			hll.AddRaw(uint64(1))
+			hll.AddRaw(1) // 1, 2 serve as sentinel values
 		} else {
-			hll.AddRaw(uint64(0))
+			hll.AddRaw(2) // cannot use AddRaw(0), 0 is not a valid value for AddRaw(). See: Hll.AddRaw()
 		}
 	case sutils.SS_DT_UNSIGNED_NUM:
-		hll.AddRaw(cval.CVal.(uint64))
+		hll.AddRaw(xxhash.Sum64(utils.Uint64ToBytesLittleEndian(cval.CVal.(uint64))))
 	case sutils.SS_DT_SIGNED_NUM:
-		hll.AddRaw(uint64(cval.CVal.(int64)))
+		hll.AddRaw(xxhash.Sum64(utils.Int64ToBytesLittleEndian(cval.CVal.(int64))))
 	case sutils.SS_DT_FLOAT:
-		hll.AddRaw(xxhash.Sum64String(fmt.Sprintf("%f", cval.CVal.(float64))))
+		hll.AddRaw(xxhash.Sum64(utils.Float64ToBytesLittleEndian(cval.CVal.(float64))))
 	case sutils.SS_DT_BACKFILL:
 		return utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetString: nil value"))
 	default:

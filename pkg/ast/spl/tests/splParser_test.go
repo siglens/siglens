@@ -2870,6 +2870,24 @@ func Test_rexBlockOverideExistingFieldWithGroupBy(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.RexColRequest.RexColNames, []string{"http_status", "weekday", "third"})
 }
 
+func Test_rexEscapedQuotes(t *testing.T) {
+	query := []byte(`city=Boston | rex field=combined "error=(?P<error>\"[^\"]*\")"`)
+	_, err := spl.Parse("", query)
+	assert.Nil(t, err)
+
+	query = []byte(`city=Boston | rex field=combined "error=(?P<error>\\\\\"[^\"]*\")"`)
+	_, err = spl.Parse("", query)
+	assert.Nil(t, err) // Odd number of escapes, so quote is escaped.
+
+	query = []byte(`city=Boston | rex field=combined "error=(?P<error>\\"[^\"]*\")"`)
+	_, err = spl.Parse("", query)
+	assert.NotNil(t, err) // Even number of escapes, so quote isn't escaped.
+
+	query = []byte(`city=Boston | rex field=combined "error=(?P<error>\"[^"]*\")"`)
+	_, err = spl.Parse("", query)
+	assert.NotNil(t, err) // Didn't escape quote in [^"]
+}
+
 func Test_statisticBlockWithoutStatsGroupBy(t *testing.T) {
 	query := []byte(`city=Boston | rare 3 http_method, gender by country, http_status useother=true otherstr=testOther percentfield=http_method countfield=gender showperc=false`)
 	res, err := spl.Parse("", query)
@@ -10205,7 +10223,7 @@ func testSingleAggregateFunction(t *testing.T, aggFunc sutils.AggregateFunctions
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
-	assert.Equal(t, aggregator.MeasureOperations[0].Param, param)
+	assert.LessOrEqual(t, math.Abs(aggregator.MeasureOperations[0].Param-param), 1e-6)
 }
 
 func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc sutils.AggregateFunctions) {
@@ -10405,7 +10423,7 @@ func Test_MVExpand_NoLimit(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
 	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
 	assert.Equal(t, "batch", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
-	assert.Equal(t, utils.NewUnsetOption[int64](), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+	assert.Equal(t, utils.None[int64](), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_WithLimit(t *testing.T) {
@@ -10423,7 +10441,7 @@ func Test_MVExpand_WithLimit(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
 	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
 	assert.Equal(t, "app_name", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
-	assert.Equal(t, utils.NewOptionWithValue(int64(5)), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+	assert.Equal(t, utils.Some(int64(5)), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_InvalidLimit(t *testing.T) {
@@ -11531,6 +11549,65 @@ func Test_Index_6(t *testing.T) {
 	assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "http_status")
 	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
+}
+
+func Test_ToJson_Expr(t *testing.T) {
+	queryPlain := []byte(`city=* | tojson`)
+	queryWDtype := []byte(`city=Boston | tojson auto(f) none(g) bool(h) json(i) str(k) num(l)`)
+	queryWFillNull := []byte(`city=Boston | tojson fill_null=true`)
+	queryWDefaultType := []byte(`city=Boston | tojson default_type=bool`)
+	queryWIncludeInternal := []byte(`city=Boston | tojson include_internal=true`)
+	queryWMix := []byte(`city=Boston | tojson app_name height width auto(weight) num(latency) fill_null=true default_type=json include_internal=true`)
+
+	res, err := spl.Parse("", queryPlain)
+	assert.Nil(t, err)
+	q := res.(ast.QueryStruct)
+	agg := q.PipeCommands.ToJsonExpr
+	assert.True(t, agg.AllFields)
+	assert.Len(t, agg.FieldsDtypes, 1)
+	assert.Equal(t, structs.TJ_None, agg.FieldsDtypes[0].Dtype)
+	assert.Equal(t, ".*", agg.FieldsDtypes[0].Regex.GetRawRegex())
+
+	res, err = spl.Parse("", queryWDtype)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.False(t, agg.AllFields)
+	expectedDtypes := []structs.ToJsonDtypes{
+		structs.TJ_Auto, structs.TJ_None, structs.TJ_Bool,
+		structs.TJ_Json, structs.TJ_Str, structs.TJ_Num,
+	}
+	assert.Len(t, agg.FieldsDtypes, 6)
+	for i, dtypeOpt := range agg.FieldsDtypes {
+		assert.Equal(t, expectedDtypes[i], dtypeOpt.Dtype)
+	}
+
+	res, err = spl.Parse("", queryWFillNull)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.True(t, agg.FillNull)
+
+	res, err = spl.Parse("", queryWDefaultType)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.Equal(t, structs.TJ_Bool, agg.DefaultType.Dtype)
+
+	res, err = spl.Parse("", queryWIncludeInternal)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.True(t, agg.IncludeInternal)
+
+	res, err = spl.Parse("", queryWMix)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.False(t, agg.AllFields)
+	assert.Len(t, agg.FieldsDtypes, 5)
+	assert.Equal(t, structs.TJ_Auto, agg.FieldsDtypes[3].Dtype)
+	assert.Equal(t, "weight", agg.FieldsDtypes[3].Regex.GetRawRegex())
+	assert.Equal(t, structs.TJ_Num, agg.FieldsDtypes[4].Dtype)
+	assert.Equal(t, "latency", agg.FieldsDtypes[4].Regex.GetRawRegex())
+	assert.True(t, agg.FillNull)
+	assert.True(t, agg.IncludeInternal)
+	assert.Equal(t, structs.TJ_Json, agg.DefaultType.Dtype)
 }
 
 func Test_Eval_Expr(t *testing.T) {
