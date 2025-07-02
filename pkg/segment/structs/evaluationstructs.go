@@ -1340,7 +1340,7 @@ func handleMVAppend(self *MultiValueExpr, fieldToValue map[string]sutils.CValueE
 }
 
 func (self *BoolExpr) ExtractSingleField() string {
-	
+
 	fields := self.GetFields()
 	if len(fields) == 0 {
 		return ""
