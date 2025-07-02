@@ -4439,7 +4439,7 @@ String <- str:(QuotedString / UnquotedString) {
     return str, nil
 }
 
-QuotedString <- '"' [^"]* '"' {
+QuotedString <- '"' (!'\\' [^"] / '\\' .)* '"' {
     // The returned string has quotes as the first and last character.
     return string(c.text), nil
 }
