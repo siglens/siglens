@@ -119,7 +119,7 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File,
 
 	for colName, colFD := range colFDs {
 		if colName == tsKey {
-			blkRecCount := make(map[uint16]uint16)
+			blkRecCount := make(map[uint16]uint16, len(blockSummaries))
 			for blkIdx, blkSum := range blockSummaries {
 				blkRecCount[uint16(blkIdx)] = blkSum.RecCount
 			}
@@ -404,29 +404,7 @@ func (mcsr *MultiColSegmentReader) IsBlkDictEncoded(cname string,
 	return mcsr.allFileReaders[keyIndex].IsBlkDictEncoded(blkNum)
 }
 
-/*
-parameters:
-
-	results:  map of recNum -> colName -> colValue to be filled in.
-	col:      columnName
-	blockNum: blocknum to search for
-	rnMap:    map of recordNumbers to for which to find the colValue for the given colname
-
-returns:
-
-	bool: if we are able to find the requested column in dict encoding
-*/
-func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFileOldPipeline(results map[uint16]map[string]interface{},
-	col string, blockNum uint16, orderedRecNums []uint16, qid uint64,
-) bool {
-	keyIndex, ok := mcsr.allColsReverseIndex[col]
-	if !ok {
-		return false
-	}
-
-	return mcsr.allFileReaders[keyIndex].GetDictEncCvalsFromColFileOldPipeline(results, blockNum, orderedRecNums)
-}
-
+// The results maps column name to the values for the records corresponding to orderedRecNums.
 func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[string][]sutils.CValueEnclosure,
 	col string, blockNum uint16, orderedRecNums []uint16, qid uint64,
 ) bool {

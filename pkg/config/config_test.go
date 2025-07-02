@@ -143,7 +143,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				MemoryConfig: common.MemoryConfig{
 					MaxMemoryAllowedToUseInBytes: 200000,
 					MaxUsagePercent:              80,
-					LowMemoryMode:                utils.DefaultValue(false).Set(true),
+					LowMemoryMode:                utils.DefaultValue(false).With(true),
 					SearchPercent:                50,
 					CMIPercent:                   20,
 					MetadataPercent:              20,
@@ -152,7 +152,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				},
 				MaxAllowedColumns: 42,
 				TLS: common.TLSConfig{
-					MtlsEnabled:  utils.DefaultValue(false).Set(true),
+					MtlsEnabled:  utils.DefaultValue(false).With(true),
 					ClientCaPath: "/path/to/ca.pem",
 				},
 				PauseMode:          "true",
@@ -392,7 +392,7 @@ a: b
 			assert.Error(t, err)
 			continue
 		}
-		if sutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
+		if sutils.BytesToMiB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
 			assert.Equal(t, uint64(50), actualConfig.MemoryConfig.MaxUsagePercent)
 			// If memory is less than 8GB, config by default returns 50% as the threshold
 			// For testing purpose resetting it to 80%

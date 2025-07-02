@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"sync"
 
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -29,6 +30,16 @@ import (
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
+
+var rrcsPool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		slice := make([]*sutils.RecordResultContainer, sutils.MAX_RECS_PER_WIP)
+		return &slice
+	},
+}
 
 type GroupByBuckets struct {
 	AllRunningBuckets   []*RunningBucketResults
@@ -86,6 +97,7 @@ type RunningBucketResultsJSON struct {
 	Count        uint64                       `json:"count"`
 }
 
+// Callers should call Close() when done with the BlockResults.
 func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) (*BlockResults, error) {
 	blockRes := &BlockResults{aggs: aggs}
 	if aggs != nil && aggs.TimeHistogram != nil {
@@ -120,10 +132,16 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 		blockRes.sortResults = true
 		blockRes.SortedResults = sortedRes
 	} else {
-		initialSize := min(count, sutils.MAX_RECS_PER_WIP)
 		blockRes.sortResults = false
-		blockRes.UnsortedResults = make([]*sutils.RecordResultContainer, initialSize)
 		blockRes.nextUnsortedIdx = 0
+
+		rrcs, ok := rrcsPool.Get().(*[]*sutils.RecordResultContainer)
+		if ok {
+			blockRes.UnsortedResults = *rrcs
+		} else {
+			log.Warnf("qid=%d, InitBlockResults: failed to get RRCs slice from pool; making new slice", qid)
+			blockRes.UnsortedResults = make([]*sutils.RecordResultContainer, sutils.MAX_RECS_PER_WIP)
+		}
 	}
 	blockRes.sizeLimit = count
 	blockRes.MatchedCount = 0
@@ -228,12 +246,21 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 				mFunc = sutils.Perc
 			}
 		case sutils.Cardinality:
-			fallthrough
+			if m.ValueColRequest != nil {
+				curId, err := aggregations.AddMeasureAggInRunningStatsForCardinality(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for cardinality, err: %v", err)
+				}
+				idx = curId
+				continue
+			} else {
+				mFunc = m.MeasureFunc
+			}
 		case sutils.Values:
 			if m.ValueColRequest != nil {
-				curId, err := aggregations.AddMeasureAggInRunningStatsForValuesOrCardinality(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+				curId, err := aggregations.AddMeasureAggInRunningStatsForValues(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
 				if err != nil {
-					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for values/cardinality, err: %v", err)
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for cardinality, err: %v", err)
 				}
 				idx = curId
 				continue
@@ -261,6 +288,11 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 	}
 	allConvertedMeasureOps = allConvertedMeasureOps[:idx]
 	return colToIdx, allConvertedMeasureOps, allReverseIndex
+}
+
+func (b *BlockResults) Close() {
+	rrcsPool.Put(&b.UnsortedResults)
+	b.UnsortedResults = nil
 }
 
 /*
@@ -866,12 +898,12 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			}
 
 			runningStats[valIdx].syncRawValue()
-			strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
+			hll, ok := runningStats[valIdx].rawVal.CVal.(*utils.GobbableHll)
 			if !ok {
 				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 				return
 			}
-			eVal.CVal = uint64(len(strSet))
+			eVal.CVal = hll.Cardinality()
 			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 		} else {
 			finalVal := runningStats[valIdx].hll.Cardinality()

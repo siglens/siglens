@@ -546,7 +546,7 @@ func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
-		utils.SendError(ctx, "Received emtpy request", "", nil)
+		utils.SendError(ctx, "Received empty request", "", nil)
 		return
 	}
 	err := json.Unmarshal(rawJSON, &contactToBeCreated)
