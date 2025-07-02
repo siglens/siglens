@@ -1339,6 +1339,72 @@ func handleMVAppend(self *MultiValueExpr, fieldToValue map[string]sutils.CValueE
 	return finalMVSlice, nil
 }
 
+func (self *BoolExpr) ExtractSingleField() string {
+
+	fields := self.GetFields()
+	if len(fields) == 0 {
+		return ""
+	}
+
+	uniqueFields := make(map[string]struct{})
+	for _, field := range fields {
+		uniqueFields[field] = struct{}{}
+	}
+
+	if len(uniqueFields) == 1 {
+		for field := range uniqueFields {
+			return field
+		}
+	}
+
+	return ""
+}
+
+func handleMVFilter(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.Condition == nil {
+		return []string{}, fmt.Errorf("handleMVFilter: missing predicate condition")
+	}
+
+	targetField := self.Condition.ExtractSingleField()
+	if targetField == "" {
+		return []string{}, fmt.Errorf("handleMVFilter: unable to extract field from condition")
+	}
+
+	mvRaw, ok := fieldToValue[targetField]
+	if !ok || mvRaw.Dtype != sutils.SS_DT_STRING_SLICE {
+		return []string{}, fmt.Errorf("handleMVFilter: field %s is not a multivalue field", targetField)
+	}
+
+	var mvSlice []string
+	if mvRaw.CVal != nil {
+		mvSlice = mvRaw.CVal.([]string)
+	} else {
+		return []string{}, nil
+	}
+
+	result := []string{}
+
+	for _, val := range mvSlice {
+		tempFieldToValue := map[string]sutils.CValueEnclosure{
+			targetField: {
+				Dtype: sutils.SS_DT_STRING,
+				CVal:  val,
+			},
+		}
+
+		ok, err := self.Condition.Evaluate(tempFieldToValue)
+		if err != nil {
+			return []string{}, fmt.Errorf("handleMVFilter: condition evaluation failed: %v", err)
+		}
+
+		if ok {
+			result = append(result, val)
+		}
+	}
+
+	return result, nil
+}
+
 func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvindex requires one multiValueExpr argument")
@@ -1417,6 +1483,8 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 		return handleMVDedup(self, fieldToValue)
 	case "mvappend":
 		return handleMVAppend(self, fieldToValue)
+	case "mvfilter":
+		return handleMVFilter(self, fieldToValue)
 	default:
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: invalid Op %v", self.Op)
 	}
