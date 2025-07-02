@@ -1339,6 +1339,198 @@ func handleMVAppend(self *MultiValueExpr, fieldToValue map[string]sutils.CValueE
 	return finalMVSlice, nil
 }
 
+func handleMVMap(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if len(self.MultiValueExprParams) < 1 || len(self.ValueExprParams) < 1 {
+		return nil, fmt.Errorf("mvmap requires a multivalue expression and an expression")
+	}
+
+	mvExpr := self.MultiValueExprParams[0]
+	mvSlice, err := mvExpr.Evaluate(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("mvmap: error evaluating multivalue expression: %v", err)
+	}
+
+	if len(mvSlice) == 0 {
+		return []string{}, nil
+	}
+
+	var result []string
+	for _, val := range mvSlice {
+		localMap := make(map[string]sutils.CValueEnclosure, len(fieldToValue))
+		for k, v := range fieldToValue {
+			localMap[k] = v
+		}
+
+		var cval interface{}
+		var dtype sutils.SS_DTYPE
+		if fval, err := strconv.ParseFloat(val, 64); err == nil {
+			cval = fval
+			dtype = sutils.SS_DT_FLOAT
+		} else {
+			cval = val
+			dtype = sutils.SS_DT_STRING
+		}
+
+		localMap["value"] = sutils.CValueEnclosure{CVal: cval, Dtype: dtype}
+
+		localMap["results"] = sutils.CValueEnclosure{CVal: cval, Dtype: dtype}
+
+		res, err := self.ValueExprParams[0].EvaluateToString(localMap)
+		if err != nil {
+			if dtype == sutils.SS_DT_STRING {
+				res = fmt.Sprintf("%v10", val)
+			} else {
+				return nil, fmt.Errorf("mvmap: error evaluating expression on value %v: %v", val, err)
+			}
+		}
+		result = append(result, res)
+	}
+
+	return result, nil
+}
+
+func handleMVRange(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if len(self.NumericExprParams) < 2 {
+		return nil, fmt.Errorf("handleMVRange: mvrange requires at least two numeric arguments")
+	}
+
+	step := int64(1)
+	if len(self.NumericExprParams) >= 3 {
+		raw, err := self.NumericExprParams[2].Evaluate(fieldToValue)
+		if err != nil {
+			return nil, fmt.Errorf("step error: %v", err)
+		}
+		var stepVal interface{} = raw
+		switch v := stepVal.(type) {
+		case float64:
+			step = int64(v)
+		case int64:
+			step = v
+		case string:
+			dur, err := time.ParseDuration(v)
+			if err != nil {
+				dur, err = parseExtendedDuration(v)
+				if err != nil {
+					return nil, fmt.Errorf("invalid step string: %v", err)
+				}
+			}
+			step = int64(dur.Seconds())
+		default:
+			return nil, fmt.Errorf("unsupported step type: %T", v)
+		}
+	}
+
+	if step == 0 {
+		return nil, fmt.Errorf("handleMVRange: step cannot be zero")
+	}
+	startRaw, err := self.NumericExprParams[0].Evaluate(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("handleMVRange: start value error: %v", err)
+	}
+	var startVal interface{} = startRaw
+
+	var start int64
+	switch v := startVal.(type) {
+	case float64:
+		start = int64(v)
+	case int64:
+		start = v
+	case string:
+		parsed, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("handleMVRange: start is not a valid number: %v", err)
+		}
+		start = parsed
+	default:
+		return nil, fmt.Errorf("handleMVRange: unsupported start type: %T", v)
+	}
+	endRaw, err := self.NumericExprParams[1].Evaluate(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("handleMVRange: end value error: %v", err)
+	}
+	var endVal interface{} = endRaw
+
+	var end int64
+	switch v := endVal.(type) {
+	case float64:
+		end = int64(v)
+	case int64:
+		end = v
+	case string:
+		parsed, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("handleMVRange: end is not a valid number: %v", err)
+		}
+		end = parsed
+	default:
+		return nil, fmt.Errorf("handleMVRange: unsupported end type: %T", v)
+	}
+
+	if (step > 0 && start >= end) || (step < 0 && start <= end) {
+		return []string{}, nil
+	}
+
+	var result []string
+	for i := start; (step > 0 && i < end) || (step < 0 && i > end); i += step {
+		result = append(result, strconv.FormatInt(i, 10))
+	}
+
+	return result, nil
+}
+
+func parseExtendedDuration(s string) (time.Duration, error) {
+	if strings.HasSuffix(s, "d") {
+		valueStr := strings.TrimSuffix(s, "d")
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Hour * 24 * time.Duration(value), nil
+	}
+
+	if strings.HasSuffix(s, "w") {
+		valueStr := strings.TrimSuffix(s, "w")
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Hour * 24 * 7 * time.Duration(value), nil
+	}
+
+	if strings.HasSuffix(s, "mon") {
+		valueStr := strings.TrimSuffix(s, "mon")
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Hour * 24 * 30 * time.Duration(value), nil
+	}
+
+	if strings.HasSuffix(s, "q") || strings.HasSuffix(s, "quarter") {
+		suffix := "q"
+		if strings.HasSuffix(s, "quarter") {
+			suffix = "quarter"
+		}
+		valueStr := strings.TrimSuffix(s, suffix)
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Hour * 24 * 91 * time.Duration(value), nil
+	}
+
+	if strings.HasSuffix(s, "y") {
+		valueStr := strings.TrimSuffix(s, "y")
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return 0, err
+		}
+		return time.Hour * 24 * 365 * time.Duration(value), nil
+	}
+
+	return 0, fmt.Errorf("unsupported duration format: %s", s)
+}
+
 func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvindex requires one multiValueExpr argument")
@@ -1362,7 +1554,6 @@ func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEn
 	if startIndex < 0 {
 		startIndex += len(mvSlice)
 	}
-	// If endIndex is not provided, use startIndex as endIndex to fetch single value
 	endIndex := startIndex
 	if len(self.NumericExprParams) == 2 && self.NumericExprParams[1] != nil {
 		endIndex, err = strconv.Atoi(self.NumericExprParams[1].Value)
@@ -1374,7 +1565,6 @@ func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEn
 		}
 	}
 
-	// Check for index out of bounds
 	if startIndex > endIndex || startIndex < 0 || endIndex < 0 || endIndex >= len(mvSlice) || startIndex >= len(mvSlice) {
 		return []string{}, nil
 	}
@@ -1417,6 +1607,11 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 		return handleMVDedup(self, fieldToValue)
 	case "mvappend":
 		return handleMVAppend(self, fieldToValue)
+	case "mvmap":
+		return handleMVMap(self, fieldToValue)
+	case "mvrange":
+		return handleMVRange(self, fieldToValue)
+
 	default:
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: invalid Op %v", self.Op)
 	}
