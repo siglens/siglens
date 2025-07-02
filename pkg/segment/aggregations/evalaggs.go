@@ -23,6 +23,7 @@ import (
 	"math"
 	"sort"
 
+	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -816,19 +817,50 @@ func ComputeAggEvalForVarp(measureAgg *structs.MeasureAggregator, sstMap map[str
 	return nil
 }
 
-// Always pass a non-nil strSet when using this function
-func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, strSet map[string]struct{}, fieldToValue map[string]sutils.CValueEnclosure) (float64, error) {
+func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, hll *utils.GobbableHll, fieldToValue map[string]sutils.CValueEnclosure) error {
 	if len(fieldToValue) == 0 {
 		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
 		if err != nil {
-			return 0.0, fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request function: %v", err)
+			return fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request function: %v", err)
+		}
+		hll.AddRaw(xxhash.Sum64String(valueStr))
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return fmt.Errorf("PerformAggEvalForCardinality: there are some errors in the eval function that is inside the values function: %v", err)
+			}
+			// for boolean-valued fields, the cardinality is small, and this implementation of HLL stores the values explicitly for smaller cardinalities
+			// so we don't need to worry about hashing and the statistical properties associated with it.
+			if boolResult {
+				hll.AddRaw(1) // this serves as a sentinel value
+			}
+		} else {
+			cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+			if err != nil {
+				return fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request function: %v", err)
+			}
+			hll.AddRaw(xxhash.Sum64String(cellValueStr))
+		}
+	}
+
+	// it is slow to compute hll.Cardinality() after each record, so we do not compute it after inserting each record (see ComputeAggEvalForCardinality)
+	return nil
+}
+
+// Always pass a non-nil strSet when using this function
+func PerformAggEvalForValues(measureAgg *structs.MeasureAggregator, strSet map[string]struct{}, fieldToValue map[string]sutils.CValueEnclosure) (float64, error) {
+	if len(fieldToValue) == 0 {
+		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
+		if err != nil {
+			return 0.0, fmt.Errorf("PerformAggEvalForValues: Error while evaluating value col request function: %v", err)
 		}
 		strSet[valueStr] = struct{}{}
 	} else {
 		if measureAgg.ValueColRequest.BooleanExpr != nil {
 			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
 			if err != nil {
-				return 0.0, fmt.Errorf("PerformAggEvalForCardinality: there are some errors in the eval function that is inside the values function: %v", err)
+				return 0.0, fmt.Errorf("PerformAggEvalForValues: there are some errors in the eval function that is inside the values function: %v", err)
 			}
 			if boolResult {
 				strSet["1"] = struct{}{}
@@ -836,7 +868,7 @@ func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, strSet 
 		} else {
 			cellValueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
 			if err != nil {
-				return 0.0, fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request, err: %v", err)
+				return 0.0, fmt.Errorf("PerformAggEvalForValues: Error while evaluating value col request, err: %v", err)
 			}
 			strSet[cellValueStr] = struct{}{}
 		}
@@ -868,25 +900,26 @@ func PerformAggEvalForList(measureAgg *structs.MeasureAggregator, currentList []
 
 func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
-	result := 0.0
+	var result int64
 	var err error
-	var strSet map[string]struct{}
+	var hll *utils.GobbableHll
 	_, ok := runningEvalStats[measureAgg.String()]
 	if !ok {
-		strSet = make(map[string]struct{}, 0)
-		runningEvalStats[measureAgg.String()] = strSet
+		hll = structs.CreateNewHll()
+		runningEvalStats[measureAgg.String()] = hll
 	} else {
-		strSet, ok = runningEvalStats[measureAgg.String()].(map[string]struct{})
+		hll, ok = runningEvalStats[measureAgg.String()].(*utils.GobbableHll)
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForCardinality: can not convert strSet for measureAgg: %v", measureAgg.String())
+			return fmt.Errorf("ComputeAggEvalForCardinality: can not convert hll for measureAgg: %v", measureAgg.String())
 		}
 	}
 
 	if len(fields) == 0 {
-		result, err = PerformAggEvalForCardinality(measureAgg, strSet, nil)
+		err = PerformAggEvalForCardinality(measureAgg, hll, nil)
 		if err != nil {
 			return fmt.Errorf("ComputeAggEvalForCardinality: Error while performing eval agg for cardinality, err: %v", err)
 		}
+		result = int64(hll.Cardinality())
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
@@ -901,16 +934,17 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 				return fmt.Errorf("ComputeAggEvalForCardinality: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
-			result, err = PerformAggEvalForCardinality(measureAgg, strSet, fieldToValue)
+			err = PerformAggEvalForCardinality(measureAgg, hll, fieldToValue)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForCardinality: Error while performing eval agg for cardinality, err: %v", err)
 			}
 		}
+		result = int64(hll.Cardinality())
 	}
 
 	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_SIGNED_NUM,
-		CVal:  int64(result),
+		CVal:  result,
 	}
 
 	return nil
@@ -932,7 +966,7 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 	}
 
 	if len(fields) == 0 {
-		_, err := PerformAggEvalForCardinality(measureAgg, valueSet, nil)
+		_, err := PerformAggEvalForValues(measureAgg, valueSet, nil)
 		if err != nil {
 			return fmt.Errorf("ComputeAggEvalForValues: Error while performing eval agg for values, err: %v", err)
 		}
@@ -950,7 +984,7 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 				return fmt.Errorf("ComputeAggEvalForValues: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
-			_, err = PerformAggEvalForCardinality(measureAgg, valueSet, fieldToValue)
+			_, err = PerformAggEvalForValues(measureAgg, valueSet, fieldToValue)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForValues: Error while performing eval agg for values, err: %v", err)
 			}
@@ -1278,11 +1312,36 @@ func AddMeasureAggInRunningStatsForLatestOrEarliest(m *structs.MeasureAggregator
 	return idx, nil
 }
 
-func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+func AddMeasureAggInRunningStatsForCardinality(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
 
 	fields := m.ValueColRequest.GetFields()
 	if len(fields) == 0 {
-		return idx, fmt.Errorf("AddMeasureAggInRunningStatsForValuesOrCardinality: Incorrect number of fields for aggCol: %v", m.String())
+		return idx, fmt.Errorf("AddMeasureAggInRunningStatsForCardinality: Incorrect number of fields for aggCol: %v", m.String())
+	}
+
+	// Use the index of agg to map to the corresponding index of the runningStats result, so that we can determine which index of the result set contains the result we need.
+	*allReverseIndex = append(*allReverseIndex, idx)
+	for _, field := range fields {
+		if _, ok := colToIdx[field]; !ok {
+			colToIdx[field] = make([]int, 0)
+		}
+		colToIdx[field] = append(colToIdx[field], idx)
+		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+			MeasureCol:      field,
+			MeasureFunc:     sutils.Cardinality,
+			ValueColRequest: m.ValueColRequest,
+			StrEnc:          m.StrEnc,
+		})
+		idx++
+	}
+	return idx, nil
+}
+
+func AddMeasureAggInRunningStatsForValues(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+
+	fields := m.ValueColRequest.GetFields()
+	if len(fields) == 0 {
+		return idx, fmt.Errorf("AddMeasureAggInRunningStatsForValues: Incorrect number of fields for aggCol: %v", m.String())
 	}
 
 	// Use the index of agg to map to the corresponding index of the runningStats result, so that we can determine which index of the result set contains the result we need.
