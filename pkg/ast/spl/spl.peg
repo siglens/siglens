@@ -2474,6 +2474,9 @@ SingleEval <- field:FieldName EQUAL expr:EvalExpression {
 
 // Returns *structs.LetColumnsRequest without the NewColName set.
 EvalExpression <- value:ValueExpr {
+    if value.(*structs.ValueExpr).ValueExprMode == structs.VEMBooleanExpr {
+        return nil, fmt.Errorf("Eval fields cannot be assigned a boolean result")
+    }
     letColReq := &structs.LetColumnsRequest {
         ValueColRequest: value.(*structs.ValueExpr),
     }
