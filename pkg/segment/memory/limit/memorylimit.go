@@ -40,7 +40,7 @@ var LOG_GLOBAL_MEM_FREQUENCY = 5
 
 func InitMemoryLimiter() {
 	totalAvailableSizeBytes := config.GetTotalMemoryAvailableToUse()
-	log.Infof("InitMemoryLimiter: Total available memory %+v MB", sutils.ConvertUintBytesToMB(totalAvailableSizeBytes))
+	log.Infof("InitMemoryLimiter: Total available memory %+v MB", sutils.BytesToMiB(totalAvailableSizeBytes))
 
 	memLimits := config.GetMemoryConfig()
 
@@ -66,14 +66,28 @@ func InitMemoryLimiter() {
 	go rebalanceMemoryAllocationLoop()
 }
 
+func GetFreeMemoryBytes() uint64 {
+	capacity := memory.GlobalMemoryTracker.TotalAllocatableBytes
+	usedBytes := memory.GlobalMemoryTracker.RotatedCMIBytesInMemory +
+		memory.GlobalMemoryTracker.SegSearchRequestedBytes +
+		memory.GlobalMemoryTracker.SegWriterUsageBytes +
+		memory.GlobalMemoryTracker.SegStoreSummary.GetUsedMemoryBytes()
+
+	if usedBytes > capacity {
+		return 0
+	}
+
+	return capacity - usedBytes
+}
+
 func printMemoryManagerSummary() {
 	numLoadedUnrotated, totalUnrotated := writer.GetUnrotatedMetadataInfo()
 	unrotaedSize := writer.GetSizeOfUnrotatedMetadata()
-	log.Infof("GlobalMemoryTracker: Total allocatable Memory: %+v MB", sutils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.TotalAllocatableBytes))
+	log.Infof("GlobalMemoryTracker: Total allocatable Memory: %+v MB", sutils.BytesToMiB(memory.GlobalMemoryTracker.TotalAllocatableBytes))
 	log.Infof("GlobalMemoryTracker: segCount: %v, indexCount: %v, CmiInMemoryAllocated: %+v MB",
 		memory.GlobalMemoryTracker.SegStoreSummary.TotalSegmentCount,
 		memory.GlobalMemoryTracker.SegStoreSummary.TotalTableCount,
-		sutils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.RotatedCMIBytesInMemory))
+		sutils.BytesToMiB(memory.GlobalMemoryTracker.RotatedCMIBytesInMemory))
 
 	log.Infof("GlobalMemoryTracker: AllSegReadStores has %v CMI entries in memory. This accounts for %v MB",
 		memory.GlobalMemoryTracker.SegStoreSummary.InMemoryCMICount,
@@ -90,15 +104,15 @@ func printMemoryManagerSummary() {
 
 	metricsSizeInfo := metrics.GetMetricsEncodedSizeInfo()
 	log.Infof("GlobalMemoryTracker: MetricsEncodedSizeInfo: TotalTagTrees: %d, TotalLeafNodes: %d, TotalTagsTreeSize: %.4f MB. TotalSeriesCount: %d, TotalTSIDs: %d, TotalTSIDLookup (reverse Index): %d, TotalMSegmentsEncodedSize(AllBlocks): %.4f MB, TotalInMemoryMSegEncodedSize: %.4f MB, InMemoryMSegEncSize + TotalTagsTreeSize: %.4f MB",
-		metricsSizeInfo.TotalTagTreesCount, metricsSizeInfo.TotalLeafNodesCount, sutils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalTagsTreeSizeInBytes)),
-		metricsSizeInfo.TotalSeriesCount, metricsSizeInfo.TotalSortedTSIDCount, metricsSizeInfo.TotalTSIDLookupCount, sutils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalAllMSegmentsEncodedSizeInBytes)),
-		sutils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalMSegBlocksEncodedSizeInBytes)), sutils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalMSegBlocksEncodedSizeInBytes+metricsSizeInfo.TotalTagsTreeSizeInBytes)))
+		metricsSizeInfo.TotalTagTreesCount, metricsSizeInfo.TotalLeafNodesCount, sutils.BytesToMiB(float64(metricsSizeInfo.TotalTagsTreeSizeInBytes)),
+		metricsSizeInfo.TotalSeriesCount, metricsSizeInfo.TotalSortedTSIDCount, metricsSizeInfo.TotalTSIDLookupCount, sutils.BytesToMiB(float64(metricsSizeInfo.TotalAllMSegmentsEncodedSizeInBytes)),
+		sutils.BytesToMiB(float64(metricsSizeInfo.TotalMSegBlocksEncodedSizeInBytes)), sutils.BytesToMiB(float64(metricsSizeInfo.TotalMSegBlocksEncodedSizeInBytes+metricsSizeInfo.TotalTagsTreeSizeInBytes)))
 
 	log.Infof("GlobalMemoryTracker: Unrotated metadata has %v total segKeys. %+v have loaded metadata in memory. This accounts for %v MB",
-		totalUnrotated, numLoadedUnrotated, sutils.ConvertUintBytesToMB(unrotaedSize))
-	log.Infof("GlobalMemoryTracker: SegSearch has been allocated %v MB.", sutils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.SegSearchRequestedBytes))
+		totalUnrotated, numLoadedUnrotated, sutils.BytesToMiB(unrotaedSize))
+	log.Infof("GlobalMemoryTracker: SegSearch has been allocated %v MB.", sutils.BytesToMiB(memory.GlobalMemoryTracker.SegSearchRequestedBytes))
 	log.Infof("GlobalMemoryTracker: SegWriterUsageBytes %v MB. MetricsWriter has been allocated %v MB.",
-		sutils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.SegWriterUsageBytes), sutils.ConvertUintBytesToMB(memory.GetAvailableMetricsIngestMemory()))
+		sutils.BytesToMiB(memory.GlobalMemoryTracker.SegWriterUsageBytes), sutils.BytesToMiB(memory.GetAvailableMetricsIngestMemory()))
 }
 
 func rebalanceMemoryAllocationLoop() {
