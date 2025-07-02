@@ -718,24 +718,20 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 			}
 		case "ismv":
 			err := fmt.Errorf("error while evaluating ismv")
-			if self.LeftValue.NumericExpr != nil {
-				fields := self.GetFields()
-				if len(fields) != 0 {
-					val, ok := fieldToValue[fields[0]]
-					if ok {
-						if val.Dtype == sutils.SS_DT_STRING_SLICE {
-							return getBoolCValueEnclosure(true), nil
-						} else {
-							return getBoolCValueEnclosure(false), nil
-						}
+			fields := self.GetFields()
+			if len(fields) != 0 {
+				val, ok := fieldToValue[fields[0]]
+				if ok {
+					if val.Dtype == sutils.SS_DT_STRING_SLICE {
+						return getBoolCValueEnclosure(true), nil
 					} else {
-						return validateBoolExprError(err, "BoolExpr.Evaluate: Field doesn't exist")
+						return getBoolCValueEnclosure(false), nil
 					}
 				} else {
-					return validateBoolExprError(err, "BoolExpr.Evaluate: ismv takes exactly one argument")
+					return validateBoolExprError(err, "BoolExpr.Evaluate: Field doesn't exist")
 				}
 			} else {
-				return validateBoolExprError(err, "BoolExpr.Evaluate: ismv requires atleast one argument")
+				return validateBoolExprError(err, "BoolExpr.Evaluate: ismv takes exactly one argument")
 			}
 		case "isbool":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
