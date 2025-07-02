@@ -114,29 +114,24 @@ function createPanelGridOptions(currentPanel) {
                             scrollingErrorPopup();
                             return; // Prevent further scrolling
                         }
-                        //eslint-disable-next-line no-undef
                         isFetching = true;
                         showLoadingIndicator();
                         if (data && data.searchText == 'error') {
                             alert('Error');
                             hideLoadingIndicator(); // Hide loading indicator on error
-                            //eslint-disable-next-line no-undef
                             isFetching = false;
                             return;
                         }
                         runPanelLogsQuery(data, panelID, currentPanel)
                             .then(() => {
-                                //eslint-disable-next-line no-undef
                                 isFetching = false;
                             })
                             .catch((error) => {
                                 console.warn('Error fetching data', error);
-                                //eslint-disable-next-line no-undef
                                 isFetching = false;
                             })
                             .finally(() => {
                                 hideLoadingIndicator();
-                                //eslint-disable-next-line no-undef
                                 isFetching = false;
                             });
                     }
@@ -204,6 +199,7 @@ function showLoadingIndicator() {
 function hideLoadingIndicator() {
     panelGridOptions.api.hideOverlay();
 }
+
 //eslint-disable-next-line no-unused-vars
 function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
     panelID = panelId;
@@ -334,6 +330,7 @@ function panelLogOptionTableHandler(panelGridOptions, panelLogsColumnDefs) {
     panelGridOptions.columnApi.setColumnVisible('timestamp', true);
     panelGridOptions.columnApi.setColumnVisible('logs', false);
 }
+
 //eslint-disable-next-line no-unused-vars
 function renderPanelAggsGrid(columnOrder, hits, panelId) {
     let aggsColumnDefs = [];
@@ -455,7 +452,7 @@ function toggleAllAvailableFieldsHandler(_evt) {
             panelGridOptions.columnApi.setColumnVisible(colName, true);
         });
 
-        selectedFieldsList = [...availColNames];
+        currentPanel.selectedFields = [...availColNames];
     } else {
         isChecked.remove();
 
@@ -464,13 +461,13 @@ function toggleAllAvailableFieldsHandler(_evt) {
             panelGridOptions.columnApi.setColumnVisible(colName, false);
         });
 
-        selectedFieldsList = [];
+        currentPanel.selectedFields = [];
     }
 
     panelGridOptions.columnApi.setColumnVisible('logs', false);
-
     updatedSelFieldList = true;
 }
+
 function scrollingErrorPopup() {
     $('.mypopupOverlay').addClass('active');
     $('#error-popup.popupContent').addClass('active');
@@ -507,11 +504,11 @@ const myCellRenderer = (params) => {
     if (typeof params.data !== 'object' || params.data === null) return '';
     const value = params.data[params.colName];
     if (value == null || value === '') return '';
-    
+
     if (typeof value === 'object') {
         const jsonString = JSON.stringify(JSON.unflatten(value));
         return escapeHtml(jsonString);
     }
-    
+
     return escapeHtml(String(value));
 };
