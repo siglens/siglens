@@ -108,7 +108,7 @@ func Test_BatchProcess(t *testing.T) {
 	batchingFunc := func(x int) int {
 		return x / 10
 	}
-	batchOrderingFunc := NewOptionWithValue(func(a, b int) bool {
+	batchOrderingFunc := Some(func(a, b int) bool {
 		return a > b
 	})
 	actualBatchSizes := make([]int, 0)
@@ -136,7 +136,7 @@ func Test_BatchProcessToMap(t *testing.T) {
 	batchingFunc := func(x int) int {
 		return x / 10
 	}
-	batchOrderingFunc := NewOptionWithValue(func(a, b int) bool {
+	batchOrderingFunc := Some(func(a, b int) bool {
 		return a > b
 	})
 	actualBatchSizes := make([]int, 0)

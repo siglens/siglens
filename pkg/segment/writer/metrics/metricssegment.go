@@ -311,11 +311,11 @@ func GetUnrotatedMetricStats(orgid int64) (uint64, uint64, uint64) {
 }
 
 func getNumberOfSegmentsFromMemory(mem uint64) uint64 {
-	mb := sutils.ConvertUintBytesToMB(mem)
+	mb := sutils.BytesToMiB(mem)
 	retVal := mem / sutils.MAX_BYTES_METRICS_BLOCK
 	concurreny := uint64(config.GetParallelism())
 	if retVal == 0 {
-		log.Infof("getNumberOfSegmentsFromMemory: Less than %dMB was allocated. Defaulting to 1 metrics segment", sutils.ConvertUintBytesToMB(mem))
+		log.Infof("getNumberOfSegmentsFromMemory: Less than %dMB was allocated. Defaulting to 1 metrics segment", sutils.BytesToMiB(mem))
 		retVal = 1
 	} else if retVal > concurreny {
 		retVal = concurreny

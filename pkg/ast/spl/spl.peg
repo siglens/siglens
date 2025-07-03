@@ -1776,7 +1776,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         newName := newFieldName.(string)
         letColReq.NewColName = newName
         binOptions := binCmdOption.(*structs.BinCmdOptions)
-        binOptions.NewFieldName = utils.NewOptionWithValue(newName)
+        binOptions.NewFieldName = utils.Some(newName)
     }
 
     letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
@@ -1807,7 +1807,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
     if newFieldName != nil {
         newName := newFieldName.(string)
         letColReq.NewColName = newName
-        binCmdOption.NewFieldName = utils.NewOptionWithValue(newName)
+        binCmdOption.NewFieldName = utils.Some(newName)
     }
 
     letColReq.BinRequest = binCmdOption
@@ -2474,6 +2474,9 @@ SingleEval <- field:FieldName EQUAL expr:EvalExpression {
 
 // Returns *structs.LetColumnsRequest without the NewColName set.
 EvalExpression <- value:ValueExpr {
+    if value.(*structs.ValueExpr).ValueExprMode == structs.VEMBooleanExpr {
+        return nil, fmt.Errorf("Eval fields cannot be assigned a boolean result")
+    }
     letColReq := &structs.LetColumnsRequest {
         ValueColRequest: value.(*structs.ValueExpr),
     }
@@ -2591,6 +2594,18 @@ MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:St
     node := &structs.MultiValueExpr {
         Op: opNameStr,
         StringExprParams: []*structs.StringExpr{stringExpr.(*structs.StringExpr), delim.(*structs.StringExpr)},
+    }
+
+    return node, nil
+}
+/ (opName:("spath") L_PAREN value:StringExpr COMMA path:StringExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        StringExprParams: []*structs.StringExpr{value.(*structs.StringExpr), path.(*structs.StringExpr)},
     }
 
     return node, nil
@@ -2873,17 +2888,6 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
     }
 
     return node, nil
-}
-/ "spath" L_PAREN inputField:FieldNameStartWith_ COMMA path:(QuotedPathString / UnquotedPathValue) R_PAREN {
-    pathExpr := path.(*SPathFieldExpr)
-    return &structs.TextExpr{
-        Op: "spath",
-        SPathExpr: &structs.SPathExpr{
-            InputColName: inputField.(string),
-            Path: pathExpr.PathValue,
-            IsPathFieldName: pathExpr.IsPathFieldName,
-        },
-    }, nil
 }
 / "ipmask" L_PAREN mask:StringExpr COMMA ip:ValueExpr R_PAREN {
     return &structs.TextExpr{
@@ -4439,7 +4443,7 @@ String <- str:(QuotedString / UnquotedString) {
     return str, nil
 }
 
-QuotedString <- '"' [^"]* '"' {
+QuotedString <- '"' (!'\\' [^"] / '\\' .)* '"' {
     // The returned string has quotes as the first and last character.
     return string(c.text), nil
 }
@@ -5159,7 +5163,7 @@ FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
 }
 
 MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limitStr:MvexpandLimit? {
-    limit := utils.NewUnsetOption[int64]()
+    limit := utils.None[int64]()
     if limitStr != nil {
         value, err := strconv.ParseInt(limitStr.(string), 10, 64)
         if err != nil {

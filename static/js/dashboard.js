@@ -26,8 +26,6 @@ let localPanels = [],
 let panelIndex;
 let isFavorite = false;
 //eslint-disable-next-line no-unused-vars
-let initialSearchDashboardData = {};
-//eslint-disable-next-line no-unused-vars
 let flagDBSaved = true;
 let timeRange = 'Last 1 Hr';
 let dbRefresh = '';
@@ -407,7 +405,6 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
             <div id="empty-response"></div>`;
             panEl.append(responseDiv);
             $('#panelLogResultsGrid').show();
-            initialSearchDashboardData = localPanel.queryData;
             if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, panelId, localPanel, localPanel.queryRes);
             else runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
         } else if (localPanel.chartType == 'Line Chart' || localPanel.chartType == 'Bar Chart' || localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'number') {
@@ -704,7 +701,6 @@ async function displayPanels() {
                 panEl.append(responseDiv);
 
                 $('#panelLogResultsGrid').show();
-                initialSearchDashboardData = localPanel.queryData;
                 if (!isFilterApplied && localPanel.queryRes) {
                     runPanelLogsQuery(localPanel.queryData, idpanel, localPanel, localPanel.queryRes);
                 } else {

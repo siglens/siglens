@@ -29,6 +29,7 @@ multi_value.json
 mvappend.json
 mvdedup.json
 mvexpand.json
+mvfilter.json
 tojson_dtype.json
 tojson_fillnull.json
 tojson_wrdtype_nofillnull.json

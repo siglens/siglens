@@ -20,6 +20,8 @@ package utils
 import (
 	"fmt"
 	"math"
+
+	"github.com/siglens/siglens/pkg/utils"
 )
 
 func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CValueEnclosure, error) {
@@ -117,8 +119,6 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	case SS_DT_STRING_SET:
 		{
 			switch fun {
-			case Cardinality:
-				fallthrough
 			case Values:
 				set1 := e1.CVal.(map[string]struct{})
 				set2 := e2.CVal.(map[string]struct{})
@@ -128,6 +128,22 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 				return e1, nil
 			default:
 				return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for string set", fun)
+			}
+		}
+	case SS_DT_GOBBABLE_HLL_PTR:
+		{
+			switch fun {
+			case Cardinality:
+				hll1 := e1.CVal.(*utils.GobbableHll)
+				hll2 := e2.CVal.(*utils.GobbableHll)
+				err := hll1.StrictUnion(hll2.Hll)
+				if err != nil {
+					return e1, fmt.Errorf("Reduce: Error while performing hll union, err: %v", err)
+				}
+
+				return e1, nil
+			default:
+				return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for hll", fun)
 			}
 		}
 	case SS_DT_STRING_SLICE:
