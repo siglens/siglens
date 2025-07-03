@@ -1231,3 +1231,4 @@ function updateGridView() {
         gridOptions.api.setRowData(currentPageData);
     }
 }
+
