@@ -1432,7 +1432,6 @@ function resetToOriginalQueries() {
 }
 
 function updateDashboardTheme() {
-    console.log('updateDashboardTheme function called');
     const { gridLineColor, tickColor } = getGraphGridColors();
 
     // Update Chart.js charts (Line and Bar Chart)
