@@ -67,6 +67,10 @@ func InitMemoryLimiter() {
 }
 
 func GetFreeMemoryBytes() uint64 {
+	if memory.GlobalMemoryTracker == nil {
+		return 0
+	}
+
 	capacity := memory.GlobalMemoryTracker.TotalAllocatableBytes
 	usedBytes := memory.GlobalMemoryTracker.RotatedCMIBytesInMemory +
 		memory.GlobalMemoryTracker.SegSearchRequestedBytes +

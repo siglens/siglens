@@ -46,14 +46,6 @@ test.describe('Logs Ingestion Page Tests', () => {
         await expect(page.locator('#logs-cards-view')).not.toBeVisible();
         await expect(page.locator('#logs-ingestion-details')).toBeVisible();
 
-        if ((await page.locator('#data-ingestion').count()) > 0) {
-            console.log('Data ingestion element exists');
-        }
-
-        if ((await page.locator('#sample-data').count()) > 0) {
-            console.log('Sample data element exists');
-        }
-
         expect(page.url()).toContain('method=sendtestdata');
     });
 
@@ -63,14 +55,6 @@ test.describe('Logs Ingestion Page Tests', () => {
 
         await expect(page.locator('#logs-cards-view')).not.toBeVisible();
         await expect(page.locator('#logs-ingestion-details')).toBeVisible();
-
-        if ((await page.locator('#data-ingestion').count()) > 0) {
-            console.log('Data ingestion element exists');
-        }
-
-        if ((await page.locator('#sample-data').count()) > 0) {
-            console.log('Sample data element exists');
-        }
     });
 
     test('should send test data when button is clicked', async ({ page }) => {
