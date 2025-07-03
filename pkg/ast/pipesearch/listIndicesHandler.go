@@ -156,7 +156,16 @@ func ListColumnNamesHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	_, startEpoch, endEpoch, _, indexNameIn, _, _, _ := ParseSearchBody(readJSON, nowTs)
+	_, startEpoch, endEpoch, _, indexNameIn, _, _, _, err := ParseSearchBody(readJSON, nowTs)
+	if err != nil {
+		log.Errorf("ListColumnNamesHandler: failed to parse search body! err: %+v", err)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		_, err = ctx.WriteString(err.Error())
+		if err != nil {
+			log.Errorf("ListColumnNamesHandler: could not write error message, err: %v", err)
+		}
+		return
+	}
 
 	// todo get indexnames from multinode
 	allIndexNames := vtable.ExpandAndReturnIndexNames(indexNameIn, orgId, false, ctx)
