@@ -443,52 +443,62 @@ function resetPanelIndices() {
 }
 
 async function getDashboardData() {
-    await fetch(`/api/dashboards/${dbId}`)
-        .then((res) => {
-            return res.json();
-        })
-        .then((data) => {
-            dbData = data;
-        });
+    try {
+        const response = await fetch(`/api/dashboards/${dbId}`);
 
-    const breadcrumb = new Breadcrumb();
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const mode = urlParams.get('mode');
-
-    breadcrumb.render(
-        dbData.folder?.breadcrumbs,
-        dbData.name,
-        true, // Show favorite button for dashboard
-        dbData.isFavorite,
-        mode === 'settings',
-        false
-    );
-    breadcrumb.onFavoriteClick(() => toggleFavorite(dbId));
-
-    dbName = dbData.name;
-    dbDescr = dbData.description;
-    dbRefresh = dbData.refresh;
-    isFavorite = dbData.isFavorite;
-    if (dbData.panels != undefined) {
-        localPanels = JSON.parse(JSON.stringify(dbData.panels));
-        originalQueries = {};
-        localPanels.forEach((panel) => {
-            if (panel.queryData && panel.queryData.searchText) {
-                originalQueries[panel.panelId] = panel.queryData.searchText;
-            }
-        });
-    } else localPanels = [];
-    if (localPanels != undefined) {
-        if (mode === 'settings') {
-            // When page loads and mode=settings is in URL, open settings
-            handleDbSettings();
-        } else {
-            displayPanels();
+        if (!response.ok) {
+            handleDashboardError(response.status, response.statusText);
+            return;
         }
-        setFavoriteValue(dbData.isFavorite);
-        setTimePickerValue();
-        setRefreshItemHandler();
+
+        const data = await response.json();
+        dbData = data;
+
+        const breadcrumb = new Breadcrumb();
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode');
+
+        breadcrumb.render(
+            dbData.folder?.breadcrumbs,
+            dbData.name,
+            true, // Show favorite button for dashboard
+            dbData.isFavorite,
+            mode === 'settings',
+            false
+        );
+        breadcrumb.onFavoriteClick(() => toggleFavorite(dbId));
+
+        dbName = dbData.name;
+        dbDescr = dbData.description;
+        dbRefresh = dbData.refresh;
+        isFavorite = dbData.isFavorite;
+
+        if (dbData.panels != undefined) {
+            localPanels = JSON.parse(JSON.stringify(dbData.panels));
+            originalQueries = {};
+            localPanels.forEach((panel) => {
+                if (panel.queryData && panel.queryData.searchText) {
+                    originalQueries[panel.panelId] = panel.queryData.searchText;
+                }
+            });
+        } else {
+            localPanels = [];
+        }
+
+        if (localPanels != undefined) {
+            if (mode === 'settings') {
+                // When page loads and mode=settings is in URL, open settings
+                handleDbSettings();
+            } else {
+                displayPanels();
+            }
+            setFavoriteValue(dbData.isFavorite);
+            setTimePickerValue();
+            setRefreshItemHandler();
+        }
+    } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+        handleDashboardError(0, 'Network Error');
     }
 }
 
@@ -1429,6 +1439,77 @@ function resetToOriginalQueries() {
         }
     });
     originalQueries = {};
+}
+
+function handleDashboardError(status, statusText) {
+    const mainContent = document.querySelector('.dashboard-container');
+    if (mainContent) {
+        mainContent.style.display = 'none';
+    }
+
+    const breadcrumb = new Breadcrumb();
+    const dashboardName = status === 400 ? 'Dashboard Not Found' : status === 404 ? 'Dashboard Not Found' : 'Error Loading Dashboard';
+
+    breadcrumb.render([{ id: 'root-folder', name: 'Root' }], dashboardName);
+    showDashboardErrorState(status, statusText);
+}
+
+function showDashboardErrorState(status, statusText) {
+    const errorHTML = `
+        <div class="dashboard-error-container">
+            <div class="error-card">
+                <h2 class="error-title fw-bold">Dashboard Not Found</h2>
+                <p>
+                    ${status === 400 ? "The dashboard you're looking for doesn't exist or may have been deleted." : status === 404 ? 'The requested dashboard could not be found.' : 'There was an error loading the dashboard.'}
+                </p>
+                
+                <div class="error-details">
+                    <strong>Error:</strong> ${status} ${statusText}
+                    <br>
+                    <small>Dashboard ID: ${dbId}</small>
+                </div>
+                
+                <div class="error-actions d-flex flex-column gap-3">
+                    <button class="btn btn-primary" onclick="retryLoadDashboard()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                            <path d="M21 3v5h-5"/>
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                            <path d="M3 21v-5h5"/>
+                        </svg>
+                        Retry
+                    </button>
+                    <button class="btn btn-secondary" onclick="goToDashboards()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9,22 9,12 15,12 15,22"/>
+                        </svg>
+                        Go to Dashboards
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const container = document.querySelector('#new-dashboard') || document.body;
+    const errorDiv = document.createElement('div');
+    errorDiv.innerHTML = errorHTML;
+    container.appendChild(errorDiv);
+}
+
+//eslint-disable-next-line no-unused-vars
+function retryLoadDashboard() {
+    const errorContainer = document.querySelector('.dashboard-error-container');
+    if (errorContainer) {
+        errorContainer.remove();
+    }
+
+    getDashboardData();
+}
+
+//eslint-disable-next-line no-unused-vars
+function goToDashboards() {
+    window.location.href = '/dashboards-home.html';
 }
 
 function updateDashboardTheme() {

@@ -1,8 +1,8 @@
 const { test, expect } = require('@playwright/test');
 
+let createdDashboardIds = [];
 test.describe('Dashboard Page Tests', () => {
     test.setTimeout(120000);
-    let createdDashboardIds = [];
 
     test('Create dashboard with panel and verify panels', async ({ page }) => {
         await page.goto('http://localhost:5122/dashboards-home.html', {
@@ -64,11 +64,13 @@ test.describe('Dashboard Page Tests', () => {
         await page.evaluate(() => {
             const editIcon = document.querySelector('.panel-header img.panel-edit-li');
             if (editIcon) {
-                editIcon.dispatchEvent(new MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window
-                }));
+                editIcon.dispatchEvent(
+                    new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                    })
+                );
             }
         });
 
@@ -85,11 +87,13 @@ test.describe('Dashboard Page Tests', () => {
         await page.evaluate(() => {
             const viewIcon = document.querySelector('.panel-header img.panel-view-li');
             if (viewIcon) {
-                viewIcon.dispatchEvent(new MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window
-                }));
+                viewIcon.dispatchEvent(
+                    new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                    })
+                );
             }
         });
 
@@ -104,32 +108,36 @@ test.describe('Dashboard Page Tests', () => {
         await page.evaluate(() => {
             const optionsBtn = document.querySelector('.panel-header #panel-options-btn');
             if (optionsBtn) {
-                optionsBtn.dispatchEvent(new MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window
-                }));
+                optionsBtn.dispatchEvent(
+                    new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                    })
+                );
             }
-            
+
             setTimeout(() => {
                 const dropdown = document.querySelector('#panel-dropdown-modal');
                 if (dropdown) {
                     dropdown.classList.remove('hidden');
-                    dropdown.style.display = 'block'; 
+                    dropdown.style.display = 'block';
                 }
             }, 500);
         });
-        
+
         await page.waitForTimeout(1000);
-        
+
         await page.evaluate(() => {
             const deleteOption = document.querySelector('.panel-remove-li');
             if (deleteOption) {
-                deleteOption.dispatchEvent(new MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window
-                }));
+                deleteOption.dispatchEvent(
+                    new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                    })
+                );
             }
         });
 
@@ -146,31 +154,51 @@ test.describe('Dashboard Page Tests', () => {
             });
             await page.waitForTimeout(500);
         }
-        
+
         await page.evaluate(() => {
             const deleteBtn = document.querySelector('#delete-btn-panel');
             if (deleteBtn) {
-                deleteBtn.dispatchEvent(new MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window
-                }));
+                deleteBtn.dispatchEvent(
+                    new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                    })
+                );
             }
         });
-        await page.waitForTimeout(3000);    });
+        await page.waitForTimeout(3000);
+    });
 
     test('Dashboard UI functions', async ({ page }) => {
-        // Use the ID from first test
-        if (createdDashboardIds.length === 0) {
-            test.skip('No dashboard ID available');
-        }
-
-        await page.goto(`http://localhost:5122/dashboard.html?id=${createdDashboardIds[0]}`, {
+        // Create a fresh dashboard for UI testing
+        await page.goto('http://localhost:5122/dashboards-home.html', {
             timeout: 60000,
             waitUntil: 'networkidle',
         });
 
-        await page.waitForSelector('#new-dashboard', { timeout: 30000 });
+        await page.click('#add-new-container .dropdown .btn');
+        await expect(page.locator('#add-new-container .dropdown .dropdown-menu')).toBeVisible({ timeout: 20000 });
+
+        await page.click('#create-db-btn');
+        await expect(page.locator('#new-dashboard-modal')).toBeVisible({ timeout: 20000 });
+        const uniqueName = `UI Test Dashboard ${Date.now()}`;
+
+        await page.fill('#db-name', uniqueName);
+
+        const navigationPromise = page.waitForResponse((response) => response.url().includes('/api/dashboards/create') && response.status() === 200, { timeout: 45000 });
+        await page.click('#save-dbbtn');
+        await navigationPromise;
+
+        await page.waitForURL(/.*dashboard\.html\?id=/, { timeout: 45000 });
+        await page.waitForLoadState('networkidle', { timeout: 45000 });
+
+        const url = page.url();
+        const dashboardId = url.split('id=')[1];
+        createdDashboardIds.push(dashboardId);
+
+        // Verify dashboard loaded successfully
+        await expect(page.locator('#new-dashboard')).toBeVisible({ timeout: 15000 });
         await page.waitForTimeout(2000);
 
         // Toggle favorite
@@ -228,4 +256,3 @@ test.describe('Dashboard Page Tests', () => {
         }
     });
 });
-
