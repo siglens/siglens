@@ -3146,7 +3146,7 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
 }
 
 //TODO: implement the processing logic for: searchmatch, isnotnull, isnum
-EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull" / "isnum" / "searchmatch") L_PAREN value:ValueExpr R_PAREN ) {
+EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull" / "isnum" / "searchmatch" / "ismv" / "isobject") L_PAREN value:ValueExpr R_PAREN ) {
     opNameStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
