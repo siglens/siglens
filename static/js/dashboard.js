@@ -1501,6 +1501,7 @@ function showDashboardErrorState(status, statusText) {
     container.appendChild(errorDiv);
 }
 
+//eslint-disable-next-line no-unused-vars
 function retryLoadDashboard() {
     const errorContainer = document.querySelector('.dashboard-error-container');
     if (errorContainer) {
@@ -1510,6 +1511,7 @@ function retryLoadDashboard() {
     getDashboardData();
 }
 
+//eslint-disable-next-line no-unused-vars
 function goToDashboards() {
     window.location.href = '/dashboards-home.html';
 }
