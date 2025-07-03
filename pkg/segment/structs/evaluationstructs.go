@@ -3464,9 +3464,10 @@ func handlePrintf(self *TextExpr, fieldToValue map[string]sutils.CValueEnclosure
 
 		// check if the verb is %%, and continue since %% doesn't consume any arguments
 		lookAhead := i + 1
-		if format[lookAhead] == '%' {
+		if lookAhead == formatEnd || format[lookAhead] == '%' {
+			// if there is a trailing % at the end of a string, Splunk treats it as a percentage symbol
 			*pointerToResBuff = append(*pointerToResBuff, format[i])
-			*pointerToResBuff = append(*pointerToResBuff, format[lookAhead])
+			*pointerToResBuff = append(*pointerToResBuff, '%')
 			i++
 			continue
 		}
