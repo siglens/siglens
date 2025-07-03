@@ -85,100 +85,99 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div id="app-side-nav">
         </div>
         <div id="new-dashboard">
-            <div class="header-container">
-                <div id="breadcrumb"></div>
-                <div class="btn-container">
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle btn-top index-btn-show" type="button" id="date-picker-btn" data-toggle="dropdown"
-                            aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">
-                            <span>Time Picker</span>
-                            <i class="dropdown-arrow"></i>
-                        </button>
-                        <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
-                            <p class="dt-header">Search the last</p>
-                            <div class="ranges">
-                                <div class="inner-range">
-                                    <div id="now-5m" class="db-range-item">5 Mins</div>
-                                    <div id="now-3h" class="db-range-item">3 Hrs</div>
-                                    <div id="now-2d" class="db-range-item">2 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-15m" class="db-range-item">15 Mins</div>
-                                    <div id="now-6h" class="db-range-item">6 Hrs</div>
-                                    <div id="now-7d" class="db-range-item">7 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-30m" class="db-range-item">30 Mins</div>
-                                    <div id="now-12h" class="db-range-item">12 Hrs</div>
-                                    <div id="now-30d" class="db-range-item">30 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-1h" class="db-range-item">1 Hr</div>
-                                    <div id="now-24h" class="db-range-item">24 Hrs</div>
-                                    <div id="now-90d" class="db-range-item">90 Days</div>
-                                </div>
-                                <hr>
-                                </hr>
-                                <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span></div>
-                                <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
-                                    <input type="date" id="date-start" />
-                                    <input type="time" id="time-start" value="00:00" />
-                                </div>
-                                <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
-                                    <input type="date" id="date-end">
-                                    <input type="time" id="time-end" value="00:00">
-                                </div>
-                                <div class="drp-buttons">
-                                    <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn" type="button">Apply</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <button class="btn dropdown-dash" id="save-db-btn" title="Save dashboard">
-                    </button>
-                    <button class="btn settings-btn" title="Dashboard settings" id="db-settings-btn">
-                    </button>
-                    <div class="refresh-container">
-                        <button class="btn refresh-btn" title="Refresh dashboard">
-                        </button>
+            <div class="dashboard-container">
+                <div class="header-container">
+                    <div id="breadcrumb"></div>
+                    <div class="btn-container">
                         <div class="dropdown">
-                            <button class="btn dropdown-toggle" type="button" id="refresh-picker-btn"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                data-bs-toggle="dropdown">
-                                <span></span>
-                                <img class="orange" src="assets/arrow-btn.svg" alt="expand">
+                            <button class="btn dropdown-toggle btn-top index-btn-show" type="button" id="date-picker-btn" data-toggle="dropdown"
+                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">
+                                <span>Time Picker</span>
+                                <i class="dropdown-arrow"></i>
                             </button>
-                            <div class="dropdown-menu refresh-picker" aria-labelledby="index-btn" id="refresh-picker ">
+                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
+                                <p class="dt-header">Search the last</p>
                                 <div class="ranges">
-                                    <div id="0" class="refresh-range-item">Off</div>
-                                    <div id="5m" class="refresh-range-item">5m</div>
-                                    <div id="30m" class="refresh-range-item">30m</div>
-                                    <div id="1h" class="refresh-range-item">1h</div>
-                                    <div id="5h" class="refresh-range-item">5h</div>
-                                    <div id="1d" class="refresh-range-item">1d</div>
+                                    <div class="inner-range">
+                                        <div id="now-5m" class="db-range-item">5 Mins</div>
+                                        <div id="now-3h" class="db-range-item">3 Hrs</div>
+                                        <div id="now-2d" class="db-range-item">2 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-15m" class="db-range-item">15 Mins</div>
+                                        <div id="now-6h" class="db-range-item">6 Hrs</div>
+                                        <div id="now-7d" class="db-range-item">7 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-30m" class="db-range-item">30 Mins</div>
+                                        <div id="now-12h" class="db-range-item">12 Hrs</div>
+                                        <div id="now-30d" class="db-range-item">30 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-1h" class="db-range-item">1 Hr</div>
+                                        <div id="now-24h" class="db-range-item">24 Hrs</div>
+                                        <div id="now-90d" class="db-range-item">90 Days</div>
+                                    </div>
+                                    <hr>
+                                    </hr>
+                                    <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span></div>
+                                    <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
+                                        <input type="date" id="date-start" />
+                                        <input type="time" id="time-start" value="00:00" />
+                                    </div>
+                                    <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
+                                        <input type="date" id="date-end">
+                                        <input type="time" id="time-end" value="00:00">
+                                    </div>
+                                    <div class="drp-buttons">
+                                        <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn" type="button">Apply</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <button class="btn dropdown-dash" id="save-db-btn" title="Save dashboard">
+                        </button>
+                        <button class="btn settings-btn" title="Dashboard settings" id="db-settings-btn">
+                        </button>
+                        <div class="refresh-container">
+                            <button class="btn refresh-btn" title="Refresh dashboard">
+                            </button>
+                            <div class="dropdown">
+                                <button class="btn dropdown-toggle" type="button" id="refresh-picker-btn"
+                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                    data-bs-toggle="dropdown">
+                                    <span></span>
+                                    <img class="orange" src="assets/arrow-btn.svg" alt="expand">
+                                </button>
+                                <div class="dropdown-menu refresh-picker" aria-labelledby="index-btn" id="refresh-picker ">
+                                    <div class="ranges">
+                                        <div id="0" class="refresh-range-item">Off</div>
+                                        <div id="5m" class="refresh-range-item">5m</div>
+                                        <div id="30m" class="refresh-range-item">30m</div>
+                                        <div id="1h" class="refresh-range-item">1h</div>
+                                        <div id="5h" class="refresh-range-item">5h</div>
+                                        <div id="1d" class="refresh-range-item">1d</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn" id="add-panel-btn" title="Add panel">
+                            <span>
+                                <img src="./assets/add-icon.svg" class="add-icon" alt="add icon "/> </span>Add Panel
+                        </button>
                     </div>
-                    <button class="btn" id="add-panel-btn" title="Add panel">
-                        <span>
-                            <img src="./assets/add-icon.svg" class="add-icon" alt="add icon "/> </span>Add Panel
-                    </button>
+                </div>
+                <div class="py-3">
+                    <div class="d-flex" style="margin: 0px 10px;">
+                        <input type="text" class="form-control search-db-input" placeholder="Filter logs panel (e.g., app_version=1.2.* OR http_status=404)" title="Search query" style="background-color: var(--top-bar-bg-color-regular);">
+                        <div class="text-end d-flex">
+                            <button class="btn run-filter-btn" id="run-dashboard-fliter"></button>
+                        </div>
+                    </div>
+                    <div id="panel-container" class="grid-stack">
+                    </div>
                 </div>
             </div>
-
-            <div class="py-3">
-                <div class="d-flex" style="margin: 0px 10px;">
-                    <input type="text" class="form-control search-db-input" placeholder="Filter logs panel (e.g., app_version=1.2.* OR http_status=404)" title="Search query" style="background-color: var(--top-bar-bg-color-regular);">
-                    <div class="text-end d-flex">
-                        <button class="btn run-filter-btn" id="run-dashboard-fliter"></button>
-                    </div>
-                </div>
-                <div id="panel-container" class="grid-stack">
-                </div>
-            </div>
-
-
         </div>
         <div class="popupOverlay">
         </div>
@@ -349,11 +348,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <i class="dropdown-arrow"></i>
                                 </button>
                                 <div class="dropdown-menu box-shadow" aria-labelledby="avail-fields-btn" id="available-fields">
-
                                     <div class="select-unselect-header" id="select-unselect-header">
                                         Select/Unselect All
                                         <img class="select-unselect-checkbox" src="assets/available-field-checkbox.svg">
                                     </div>
+                                    <div class="grey-text px-3">Column Count: <strong class="column-count"></strong> </div>
                                     <div class="fields"></div>
                                 </div>
                             </div>
