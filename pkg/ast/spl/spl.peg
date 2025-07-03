@@ -21,6 +21,7 @@ package spl
 import (
     "regexp"
     "time"
+    "strconv"
 
     "github.com/siglens/siglens/pkg/ast"
     "github.com/siglens/siglens/pkg/segment/aggregations"
@@ -4014,10 +4015,12 @@ AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "
         return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
     }
 
+    fieldStr := valueExpr.(*structs.ValueExpr).GetFields()[0]
+
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: measureFunc,
-        StrEnc: string(c.text),
+        StrEnc: aggName.(string) + strconv.FormatFloat(percentileVal.(float64), 'f', -1, 64) + "(" + fieldStr + ")",
         ValueColRequest: valueExpr.(*structs.ValueExpr),
         Param: percentileVal.(float64),
     }
@@ -4032,6 +4035,7 @@ AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "
 
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
+        StrEnc: aggName.(string) + strconv.FormatFloat(percentileVal.(float64), 'f', -1, 64) + "(" + field.(string) + ")",
         MeasureFunc: measureFunc,
         Param: percentileVal.(float64),
     }
