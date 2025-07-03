@@ -56,12 +56,34 @@ Example incomingBody
 
 finalSize = size + from
 */
-func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, bool, bool) {
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, bool, bool, error) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
 	var includeNulls bool
 	var runTimechart bool
+
+	// Allowed fields for validation
+	allowedFields := map[string]struct{}{
+		"searchText":     {},
+		"startEpoch":     {},
+		"endEpoch":       {},
+		"size":           {},
+		"from":           {},
+		"includeNulls":   {},
+		KEY_INDEX_NAME:   {},
+		runTimechartFlag: {},
+	}
+
+	// Check for unexpected fields
+	for k := range jsonSource {
+		if _, ok := allowedFields[k]; !ok {
+			log.Errorf("ParseSearchBody: unexpected field name: %s", k)
+			return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("unexpected field name: %s", k)
+		}
+	}
+
+	// Parse searchText
 	sText, ok := jsonSource["searchText"]
 	if !ok || sText == "" {
 		searchText = "*"
@@ -71,14 +93,15 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			searchText = val
 		default:
 			log.Errorf("ParseSearchBody: searchText is not a string! val: %+v", val)
+			return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("searchText is not a string")
 		}
 	}
 
+	// Parse indexName
 	iText, ok := jsonSource[KEY_INDEX_NAME]
 	if !ok || iText == "" {
 		indexName = "*"
 	} else if iText == KEY_TRACE_RELATED_LOGS_INDEX {
-		// TODO: set indexNameIn to otel-collector indexes
 		indexName = "*"
 	} else {
 		switch val := iText.(type) {
@@ -87,7 +110,6 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case []string:
 			indexName = strings.Join(val[:], ",")
 		case []interface{}:
-
 			valLen := len(val)
 			indexName = ""
 			for idx, indVal := range val {
@@ -97,19 +119,24 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 					indexName += fmt.Sprintf("%v,", indVal)
 				}
 			}
-
 		default:
-			log.Errorf("ParseSearchBody: indexName is not a string! val: %+v, type: %T", val, iText)
+			log.Errorf("ParseSearchBody: indexName is not a string, []string, or []interface{}! val: %+v, type: %T", val, iText)
+			return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("indexName is not a string, []string, or []interface{}")
 		}
 	}
 
+	// Parse startEpoch
 	startE, ok := jsonSource["startEpoch"]
 	if !ok || startE == nil {
 		startEpoch = nowTs - (15 * 60 * 1000)
 	} else {
 		switch val := startE.(type) {
 		case json.Number:
-			temp, _ := val.Int64()
+			temp, err := val.Int64()
+			if err != nil {
+				log.Errorf("ParseSearchBody: startEpoch json.Number conversion error: %v", err)
+				return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("startEpoch json.Number conversion error: %v", err)
+			}
 			startEpoch = uint64(temp)
 		case float64:
 			startEpoch = uint64(val)
@@ -125,17 +152,23 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 				startEpoch = utils.ParseAlphaNumTime(nowTs, string(val), defValue)
 			}
 		default:
-			startEpoch = nowTs - (15 * 60 * 1000)
+			log.Errorf("ParseSearchBody: startEpoch has unexpected type %T", val)
+			return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("startEpoch has unexpected type %T", val)
 		}
 	}
 
+	// Parse endEpoch
 	endE, ok := jsonSource["endEpoch"]
 	if !ok || endE == nil {
 		endEpoch = nowTs
 	} else {
 		switch val := endE.(type) {
 		case json.Number:
-			temp, _ := val.Int64()
+			temp, err := val.Int64()
+			if err != nil {
+				log.Errorf("ParseSearchBody: endEpoch json.Number conversion error: %v", err)
+				return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("endEpoch json.Number conversion error: %v", err)
+			}
 			endEpoch = uint64(temp)
 		case float64:
 			endEpoch = uint64(val)
@@ -150,17 +183,23 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 				endEpoch = utils.ParseAlphaNumTime(nowTs, string(val), nowTs)
 			}
 		default:
-			endEpoch = nowTs
+			log.Errorf("ParseSearchBody: endEpoch has unexpected type %T", val)
+			return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("endEpoch has unexpected type %T", val)
 		}
 	}
 
+	// Parse size
 	size, ok := jsonSource["size"]
 	if !ok || size == 0 {
 		finalSize = uint64(100)
 	} else {
 		switch val := size.(type) {
 		case json.Number:
-			temp, _ := val.Int64()
+			temp, err := val.Int64()
+			if err != nil {
+				log.Errorf("ParseSearchBody: size json.Number conversion error: %v", err)
+				return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("size json.Number conversion error: %v", err)
+			}
 			finalSize = uint64(temp)
 		case float64:
 			finalSize = uint64(val)
@@ -183,17 +222,23 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case int:
 			finalSize = uint64(val)
 		default:
-			finalSize = uint64(100)
+			log.Errorf("ParseSearchBody: size has unexpected type %T", val)
+			return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("size has unexpected type %T", val)
 		}
 	}
 
+	// Parse from (scrollFrom)
 	scroll, ok := jsonSource["from"]
 	if !ok || scroll == nil {
 		scrollFrom = 0
 	} else {
 		switch val := scroll.(type) {
 		case json.Number:
-			temp, _ := val.Int64()
+			temp, err := val.Int64()
+			if err != nil {
+				log.Errorf("ParseSearchBody: from json.Number conversion error: %v", err)
+				return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("from json.Number conversion error: %v", err)
+			}
 			scrollFrom = int(temp)
 		case float64:
 			scrollFrom = int(val)
@@ -216,11 +261,12 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case int:
 			scrollFrom = val
 		default:
-			log.Infof("ParseSearchBody: unknown type %T for scroll", val)
-			scrollFrom = 0
+			log.Errorf("ParseSearchBody: from has unexpected type %T", val)
+			return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("from has unexpected type %T", val)
 		}
 	}
 
+	// Parse includeNulls
 	includeNullsVal, ok := jsonSource["includeNulls"]
 	if !ok {
 		includeNulls = false
@@ -232,10 +278,11 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			includeNulls = val == "true"
 		default:
 			log.Infof("ParseSearchBody: unexpected type for includeNulls: %T, value: %+v. Defaulting to false", val, val)
-			includeNulls = false
+			return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("includeNulls has unexpected type %T", val)
 		}
 	}
 
+	// Parse runTimechart
 	timechartFlagVal, ok := jsonSource[runTimechartFlag]
 	if !ok {
 		runTimechart = false
@@ -247,13 +294,13 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			runTimechart = val == "true"
 		default:
 			log.Infof("ParseSearchBody: unexpected type for runTimechartQuery: %T, value: %+v. Defaulting to false", val, val)
-			runTimechart = false
+			return "", 0, 0, 0, "", 0, false, false, fmt.Errorf("runTimechartQuery has unexpected type %T", val)
 		}
 	}
 
 	finalSize = finalSize + uint64(scrollFrom)
 
-	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, includeNulls, runTimechart
+	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, includeNulls, runTimechart, nil
 }
 
 // ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
@@ -290,7 +337,11 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	var err error
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls, _ := ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls, _, err := ParseSearchBody(readJSON, nowTs)
+	if err != nil {
+		log.Errorf("qid=%v, ParseAndExecutePipeRequest: Error parsing search body: %+v, err: %+v", qid, readJSON, err)
+		return nil, false, nil, err
+	}
 	limit := sizeLimit
 	if scrollFrom > 10_000 {
 		return nil, true, nil, nil
@@ -721,7 +772,7 @@ func populateBucketsWithExistingResults(
 	timeScaler sutils.TimeUnit,
 ) error {
 	for _, bucket := range completeResp.MeasureResults {
-		if bucket.GroupByValues == nil || len(bucket.GroupByValues) == 0 {
+		if len(bucket.GroupByValues) == 0 {
 			return fmt.Errorf("bucket.GroupByValues is empty, cannot extract timestamp")
 		}
 		millisStr := bucket.GroupByValues[0]

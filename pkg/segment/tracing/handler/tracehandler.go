@@ -54,7 +54,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, _, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	page := 1
 	pageVal, ok := readJSON["page"]
@@ -896,7 +896,7 @@ func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	_, startEpoch, endEpoch, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	_, startEpoch, endEpoch, _, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	startEpochInt64 := int64(startEpoch)
 	endEpochInt64 := int64(endEpoch)
@@ -1113,7 +1113,7 @@ func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, _, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	// Validate query
 	isOnlySpanID, spanId := ExtractSpanID(searchText)
