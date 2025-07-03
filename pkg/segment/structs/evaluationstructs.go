@@ -3436,6 +3436,9 @@ func handlePrintf(self *TextExpr, fieldToValue map[string]sutils.CValueEnclosure
 
 		// check if the verb is %%, and continue since %% doesn't consume any arguments
 		lookAhead := i + 1
+		if lookAhead == formatEnd {
+			return "", fmt.Errorf("handlePrintf: unexpected end of format string, string has trailing '%%'")
+		}
 		if format[lookAhead] == '%' {
 			*pointerToResBuff = append(*pointerToResBuff, format[i])
 			*pointerToResBuff = append(*pointerToResBuff, format[lookAhead])
