@@ -34,6 +34,7 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 type CaseConversionInfo struct {
@@ -177,9 +178,9 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 }
 
 func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool, cci *CaseConversionInfo) *FilterCriteria {
-	//match_phrase value will always be string
-	var rtInput = strings.TrimSpace(v.(string))
-	var matchWords = make([][]byte, 0)
+	// match_phrase value will always be string
+	rtInput := strings.TrimSpace(v.(string))
+	matchWords := make([][]byte, 0)
 	for _, word := range strings.Split(rtInput, " ") {
 		matchWords = append(matchWords, [][]byte{[]byte(word)}...)
 	}
@@ -198,7 +199,8 @@ func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, nega
 		MatchOperator: opr,
 		MatchPhrase:   []byte(rtInput),
 		MatchType:     MATCH_PHRASE,
-		NegateMatch:   negateMatch}}
+		NegateMatch:   negateMatch,
+	}}
 
 	if len(matchWordsOriginal) > 0 {
 		criteria.MatchFilter.MatchWordsOriginal = matchWordsOriginal
@@ -222,7 +224,7 @@ func createMatchFilterCriteria(colName, colValue interface{}, opr LogicalOperato
 		log.Errorf("qid=%d, createMatchFilterCriteria: invalid Column value. Value=%v, ValueType=%v ", qid, colValue, vtype)
 	}
 	words := strings.Split(rtInput, " ")
-	var matchWords = make([][]byte, 0)
+	matchWords := make([][]byte, 0)
 	for _, word := range words {
 		word = strings.TrimSpace(word)
 		if word != "" {
@@ -248,7 +250,8 @@ func createMatchFilterCriteria(colName, colValue interface{}, opr LogicalOperato
 		MatchColumn:   colName.(string),
 		MatchWords:    matchWords,
 		MatchOperator: opr,
-		NegateMatch:   negateMatch}}
+		NegateMatch:   negateMatch,
+	}}
 
 	if len(matchWordsOriginal) > 0 {
 		criteria.MatchFilter.MatchWordsOriginal = matchWordsOriginal
@@ -278,10 +281,13 @@ func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOp
 
 	criteria := FilterCriteria{ExpressionFilter: &ExpressionFilter{
 		LeftInput: &FilterInput{Expression: &Expression{
-			LeftInput: &ExpressionInput{ColumnName: colName}}},
+			LeftInput: &ExpressionInput{ColumnName: colName},
+		}},
 		FilterOperator: opr,
 		RightInput: &FilterInput{Expression: &Expression{
-			LeftInput: &ExpressionInput{ColumnValue: cVal, OriginalColumnValue: originalCVal}}}}}
+			LeftInput: &ExpressionInput{ColumnValue: cVal, OriginalColumnValue: originalCVal},
+		}},
+	}}
 	return &criteria
 }
 
@@ -298,7 +304,7 @@ func getDefaultAstAndAggNode(qid uint64, timeRange *dtu.TimeRange) (*structs.AST
 }
 
 // Executes simple query to return a single column values in a given table
-func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, aggNode *structs.QueryAggregators, timeRange *dtu.TimeRange, qid uint64, orgid int64) ([]interface{}, error) {
+func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, aggNode *structs.QueryAggregators, timeRange *dtu.TimeRange, qid uint64, orgid int64, ctx *fasthttp.RequestCtx) ([]interface{}, error) {
 	var err error
 
 	if astNode == nil {
@@ -321,7 +327,7 @@ func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, ag
 
 	aggNode.OutputTransforms.OutputColumns.IncludeColumns = append(make([]string, 0), cname)
 
-	ti := structs.InitTableInfo(indexNameIn, orgid, false)
+	ti := structs.InitTableInfo(indexNameIn, orgid, false, ctx)
 	qc := structs.InitQueryContextWithTableInfo(ti, segquery.MAX_GRP_BUCKS, 0, orgid, false)
 	queryResult := segment.ExecuteQuery(astNode, aggNode, qid, qc)
 	allJsons, _, err := record.GetJsonFromAllRrcOldPipeline(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggNode, queryResult.AllColumnsInAggs)
@@ -346,7 +352,7 @@ func ParseTimeRange(startEpoch, endEpoch uint64, aggs *QueryAggregators, qid uin
 		return tRange, nil
 	}
 	if startEpoch == 0 && endEpoch == 0 {
-		//set default time range to last 90 days
+		// set default time range to last 90 days
 		return rutils.GetESDefaultQueryTimeRange(), nil
 	} else if startEpoch == 0 || endEpoch == 0 {
 		err := fmt.Errorf("parseTimeRange: startEpoch/endEpoch is not set. Given startEpoch=%v, endEpoch=%v", startEpoch, endEpoch)
