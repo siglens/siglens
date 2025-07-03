@@ -129,11 +129,11 @@ func (mm *allMetricsSegmentMetadata) rebalanceMetricsSsm(ssmSizeBytes uint64) {
 	inMemSize, inMemSearchMetaCount, newloaded := mm.loadSsmUntilIndex(searchIndex)
 
 	log.Infof("rebalanceMetricsSsm SSM, inMem: %+v SSM, allocated: %+v MB, evicted: %v, newloaded: %v, took: %vms",
-		inMemSearchMetaCount, sutils.ConvertUintBytesToMB(inMemSize),
+		inMemSearchMetaCount, sutils.BytesToMiB(inMemSize),
 		evicted, newloaded, int(time.Since(sTime).Milliseconds()))
 
 	GlobalSegStoreSummary.SetInMemoryMetricsSearchmetadataCount(uint64(inMemSearchMetaCount))
-	GlobalSegStoreSummary.SetInMemoryMetricsSsmSizeMB(sutils.ConvertUintBytesToMB(inMemSize))
+	GlobalSegStoreSummary.SetInMemoryMetricsSsmSizeMB(sutils.BytesToMiB(inMemSize))
 }
 
 /*

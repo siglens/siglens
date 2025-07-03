@@ -82,7 +82,7 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 
 		err = structs.MatchAndPopulateNamedGroups(valueStr, p.compiledRegex, newColValues,
-			idx)
+			idx, len(values))
 		if err != nil {
 			// If there are no matches we will skip this row
 			continue

@@ -90,3 +90,13 @@ func (sum *AllSegStoreSummary) DecrementTotalMetricsSegmentCount() {
 	}
 	atomic.AddUint64(&sum.TotalMetricsSegmentCount, ^uint64(0))
 }
+
+func (sum *AllSegStoreSummary) GetUsedMemoryBytes() uint64 {
+	if sum == nil {
+		return 0
+	}
+
+	return 1e6 * (sum.InMemoryBlockMicroIndexSizeMB +
+		sum.InMemorySsmSizeMB +
+		sum.InMemoryMetricsBSumSizeMB)
+}

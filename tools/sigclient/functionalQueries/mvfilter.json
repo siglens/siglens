@@ -1,0 +1,60 @@
+{
+    "queryText": "* | eval emails = split(user_email, \",\") | eval filtered = mvfilter(match(emails, \"\\.com$\") OR match(emails, \"\\.org$\")) | where mvcount(filtered) > 0 | sort ident | fields filtered, ident, city | head 5",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 5,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": [
+            "ident"
+        ],
+        "records": [
+            {
+                "city": "Wichita",
+                "filtered": [
+                    "jeanlehner@fay.com"
+                ],
+                "ident": "00025ac4-dd73-431d-92fb-40195ad213e5"
+            },
+            {
+                "city": "Oakland",
+                "filtered": [
+                    "florianmoore@kulas.com"
+                ],
+                "ident": "000286ef-1176-46a0-b41a-54ebc8d693bc"
+            },
+            {
+                "city": "Denver",
+                "filtered": [
+                    "tyrasipes@halvorson.org"
+                ],
+                "ident": "0003551a-6c4c-465a-80dd-052ed277a9c3"
+            },
+            {
+                "city": "Louisville/Jefferson",
+                "filtered": [
+                    "bennettgreenholt@davis.org"
+                ],
+                "ident": "00085fda-b721-4551-9129-8d4288e5c196"
+            },
+            {
+                "city": "Houston",
+                "filtered": [
+                    "donnanader@welch.org"
+                ],
+                "ident": "0009cfa4-5800-4429-a562-ae762bb53ea8"
+            }
+        ],
+        "allColumns": [
+            "ident",
+            "filtered",
+            "city"
+        ],
+        "columnsOrder": [
+            "filtered",
+            "ident",
+            "city"
+        ]
+    }
+}

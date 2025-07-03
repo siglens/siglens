@@ -101,9 +101,9 @@ func RebalanceUnrotatedMetadata(totalAvailableSize uint64) uint64 {
 
 	atomic.StoreUint64(&TotalUnrotatedMetadataSizeBytes, finalSize)
 	log.Infof("RebalanceUnrotatedMetadata: Unrotated data was allocated %v MB. Removed %+v MB of unrotated metadata after rebalance",
-		sutils.ConvertUintBytesToMB(totalAvailableSize), sutils.ConvertUintBytesToMB(removedSize))
+		sutils.BytesToMiB(totalAvailableSize), sutils.BytesToMiB(removedSize))
 	log.Infof("RebalanceUnrotatedMetadata: Final Unrotated metadata in memory size: %v MB",
-		sutils.ConvertUintBytesToMB(TotalUnrotatedMetadataSizeBytes))
+		sutils.BytesToMiB(TotalUnrotatedMetadataSizeBytes))
 	return finalSize
 }
 
