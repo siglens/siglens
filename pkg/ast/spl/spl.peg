@@ -52,6 +52,10 @@ func stringToToJsonDtype(dtype string) structs.ToJsonDtypes {
     return optionDtype
 }
 
+func getPercAggCommonStrEnc(aggName string, percentileVal float64, fieldStr string) string {
+    return aggName + strconv.FormatFloat(percentileVal, 'f', -1, 64) + "(" + fieldStr + ")"
+}
+
 type ToJsonCmdOption struct {
 	OptionType ToJsonCmd
 	Value      any
@@ -4020,7 +4024,7 @@ AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: measureFunc,
-        StrEnc: aggName.(string) + strconv.FormatFloat(percentileVal.(float64), 'f', -1, 64) + "(" + fieldStr + ")",
+        StrEnc: getPercAggCommonStrEnc(aggName.(string), percentileVal.(float64), fieldStr),
         ValueColRequest: valueExpr.(*structs.ValueExpr),
         Param: percentileVal.(float64),
     }
@@ -4035,7 +4039,7 @@ AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "
 
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
-        StrEnc: aggName.(string) + strconv.FormatFloat(percentileVal.(float64), 'f', -1, 64) + "(" + field.(string) + ")",
+        StrEnc: getPercAggCommonStrEnc(aggName.(string), percentileVal.(float64), field.(string)),
         MeasureFunc: measureFunc,
         Param: percentileVal.(float64),
     }
