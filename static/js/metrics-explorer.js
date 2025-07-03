@@ -2320,7 +2320,7 @@ function mergeGraphs(chartType, panelId = -1) {
             panelChartEl.css('width', '100%').css('height', '100%');
 
             panelChartEl.empty(); // Clear any existing content
-            mergedCanvas = $('<canvas></canvas>');
+            mergedCanvas = $('<canvas class="metrics-canvas"></canvas>');
             panelChartEl.append(mergedCanvas);
         }
         mergedCtx = mergedCanvas[0].getContext('2d');
@@ -3117,12 +3117,13 @@ function updateChartColorsBasedOnTheme() {
     for (const queryName in chartDataCollection) {
         if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             const lineChart = lineCharts[queryName];
-
-            lineChart.options.scales.x.ticks.color = tickColor;
-            lineChart.options.scales.y.ticks.color = tickColor;
-            lineChart.options.scales.x.grid.color = gridLineColor;
-            lineChart.options.scales.y.grid.color = gridLineColor;
-            lineChart.update();
+            if (lineChart) {
+                lineChart.options.scales.x.ticks.color = tickColor;
+                lineChart.options.scales.y.ticks.color = tickColor;
+                lineChart.options.scales.x.grid.color = gridLineColor;
+                lineChart.options.scales.y.grid.color = gridLineColor;
+                lineChart.update();
+            }
         }
     }
 }

@@ -113,7 +113,7 @@ $(document).ready(async function () {
         }
     });
 
-    $('#theme-btn').click(() => displayPanels());
+    $('#theme-btn').click(() => updateDashboardTheme());
     getDashboardData();
 
     $('#favbutton').on('click', toggleFavorite);
@@ -1510,4 +1510,59 @@ function retryLoadDashboard() {
 //eslint-disable-next-line no-unused-vars
 function goToDashboards() {
     window.location.href = '/dashboards-home.html';
+}
+
+function updateDashboardTheme() {
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
+    // Update Chart.js charts (Line and Bar Chart)
+    function updateChartJS(selector) {
+        $(selector).each(function () {
+            const chart = Chart.getChart(this);
+            if (chart?.options?.scales) {
+                const axes = ['x', 'y', 'y1'];
+
+                axes.forEach((axis) => {
+                    if (chart.options.scales[axis]) {
+                        chart.options.scales[axis].ticks.color = tickColor;
+
+                        if (!chart.options.scales[axis].grid) {
+                            chart.options.scales[axis].grid = {};
+                        }
+                        chart.options.scales[axis].grid.color = gridLineColor;
+                    }
+                });
+
+                if (chart.options.plugins?.legend?.labels) {
+                    chart.options.plugins.legend.labels.color = tickColor;
+                }
+
+                chart.update();
+            }
+        });
+    }
+
+    updateChartJS('.bar-chart-canvas');
+    updateChartJS('.metrics-canvas');
+
+    // Update ECharts instances (Pie charts)
+    $('.panEdit-panel').each(function () {
+        const instanceId = $(this).attr('_echarts_instance_');
+        if (instanceId) {
+            const instance = echarts.getInstanceById(instanceId);
+            if (instance) {
+                const option = instance.getOption();
+
+                // Update legend and label colors
+                if (option.legend?.[0]) {
+                    option.legend[0].textStyle = { ...option.legend[0].textStyle, color: tickColor };
+                }
+                if (option.series?.[0]?.label) {
+                    option.series[0].label = { ...option.series[0].label, color: tickColor };
+                }
+
+                instance.setOption(option);
+            }
+        }
+    });
 }
