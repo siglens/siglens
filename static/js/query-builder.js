@@ -1233,3 +1233,12 @@ window.updateResetButtonVisibility = function() {
         $('.custom-reset-button').hide();
     }
 }
+
+// Make it available globally for other files like search.js
+window.updateResetButtonVisibility = updateResetButtonVisibility;
+
+$(function () {
+    $('#custom-code-tab').tabs();
+    $('#custom-chart-tab').tabs();
+    $('#save-query-div').children().show();
+});
