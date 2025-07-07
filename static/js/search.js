@@ -1158,6 +1158,7 @@ function codeToBuilderParsing(filterValue) {
     if (firstBoxSet.size > 0) $('#search-filter-text').hide();
     else $('#search-filter-text').show();
 
+    updateResetButtonVisibility()
 }
 
 function renderLogsGrid(columnOrder, hits) {
