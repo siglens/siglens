@@ -31,7 +31,7 @@ async function getListIndices() {
             return response.json();
         })
         .then(function (res) {
-            if (!res) {
+            if (!res || !Array.isArray(res) || res.length === 0) {
                 return null;
             }
             sortedListIndices = res.sort();
