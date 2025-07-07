@@ -99,7 +99,6 @@ $(document).ready(function () {
     $('#add-filter').hide();
     $('#add-filter-second').hide();
 
-    initializeFilterSets();
 
     if (thirdBoxSet.size > 0) $('#aggregations').hide();
     else $('#aggregations').show();
@@ -111,47 +110,12 @@ $(document).ready(function () {
     updateResetButtonVisibility();
 
     setTimeout(function () {
-        initializeFilterSets();
+        
         updateResetButtonVisibility();
     }, 100);
 });
 
-function initializeFilterSets() {
-    firstBoxSet = new Set();
-    secondBoxSet = new Set();
-    thirdBoxSet = new Set();
 
-    $('#tags li').each(function () {
-        let tagText = $(this).text();
-        let filterText = tagText.substring(0, tagText.length - 1);
-        if (filterText) {
-            firstBoxSet.add(filterText);
-        }
-    });
-
-    $('#tags-second li').each(function () {
-        let tagText = $(this).text();
-        let filterText = tagText.substring(0, tagText.length - 1);
-        if (filterText) {
-            secondBoxSet.add(filterText);
-        }
-    });
-
-    $('#tags-third li').each(function () {
-        let tagText = $(this).text();
-        let filterText = tagText.substring(0, tagText.length - 1);
-        if (filterText) {
-            thirdBoxSet.add(filterText);
-        }
-    });
-
-    if (firstBoxSet.size > 0 || secondBoxSet.size > 0 || thirdBoxSet.size > 0) {
-        let filterValue = getQueryBuilderCode();
-        if (filterValue && filterValue !== '*') {
-            $('#filter-input').val(filterValue);
-        }
-    }
-}
 
 const tags = document.getElementById('tags');
 const tagSecond = document.getElementById('tags-second');
