@@ -507,6 +507,10 @@ var timeFormatReplacements = []struct {
 
 var ErrFloatMissingField = fmt.Errorf("Missing field")
 var ErrFloatFieldNull = fmt.Errorf("field was null")
+var ErrBitwiseOpNotInt = fmt.Errorf("NumericExpr.Evaluate: bitwise operation only works on integers")
+var ErrBitwiseOpExceedsSizeLimit = fmt.Errorf("NumericExpr.Evaluate: bitwise operation can only take integers of upto 2^53-1 bits")
+var ErrBitwiseOpNoNeg = fmt.Errorf("NumericExpr.Evaluate: bitwise operation only works on positive integers")
+var ErrBitwiseOpShiftExceedsLimit = fmt.Errorf("NumericExpr.Evaluate: bitwise shift operations can have a max shift of %v", MAX_BIT_SHIFT_SIZE)
 
 var ErrWithCodeConversionErr = utils.NewErrorWithCode(utils.CONVERSION_ERR,
 	sutils.ErrFloatConversionFailed)
@@ -516,6 +520,9 @@ var ErrWithCodeFloatMissingField = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
 
 var ErrWithCodeFieldNull = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
 	ErrFloatFieldNull)
+
+const MAX_BIT_OPERATION_NUM_SIZE = 1<<53 - 1
+const MAX_BIT_SHIFT_SIZE = 53
 
 func (self *DedupExpr) AcquireProcessedSegmentsLock() {
 	self.processedSegmentsLock.Lock()
@@ -3097,6 +3104,19 @@ func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[
 	}
 }
 
+func handleBitwiseOperationInput(left float64, right float64) (uint64, uint64, error) {
+	if left < 0 || right < 0 {
+		return 0, 0, ErrBitwiseOpNoNeg
+	}
+	if left-math.Floor(left) != 0 || right-math.Floor(right) != 0 {
+		return 0, 0, ErrBitwiseOpNotInt
+	}
+	if left > MAX_BIT_OPERATION_NUM_SIZE || right > MAX_BIT_OPERATION_NUM_SIZE {
+		return 0, 0, ErrBitwiseOpExceedsSizeLimit
+	}
+	return uint64(left), uint64(right), nil
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
@@ -3288,6 +3308,51 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 				return 0, err
 			}
 			return math.Exp(exp), nil
+		case "bit_and":
+			left, right, err := handleBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			return float64(left & right), nil
+		case "bit_or":
+			left, right, err := handleBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			return float64(left | right), nil
+		case "bit_xor":
+			left, right, err := handleBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			return float64(left ^ right), nil
+		case "bit_not":
+			left, right, err := handleBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			if self.Right == nil {
+				right = MAX_BIT_OPERATION_NUM_SIZE
+			}
+			return float64(left &^ right), nil
+		case "bit_shift_left":
+			left, right, err := handleBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			if right >= MAX_BIT_SHIFT_SIZE {
+				return 0.0, ErrBitwiseOpShiftExceedsLimit
+			}
+			return float64((int64(left) << int64(right)) & MAX_BIT_OPERATION_NUM_SIZE), nil
+		case "bit_shift_right":
+			left, right, err := handleBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			if right >= MAX_BIT_SHIFT_SIZE {
+				return 0.0, ErrBitwiseOpShiftExceedsLimit
+			}
+			return float64(left >> right), nil
 		case "tonumber":
 			if self.Val == nil {
 				return 0, fmt.Errorf("NumericExpr.Evaluate: tonumber operation requires a string expression")
