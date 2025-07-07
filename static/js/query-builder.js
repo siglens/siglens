@@ -1214,7 +1214,7 @@ $('.custom-reset-button').on('click', function (e) {
 });
 
 
-window.updateResetButtonVisibility = function() {
+function updateResetButtonVisibility() {
     const hasFiltersInVariables =
         (firstBoxSet && firstBoxSet.size > 0) ||
         (secondBoxSet && secondBoxSet.size > 0) ||
