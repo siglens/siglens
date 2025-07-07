@@ -3,7 +3,7 @@
 # Requires at least 300GB of free disk space on the main partition for the dataset, intermediate files, and SigLens data.
 
 echo "Install prerequisites"
-sudo yum install -y git golang
+sudo apt-get install --yes git golang
 
 echo "Get and build SigLens"
 git clone https://github.com/siglens/siglens.git --branch 1.0.54

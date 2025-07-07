@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/siglens/go-hll"
 	tutils "github.com/siglens/siglens/pkg/segment/tracing/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -249,4 +250,49 @@ func Test_EncodeDecodeTDigest_LessThanCompression_PercentileCheck(t *testing.T) 
 	rndAnsToTestAgainst = math.Round(ansToTestAgainst*1000) / 1000
 	rndDecodedRes := math.Round(decodedRes*1000) / 1000
 	assert.Equal(t, rndAnsToTestAgainst, rndDecodedRes)
+}
+
+func Test_EncodeDecodeHllEmpty(t *testing.T) {
+	hllSettings := hll.Settings{
+		Log2m:             16,
+		Regwidth:          5,
+		ExplicitThreshold: hll.AutoExplicitThreshold,
+		SparseEnabled:     true,
+	}
+	err := hll.Defaults(hllSettings)
+	assert.NoError(t, err)
+
+	originalHll := &GobbableHll{Hll: hll.Hll{}}
+	encoded, err := originalHll.GobEncode()
+	assert.NoError(t, err)
+
+	decoded := GobbableHll{}
+	err = decoded.GobDecode(encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), decoded.Cardinality())
+}
+
+func Test_EncodeDecodeHllWithValues(t *testing.T) {
+	hllSettings := hll.Settings{
+		Log2m:             16,
+		Regwidth:          5,
+		ExplicitThreshold: hll.AutoExplicitThreshold,
+		SparseEnabled:     true,
+	}
+	err := hll.Defaults(hllSettings)
+	assert.NoError(t, err)
+
+	originalHll := &GobbableHll{Hll: hll.Hll{}}
+	originalHll.AddRaw(12345)
+	originalHll.AddRaw(67890)
+	originalHll.AddRaw(11111)
+	originalHll.AddRaw(11111)
+
+	encoded, err := originalHll.GobEncode()
+	assert.NoError(t, err)
+
+	decoded := GobbableHll{}
+	err = decoded.GobDecode(encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(3), decoded.Cardinality())
 }
