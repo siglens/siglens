@@ -109,10 +109,6 @@ $(document).ready(function () {
     setShowColumnInfoDialog();
     updateResetButtonVisibility();
 
-    setTimeout(function () {
-        
-        updateResetButtonVisibility();
-    }, 100);
 });
 
 
@@ -128,10 +124,10 @@ tags.addEventListener('click', function (event) {
         firstBoxSet.delete(str.substring(0, str.length - 1));
         event.target.parentNode.remove();
         getSearchText();
+        updateResetButtonVisibility();
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
         cancelInfo(event);
-        updateResetButtonVisibility();
     }
 });
 tagSecond.addEventListener('click', function (event) {
@@ -142,6 +138,7 @@ tagSecond.addEventListener('click', function (event) {
         secondBoxSet.delete(str.substring(0, str.length - 1));
         event.target.parentNode.remove();
         getSearchText();
+        updateResetButtonVisibility();
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
         secondCancelInfo(event);
@@ -155,6 +152,7 @@ tagThird.addEventListener('click', function (event) {
         thirdBoxSet.delete(str.substring(0, str.length - 1));
         event.target.parentNode.remove();
         getSearchText();
+        updateResetButtonVisibility();
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
         ThirdCancelInfo(event);
@@ -380,9 +378,10 @@ function filterComplete(evt) {
         var x = dom[0].scrollWidth;
         dom[0].scrollLeft = x;
         getSearchText();
+        updateResetButtonVisibility();
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
-        updateResetButtonVisibility();
+       
     }
 }
 function secondFilterComplete(evt) {
@@ -418,9 +417,10 @@ function secondFilterComplete(evt) {
         var x = dom[0].scrollWidth;
         dom[0].scrollLeft = x;
         getSearchText();
+        updateResetButtonVisibility();
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
-        updateResetButtonVisibility();
+        
     }
 }
 
@@ -899,9 +899,9 @@ $('#tags').on('click', 'li', function (event) {
             });
 
         getSearchText();
+        updateResetButtonVisibility();
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
-        updateResetButtonVisibility();
     }
 });
 
@@ -913,7 +913,6 @@ function restoreOriginalFilter(tagElement) {
 
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
-        updateResetButtonVisibility();
     }
 }
 
@@ -1035,6 +1034,7 @@ $('#tags-second').on('click', 'li', function (event) {
             });
 
         getSearchText();
+        updateResetButtonVisibility();
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
     }
@@ -1048,7 +1048,6 @@ function restoreOriginalSecondFilter(tagElement) {
 
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
-        updateResetButtonVisibility();
     }
 }
 
@@ -1108,6 +1107,7 @@ $('#tags-third').on('click', 'li', function (event) {
                             $('#column-third').val('');
                             $(this).blur();
                             getSearchText();
+                            updateResetButtonVisibility();
                         }
 
                         if (thirdBoxSet.size > 0) $('#aggregations').hide();
@@ -1151,10 +1151,11 @@ $('#tags-third').on('click', 'li', function (event) {
             });
 
         getSearchText();
+        updateResetButtonVisibility();
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
 
-        updateResetButtonVisibility();
+        
     }
 });
 
@@ -1166,8 +1167,9 @@ function restoreOriginalThirdFilter(tagElement) {
 
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
-        updateResetButtonVisibility();
+    
         getSearchText();
+        updateResetButtonVisibility();
 
 
     }
@@ -1209,8 +1211,6 @@ $('.custom-reset-button').on('click', function (e) {
     $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
     $('#filter-input').val('*');
 
-
-    updateResetButtonVisibility();
 });
 
 
@@ -1219,7 +1219,7 @@ function updateResetButtonVisibility() {
         (firstBoxSet && firstBoxSet.size > 0) ||
         (secondBoxSet && secondBoxSet.size > 0) ||
         (thirdBoxSet && thirdBoxSet.size > 0);
-
+    
     const hasFiltersInDOM =
         $('#tags li').length > 0 ||
         $('#tags-second li').length > 0 ||
@@ -1234,5 +1234,4 @@ function updateResetButtonVisibility() {
     }
 }
 
-// Make it available globally for other files like search.js
-window.updateResetButtonVisibility = updateResetButtonVisibility;
+
