@@ -207,6 +207,14 @@ func getTestCasesPrintf() []TestCase {
 			EquationString: `eval result=printf("Rain Percentage: %+12.2f/%*.*f. Sample of: %'d Date: %d-0%d-%d", 92.233433, 3, 1, 100.011111, 10000000000, 12, 1, 25)`,
 			ExpectedAnswer: "Rain Percentage:       +92.23/100.0. Sample of: 10,000,000,000 Date: 12-01-25",
 		},
+		{
+			EquationString: `eval result=printf("Rain Percentage: %2.2f%", 92.233433)`,
+			ExpectedAnswer: "Rain Percentage: 92.23%",
+		},
+		{
+			EquationString: `eval result=printf("%")`,
+			ExpectedAnswer: "%",
+		},
 	}
 }
 
