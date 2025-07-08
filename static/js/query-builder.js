@@ -22,6 +22,7 @@ $(function () {
     $('#custom-chart-tab').tabs();
     $('#save-query-div').children().show();
 });
+
 $('#custom-code-tab').tabs({
     activate: function (_event, _ui) {
         let currentTab = $('#custom-code-tab').tabs('option', 'active');
@@ -47,6 +48,7 @@ $('#custom-code-tab').tabs({
         }
     },
 });
+
 $('#custom-chart-tab').tabs({
     activate: function (_event, _ui) {
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
@@ -62,11 +64,7 @@ $('#custom-chart-tab').tabs({
         }
     },
 });
-//querybuilder and run-filter-btn text:
-//search -> " "
-//run -> "  "
-//cancel -> "   "
-//running -> "    "
+
 $(document).ready(function () {
     $('#add-con')
         .off('click')
@@ -110,6 +108,7 @@ $(document).ready(function () {
 const tags = document.getElementById('tags');
 const tagSecond = document.getElementById('tags-second');
 const tagThird = document.getElementById('tags-third');
+
 tags.addEventListener('click', function (event) {
     // If the clicked element has the class 'delete-button'
     if (event.target.classList.contains('delete-button')) {
@@ -123,6 +122,7 @@ tags.addEventListener('click', function (event) {
         cancelInfo(event);
     }
 });
+
 tagSecond.addEventListener('click', function (event) {
     // If the clicked element has the class 'delete-button'
     if (event.target.classList.contains('delete-button')) {
@@ -136,6 +136,7 @@ tagSecond.addEventListener('click', function (event) {
         secondCancelInfo(event);
     }
 });
+
 tagThird.addEventListener('click', function (event) {
     // If the clicked element has the class 'delete-button'
     if (event.target.classList.contains('delete-button')) {
@@ -149,6 +150,7 @@ tagThird.addEventListener('click', function (event) {
         ThirdCancelInfo(event);
     }
 });
+
 $(document).mouseup(function (e) {
     var firstCon = $('#add-filter');
     var secondCon = $('#add-filter-second');
@@ -160,6 +162,7 @@ $(document).mouseup(function (e) {
         ThirdCancelInfo(e);
     }
 });
+
 var calculations = ['min', 'max', 'count', 'avg', 'sum', 'sumsq', 'var', 'varp'];
 var ifCurIsNum = false;
 var availSymbol = [];
@@ -173,71 +176,117 @@ async function filterStart(evt) {
     $('#add-filter').css({ visibility: 'visible' });
     $('#filter-box-1').addClass('select-box');
 
-    const columnsNames = await getColumns();
+    $('#column-first').prop('disabled', true).attr('placeholder', 'Loading columns...');
 
-    $('#column-first')
-        .autocomplete({
-            source: columnsNames.sort(),
-            minLength: 0,
-            maxheight: 100,
-            select: async function (event, ui) {
-                $('#symbol').attr('type', 'text');
+    try {
+        const columnsNames = await getColumns();
 
-                let chooseColumn = ui.item.value.trim();
-                const columnData = await getValuesForColumn(chooseColumn);
-                const columnValues = columnData.values;
-                const isNumericColumn = columnData.isNumeric;
+        $('#column-first').prop('disabled', false).attr('placeholder', '');
 
-                // Set available symbols based on column type
-                if (isNumericColumn) {
-                    availSymbol = ['=', '!=', '<=', '>=', '>', '<'];
-                    ifCurIsNum = true;
-                } else {
-                    availSymbol = ['=', '!='];
-                    ifCurIsNum = false;
-                }
+        if ($('#column-first').hasClass('ui-autocomplete-input')) {
+            $('#column-first').autocomplete('destroy');
+        }
 
-                $('#symbol').val('');
-                $('#value-first').val('');
-                //check if complete btn can click
-                checkFirstBox(0);
+        $('#column-first')
+            .autocomplete({
+                source: columnsNames.sort(),
+                minLength: 0,
+                maxheight: 100,
+                select: async function (event, ui) {
+                    $('#symbol').val('').attr('type', 'text');
+                    $('#value-first').val('').attr('type', 'text');
 
-                $('#symbol')
-                    .autocomplete({
-                        source: availSymbol,
-                        minLength: 0,
-                        select: function (_event, _ui) {
-                            //check if complete btn can click
-                            checkFirstBox(1);
-                            $('#value-first').attr('type', 'text');
-                            $('#completed').show();
+                    $('#symbol').prop('disabled', true).attr('placeholder', 'Loading...');
+                    $('#value-first').prop('disabled', true).attr('placeholder', '');
 
-                            $('#value-first')
-                                .autocomplete({
-                                    source: columnValues,
-                                    minLength: 0,
-                                    select: function (_event, _ui) {
-                                        //check if complete btn can click
-                                        checkFirstBox(2);
-                                    },
-                                })
-                                .on('focus', function () {
-                                    if (!$(this).val().trim()) $(this).keydown();
-                                });
-                        },
-                    })
-                    .on('focus', function () {
-                        if (!$(this).val().trim()) $(this).keydown();
-                    });
-            },
-        })
-        .on('focus', function () {
-            if (!$(this).val().trim()) $(this).keydown();
-        });
-    $('#column-first').focus();
+                    try {
+                        let chooseColumn = ui.item.value.trim();
+                        const columnData = await getValuesForColumn(chooseColumn);
+                        const columnValues = columnData.values;
+                        const isNumericColumn = columnData.isNumeric;
+
+                        // Set available symbols based on column type
+                        if (isNumericColumn) {
+                            availSymbol = ['=', '!=', '<=', '>=', '>', '<'];
+                            ifCurIsNum = true;
+                        } else {
+                            availSymbol = ['=', '!='];
+                            ifCurIsNum = false;
+                        }
+
+                        $('#symbol').prop('disabled', false).attr('placeholder', '');
+
+                        if ($('#symbol').hasClass('ui-autocomplete-input')) {
+                            $('#symbol').autocomplete('destroy');
+                        }
+                        if ($('#value-first').hasClass('ui-autocomplete-input')) {
+                            $('#value-first').autocomplete('destroy');
+                        }
+
+                        $('#symbol')
+                            .autocomplete({
+                                source: availSymbol,
+                                minLength: 0,
+                                select: function (_event, _ui) {
+                                    $('#completed').show();
+                                    checkFirstBox(1);
+
+                                    setTimeout(() => {
+                                        $('#value-first').focus();
+                                        $('#value-first').autocomplete('search', '');
+                                    }, 100);
+                                },
+                            })
+                            .on('focus', function () {
+                                if (!$(this).val().trim()) $(this).keydown();
+                            });
+
+                        $('#value-first')
+                            .autocomplete({
+                                source: columnValues,
+                                minLength: 0,
+                                select: function (_event, _ui) {
+                                    checkFirstBox(2);
+                                },
+                            })
+                            .on('focus', function () {
+                                if (!$(this).val().trim()) $(this).keydown();
+                            });
+
+                        $('#value-first').prop('disabled', false);
+
+                        $('#symbol').focus();
+
+                        setTimeout(() => {
+                            $('#symbol').autocomplete('search', '');
+                        }, 100);
+
+                        checkFirstBox(0);
+                    } catch (error) {
+                        console.error('Error fetching column values:', error);
+                        $('#symbol').prop('disabled', false).attr('placeholder', 'Error loading');
+                        $('#value-first').prop('disabled', false).attr('placeholder', 'Error loading');
+                        showToast('Error fetching column values: ' + error.message, 'error', 5000);
+                    }
+                },
+            })
+            .on('focus', function () {
+                if (!$(this).val().trim()) $(this).keydown();
+            });
+
+        $('#column-first').focus();
+
+        setTimeout(() => {
+            $('#column-first').autocomplete('search', '');
+        }, 100);
+    } catch (error) {
+        console.error('Error fetching columns:', error);
+        $('#column-first').prop('disabled', false).attr('placeholder', 'Error loading columns');
+        showToast('Error fetching columns: ' + error.message, 'error', 5000);
+    }
 }
 
-function secondFilterStart(evt) {
+async function secondFilterStart(evt) {
     evt.preventDefault();
     $('#filter-box-2').addClass('select-box');
     $('#column-second').attr('type', 'text');
@@ -245,6 +294,66 @@ function secondFilterStart(evt) {
     $('#cancel-enter-second').show();
     $('#add-filter-second').show();
     $('#add-filter-second').css({ visibility: 'visible' });
+
+    if ($('#column-second').hasClass('ui-autocomplete-input')) {
+        $('#column-second').autocomplete('destroy');
+    }
+
+    $('#column-second')
+        .autocomplete({
+            source: calculations.sort(),
+            minLength: 0,
+            maxheight: 100,
+            select: async function (event, ui) {
+                $('#value-second').attr('type', 'text');
+                $('#completed-second').show();
+                $('#value-second').val('');
+                $('#completed-second').attr('disabled', true);
+
+                $('#value-second').prop('disabled', true).attr('placeholder', 'Loading columns...');
+
+                try {
+                    const columnsNames = ui.item.value === 'count' ? await getColumns() : await getNumericColumns();
+
+                    $('#value-second').prop('disabled', false).attr('placeholder', '');
+
+                    if ($('#value-second').hasClass('ui-autocomplete-input')) {
+                        $('#value-second').autocomplete('destroy');
+                    }
+
+                    $('#value-second')
+                        .autocomplete({
+                            source: columnsNames.sort(),
+                            minLength: 0,
+                            select: function (_event, _ui) {
+                                let secVal = $('#column-second').val();
+                                if (secVal == null || secVal.trim() == '') {
+                                    $('#completed-second').attr('disabled', true);
+                                } else {
+                                    $('#completed-second').attr('disabled', false);
+                                }
+                            },
+                        })
+                        .on('focus', function () {
+                            if (!$(this).val().trim()) $(this).keydown();
+                        });
+
+                    $('#value-second').focus();
+
+                    setTimeout(() => {
+                        $('#value-second').autocomplete('search', '');
+                    }, 100);
+                } catch (error) {
+                    console.error('Error fetching columns:', error);
+                    $('#value-second').prop('disabled', false).attr('placeholder', 'Error loading columns');
+                    showToast('Error fetching columns: ' + error.message, 'error', 5000);
+                }
+            },
+        })
+        .on('focus', function () {
+            if (!$(this).val().trim()) $(this).keydown();
+        });
+
     $('#column-second').focus();
 }
 
@@ -256,44 +365,68 @@ async function ThirdFilterStart(evt) {
     $('#add-filter-third').show();
     $('#add-filter-third').css({ visibility: 'visible' });
 
-    const columnsNames = await getColumns();
-    $('#column-third')
-        .autocomplete({
-            source: columnsNames,
-            minLength: 0,
-            maxheight: 100,
-            select: function (event, ui) {
-                event.preventDefault();
-                let tag = document.createElement('li');
-                if (ui.item.value !== '') {
-                    if (thirdBoxSet.has(ui.item.value)) {
-                        alert('Duplicate filter!');
-                        return;
-                    } else thirdBoxSet.add(ui.item.value);
-                    // Set the text content of the tag to
-                    // the trimmed value
-                    tag.innerText = ui.item.value;
-                    // Add a delete button to the tag
-                    tag.innerHTML += '<button class="delete-button">×</button>';
-                    // Append the tag to the tags list
-                    tagThird.appendChild(tag);
-                    var dom = $('#tags-third');
-                    var x = dom[0].scrollWidth;
-                    dom[0].scrollLeft = x;
-                    $('#column-third').val('');
-                    $(this).blur();
-                    getSearchText();
-                }
-                if (thirdBoxSet.size > 0) $('#aggregations').hide();
-                else $('#aggregations').show();
-                ThirdCancelInfo(event);
-                return false;
-            },
-        })
-        .on('focus', function () {
-            if (!$(this).val().trim()) $(this).keydown();
-        });
-    $('#column-third').focus();
+    $('#column-third').prop('disabled', true).attr('placeholder', 'Loading columns...');
+
+    try {
+        const columnsNames = await getColumns();
+
+        $('#column-third').prop('disabled', false).attr('placeholder', '');
+
+        if ($('#column-third').hasClass('ui-autocomplete-input')) {
+            $('#column-third').autocomplete('destroy');
+        }
+
+        $('#column-third')
+            .autocomplete({
+                source: columnsNames,
+                minLength: 0,
+                maxheight: 100,
+                select: function (event, ui) {
+                    event.preventDefault();
+                    let tag = document.createElement('li');
+                    if (ui.item.value !== '') {
+                        if (thirdBoxSet.has(ui.item.value)) {
+                            alert('Duplicate filter!');
+                            return;
+                        } else thirdBoxSet.add(ui.item.value);
+
+                        // Set the text content of the tag to the trimmed value
+                        tag.innerText = ui.item.value;
+                        // Add a delete button to the tag
+                        tag.innerHTML += '<button class="delete-button">×</button>';
+                        // Append the tag to the tags list
+                        tagThird.appendChild(tag);
+
+                        var dom = $('#tags-third');
+                        var x = dom[0].scrollWidth;
+                        dom[0].scrollLeft = x;
+
+                        $('#column-third').val('');
+                        $(this).blur();
+                        getSearchText();
+                    }
+
+                    if (thirdBoxSet.size > 0) $('#aggregations').hide();
+                    else $('#aggregations').show();
+
+                    ThirdCancelInfo(event);
+                    return false;
+                },
+            })
+            .on('focus', function () {
+                if (!$(this).val().trim()) $(this).keydown();
+            });
+
+        $('#column-third').focus();
+
+        setTimeout(() => {
+            $('#column-third').autocomplete('search', '');
+        }, 100);
+    } catch (error) {
+        console.error('Error fetching columns:', error);
+        $('#column-third').prop('disabled', false).attr('placeholder', 'Error loading columns');
+        showToast('Error fetching columns: ' + error.message, 'error', 5000);
+    }
 }
 /**
  * check first box
@@ -307,6 +440,7 @@ function checkContent(obj) {
         $('#completed').attr('disabled', false);
     }
 }
+
 function checkFirstBox(curSelect) {
     let num = 0;
     if (($('#column-first').val() == null || $('#column-first').val().trim() == '') && curSelect != 0) num++;
@@ -318,6 +452,7 @@ function checkFirstBox(curSelect) {
         $('#completed').attr('disabled', false);
     }
 }
+
 //eslint-disable-next-line no-unused-vars
 function checkSecondContent(obj) {
     if ($(obj).val() === '' || $(obj).val() === null) {
@@ -326,6 +461,7 @@ function checkSecondContent(obj) {
         $('#completed-second').attr('disabled', false);
     }
 }
+
 /**
  * first box complete one filter info
  * @param {*} evt
@@ -372,6 +508,7 @@ function filterComplete(evt) {
         else $('#search-filter-text').show();
     }
 }
+
 function secondFilterComplete(evt) {
     evt.preventDefault();
     if ($('#column-second').val() == null || $('#column-second').val().trim() == '' || $('#value-second').val() == null || $('#value-second').val().trim() == '') {
@@ -438,6 +575,7 @@ function cancelInfo(evt) {
     $('#cancel-enter').hide();
     $('#add-con').show();
 }
+
 function secondCancelInfo(evt) {
     evt.preventDefault();
     evt.stopPropagation();
@@ -451,6 +589,7 @@ function secondCancelInfo(evt) {
     $('#cancel-enter-second').hide();
     $('#add-con-second').show();
 }
+
 function ThirdCancelInfo(event) {
     event.preventDefault();
     event.stopPropagation();
@@ -460,45 +599,6 @@ function ThirdCancelInfo(event) {
     $('#column-third').attr('type', 'hidden');
     $('#add-con-third').show();
 }
-/**
- * first input box
- */
-
-$('#column-second')
-    .autocomplete({
-        source: calculations.sort(),
-        minLength: 0,
-        maxheight: 100,
-        select: async function (event, ui) {
-            $('#value-second').attr('type', 'text');
-            $('#completed-second').show();
-            $('#value-second').val('');
-
-            const columnsNames = await getColumns();
-
-            let columnInfo = columnsNames;
-            if (ui.item.value != 'count') {
-                columnInfo = await getNumericColumns();
-            }
-            $('#completed-second').attr('disabled', true);
-            $('#value-second')
-                .autocomplete({
-                    source: columnInfo.sort(),
-                    minLength: 0,
-                    select: function (_event, _ui) {
-                        let secVal = $('#column-second').val();
-                        if (secVal == null || secVal.trim() == '') $('#completed-second').attr('disabled', true);
-                        else $('#completed-second').attr('disabled', false);
-                    },
-                })
-                .on('focus', function () {
-                    if (!$(this).val().trim()) $(this).keydown();
-                });
-        },
-    })
-    .on('focus', function () {
-        if (!$(this).val().trim()) $(this).keydown();
-    });
 
 /**
  * get cur column names from back-end for first input box
@@ -716,6 +816,7 @@ $(document).click(function (event) {
     }
 });
 
+// Allow Editing Existing Filters in Query Builder
 let originalTagContent = null;
 let isCurrentlyEditing = false;
 
