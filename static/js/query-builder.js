@@ -178,112 +178,99 @@ async function filterStart(evt) {
 
     $('#column-first').prop('disabled', true).attr('placeholder', 'Loading columns...');
 
-    try {
-        const columnsNames = await getColumns();
+    const columnsNames = await getColumns();
 
-        $('#column-first').prop('disabled', false).attr('placeholder', '');
+    $('#column-first').prop('disabled', false).attr('placeholder', '');
 
-        if ($('#column-first').hasClass('ui-autocomplete-input')) {
-            $('#column-first').autocomplete('destroy');
-        }
-
-        $('#column-first')
-            .autocomplete({
-                source: columnsNames.sort(),
-                minLength: 0,
-                maxheight: 100,
-                select: async function (event, ui) {
-                    $('#symbol').val('').attr('type', 'text');
-                    $('#value-first').val('').attr('type', 'text');
-
-                    $('#symbol').prop('disabled', true).attr('placeholder', 'Loading...');
-                    $('#value-first').prop('disabled', true).attr('placeholder', '');
-
-                    try {
-                        let chooseColumn = ui.item.value.trim();
-                        const columnData = await getValuesForColumn(chooseColumn);
-                        const columnValues = columnData.values;
-                        const isNumericColumn = columnData.isNumeric;
-
-                        // Set available symbols based on column type
-                        if (isNumericColumn) {
-                            availSymbol = ['=', '!=', '<=', '>=', '>', '<'];
-                            ifCurIsNum = true;
-                        } else {
-                            availSymbol = ['=', '!='];
-                            ifCurIsNum = false;
-                        }
-
-                        $('#symbol').prop('disabled', false).attr('placeholder', '');
-
-                        if ($('#symbol').hasClass('ui-autocomplete-input')) {
-                            $('#symbol').autocomplete('destroy');
-                        }
-                        if ($('#value-first').hasClass('ui-autocomplete-input')) {
-                            $('#value-first').autocomplete('destroy');
-                        }
-
-                        $('#symbol')
-                            .autocomplete({
-                                source: availSymbol,
-                                minLength: 0,
-                                select: function (_event, _ui) {
-                                    $('#completed').show();
-                                    checkFirstBox(1);
-
-                                    setTimeout(() => {
-                                        $('#value-first').focus();
-                                        $('#value-first').autocomplete('search', '');
-                                    }, 100);
-                                },
-                            })
-                            .on('focus', function () {
-                                if (!$(this).val().trim()) $(this).keydown();
-                            });
-
-                        $('#value-first')
-                            .autocomplete({
-                                source: columnValues,
-                                minLength: 0,
-                                select: function (_event, _ui) {
-                                    checkFirstBox(2);
-                                },
-                            })
-                            .on('focus', function () {
-                                if (!$(this).val().trim()) $(this).keydown();
-                            });
-
-                        $('#value-first').prop('disabled', false);
-
-                        $('#symbol').focus();
-
-                        setTimeout(() => {
-                            $('#symbol').autocomplete('search', '');
-                        }, 100);
-
-                        checkFirstBox(0);
-                    } catch (error) {
-                        console.error('Error fetching column values:', error);
-                        $('#symbol').prop('disabled', false).attr('placeholder', 'Error loading');
-                        $('#value-first').prop('disabled', false).attr('placeholder', 'Error loading');
-                        showToast('Error fetching column values: ' + error.message, 'error', 5000);
-                    }
-                },
-            })
-            .on('focus', function () {
-                if (!$(this).val().trim()) $(this).keydown();
-            });
-
-        $('#column-first').focus();
-
-        setTimeout(() => {
-            $('#column-first').autocomplete('search', '');
-        }, 100);
-    } catch (error) {
-        console.error('Error fetching columns:', error);
-        $('#column-first').prop('disabled', false).attr('placeholder', 'Error loading columns');
-        showToast('Error fetching columns: ' + error.message, 'error', 5000);
+    if ($('#column-first').hasClass('ui-autocomplete-input')) {
+        $('#column-first').autocomplete('destroy');
     }
+
+    $('#column-first')
+        .autocomplete({
+            source: columnsNames.sort(),
+            minLength: 0,
+            maxheight: 100,
+            select: async function (event, ui) {
+                $('#symbol').val('').attr('type', 'text');
+                $('#value-first').val('').attr('type', 'text');
+
+                $('#symbol').prop('disabled', true).attr('placeholder', 'Loading...');
+                $('#value-first').prop('disabled', true).attr('placeholder', '');
+
+                let chooseColumn = ui.item.value.trim();
+                const columnData = await getValuesForColumn(chooseColumn);
+                const columnValues = columnData.values;
+                const isNumericColumn = columnData.isNumeric;
+
+                // Set available symbols based on column type
+                if (isNumericColumn) {
+                    availSymbol = ['=', '!=', '<=', '>=', '>', '<'];
+                    ifCurIsNum = true;
+                } else {
+                    availSymbol = ['=', '!='];
+                    ifCurIsNum = false;
+                }
+
+                $('#symbol').prop('disabled', false).attr('placeholder', '');
+
+                if ($('#symbol').hasClass('ui-autocomplete-input')) {
+                    $('#symbol').autocomplete('destroy');
+                }
+                if ($('#value-first').hasClass('ui-autocomplete-input')) {
+                    $('#value-first').autocomplete('destroy');
+                }
+
+                $('#symbol')
+                    .autocomplete({
+                        source: availSymbol,
+                        minLength: 0,
+                        select: function (_event, _ui) {
+                            $('#completed').show();
+                            checkFirstBox(1);
+
+                            setTimeout(() => {
+                                $('#value-first').focus();
+                                $('#value-first').autocomplete('search', '');
+                            }, 100);
+                        },
+                    })
+                    .on('focus', function () {
+                        if (!$(this).val().trim()) $(this).keydown();
+                    });
+
+                $('#value-first')
+                    .autocomplete({
+                        source: columnValues,
+                        minLength: 0,
+                        select: function (_event, _ui) {
+                            checkFirstBox(2);
+                        },
+                    })
+                    .on('focus', function () {
+                        if (!$(this).val().trim()) $(this).keydown();
+                    });
+
+                $('#value-first').prop('disabled', false);
+
+                $('#symbol').focus();
+
+                setTimeout(() => {
+                    $('#symbol').autocomplete('search', '');
+                }, 100);
+
+                checkFirstBox(0);
+            },
+        })
+        .on('focus', function () {
+            if (!$(this).val().trim()) $(this).keydown();
+        });
+
+    $('#column-first').focus();
+
+    setTimeout(() => {
+        $('#column-first').autocomplete('search', '');
+    }, 100);
 }
 
 async function secondFilterStart(evt) {
@@ -312,42 +299,36 @@ async function secondFilterStart(evt) {
 
                 $('#value-second').prop('disabled', true).attr('placeholder', 'Loading columns...');
 
-                try {
-                    const columnsNames = ui.item.value === 'count' ? await getColumns() : await getNumericColumns();
+                const columnsNames = ui.item.value === 'count' ? await getColumns() : await getNumericColumns();
 
-                    $('#value-second').prop('disabled', false).attr('placeholder', '');
+                $('#value-second').prop('disabled', false).attr('placeholder', '');
 
-                    if ($('#value-second').hasClass('ui-autocomplete-input')) {
-                        $('#value-second').autocomplete('destroy');
-                    }
-
-                    $('#value-second')
-                        .autocomplete({
-                            source: columnsNames.sort(),
-                            minLength: 0,
-                            select: function (_event, _ui) {
-                                let secVal = $('#column-second').val();
-                                if (secVal == null || secVal.trim() == '') {
-                                    $('#completed-second').attr('disabled', true);
-                                } else {
-                                    $('#completed-second').attr('disabled', false);
-                                }
-                            },
-                        })
-                        .on('focus', function () {
-                            if (!$(this).val().trim()) $(this).keydown();
-                        });
-
-                    $('#value-second').focus();
-
-                    setTimeout(() => {
-                        $('#value-second').autocomplete('search', '');
-                    }, 100);
-                } catch (error) {
-                    console.error('Error fetching columns:', error);
-                    $('#value-second').prop('disabled', false).attr('placeholder', 'Error loading columns');
-                    showToast('Error fetching columns: ' + error.message, 'error', 5000);
+                if ($('#value-second').hasClass('ui-autocomplete-input')) {
+                    $('#value-second').autocomplete('destroy');
                 }
+
+                $('#value-second')
+                    .autocomplete({
+                        source: columnsNames.sort(),
+                        minLength: 0,
+                        select: function (_event, _ui) {
+                            let secVal = $('#column-second').val();
+                            if (secVal == null || secVal.trim() == '') {
+                                $('#completed-second').attr('disabled', true);
+                            } else {
+                                $('#completed-second').attr('disabled', false);
+                            }
+                        },
+                    })
+                    .on('focus', function () {
+                        if (!$(this).val().trim()) $(this).keydown();
+                    });
+
+                $('#value-second').focus();
+
+                setTimeout(() => {
+                    $('#value-second').autocomplete('search', '');
+                }, 100);
             },
         })
         .on('focus', function () {
@@ -367,66 +348,60 @@ async function ThirdFilterStart(evt) {
 
     $('#column-third').prop('disabled', true).attr('placeholder', 'Loading columns...');
 
-    try {
-        const columnsNames = await getColumns();
+    const columnsNames = await getColumns();
 
-        $('#column-third').prop('disabled', false).attr('placeholder', '');
+    $('#column-third').prop('disabled', false).attr('placeholder', '');
 
-        if ($('#column-third').hasClass('ui-autocomplete-input')) {
-            $('#column-third').autocomplete('destroy');
-        }
-
-        $('#column-third')
-            .autocomplete({
-                source: columnsNames,
-                minLength: 0,
-                maxheight: 100,
-                select: function (event, ui) {
-                    event.preventDefault();
-                    let tag = document.createElement('li');
-                    if (ui.item.value !== '') {
-                        if (thirdBoxSet.has(ui.item.value)) {
-                            alert('Duplicate filter!');
-                            return;
-                        } else thirdBoxSet.add(ui.item.value);
-
-                        // Set the text content of the tag to the trimmed value
-                        tag.innerText = ui.item.value;
-                        // Add a delete button to the tag
-                        tag.innerHTML += '<button class="delete-button">×</button>';
-                        // Append the tag to the tags list
-                        tagThird.appendChild(tag);
-
-                        var dom = $('#tags-third');
-                        var x = dom[0].scrollWidth;
-                        dom[0].scrollLeft = x;
-
-                        $('#column-third').val('');
-                        $(this).blur();
-                        getSearchText();
-                    }
-
-                    if (thirdBoxSet.size > 0) $('#aggregations').hide();
-                    else $('#aggregations').show();
-
-                    ThirdCancelInfo(event);
-                    return false;
-                },
-            })
-            .on('focus', function () {
-                if (!$(this).val().trim()) $(this).keydown();
-            });
-
-        $('#column-third').focus();
-
-        setTimeout(() => {
-            $('#column-third').autocomplete('search', '');
-        }, 100);
-    } catch (error) {
-        console.error('Error fetching columns:', error);
-        $('#column-third').prop('disabled', false).attr('placeholder', 'Error loading columns');
-        showToast('Error fetching columns: ' + error.message, 'error', 5000);
+    if ($('#column-third').hasClass('ui-autocomplete-input')) {
+        $('#column-third').autocomplete('destroy');
     }
+
+    $('#column-third')
+        .autocomplete({
+            source: columnsNames,
+            minLength: 0,
+            maxheight: 100,
+            select: function (event, ui) {
+                event.preventDefault();
+                let tag = document.createElement('li');
+                if (ui.item.value !== '') {
+                    if (thirdBoxSet.has(ui.item.value)) {
+                        alert('Duplicate filter!');
+                        return;
+                    } else thirdBoxSet.add(ui.item.value);
+
+                    // Set the text content of the tag to the trimmed value
+                    tag.innerText = ui.item.value;
+                    // Add a delete button to the tag
+                    tag.innerHTML += '<button class="delete-button">×</button>';
+                    // Append the tag to the tags list
+                    tagThird.appendChild(tag);
+
+                    var dom = $('#tags-third');
+                    var x = dom[0].scrollWidth;
+                    dom[0].scrollLeft = x;
+
+                    $('#column-third').val('');
+                    $(this).blur();
+                    getSearchText();
+                }
+
+                if (thirdBoxSet.size > 0) $('#aggregations').hide();
+                else $('#aggregations').show();
+
+                ThirdCancelInfo(event);
+                return false;
+            },
+        })
+        .on('focus', function () {
+            if (!$(this).val().trim()) $(this).keydown();
+        });
+
+    $('#column-third').focus();
+
+    setTimeout(() => {
+        $('#column-third').autocomplete('search', '');
+    }, 100);
 }
 /**
  * check first box
@@ -1161,6 +1136,10 @@ $('#tags-third').on('click', 'li', function (event) {
         getColumns().then((columnsNames) => {
             $('#filter-box-3').off('click');
             $('#add-con-third').off('click');
+
+            if ($('#column-third').hasClass('ui-autocomplete-input')) {
+                $('#column-third').autocomplete('destroy');
+            }
 
             $('#column-third')
                 .autocomplete({
