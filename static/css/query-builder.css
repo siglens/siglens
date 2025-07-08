@@ -317,6 +317,34 @@ input.form-control {
     width: 100%;
 }
 
+.custom-reset-button {
+    background-color: transparent;
+    color: var(--table-or-regular-text-color);
+    font-family: Inter, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    padding: 3px 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 1px;
+    margin-top: -6px;
+    transition: background-color 0.2s ease-in-out;
+    white-space: nowrap;
+    text-decoration: underline;
+}
+
+.custom-reset-button:hover,
+.custom-reset-button:focus {
+    background-color: var(--drop-down-btn-bg-hover);
+    color: var(--text-color);
+    text-decoration: none;
+    outline: none;
+}
+
 .search-img {
     background-image: url("../assets/search-img.svg");
     height: 26px;
@@ -759,16 +787,17 @@ div.show-record-popup .ui-dialog-buttonpane button {
 }
 
 #histogram-container {
-    height: var(--histogram-height, 180px); 
-    min-height: 100px; /* Prevent collapsing too small */
-    max-height: 50vh; 
+    height: var(--histogram-height, 180px);
+    min-height: 100px;
+    /* Prevent collapsing too small */
+    max-height: 50vh;
     background: var(--black1-to-white0);
     border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     padding: 10px;
     display: block;
-    position: relative; 
-    overflow: hidden; 
+    position: relative;
+    overflow: hidden;
 }
 
 #histogram-container canvas {
@@ -782,7 +811,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     right: 0;
     height: 3px;
     background: var(--datatable-header-bg-color);
-    cursor: ns-resize; 
+    cursor: ns-resize;
 }
 
 #histogram-container .resize-handle:hover,
@@ -791,7 +820,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     opacity: 0.7;
 }
 
-#histogram-toggle-btn.active{
+#histogram-toggle-btn.active {
     background-color: var(--drop-down-btn-bg-hover) !important;
     border: 1px solid var(--border-btn-color) !important;
 }
@@ -1257,7 +1286,7 @@ html[data-theme="dark"] .icon-container svg {
     float: right;
 }
 
-#format-table svg{
+#format-table svg {
     height: 14px;
     stroke-width: 1.5px;
     stroke: var(--text-color);
