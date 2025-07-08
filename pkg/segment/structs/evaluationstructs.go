@@ -508,7 +508,7 @@ var timeFormatReplacements = []struct {
 var ErrFloatMissingField = fmt.Errorf("Missing field")
 var ErrFloatFieldNull = fmt.Errorf("field was null")
 var ErrBitwiseOpNotInt = fmt.Errorf("NumericExpr.Evaluate: bitwise operation only works on integers")
-var ErrBitwiseOpExceedsSizeLimit = fmt.Errorf("NumericExpr.Evaluate: bitwise operation can only take integers of upto 2^53-1 bits")
+var ErrBitwiseOpExceedsSizeLimit = fmt.Errorf("NumericExpr.Evaluate: bitwise operation can only take integers of up to 53 bits")
 var ErrBitwiseOpNoNeg = fmt.Errorf("NumericExpr.Evaluate: bitwise operation only works on positive integers")
 var ErrBitwiseOpShiftExceedsLimit = fmt.Errorf("NumericExpr.Evaluate: bitwise shift operations can have a max shift of %v", MAX_BIT_SHIFT_SIZE)
 
@@ -521,6 +521,7 @@ var ErrWithCodeFloatMissingField = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
 var ErrWithCodeFieldNull = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
 	ErrFloatFieldNull)
 
+// https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.4/evaluation-functions/bitwise-functions#ariaid-title1
 const MAX_BIT_OPERATION_NUM_SIZE = 1<<53 - 1
 const MAX_BIT_SHIFT_SIZE = 53
 
@@ -3104,7 +3105,9 @@ func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[
 	}
 }
 
-func handleBitwiseOperationInput(left float64, right float64) (uint64, uint64, error) {
+func isValidBitwiseOperationInput(left float64, right float64) (uint64, uint64, error) {
+	// Only positive integer values are allowed
+	// https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.4/evaluation-functions/bitwise-functions
 	if left < 0 || right < 0 {
 		return 0, 0, ErrBitwiseOpNoNeg
 	}
@@ -3309,25 +3312,25 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 			}
 			return math.Exp(exp), nil
 		case "bit_and":
-			left, right, err := handleBitwiseOperationInput(left, right)
+			left, right, err := isValidBitwiseOperationInput(left, right)
 			if err != nil {
 				return 0, err
 			}
 			return float64(left & right), nil
 		case "bit_or":
-			left, right, err := handleBitwiseOperationInput(left, right)
+			left, right, err := isValidBitwiseOperationInput(left, right)
 			if err != nil {
 				return 0, err
 			}
 			return float64(left | right), nil
 		case "bit_xor":
-			left, right, err := handleBitwiseOperationInput(left, right)
+			left, right, err := isValidBitwiseOperationInput(left, right)
 			if err != nil {
 				return 0, err
 			}
 			return float64(left ^ right), nil
 		case "bit_not":
-			left, right, err := handleBitwiseOperationInput(left, right)
+			left, right, err := isValidBitwiseOperationInput(left, right)
 			if err != nil {
 				return 0, err
 			}
@@ -3336,7 +3339,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 			}
 			return float64(left &^ right), nil
 		case "bit_shift_left":
-			left, right, err := handleBitwiseOperationInput(left, right)
+			left, right, err := isValidBitwiseOperationInput(left, right)
 			if err != nil {
 				return 0, err
 			}
@@ -3345,7 +3348,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 			}
 			return float64((int64(left) << int64(right)) & MAX_BIT_OPERATION_NUM_SIZE), nil
 		case "bit_shift_right":
-			left, right, err := handleBitwiseOperationInput(left, right)
+			left, right, err := isValidBitwiseOperationInput(left, right)
 			if err != nil {
 				return 0, err
 			}
