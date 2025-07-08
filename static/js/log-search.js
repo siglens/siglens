@@ -24,7 +24,7 @@ $(document).ready(async () => {
     toggleClearButtonVisibility();
 
     // Call the function for each tooltip
-    createTooltip('#add-index', 'Add New Index');
+    createTooltip('#add-index', 'Add index or regex pattern (e.g., log-*, app-*)');
     createTooltip('#date-picker-btn', 'Pick the Time Window');
     createTooltip('#query-builder-btn', 'Run Query');
     createTooltip('#logs-settings', 'Settings');

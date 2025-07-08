@@ -1157,12 +1157,15 @@ function codeToBuilderParsing(filterValue) {
     else $('#aggregate-attribute-text').show();
     if (firstBoxSet.size > 0) $('#search-filter-text').hide();
     else $('#search-filter-text').show();
+ 
+    //eslint-disable-next-line no-undef
+    updateResetButtonVisibility();
 }
 
 function renderLogsGrid(columnOrder, hits) {
     if (gridDiv == null) {
         gridDiv = document.querySelector('#LogResultsGrid');
-        //eslint-disable-next-line no-undef
+         
         new agGrid.Grid(gridDiv, gridOptions);
     }
 
@@ -1181,7 +1184,6 @@ function renderLogsGrid(columnOrder, hits) {
             return {
                 field: colName,
                 headerName: colName,
-                cellRenderer: myCellRenderer,
                 cellRendererParams: { colName: colName },
             };
         }
@@ -1232,3 +1234,4 @@ function updateGridView() {
         gridOptions.api.setRowData(currentPageData);
     }
 }
+

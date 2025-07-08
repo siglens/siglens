@@ -32,7 +32,7 @@ func Test_MVExpand_noLimit(t *testing.T) {
 		options: &structs.MultiValueColLetRequest{
 			Command: "mvexpand",
 			ColName: "col1",
-			Limit:   utils.NewUnsetOption[int64](),
+			Limit:   utils.None[int64](),
 		},
 	}
 	iqr := iqr.NewIQR(0)
@@ -80,7 +80,7 @@ func Test_MVExpand_withLimit(t *testing.T) {
 		options: &structs.MultiValueColLetRequest{
 			Command: "mvexpand",
 			ColName: "col1",
-			Limit:   utils.NewOptionWithValue[int64](2),
+			Limit:   utils.Some[int64](2),
 		},
 	}
 	iqr := iqr.NewIQR(0)

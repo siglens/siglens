@@ -1088,7 +1088,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 		for colName, rawVals := range results {
 			for i, rawVal := range rawVals {
 				recNum := filterdRecNums[i]
-				addValsToTimeStats(lStats, colName, latestTs, earliestTs, rawVal, mcr, needLatestOrEarliest, blockNum, recNum, qid)
+				addValsToTimeStats(lStats, colName, latestTs, earliestTs, rawVal.CVal, mcr, needLatestOrEarliest, blockNum, recNum, qid)
 				colUsage, exists := aggColUsage[colName]
 				if !exists {
 					colUsage = sutils.NoEvalUsage

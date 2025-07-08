@@ -226,7 +226,7 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*sutils.RecordResultContain
 	batchingFunc := func(rrc *sutils.RecordResultContainer) uint16 {
 		return rrc.BlockNum
 	}
-	batchKeyLess := utils.NewOptionWithValue(func(blockNum1, blockNum2 uint16) bool {
+	batchKeyLess := utils.Some(func(blockNum1, blockNum2 uint16) bool {
 		// We want to read the file in order, so read the blocks in order.
 		return blockNum1 < blockNum2
 	})

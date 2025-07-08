@@ -21,6 +21,7 @@ package spl
 import (
     "regexp"
     "time"
+    "strconv"
 
     "github.com/siglens/siglens/pkg/ast"
     "github.com/siglens/siglens/pkg/segment/aggregations"
@@ -49,6 +50,15 @@ func stringToToJsonDtype(dtype string) structs.ToJsonDtypes {
         optionDtype = structs.TJ_None
     }
     return optionDtype
+}
+
+func getPercAggCommonStrEnc(aggName string, percentileVal float64, fieldStr string, needsExtraction bool) string {
+    if needsExtraction {
+        start := strings.Index(fieldStr, "(")
+        end := strings.LastIndex(fieldStr, ")")
+        fieldStr = fieldStr[start+1:end]
+    }
+    return aggName + strconv.FormatFloat(percentileVal, 'f', -1, 64) + "(" + fieldStr + ")"
 }
 
 type ToJsonCmdOption struct {
@@ -1776,7 +1786,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         newName := newFieldName.(string)
         letColReq.NewColName = newName
         binOptions := binCmdOption.(*structs.BinCmdOptions)
-        binOptions.NewFieldName = utils.NewOptionWithValue(newName)
+        binOptions.NewFieldName = utils.Some(newName)
     }
 
     letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
@@ -1807,7 +1817,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
     if newFieldName != nil {
         newName := newFieldName.(string)
         letColReq.NewColName = newName
-        binCmdOption.NewFieldName = utils.NewOptionWithValue(newName)
+        binCmdOption.NewFieldName = utils.Some(newName)
     }
 
     letColReq.BinRequest = binCmdOption
@@ -2474,6 +2484,9 @@ SingleEval <- field:FieldName EQUAL expr:EvalExpression {
 
 // Returns *structs.LetColumnsRequest without the NewColName set.
 EvalExpression <- value:ValueExpr {
+    if value.(*structs.ValueExpr).ValueExprMode == structs.VEMBooleanExpr {
+        return nil, fmt.Errorf("Eval fields cannot be assigned a boolean result")
+    }
     letColReq := &structs.LetColumnsRequest {
         ValueColRequest: value.(*structs.ValueExpr),
     }
@@ -2591,6 +2604,18 @@ MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:St
     node := &structs.MultiValueExpr {
         Op: opNameStr,
         StringExprParams: []*structs.StringExpr{stringExpr.(*structs.StringExpr), delim.(*structs.StringExpr)},
+    }
+
+    return node, nil
+}
+/ (opName:("spath") L_PAREN value:StringExpr COMMA path:StringExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        StringExprParams: []*structs.StringExpr{value.(*structs.StringExpr), path.(*structs.StringExpr)},
     }
 
     return node, nil
@@ -2874,17 +2899,6 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
 
     return node, nil
 }
-/ "spath" L_PAREN inputField:FieldNameStartWith_ COMMA path:(QuotedPathString / UnquotedPathValue) R_PAREN {
-    pathExpr := path.(*SPathFieldExpr)
-    return &structs.TextExpr{
-        Op: "spath",
-        SPathExpr: &structs.SPathExpr{
-            InputColName: inputField.(string),
-            Path: pathExpr.PathValue,
-            IsPathFieldName: pathExpr.IsPathFieldName,
-        },
-    }, nil
-}
 / "ipmask" L_PAREN mask:StringExpr COMMA ip:ValueExpr R_PAREN {
     return &structs.TextExpr{
         Op: "ipmask",
@@ -3132,7 +3146,7 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
 }
 
 //TODO: implement the processing logic for: searchmatch, isnotnull, isnum
-EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull" / "isnum" / "searchmatch") L_PAREN value:ValueExpr R_PAREN ) {
+EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull" / "isnum" / "searchmatch" / "ismv" / "isobject") L_PAREN value:ValueExpr R_PAREN ) {
     opNameStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
@@ -4013,7 +4027,7 @@ AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: measureFunc,
-        StrEnc: string(c.text),
+        StrEnc: getPercAggCommonStrEnc(aggName.(string), percentileVal.(float64), string(c.text), true),
         ValueColRequest: valueExpr.(*structs.ValueExpr),
         Param: percentileVal.(float64),
     }
@@ -4028,6 +4042,7 @@ AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "
 
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
+        StrEnc: getPercAggCommonStrEnc(aggName.(string), percentileVal.(float64), field.(string), false),
         MeasureFunc: measureFunc,
         Param: percentileVal.(float64),
     }
@@ -4439,7 +4454,7 @@ String <- str:(QuotedString / UnquotedString) {
     return str, nil
 }
 
-QuotedString <- '"' [^"]* '"' {
+QuotedString <- '"' (!'\\' [^"] / '\\' .)* '"' {
     // The returned string has quotes as the first and last character.
     return string(c.text), nil
 }
@@ -5159,7 +5174,7 @@ FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
 }
 
 MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limitStr:MvexpandLimit? {
-    limit := utils.NewUnsetOption[int64]()
+    limit := utils.None[int64]()
     if limitStr != nil {
         value, err := strconv.ParseInt(limitStr.(string), 10, 64)
         if err != nil {

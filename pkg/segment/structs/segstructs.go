@@ -262,6 +262,7 @@ type RunningStreamStatsResults struct {
 	RangeStat           *RangeStat
 	CardinalityMap      map[string]int
 	CardinalityHLL      *utils.GobbableHll
+	PercTDigest         *utils.GobbableTDigest
 	ValuesMap           map[string]struct{}
 }
 
@@ -1564,7 +1565,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"getfields":        {},
 	"isnum":            {},
 	"isnotnull":        {},
-	"spath":            {},
 	"eventcount":       {},
 }
 

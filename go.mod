@@ -1,9 +1,12 @@
 module github.com/siglens/siglens
 
-go 1.21
+go 1.21.0
+
+toolchain go1.21.13
 
 require (
 	github.com/FastFilter/xorfilter v0.1.4
+	github.com/beevik/etree v1.5.1
 	github.com/bits-and-blooms/bitset v1.2.0
 	github.com/bits-and-blooms/bloom/v3 v3.0.1
 	github.com/brianvoe/gofakeit/v6 v6.21.0

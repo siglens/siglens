@@ -3378,12 +3378,13 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     width: 100%;
     height: 100%;
     border: none;
-    background-color: var(--datatable-bg-color);
+    background-color: transparent;
     font-size: 24px;
     font-weight: bold;
     color: var(--text-color);
     z-index: 1;
     transform: none;
+    box-shadow: none;
 }
 
 .panel-body #empty-response {
@@ -7522,7 +7523,6 @@ p#versionInfo {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-width: 400px;
 }
 
 .page-size-select {
