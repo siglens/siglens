@@ -10286,7 +10286,7 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc sutils.Aggre
 	if isField {
 		randomStr = utils.GetRandomString(10, utils.Alpha)
 	} else {
-		randomStr = fmt.Sprintf("%v", rand.Float64())
+		randomStr = strconv.FormatFloat(rand.Float64(), 'f', -1, 64)
 	}
 	measureFuncStr, param := getMeasureFuncStr(measureFunc)
 	measureWithEvalStr := measureFuncStr + `(eval(` + randomStr + `))`
@@ -10331,7 +10331,7 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc sutils.Aggr
 	// Query Form: app_name=bracecould | stats sum(http_status), measureFunc(eval(if(http_status=500, trueValueField, falseValueConstant)))
 	measureFuncStr, param := getMeasureFuncStr(measureFunc)
 	trueValueField := utils.GetRandomString(10, utils.Alpha)
-	falseValueConstant := fmt.Sprintf("%v", rand.Float64())
+	falseValueConstant := strconv.FormatFloat(rand.Float64(), 'f', -1, 64)
 	measureWithEvalStr := measureFuncStr + `(eval(if(http_status=500, ` + trueValueField + `, ` + falseValueConstant + `)))`
 
 	query := []byte(`app_name=bracecould | stats sum(http_status), ` + measureWithEvalStr)
