@@ -222,7 +222,7 @@ input.form-control {
 
 .column-third {
     width: 100% !important;
-    height: 30px;
+    height: 26px;
     margin-right: 10px;
 }
 
@@ -759,16 +759,16 @@ div.show-record-popup .ui-dialog-buttonpane button {
 }
 
 #histogram-container {
-    height: var(--histogram-height, 180px); 
-    min-height: 100px; /* Prevent collapsing too small */
-    max-height: 50vh; 
+    height: var(--histogram-height, 180px);
+    min-height: 100px;
+    max-height: 50vh;
     background: var(--black1-to-white0);
     border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     padding: 10px;
     display: block;
-    position: relative; 
-    overflow: hidden; 
+    position: relative;
+    overflow: hidden;
 }
 
 #histogram-container canvas {
@@ -782,7 +782,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     right: 0;
     height: 3px;
     background: var(--datatable-header-bg-color);
-    cursor: ns-resize; 
+    cursor: ns-resize;
 }
 
 #histogram-container .resize-handle:hover,
@@ -791,7 +791,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     opacity: 0.7;
 }
 
-#histogram-toggle-btn.active{
+#histogram-toggle-btn.active {
     background-color: var(--drop-down-btn-bg-hover) !important;
     border: 1px solid var(--border-btn-color) !important;
 }
@@ -1257,8 +1257,13 @@ html[data-theme="dark"] .icon-container svg {
     float: right;
 }
 
-#format-table svg{
+#format-table svg {
     height: 14px;
     stroke-width: 1.5px;
     stroke: var(--text-color);
+}
+
+.ui-widget input::placeholder {
+    font-style: italic;
+    font-size: 11px;
 }

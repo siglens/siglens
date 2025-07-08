@@ -7719,7 +7719,6 @@ p#versionInfo {
     height: 100%;
     position: relative;
     flex: 0 0 4px;
-    z-index: 1;
 }
 
 .fields-resizer:hover,
