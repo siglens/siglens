@@ -1440,39 +1440,6 @@ func AddMeasureAggInRunningStatsForValues(m *structs.MeasureAggregator, allConve
 	return idx, nil
 }
 
-// func AddMeasureAggInRunningStatsForEstdcError(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
-
-// 	measureCol := m.MeasureCol
-// 	if m.ValueColRequest != nil {
-// 		fields := m.ValueColRequest.GetFields()
-// 		if len(fields) != 1 {
-// 			return idx, fmt.Errorf("AddMeasureAggInRunningStatsForRange: Incorrect number of fields for aggCol: %v", m.String())
-// 		}
-// 		measureCol = fields[0]
-// 	}
-
-// 	if _, ok := colToIdx[measureCol]; !ok {
-// 		colToIdx[measureCol] = make([]int, 0)
-// 	}
-
-// 	// this determines the order of the columns in runningStats: sum, sumsq, count
-// 	measureFuncs := []sutils.AggregateFunctions{sutils.Sum, sutils.Sumsq, sutils.Count}
-
-// 	for _, measureFunc := range measureFuncs {
-// 		*allReverseIndex = append(*allReverseIndex, idx)
-// 		colToIdx[measureCol] = append(colToIdx[measureCol], idx)
-// 		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
-// 			MeasureCol:      measureCol,
-// 			MeasureFunc:     measureFunc,
-// 			ValueColRequest: m.ValueColRequest,
-// 			StrEnc:          m.StrEnc,
-// 		})
-// 		idx++
-// 	}
-
-// 	return idx, nil
-// }
-
 // Determine if cols used by eval statements or not
 func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool, percUsage map[string]bool) {
 	if measureAgg.ValueColRequest != nil {

@@ -204,7 +204,8 @@ func (p *streamstatsProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			if exists {
 				knownValues[resultCol][i] = result
 			} else {
-				if measureAgg.MeasureFunc == sutils.Count || measureAgg.MeasureFunc == sutils.Cardinality {
+				if measureAgg.MeasureFunc == sutils.Count || measureAgg.MeasureFunc == sutils.Cardinality ||
+					measureAgg.MeasureFunc == sutils.EstdcError {
 					knownValues[resultCol][i] = sutils.CValueEnclosure{
 						Dtype: sutils.SS_DT_FLOAT,
 						CVal:  float64(0),
@@ -270,7 +271,7 @@ func InitRunningStreamStatsResults(measureFunc sutils.AggregateFunctions) *struc
 	}
 
 	switch measureFunc {
-	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality:
+	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality, sutils.EstdcError:
 		runningSSResult.CurrResult = sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_FLOAT,
 			CVal:  0.0,
@@ -328,7 +329,7 @@ func calculateAvg(ssResults *structs.RunningStreamStatsResults, window bool) sut
 func validateCurrResultDType(measureAgg sutils.AggregateFunctions, currResult sutils.CValueEnclosure) error {
 
 	switch measureAgg {
-	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality:
+	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality, sutils.EstdcError:
 		if currResult.Dtype != sutils.SS_DT_FLOAT {
 			return fmt.Errorf("validateCurrResultDType: Error: currResult value is not a float for measureAgg: %v", measureAgg)
 		}
@@ -400,6 +401,13 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		}
 		ssResults.CardinalityHLL.AddRaw(xxhash.Sum64String(strValue))
 		ssResults.CurrResult.CVal = float64(ssResults.CardinalityHLL.Cardinality())
+	case sutils.EstdcError:
+		strValue := fmt.Sprintf("%v", colValue.CVal)
+		if ssResults.CardinalityHLL == nil {
+			ssResults.CardinalityHLL = structs.CreateNewHll()
+		}
+		ssResults.CardinalityHLL.AddRaw(xxhash.Sum64String(strValue))
+		ssResults.CurrResult.CVal = ssResults.CardinalityHLL.RelativeError()
 	case sutils.Values:
 		strValue := fmt.Sprintf("%v", colValue.CVal)
 		if ssResults.ValuesMap == nil {
@@ -463,6 +471,8 @@ func removeFrontElementFromWindow(window *utils.GobbableList, ssResults *structs
 			return fmt.Errorf("removeFrontElementFromWindow: Error: cardinality map does not contain the value: %v which is present in the window", strValue)
 		}
 		ssResults.CurrResult.CVal = float64(len(ssResults.CardinalityMap))
+	} else if measureAgg == sutils.EstdcError {
+		// do nothing
 	}
 
 	window.Remove(window.Front())
@@ -628,6 +638,8 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg sutils.
 			CVal:  maxVal - minVal,
 		}, true, nil
 	case sutils.Cardinality:
+		return ssResults.CurrResult, true, nil
+	case sutils.EstdcError:
 		return ssResults.CurrResult, true, nil
 	case sutils.Values:
 		return getValues(ssResults.CardinalityMap), true, nil
@@ -832,6 +844,16 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 		cvalue := sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_STRING,
 			CVal:  strValue,
+		}
+
+		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: cvalue, TimeInMilli: timestamp})
+	case sutils.EstdcError:
+		// for windowed stream stats, we compute exact cardinality
+		// thus the error is always 0.0
+		ssResults.CurrResult.CVal = 0.0
+		cvalue := sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING,
+			CVal:  "0.0",
 		}
 
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: cvalue, TimeInMilli: timestamp})
