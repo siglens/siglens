@@ -238,6 +238,17 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 			} else {
 				mFunc = m.MeasureFunc
 			}
+		case sutils.EstdcError:
+			if m.ValueColRequest != nil {
+				curId, err := aggregations.AddMeasureAggInRunningStatsForEstdcError(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for estdc_error, err: %v", err)
+				}
+				idx = curId
+				continue
+			} else {
+				mFunc = m.MeasureFunc
+			}
 		case sutils.Values:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.AddMeasureAggInRunningStatsForValues(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
@@ -884,6 +895,31 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 		} else {
 			finalVal := runningStats[valIdx].hll.Cardinality()
+			eVal.CVal = finalVal
+			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
+
+			*hllToMerge = runningStats[valIdx].hll
+		}
+	case sutils.EstdcError:
+		incrementIdxBy = 1
+
+		valIdx := gb.reverseMeasureIndex[idx]
+		if mInfo.ValueColRequest != nil {
+			if len(mInfo.ValueColRequest.GetFields()) == 0 {
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:ESTDC_ERROR", fmt.Errorf("zero fields of ValueColRequest for estimated dc error: %v", mInfoStr))
+				return
+			}
+
+			runningStats[valIdx].syncRawValue()
+			hll, ok := runningStats[valIdx].rawVal.CVal.(*utils.GobbableHll)
+			if !ok {
+				currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
+				return
+			}
+			eVal.CVal = hll.RelativeError()
+			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
+		} else {
+			finalVal := runningStats[valIdx].hll.RelativeError()
 			eVal.CVal = finalVal
 			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
 

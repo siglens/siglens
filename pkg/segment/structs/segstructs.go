@@ -1508,17 +1508,15 @@ func AddAllColumnsInStreamStatsOptions(cols map[string]struct{}, streamStatsOpti
 }
 
 var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
-	sutils.Estdc:      {},
-	sutils.EstdcError: {},
-	sutils.ExactPerc:  {},
-	sutils.UpperPerc:  {},
-	sutils.Median:     {},
-	sutils.Mode:       {},
-	sutils.Stdev:      {},
-	sutils.Stdevp:     {},
-	sutils.First:      {},
-	sutils.Last:       {},
-	sutils.StatsRate:  {},
+	sutils.ExactPerc: {},
+	sutils.UpperPerc: {},
+	sutils.Median:    {},
+	sutils.Mode:      {},
+	sutils.Stdev:     {},
+	sutils.Stdevp:    {},
+	sutils.First:     {},
+	sutils.Last:      {},
+	sutils.StatsRate: {},
 }
 
 var unsupportedEvalFuncs = map[string]struct{}{

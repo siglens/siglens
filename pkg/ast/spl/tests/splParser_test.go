@@ -10369,7 +10369,7 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc sutils.Aggr
 func getAggFunctions() []sutils.AggregateFunctions {
 	return []sutils.AggregateFunctions{sutils.Count, sutils.Sum, sutils.Avg, sutils.Min, sutils.Max,
 		sutils.Range, sutils.Cardinality, sutils.Values, sutils.List,
-		sutils.Estdc, sutils.EstdcError, sutils.Median,
+		sutils.EstdcError, sutils.Median,
 		sutils.Mode, sutils.Stdev, sutils.Stdevp, sutils.Sumsq, sutils.Var,
 		sutils.Varp, sutils.First, sutils.Last, sutils.Earliest, sutils.Latest,
 		sutils.EarliestTime, sutils.LatestTime, sutils.StatsRate,
