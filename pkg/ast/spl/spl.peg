@@ -21,6 +21,7 @@ package spl
 import (
     "regexp"
     "time"
+    "strconv"
 
     "github.com/siglens/siglens/pkg/ast"
     "github.com/siglens/siglens/pkg/segment/aggregations"
@@ -30,6 +31,49 @@ import (
     "github.com/siglens/siglens/pkg/utils"
 	"github.com/siglens/siglens/pkg/config"
     log "github.com/sirupsen/logrus"
+)
+
+func stringToToJsonDtype(dtype string) structs.ToJsonDtypes {
+    var optionDtype structs.ToJsonDtypes
+    switch dtype {
+    case "auto":
+        optionDtype = structs.TJ_Auto
+    case "bool":
+        optionDtype = structs.TJ_Bool
+    case "json":
+        optionDtype = structs.TJ_Json
+    case "num":
+        optionDtype = structs.TJ_Num
+    case "str":
+        optionDtype = structs.TJ_Str
+    default:
+        optionDtype = structs.TJ_None
+    }
+    return optionDtype
+}
+
+func getPercAggCommonStrEnc(aggName string, percentileVal float64, fieldStr string, needsExtraction bool) string {
+    if needsExtraction {
+        start := strings.Index(fieldStr, "(")
+        end := strings.LastIndex(fieldStr, ")")
+        fieldStr = fieldStr[start+1:end]
+    }
+    return aggName + strconv.FormatFloat(percentileVal, 'f', -1, 64) + "(" + fieldStr + ")"
+}
+
+type ToJsonCmdOption struct {
+	OptionType ToJsonCmd
+	Value      any
+}
+
+type ToJsonCmd uint8
+
+const (
+    TJ_CMD_FUNCTION ToJsonCmd = iota
+    TJ_CMD_DEFAULT_TYPE
+    TJ_CMD_FILL_NULL
+    TJ_CMD_INCLUDE_INTERNAL
+    TJ_CMD_OUTPUT_FIELD
 )
 
 func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (int64, error) {
@@ -781,7 +825,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock / ToJsonBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -1740,7 +1784,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
         newName := newFieldName.(string)
         letColReq.NewColName = newName
         binOptions := binCmdOption.(*structs.BinCmdOptions)
-        binOptions.NewFieldName = utils.NewOptionWithValue(newName)
+        binOptions.NewFieldName = utils.Some(newName)
     }
 
     letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
@@ -1771,7 +1815,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
     if newFieldName != nil {
         newName := newFieldName.(string)
         letColReq.NewColName = newName
-        binCmdOption.NewFieldName = utils.NewOptionWithValue(newName)
+        binCmdOption.NewFieldName = utils.Some(newName)
     }
 
     letColReq.BinRequest = binCmdOption
@@ -2438,6 +2482,9 @@ SingleEval <- field:FieldName EQUAL expr:EvalExpression {
 
 // Returns *structs.LetColumnsRequest without the NewColName set.
 EvalExpression <- value:ValueExpr {
+    if value.(*structs.ValueExpr).ValueExprMode == structs.VEMBooleanExpr {
+        return nil, fmt.Errorf("Eval fields cannot be assigned a boolean result")
+    }
     letColReq := &structs.LetColumnsRequest {
         ValueColRequest: value.(*structs.ValueExpr),
     }
@@ -2555,6 +2602,18 @@ MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:St
     node := &structs.MultiValueExpr {
         Op: opNameStr,
         StringExprParams: []*structs.StringExpr{stringExpr.(*structs.StringExpr), delim.(*structs.StringExpr)},
+    }
+
+    return node, nil
+}
+/ (opName:("spath") L_PAREN value:StringExpr COMMA path:StringExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        StringExprParams: []*structs.StringExpr{value.(*structs.StringExpr), path.(*structs.StringExpr)},
     }
 
     return node, nil
@@ -2838,17 +2897,6 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
 
     return node, nil
 }
-/ "spath" L_PAREN inputField:FieldNameStartWith_ COMMA path:(QuotedPathString / UnquotedPathValue) R_PAREN {
-    pathExpr := path.(*SPathFieldExpr)
-    return &structs.TextExpr{
-        Op: "spath",
-        SPathExpr: &structs.SPathExpr{
-            InputColName: inputField.(string),
-            Path: pathExpr.PathValue,
-            IsPathFieldName: pathExpr.IsPathFieldName,
-        },
-    }, nil
-}
 / "ipmask" L_PAREN mask:StringExpr COMMA ip:ValueExpr R_PAREN {
     return &structs.TextExpr{
         Op: "ipmask",
@@ -3096,7 +3144,7 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
 }
 
 //TODO: implement the processing logic for: searchmatch, isnotnull, isnum
-EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull" / "isnum" / "searchmatch") L_PAREN value:ValueExpr R_PAREN ) {
+EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull" / "isnum" / "searchmatch" / "ismv" / "isobject") L_PAREN value:ValueExpr R_PAREN ) {
     opNameStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
@@ -3510,6 +3558,73 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
         Val: stringExprConverted,
         NumericExprMode: structs.NEMNumericExpr,
     }
+    return node, nil
+} 
+/ (opName:("bit_and" / "bit_or" / "bit_xor") L_PAREN firstArg:NumericExprLevel3 COMMA secondArg:NumericExprLevel3 rest:(COMMA NumericExprLevel3)* R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)        
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: error in converting opName to str; err: %v", err)
+    }
+    args := make([]*structs.NumericExpr, 2, 5)
+    var ok bool
+    args[0], ok = firstArg.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert exprr as *structs.NumericExpr")
+    }
+    args[1], ok = secondArg.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert exprr as *structs.NumericExpr")
+    }
+    
+    if rest != nil {
+        for _, arg := range rest.([]any) {
+            // Each item in rest is [",", NumericExpr]
+            argExpr := arg.([]any)[1].(*structs.NumericExpr)
+            args = append(args, argExpr)
+        }
+    }
+    
+    if len(args) == 1 {
+        return args[0], nil
+    }
+
+    // build the ast tree 
+    result := args[0]
+    for i := 1; i < len(args); i++ {
+        var err error
+        result, err = createNumericExpr(opNameStr, result, args[i], structs.NEMNumericExpr)
+        if err != nil {
+            return nil, err
+        }
+    }
+    
+    return result, nil
+}
+/ (opName:("bit_not" / "bit_shift_left" / "bit_shift_right") L_PAREN expr:NumericExprLevel3 param:(COMMA NumericExprLevel3)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: error in converting opName to str; err: %v", err)
+    }
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: Failed to assert expr as *structs.NumericExpr")
+    }
+
+    var rightNumericExpr *structs.NumericExpr
+    if param != nil {
+        rightNumericExpr, ok = param.([]any)[1].(*structs.NumericExpr)
+        if !ok {
+            return nil, fmt.Errorf("Spl peg: Failed to assert expr as *structs.NumericExpr")
+        }
+    } else if opNameStr != "bit_not" {
+        return nil, fmt.Errorf("Spl peg: bit_shift_* requires 2 valid integer arguments")
+    }
+
+    node, err := createNumericExpr(opNameStr, leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+    
     return node, nil
 }
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
@@ -3957,7 +4072,7 @@ AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
 }
 
 PercentileVal <- numStr:(FloatAsString / IntegerAsString) {
-    floatVal, err := utils.FastParseFloat([]byte(numStr.(string)))
+    floatVal, err := strconv.ParseFloat(numStr.(string), 64)
     if err != nil {
         return nil, fmt.Errorf("Invalid percentage value: %v", numStr.(string))
     }
@@ -3977,7 +4092,7 @@ AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: measureFunc,
-        StrEnc: string(c.text),
+        StrEnc: getPercAggCommonStrEnc(aggName.(string), percentileVal.(float64), string(c.text), true),
         ValueColRequest: valueExpr.(*structs.ValueExpr),
         Param: percentileVal.(float64),
     }
@@ -3992,6 +4107,7 @@ AggPercCommon <- aggName:CommonPercAggName percentileVal:PercentileVal L_PAREN "
 
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
+        StrEnc: getPercAggCommonStrEnc(aggName.(string), percentileVal.(float64), field.(string), false),
         MeasureFunc: measureFunc,
         Param: percentileVal.(float64),
     }
@@ -4403,7 +4519,7 @@ String <- str:(QuotedString / UnquotedString) {
     return str, nil
 }
 
-QuotedString <- '"' [^"]* '"' {
+QuotedString <- '"' (!'\\' [^"] / '\\' .)* '"' {
     // The returned string has quotes as the first and last character.
     return string(c.text), nil
 }
@@ -5123,7 +5239,7 @@ FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
 }
 
 MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limitStr:MvexpandLimit? {
-    limit := utils.NewUnsetOption[int64]()
+    limit := utils.None[int64]()
     if limitStr != nil {
         value, err := strconv.ParseInt(limitStr.(string), 10, 64)
         if err != nil {
@@ -5388,9 +5504,149 @@ AppendBlock <- PIPE CMD_APPEND options:(AppendCmdOption SPACE?)* subsearch:Subse
     }, nil
 }
 
+ToJsonOption <- SPACE option:(ToJsonFunctionOption / DefaultTypeOption / FillNullOption / IncludeInternalOption / OutputFieldOption / ToJsonFunctionPostProcess) {
+    return option, nil
+}
+
+ToJsonFunctionOption <- (dtype:("auto" / "bool" / "json" / "num" / "str" / "none") L_PAREN regexPattern:StringExpr R_PAREN) {
+    regex, ok := regexPattern.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
+    }
+    gobRegex := utils.GobbableRegex{}
+    var err error
+    if regex.RawString != "" {
+        err = gobRegex.SetRegex(regex.RawString)
+    } else {
+        err = gobRegex.SetRegex(regex.FieldName)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex compile for tojson: %v", err)
+    }
+    optionDtype := stringToToJsonDtype(string(dtype.([]byte)))
+    option := &structs.ToJsonFieldsDtypeOptions {
+        Dtype: optionDtype,
+        Regex: &gobRegex,
+    }
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_FUNCTION,
+        Value: option,
+    }, nil
+}
+
+ToJsonFunctionPostProcess <- regexPattern:StringExpr {
+    regex, ok := regexPattern.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
+    }
+    gobRegex := utils.GobbableRegex{}
+    var err error
+    if regex.RawString != "" {
+        err = gobRegex.SetRegex(regex.RawString)
+    } else {
+        err = gobRegex.SetRegex(regex.FieldName)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex compile for tojson: %v", err)
+    }
+    option := &structs.ToJsonFieldsDtypeOptions {
+        Dtype: structs.TJ_PostProcess,
+        Regex: &gobRegex,
+    }
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_FUNCTION,
+        Value: option,
+    }, nil
+}
+
+DefaultTypeOption <- "default_type" EQUAL dtype:("auto" / "bool" / "json" / "num" / "str" / "none") {
+    optionDtype := stringToToJsonDtype(string(dtype.([]byte)))
+    gobRegex := utils.GobbableRegex{}
+    option := &structs.ToJsonFieldsDtypeOptions {
+        Dtype: optionDtype,
+        Regex: &gobRegex,
+    }
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_DEFAULT_TYPE,
+        Value: option,
+    }, nil
+}
+
+FillNullOption <- "fill_null" EQUAL boolVal:Boolean {
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_FILL_NULL,
+        Value: boolVal.(bool),
+    }, nil
+}
+
+IncludeInternalOption <- "include_internal" EQUAL boolVal:Boolean {
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_INCLUDE_INTERNAL,
+        Value: boolVal.(bool),
+    }, nil
+}
+
+OutputFieldOption <- "output_field" EQUAL strVal:String {
+    return &ToJsonCmdOption {
+        OptionType: TJ_CMD_OUTPUT_FIELD,
+        Value: strVal.(string),
+    }, nil
+}
+
+ToJsonBlock <- PIPE CMD_TOJSON options:(ToJsonOption)* {
+    defaultDtypeRegex := utils.GobbableRegex{}
+    err := defaultDtypeRegex.SetRegex(`.*`)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex Compile: %v", err)
+    }
+    toJsonDefaultOptions := &structs.ToJsonExpr {
+        FieldsDtypes: []*structs.ToJsonFieldsDtypeOptions {
+            &structs.ToJsonFieldsDtypeOptions {
+                Dtype: structs.TJ_None,
+                Regex: &defaultDtypeRegex,
+            },
+        }, 
+        DefaultType: &structs.ToJsonFieldsDtypeOptions {
+            Dtype: structs.TJ_None,
+            Regex: &utils.GobbableRegex{},
+        },
+        FillNull: false,
+        IncludeInternal: false,
+        OutputField: "_raw",
+        AllFields: true,
+    }
+    for _, opt := range options.([]interface{}) {
+        if option, ok := opt.(*ToJsonCmdOption); ok {
+            switch option.OptionType {
+            case TJ_CMD_FUNCTION:
+                if toJsonDefaultOptions.AllFields {
+                    toJsonDefaultOptions.FieldsDtypes[0] = option.Value.(*structs.ToJsonFieldsDtypeOptions)
+                    toJsonDefaultOptions.AllFields = false
+                } else {
+                    toJsonDefaultOptions.FieldsDtypes = append(toJsonDefaultOptions.FieldsDtypes, option.Value.(*structs.ToJsonFieldsDtypeOptions))
+                }
+            case TJ_CMD_DEFAULT_TYPE:
+                toJsonDefaultOptions.DefaultType = option.Value.(*structs.ToJsonFieldsDtypeOptions)
+            case TJ_CMD_FILL_NULL:
+                toJsonDefaultOptions.FillNull = option.Value.(bool)
+            case TJ_CMD_INCLUDE_INTERNAL:
+                toJsonDefaultOptions.IncludeInternal = option.Value.(bool)
+            case TJ_CMD_OUTPUT_FIELD:
+                toJsonDefaultOptions.OutputField = option.Value.(string)
+            default:
+                return nil, fmt.Errorf("ToJsonBlock: Received unexpected option; option-%v", option.OptionType)
+            }
+        }
+    }
+
+    return &structs.QueryAggregators {
+        ToJsonExpr: toJsonDefaultOptions,
+    }, nil
+}
+
 
 // All commands except CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP / CMD_APPEND)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP / CMD_APPEND / CMD_TOJSON)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -5425,6 +5681,7 @@ CMD_INPUTLOOKUP <- "inputlookup" SPACE
 EVAL_CONCAT <- SPACE? ("." / "+") SPACE?
 CMD_MVEXPAND <- "mvexpand"
 CMD_APPEND <- "append" SPACE
+CMD_TOJSON <- "tojson"
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
 MAJOR_BREAK <- [[\]<>(){}|!;,'"*\n\r \t&?+] / "%21" / "%26" /

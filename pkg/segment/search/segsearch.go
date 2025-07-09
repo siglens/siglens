@@ -471,6 +471,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		queryMetrics.IncrementNumBlocksToRawSearch(1)
 	}
 	allSearchResults.AddBlockResults(blkResults)
+	blkResults.Close()
 }
 
 func executeRawSearchOnNode(node *structs.SearchNode, searchReq *structs.SegmentSearchRequest, allBlockSearchHelpers []*structs.BlockSearchHelper,

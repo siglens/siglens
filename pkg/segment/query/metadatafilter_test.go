@@ -36,7 +36,6 @@ import (
 var IndexName string = "metadatafilter"
 
 func testTimeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCount int) {
-
 	tRange := &dtu.TimeRange{
 		StartEpochMs: 0,
 		EndEpochMs:   uint64(numEntriesInBlock),
@@ -82,7 +81,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		SearchType: SimpleExpression,
 	}
 	allFiles, _, _ := segmetadata.FilterSegmentsByTime(tRange, indexNames, 0)
-	ti := InitTableInfo(IndexName, 0, false)
+	ti := InitTableInfo(IndexName, 0, false, nil)
 	sn := &SearchNode{
 		AndSearchConditions: &SearchCondition{
 			SearchQueries: []*SearchQuery{baseQuery},
@@ -232,7 +231,6 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 			assert.Contains(t, sReq.AllBlocksToSearch, uint16(1))
 		}
 	}
-
 }
 
 func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCount int) {
@@ -250,7 +248,7 @@ func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		SearchType: SimpleExpression,
 	}
 	allFiles, _, _ := segmetadata.FilterSegmentsByTime(tRange, []string{IndexName}, 0)
-	ti := InitTableInfo(IndexName, 0, false)
+	ti := InitTableInfo(IndexName, 0, false, nil)
 	sn := &SearchNode{
 		AndSearchConditions: &SearchCondition{
 			SearchQueries: []*SearchQuery{rangeQuery},

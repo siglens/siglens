@@ -271,7 +271,7 @@ func InitRunningStreamStatsResults(measureFunc sutils.AggregateFunctions) *struc
 	}
 
 	switch measureFunc {
-	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality, sutils.EstdcError:
+	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Perc, sutils.Cardinality, sutils.EstdcError:
 		runningSSResult.CurrResult = sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_FLOAT,
 			CVal:  0.0,
@@ -329,7 +329,7 @@ func calculateAvg(ssResults *structs.RunningStreamStatsResults, window bool) sut
 func validateCurrResultDType(measureAgg sutils.AggregateFunctions, currResult sutils.CValueEnclosure) error {
 
 	switch measureAgg {
-	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality, sutils.EstdcError:
+	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Perc, sutils.Cardinality, sutils.EstdcError:
 		if currResult.Dtype != sutils.SS_DT_FLOAT {
 			return fmt.Errorf("validateCurrResultDType: Error: currResult value is not a float for measureAgg: %v", measureAgg)
 		}
@@ -408,6 +408,20 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		}
 		ssResults.CardinalityHLL.AddRaw(xxhash.Sum64String(strValue))
 		ssResults.CurrResult.CVal = ssResults.CardinalityHLL.RelativeError()
+	case sutils.Perc:
+		if ssResults.PercTDigest == nil {
+			ssResults.PercTDigest, err = utils.CreateNewTDigest()
+			if err != nil {
+				return result, valExist, nil
+			}
+		}
+		err = ssResults.PercTDigest.InsertIntoTDigest(colValue.CVal.(float64))
+		if err != nil {
+			return result, valExist, err
+		}
+		// always between 0 and 100 (enforced by the peg parser)
+		percentile := measureAgg.Param / 100
+		ssResults.CurrResult.CVal = ssResults.PercTDigest.GetQuantile(percentile)
 	case sutils.Values:
 		strValue := fmt.Sprintf("%v", colValue.CVal)
 		if ssResults.ValuesMap == nil {
@@ -641,6 +655,8 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg sutils.
 		return ssResults.CurrResult, true, nil
 	case sutils.EstdcError:
 		return ssResults.CurrResult, true, nil
+	case sutils.Perc:
+		return ssResults.CurrResult, true, nil
 	case sutils.Values:
 		return getValues(ssResults.CardinalityMap), true, nil
 	default:
@@ -857,6 +873,21 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 		}
 
 		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: cvalue, TimeInMilli: timestamp})
+	case sutils.Perc:
+		if ssResults.PercTDigest == nil {
+			ssResults.PercTDigest, err = utils.CreateNewTDigest()
+			if err != nil {
+				return sutils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error creating a new TDigest; measureAgg: %v, err: %v", measureAgg, err)
+			}
+		}
+		err = ssResults.PercTDigest.InsertIntoTDigest(colValue.CVal.(float64))
+		if err != nil {
+			return sutils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error inserting val: %v into TDigest; err: %v", colValue.CVal.(float64), err)
+		}
+		// always between 0 and 100 (enforced by the peg parser)
+		percentile := measureAgg.Param / 100
+		ssResults.CurrResult.CVal = ssResults.PercTDigest.GetQuantile(percentile)
+		ssResults.Window.PushBack(&structs.RunningStreamStatsWindowElement{Index: currIndex, Value: colValue, TimeInMilli: timestamp})
 	default:
 		return sutils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error measureAgg: %v not supported", measureAgg)
 	}

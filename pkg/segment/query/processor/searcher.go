@@ -790,7 +790,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 	getBatchKey := func(block *block) string {
 		return block.parentQSR.GetSegKey()
 	}
-	batchKeyLess := utils.NewUnsetOption[func(string, string) bool]()
+	batchKeyLess := utils.None[func(string, string) bool]()
 	// The return value is not needed, so use struct{} as a placeholder.
 	batchOperation := func(blocks []*block) ([]*struct{}, error) {
 		if len(blocks) == 0 {
@@ -1209,7 +1209,7 @@ func makeBlocksFromPQMR(allBlocksToSearch map[uint16]struct{},
 			BlockSummary: blockSummaries[blkNum],
 			BlkNum:       blkNum,
 			parentQSR:    qsr,
-			parentPQMR:   utils.NewOptionWithValue(pqmr),
+			parentPQMR:   utils.Some(pqmr),
 		})
 	}
 

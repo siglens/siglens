@@ -101,9 +101,9 @@ func RebalanceUnrotatedMetadata(totalAvailableSize uint64) uint64 {
 
 	atomic.StoreUint64(&TotalUnrotatedMetadataSizeBytes, finalSize)
 	log.Infof("RebalanceUnrotatedMetadata: Unrotated data was allocated %v MB. Removed %+v MB of unrotated metadata after rebalance",
-		sutils.ConvertUintBytesToMB(totalAvailableSize), sutils.ConvertUintBytesToMB(removedSize))
+		sutils.BytesToMiB(totalAvailableSize), sutils.BytesToMiB(removedSize))
 	log.Infof("RebalanceUnrotatedMetadata: Final Unrotated metadata in memory size: %v MB",
-		sutils.ConvertUintBytesToMB(TotalUnrotatedMetadataSizeBytes))
+		sutils.BytesToMiB(TotalUnrotatedMetadataSizeBytes))
 	return finalSize
 }
 
@@ -338,7 +338,7 @@ func (ri *RangeIndex) copyRangeIndex() *RangeIndex {
 func (usi *UnrotatedSegmentInfo) DoCMICheckForUnrotated(currQuery *structs.SearchQuery, tRange *dtu.TimeRange,
 	blkTracker *structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp sutils.LogicalOperator, rangeFilter map[string]string,
 	rangeOp sutils.FilterOperator, isRange bool, wildcardValue bool,
-	qid uint64, dualCaseCheckEnabled bool) (map[uint16]map[string]bool, uint64, uint64, error) {
+	qid uint64) (map[uint16]map[string]bool, uint64, uint64, error) {
 
 	timeFilteredBlocks := metautils.FilterBlocksByTime(usi.blockSummaries, blkTracker, tRange)
 	totalPossibleBlocks := uint64(len(usi.blockSummaries))
@@ -355,7 +355,7 @@ func (usi *UnrotatedSegmentInfo) DoCMICheckForUnrotated(currQuery *structs.Searc
 	if isRange {
 		err = usi.doRangeCheckForCols(timeFilteredBlocks, rangeFilter, rangeOp, colsToCheck, qid)
 	} else if !wildcardValue {
-		err = usi.doBloomCheckForCols(timeFilteredBlocks, bloomWords, originalBloomWords, bloomOp, colsToCheck, qid, dualCaseCheckEnabled)
+		err = usi.doBloomCheckForCols(timeFilteredBlocks, bloomWords, originalBloomWords, bloomOp, colsToCheck, qid)
 	}
 
 	numFinalBlocks := uint64(len(timeFilteredBlocks))
@@ -408,13 +408,13 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 
 func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint16]map[string]bool,
 	bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp sutils.LogicalOperator,
-	colsToCheck map[string]bool, qid uint64, dualCaseCheckEnabled bool) error {
+	colsToCheck map[string]bool, qid uint64) error {
 
 	if !usi.isCmiLoaded {
 		return nil
 	}
 
-	checkInOriginalKeys := dualCaseCheckEnabled && len(originalBloomKeys) > 0
+	checkInOriginalKeys := len(originalBloomKeys) > 0
 
 	numUnrotatedBlks := uint16(len(usi.unrotatedBlockCmis))
 	for blkNum := range timeFilteredBlocks {

@@ -26,8 +26,6 @@ let localPanels = [],
 let panelIndex;
 let isFavorite = false;
 //eslint-disable-next-line no-unused-vars
-let initialSearchDashboardData = {};
-//eslint-disable-next-line no-unused-vars
 let flagDBSaved = true;
 let timeRange = 'Last 1 Hr';
 let dbRefresh = '';
@@ -115,7 +113,7 @@ $(document).ready(async function () {
         }
     });
 
-    $('#theme-btn').click(() => displayPanels());
+    $('#theme-btn').click(() => updateDashboardTheme());
     getDashboardData();
 
     $('#favbutton').on('click', toggleFavorite);
@@ -407,7 +405,6 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
             <div id="empty-response"></div>`;
             panEl.append(responseDiv);
             $('#panelLogResultsGrid').show();
-            initialSearchDashboardData = localPanel.queryData;
             if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, panelId, localPanel, localPanel.queryRes);
             else runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
         } else if (localPanel.chartType == 'Line Chart' || localPanel.chartType == 'Bar Chart' || localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'number') {
@@ -446,52 +443,62 @@ function resetPanelIndices() {
 }
 
 async function getDashboardData() {
-    await fetch(`/api/dashboards/${dbId}`)
-        .then((res) => {
-            return res.json();
-        })
-        .then((data) => {
-            dbData = data;
-        });
+    try {
+        const response = await fetch(`/api/dashboards/${dbId}`);
 
-    const breadcrumb = new Breadcrumb();
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const mode = urlParams.get('mode');
-
-    breadcrumb.render(
-        dbData.folder?.breadcrumbs,
-        dbData.name,
-        true, // Show favorite button for dashboard
-        dbData.isFavorite,
-        mode === 'settings',
-        false
-    );
-    breadcrumb.onFavoriteClick(() => toggleFavorite(dbId));
-
-    dbName = dbData.name;
-    dbDescr = dbData.description;
-    dbRefresh = dbData.refresh;
-    isFavorite = dbData.isFavorite;
-    if (dbData.panels != undefined) {
-        localPanels = JSON.parse(JSON.stringify(dbData.panels));
-        originalQueries = {};
-        localPanels.forEach((panel) => {
-            if (panel.queryData && panel.queryData.searchText) {
-                originalQueries[panel.panelId] = panel.queryData.searchText;
-            }
-        });
-    } else localPanels = [];
-    if (localPanels != undefined) {
-        if (mode === 'settings') {
-            // When page loads and mode=settings is in URL, open settings
-            handleDbSettings();
-        } else {
-            displayPanels();
+        if (!response.ok) {
+            handleDashboardError(response.status, response.statusText);
+            return;
         }
-        setFavoriteValue(dbData.isFavorite);
-        setTimePickerValue();
-        setRefreshItemHandler();
+
+        const data = await response.json();
+        dbData = data;
+
+        const breadcrumb = new Breadcrumb();
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode');
+
+        breadcrumb.render(
+            dbData.folder?.breadcrumbs,
+            dbData.name,
+            true, // Show favorite button for dashboard
+            dbData.isFavorite,
+            mode === 'settings',
+            false
+        );
+        breadcrumb.onFavoriteClick(() => toggleFavorite(dbId));
+
+        dbName = dbData.name;
+        dbDescr = dbData.description;
+        dbRefresh = dbData.refresh;
+        isFavorite = dbData.isFavorite;
+
+        if (dbData.panels != undefined) {
+            localPanels = JSON.parse(JSON.stringify(dbData.panels));
+            originalQueries = {};
+            localPanels.forEach((panel) => {
+                if (panel.queryData && panel.queryData.searchText) {
+                    originalQueries[panel.panelId] = panel.queryData.searchText;
+                }
+            });
+        } else {
+            localPanels = [];
+        }
+
+        if (localPanels != undefined) {
+            if (mode === 'settings') {
+                // When page loads and mode=settings is in URL, open settings
+                handleDbSettings();
+            } else {
+                displayPanels();
+            }
+            setFavoriteValue(dbData.isFavorite);
+            setTimePickerValue();
+            setRefreshItemHandler();
+        }
+    } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+        handleDashboardError(0, 'Network Error');
     }
 }
 
@@ -704,7 +711,6 @@ async function displayPanels() {
                 panEl.append(responseDiv);
 
                 $('#panelLogResultsGrid').show();
-                initialSearchDashboardData = localPanel.queryData;
                 if (!isFilterApplied && localPanel.queryRes) {
                     runPanelLogsQuery(localPanel.queryData, idpanel, localPanel, localPanel.queryRes);
                 } else {
@@ -879,7 +885,6 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
-                queryMode: 'Builder',
             };
             break;
         case 1: // Line chart
@@ -927,7 +932,6 @@ function addPanel(chartIndex) {
         queryData: queryData,
         logLinesViewType: logLinesViewType,
         unit: unit,
-        isNewPanel: true, // Keep the flag for log panels
     });
 
     editPanelInit(panelIndex, true);
@@ -1137,13 +1141,15 @@ $('#error-ok-btn').click(function () {
 function initializeFolderDropdown() {
     new FolderDropdown('folder-dropdown-container', {
         showRoot: true,
-        initialFolder: dbData.folder ? {
-            id: dbData.folder.id,
-            name: dbData.folder.id === 'root-folder' ? 'Dashboards' : dbData.folder.name
-        } : null,
+        initialFolder: dbData.folder
+            ? {
+                  id: dbData.folder.id,
+                  name: dbData.folder.id === 'root-folder' ? 'Dashboards' : dbData.folder.name,
+              }
+            : null,
         onSelect: (selectedFolder) => {
             dbData.folder = selectedFolder;
-        }
+        },
     });
 }
 
@@ -1325,20 +1331,14 @@ function resizeCharts() {
 
 //eslint-disable-next-line no-unused-vars
 function setDashboardQueryModeHandler(panelQueryMode) {
-    let queryModeCookieValue = Cookies.get('queryMode');
+    // Determine which mode to use: panel > queryMode > default (Builder)
+    const mode = panelQueryMode || Cookies.get('queryMode') || 'Builder';
 
-    if (queryModeCookieValue !== undefined) {
-        if (panelQueryMode === '') {
-            // If panel queryMode is empty, apply the cookie queryMode
-            if (queryModeCookieValue === 'Builder') {
-                $('.custom-code-tab a:first').trigger('click');
-            } else {
-                $('.custom-code-tab a[href="#tabs-2"]').trigger('click');
-            }
-        }
-        // Add active class to dropdown options based on the queryMode selected
-        updateQueryModeUI(queryModeCookieValue);
-    }
+    // Trigger appropriate tab
+    const tabSelector = mode === 'Builder' ? '.custom-code-tab a:first' : '.custom-code-tab a[href="#tabs-2"]';
+
+    $(tabSelector).trigger('click');
+    updateQueryModeUI(mode);
 }
 
 // Search across the panels based on the search input
@@ -1439,4 +1439,130 @@ function resetToOriginalQueries() {
         }
     });
     originalQueries = {};
+}
+
+function handleDashboardError(status, statusText) {
+    const mainContent = document.querySelector('.dashboard-container');
+    if (mainContent) {
+        mainContent.style.display = 'none';
+    }
+
+    const breadcrumb = new Breadcrumb();
+    const dashboardName = status === 400 ? 'Dashboard Not Found' : status === 404 ? 'Dashboard Not Found' : 'Error Loading Dashboard';
+
+    breadcrumb.render([{ id: 'root-folder', name: 'Root' }], dashboardName);
+    showDashboardErrorState(status, statusText);
+}
+
+function showDashboardErrorState(status, statusText) {
+    const errorHTML = `
+        <div class="dashboard-error-container">
+            <div class="error-card">
+                <h2 class="error-title fw-bold">Dashboard Not Found</h2>
+                <p>
+                    ${status === 400 ? "The dashboard you're looking for doesn't exist or may have been deleted." : status === 404 ? 'The requested dashboard could not be found.' : 'There was an error loading the dashboard.'}
+                </p>
+                
+                <div class="error-details">
+                    <strong>Error:</strong> ${status} ${statusText}
+                    <br>
+                    <small>Dashboard ID: ${dbId}</small>
+                </div>
+                
+                <div class="error-actions d-flex flex-column gap-3">
+                    <button class="btn btn-primary" onclick="retryLoadDashboard()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                            <path d="M21 3v5h-5"/>
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                            <path d="M3 21v-5h5"/>
+                        </svg>
+                        Retry
+                    </button>
+                    <button class="btn btn-secondary" onclick="goToDashboards()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9,22 9,12 15,12 15,22"/>
+                        </svg>
+                        Go to Dashboards
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const container = document.querySelector('#new-dashboard') || document.body;
+    const errorDiv = document.createElement('div');
+    errorDiv.innerHTML = errorHTML;
+    container.appendChild(errorDiv);
+}
+
+//eslint-disable-next-line no-unused-vars
+function retryLoadDashboard() {
+    const errorContainer = document.querySelector('.dashboard-error-container');
+    if (errorContainer) {
+        errorContainer.remove();
+    }
+
+    getDashboardData();
+}
+
+//eslint-disable-next-line no-unused-vars
+function goToDashboards() {
+    window.location.href = '/dashboards-home.html';
+}
+
+function updateDashboardTheme() {
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
+    // Update Chart.js charts (Line and Bar Chart)
+    function updateChartJS(selector) {
+        $(selector).each(function () {
+            const chart = Chart.getChart(this);
+            if (chart?.options?.scales) {
+                const axes = ['x', 'y', 'y1'];
+
+                axes.forEach((axis) => {
+                    if (chart.options.scales[axis]) {
+                        chart.options.scales[axis].ticks.color = tickColor;
+
+                        if (!chart.options.scales[axis].grid) {
+                            chart.options.scales[axis].grid = {};
+                        }
+                        chart.options.scales[axis].grid.color = gridLineColor;
+                    }
+                });
+
+                if (chart.options.plugins?.legend?.labels) {
+                    chart.options.plugins.legend.labels.color = tickColor;
+                }
+
+                chart.update();
+            }
+        });
+    }
+
+    updateChartJS('.bar-chart-canvas');
+    updateChartJS('.metrics-canvas');
+
+    // Update ECharts instances (Pie charts)
+    $('.panEdit-panel').each(function () {
+        const instanceId = $(this).attr('_echarts_instance_');
+        if (instanceId) {
+            const instance = echarts.getInstanceById(instanceId);
+            if (instance) {
+                const option = instance.getOption();
+
+                // Update legend and label colors
+                if (option.legend?.[0]) {
+                    option.legend[0].textStyle = { ...option.legend[0].textStyle, color: tickColor };
+                }
+                if (option.series?.[0]?.label) {
+                    option.series[0].label = { ...option.series[0].label, color: tickColor };
+                }
+
+                instance.setOption(option);
+            }
+        }
+    });
 }

@@ -46,7 +46,7 @@ func GetDefaultTimeStats() *TimeStats {
 
 func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	inNumType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
-	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool, hasPercFunc bool) {
+	fltVal float64, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool, hasListFunc bool, hasPercFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -74,9 +74,19 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 		}
 	}
 
-	bb.Reset()
-	_, _ = bb.WriteString(numstr)
-	stats.InsertIntoHll(bb.B)
+	bytes := [8]byte{}
+	switch inNumType {
+	case SS_UINT8, SS_UINT16, SS_UINT32, SS_UINT64:
+		utils.Uint64ToBytesLittleEndianInplace(uintVal, bytes[:])
+	case SS_INT8, SS_INT16, SS_INT32, SS_INT64:
+		utils.Int64ToBytesLittleEndianInplace(intVal, bytes[:])
+	case SS_FLOAT64:
+		utils.Float64ToBytesLittleEndianInplace(fltVal, bytes[:])
+	default:
+		log.Warnf("AddSegStatsNums: unsupported inNumType: %v", inNumType)
+		return
+	}
+	stats.InsertIntoHll(bytes[:])
 	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 }
 
@@ -367,7 +377,7 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 
 	floatVal, err := strconv.ParseFloat(strVal, 64)
 	if err == nil {
-		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, strVal, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+		AddSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 		return
 	}
 

@@ -31,7 +31,7 @@ async function getListIndices() {
             return response.json();
         })
         .then(function (res) {
-            if (!res) {
+            if (!res || !Array.isArray(res) || res.length === 0) {
                 return null;
             }
             sortedListIndices = res.sort();
@@ -133,6 +133,7 @@ async function initializeIndexAutocomplete() {
             // Clear the input field if the typed value does not match any options when Enter is pressed
             if (event.keyCode === 13) {
                 let typedValue = $(this).val();
+
                 if (indexValues.includes(typedValue)) {
                     addSelectedIndex(typedValue);
                     if (!selectedSearchIndex.split(',').includes(typedValue)) {
@@ -160,6 +161,8 @@ async function initializeIndexAutocomplete() {
                         if (!selectedSearchIndex.split(',').includes(typedValue)) {
                             selectedSearchIndex += selectedSearchIndex ? ',' + typedValue : typedValue;
                         }
+                    } else {
+                        showToast(`Pattern <b> ${typedValue} </b> doesn't match any available indices`, 'error', 3000);
                     }
                     $(this).autocomplete('option', 'source', indexValues);
                     $(this).val('');

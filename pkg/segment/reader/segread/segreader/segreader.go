@@ -630,26 +630,6 @@ func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
 	return nil
 }
 
-func (sfr *SegmentFileReader) GetDictEncCvalsFromColFileOldPipeline(results map[uint16]map[string]interface{},
-	blockNum uint16, orderedRecNums []uint16,
-) bool {
-	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
-		valid, err := sfr.readBlock(blockNum)
-		if !valid {
-			return false
-		}
-		if err != nil {
-			return false
-		}
-	}
-
-	if sfr.encType != sutils.ZSTD_DICTIONARY_BLOCK[0] {
-		return false
-	}
-
-	return sfr.DeToResultOldPipeline(results, orderedRecNums)
-}
-
 func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]sutils.CValueEnclosure,
 	blockNum uint16, orderedRecNums []uint16,
 ) bool {

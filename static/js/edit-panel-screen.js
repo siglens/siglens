@@ -22,6 +22,7 @@ let selectedUnitTypeIndex = -1;
 let selectedDataTypeIndex = -1;
 let prevSelectedDataTypeIndex = -2;
 let selectedLogLinesViewTypeIndex = -1;
+let initialSearchDashboardData = {};
 
 let mapChartTypeToIndex = new Map([
     ['Line Chart', 0],
@@ -239,13 +240,6 @@ $(document).ready(function () {
         $('#overview-button').addClass('active');
         displayPanelView(panelIndex);
     });
-    let ele = $('#available-fields .select-unselect-header');
-
-    if (theme === 'light') {
-        ele.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
-    } else {
-        ele.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
-    }
 });
 
 //eslint-disable-next-line no-unused-vars
@@ -316,19 +310,20 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
 
         // Search Text
         if (currentPanel.queryData && (currentPanel.queryData.searchText !== undefined || currentPanel.queryData?.queries?.[0]?.query !== undefined)) {
-            if (currentPanel.queryType === 'logs') {
-                let queryMode = currentPanel.queryData.queryMode;
-                let queryText = currentPanel.queryData.searchText;
-                if (queryMode === 'Code' || queryMode === undefined) {
-                    // undefined case for previously created panels and open code for those panels
-                    $('#custom-code-tab').tabs('option', 'active', 1);
-                    $('#filter-input').val(queryText);
-                } else if (queryMode === 'Builder') {
-                    $('#custom-code-tab').tabs('option', 'active', 0);
-                    codeToBuilderParsing(queryText);
-                }
-                setDashboardQueryModeHandler(queryMode);
+            let queryMode = currentPanel.queryData.queryMode;
+            let queryText = currentPanel.queryData.searchText;
+            if (queryMode === 'Code' || queryMode === undefined) {
+                // undefined case for previously created panels and open code for those panels
+                $('#custom-code-tab').tabs('option', 'active', 1);
+                $('#filter-input').val(queryText);
+            } else if (queryMode === 'Builder') {
+                $('#custom-code-tab').tabs('option', 'active', 0);
+                codeToBuilderParsing(queryText);
             }
+            setDashboardQueryModeHandler(queryMode);
+
+            // Set initialSearchDashboardData
+            initialSearchDashboardData = currentPanel.queryData;
         }
 
         $('.index-container, .queryInput-container, #query-language-btn').css('display', 'inline-flex');
@@ -1083,7 +1078,6 @@ async function runQueryBtnHandler() {
     delete currentPanel.queryRes;
     resetEditPanel();
     panelGridDiv = null;
-    panelLogsRowData = [];
     $('.panelDisplay .ag-root-wrapper').remove();
     $('.panelDisplay #empty-response').empty();
     $('.panelDisplay #empty-response').hide();
@@ -1104,6 +1098,13 @@ async function runQueryBtnHandler() {
         currentPanel.queryData = data;
 
         $('.panelDisplay .panEdit-panel').hide();
+
+        // Clear Selected Fields if index changes
+        if (initialSearchDashboardData && initialSearchDashboardData.indexName !== selectedSearchIndex) {
+            currentPanel.selectedFields = [];
+        }
+        availColNames = [];
+
         //eslint-disable-next-line no-undef
         initialSearchDashboardData = data;
         await runPanelLogsQuery(data, -1, currentPanel);

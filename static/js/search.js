@@ -50,6 +50,20 @@ function doLiveTailCancel(_data) {
 
 function resetDataTable(firstQUpdate) {
     if (firstQUpdate) {
+        logsColumnDefs = [
+            {
+                field: 'timestamp',
+                headerName: 'timestamp',
+                cellRenderer: ExpandableJsonCellRenderer('logs'),
+                maxWidth: 250,
+                minWidth: 250,
+            },
+            {
+                field: 'logs',
+                headerName: 'logs',
+                minWidth: 1128,
+            },
+        ];
         $('#empty-response').hide();
         $('#custom-chart-tab').show().css({ height: '100%' });
         $('.tab-chart-list').show();
@@ -1143,12 +1157,15 @@ function codeToBuilderParsing(filterValue) {
     else $('#aggregate-attribute-text').show();
     if (firstBoxSet.size > 0) $('#search-filter-text').hide();
     else $('#search-filter-text').show();
+ 
+    //eslint-disable-next-line no-undef
+    updateResetButtonVisibility();
 }
 
 function renderLogsGrid(columnOrder, hits) {
     if (gridDiv == null) {
         gridDiv = document.querySelector('#LogResultsGrid');
-        //eslint-disable-next-line no-undef
+         
         new agGrid.Grid(gridDiv, gridOptions);
     }
 
@@ -1167,7 +1184,6 @@ function renderLogsGrid(columnOrder, hits) {
             return {
                 field: colName,
                 headerName: colName,
-                cellRenderer: myCellRenderer,
                 cellRendererParams: { colName: colName },
             };
         }
@@ -1182,7 +1198,6 @@ function renderLogsGrid(columnOrder, hits) {
 
     const logsColumnDefsMap = new Map(logsColumnDefs.map((logCol) => [logCol.field, logCol]));
     const combinedColumnDefs = cols.map((col) => logsColumnDefsMap.get(col.field) || col);
-
     logsColumnDefs.forEach((logCol) => {
         if (!combinedColumnDefs.some((col) => col.field === logCol.field)) {
             combinedColumnDefs.push(logCol);
@@ -1219,3 +1234,4 @@ function updateGridView() {
         gridOptions.api.setRowData(currentPageData);
     }
 }
+

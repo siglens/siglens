@@ -303,6 +303,7 @@ func Test_setMergeSettings(t *testing.T) {
 			SortEles: []*structs.SortElement{
 				{Field: "foo", Op: "", SortByAsc: true},
 			},
+			Limit: 42,
 		}
 
 		dpChain := []*DataProcessor{
@@ -316,10 +317,14 @@ func Test_setMergeSettings(t *testing.T) {
 		assert.Equal(t, anyOrder, *searcherMergeSettings.sortMode)
 		assert.NotNil(t, dpChain[0].mergeSettings.sortMode)
 		assert.Equal(t, anyOrder, *dpChain[0].mergeSettings.sortMode)
+		_, ok := dpChain[0].mergeSettings.limit.Get()
+		assert.False(t, ok)
 		assert.NotNil(t, dpChain[1].mergeSettings.sortExpr)
 		assert.True(t, sortExpr.Equal(dpChain[1].mergeSettings.sortExpr))
+		assert.Equal(t, sortExpr.Limit, must(t, dpChain[1].mergeSettings.limit.Get))
 		assert.NotNil(t, dpChain[2].mergeSettings.sortExpr)
 		assert.True(t, sortExpr.Equal(dpChain[2].mergeSettings.sortExpr))
+		assert.Equal(t, sortExpr.Limit, must(t, dpChain[2].mergeSettings.limit.Get))
 	})
 
 	t.Run("Multiple sorts", func(t *testing.T) {
@@ -327,11 +332,13 @@ func Test_setMergeSettings(t *testing.T) {
 			SortEles: []*structs.SortElement{
 				{Field: "foo", Op: "", SortByAsc: true},
 			},
+			Limit: 10,
 		}
 		sortExpr2 := &structs.SortExpr{
 			SortEles: []*structs.SortElement{
 				{Field: "bar", Op: "", SortByAsc: false},
 			},
+			Limit: 20,
 		}
 
 		dpChain := []*DataProcessor{
@@ -347,13 +354,27 @@ func Test_setMergeSettings(t *testing.T) {
 		assert.Equal(t, anyOrder, *searcherMergeSettings.sortMode)
 		assert.NotNil(t, dpChain[0].mergeSettings.sortExpr)
 		assert.True(t, sortExpr1.Equal(dpChain[0].mergeSettings.sortExpr))
+		assert.Equal(t, sortExpr1.Limit, must(t, dpChain[0].mergeSettings.limit.Get))
 		assert.NotNil(t, dpChain[1].mergeSettings.sortExpr)
 		assert.True(t, sortExpr1.Equal(dpChain[1].mergeSettings.sortExpr))
+		assert.Equal(t, sortExpr1.Limit, must(t, dpChain[1].mergeSettings.limit.Get))
 		assert.NotNil(t, dpChain[2].mergeSettings.sortExpr)
 		assert.True(t, sortExpr1.Equal(dpChain[2].mergeSettings.sortExpr))
+		assert.Equal(t, sortExpr1.Limit, must(t, dpChain[2].mergeSettings.limit.Get))
 		assert.NotNil(t, dpChain[3].mergeSettings.sortExpr)
 		assert.True(t, sortExpr2.Equal(dpChain[3].mergeSettings.sortExpr))
+		assert.Equal(t, sortExpr2.Limit, must(t, dpChain[3].mergeSettings.limit.Get))
 		assert.NotNil(t, dpChain[4].mergeSettings.sortExpr)
 		assert.True(t, sortExpr2.Equal(dpChain[4].mergeSettings.sortExpr))
+		assert.Equal(t, sortExpr2.Limit, must(t, dpChain[4].mergeSettings.limit.Get))
 	})
+}
+
+func must[V any](t *testing.T, fn func() (V, bool)) V {
+	t.Helper()
+
+	value, ok := fn()
+	assert.True(t, ok)
+
+	return value
 }

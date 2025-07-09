@@ -2870,6 +2870,24 @@ func Test_rexBlockOverideExistingFieldWithGroupBy(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.RexColRequest.RexColNames, []string{"http_status", "weekday", "third"})
 }
 
+func Test_rexEscapedQuotes(t *testing.T) {
+	query := []byte(`city=Boston | rex field=combined "error=(?P<error>\"[^\"]*\")"`)
+	_, err := spl.Parse("", query)
+	assert.Nil(t, err)
+
+	query = []byte(`city=Boston | rex field=combined "error=(?P<error>\\\\\"[^\"]*\")"`)
+	_, err = spl.Parse("", query)
+	assert.Nil(t, err) // Odd number of escapes, so quote is escaped.
+
+	query = []byte(`city=Boston | rex field=combined "error=(?P<error>\\"[^\"]*\")"`)
+	_, err = spl.Parse("", query)
+	assert.NotNil(t, err) // Even number of escapes, so quote isn't escaped.
+
+	query = []byte(`city=Boston | rex field=combined "error=(?P<error>\"[^"]*\")"`)
+	_, err = spl.Parse("", query)
+	assert.NotNil(t, err) // Didn't escape quote in [^"]
+}
+
 func Test_statisticBlockWithoutStatsGroupBy(t *testing.T) {
 	query := []byte(`city=Boston | rare 3 http_method, gender by country, http_status useother=true otherstr=testOther percentfield=http_method countfield=gender showperc=false`)
 	res, err := spl.Parse("", query)
@@ -3577,7 +3595,7 @@ func Test_evalFunctionsRtrim(t *testing.T) {
 }
 
 func Test_evalFunctionsSpath(t *testing.T) {
-	query := []byte(`city=Boston | stats count AS Count BY state | eval myField=spath(_raw, "vendorProductSet.product.desc.locDesc")`)
+	query := []byte(`city=Boston | stats count AS Count BY state | eval myField=spath(vendorProductSet, "product.desc.locDesc")`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -3593,14 +3611,15 @@ func Test_evalFunctionsSpath(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "myField")
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMStringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "spath")
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName, "_raw")
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path, `vendorProductSet.product.desc.locDesc`)
-	assert.False(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.IsPathFieldName)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMMultiValueExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "spath")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams)
+	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams), 2)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0].StringExprMode), structs.SEMField)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0].FieldName, "vendorProductSet")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[1].StringExprMode), structs.SEMRawString)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[1].RawString, "product.desc.locDesc")
 }
 
 func Test_evalFunctionsIf(t *testing.T) {
@@ -4762,6 +4781,187 @@ func Test_evalFunctionsPi(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "pi")
+}
+
+func Test_evalFunctionsBitwise(t *testing.T) {
+	// and, or, xor, require minimum of two arguments to work
+	query := []byte(`city=Boston | eval biwiseAndFail=bit_and(field1)`)
+	_, err := spl.Parse("", query)
+	assert.Error(t, err)
+
+	// bit_shift_* require exactly 2 arguments to work
+	query = []byte(`city=Boston | eval bitwiseShiftFail=bit_shift_left(field1)`)
+	_, err = spl.Parse("", query)
+	assert.Error(t, err)
+	t.Run("BitAnd", func(t *testing.T) {
+		query := []byte(`city=Boston | eval bitwiseAnd=bit_and(field1, field2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.OutputTransforms)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right)
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Value, "field1")
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right.Value, "field2")
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.NewColName, "bitwiseAnd")
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_and")
+	})
+
+	// Test bit_or function
+	t.Run("BitOr", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval bitwiseOr=bit_or(field1, field2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "bitwiseOr")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_or")
+	})
+
+	// Test bit_xor function
+	t.Run("BitXor", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval bitwiseXor=bit_xor(field1, field2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "bitwiseXor")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_xor")
+	})
+
+	// Test bit_not function
+	t.Run("BitNot", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval bitwiseNot=bit_not(field1)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "bitwiseNot")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_not")
+	})
+
+	// Test bit_shift_left function
+	t.Run("BitShiftLeft", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval leftShift=bit_shift_left(field1, 2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "leftShift")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_shift_left")
+	})
+
+	// Test bit_shift_right function
+	t.Run("BitShiftRight", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval rightShift=bit_shift_right(field1, 2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "rightShift")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_shift_right")
+	})
+
+	// Test nested bitwise operations
+	t.Run("NestedBitwiseOperations", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval complexBitwise=bit_or(bit_and(field1, field2), bit_xor(field3, field4))`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "complexBitwise")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_or")
+	})
+
+	// Test bitwise operations with multiple arguments
+	t.Run("BitwiseMultipleArgs", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval multiArg=bit_and(field1, field2, field3)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "multiArg")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_and")
+	})
 }
 
 func Test_evalFunctionsFloor(t *testing.T) {
@@ -7485,7 +7685,7 @@ func Test_SPath_Output_dataPath_With_WildCards_Unquoted_v2(t *testing.T) {
 }
 
 func Test_SPath_In_Eval_PathIsFieldName(t *testing.T) {
-	query := `* | eval locDesc=spath(_raw, locDesc)`
+	query := `* | eval locDesc=spath(valueField, locDesc)`
 	res, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -7499,20 +7699,20 @@ func Test_SPath_In_Eval_PathIsFieldName(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
-	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
-	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
-	assert.Equal(t, "locDesc", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
-	assert.True(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.IsPathFieldName)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMMultiValueExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams)
+	assert.NotNil(t, 2, len(aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams))
+	assert.Equal(t, structs.StringExprMode(structs.SEMField), aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0].StringExprMode)
+	assert.Equal(t, "valueField", aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0].FieldName)
+	assert.Equal(t, structs.StringExprMode(structs.SEMField), aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[1].StringExprMode)
+	assert.Equal(t, "locDesc", aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[1].FieldName)
 	assert.Equal(t, "locDesc", aggregator.OutputTransforms.LetColumns.NewColName)
 }
 
 func Test_SPath_In_Eval_IsPath(t *testing.T) {
-	query := `* | eval hashtags=spath(_raw, "entities.hashtags")`
+	query := `* | eval hashes=spath(entities, "hashtags.hash")`
 	res, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -7526,16 +7726,16 @@ func Test_SPath_In_Eval_IsPath(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
-	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
-	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
-	assert.Equal(t, "entities.hashtags", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
-	assert.False(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.IsPathFieldName)
-	assert.Equal(t, "hashtags", aggregator.OutputTransforms.LetColumns.NewColName)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMMultiValueExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams)
+	assert.Equal(t, 2, len(aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams))
+	assert.Equal(t, structs.StringExprMode(structs.SEMField), aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0].StringExprMode)
+	assert.Equal(t, "entities", aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[0].FieldName)
+	assert.Equal(t, structs.StringExprMode(structs.SEMRawString), aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[1].StringExprMode)
+	assert.Equal(t, "hashtags.hash", aggregator.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.StringExprParams[1].RawString)
+	assert.Equal(t, "hashes", aggregator.OutputTransforms.LetColumns.NewColName)
 }
 
 func Test_Spath_Extract_PathTest(t *testing.T) {
@@ -10204,7 +10404,7 @@ func testSingleAggregateFunction(t *testing.T, aggFunc sutils.AggregateFunctions
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
-	assert.Equal(t, aggregator.MeasureOperations[0].Param, param)
+	assert.LessOrEqual(t, math.Abs(aggregator.MeasureOperations[0].Param-param), 1e-6)
 }
 
 func performCommon_aggEval_BoolExpr(t *testing.T, measureFunc sutils.AggregateFunctions) {
@@ -10267,7 +10467,7 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc sutils.Aggre
 	if isField {
 		randomStr = utils.GetRandomString(10, utils.Alpha)
 	} else {
-		randomStr = fmt.Sprintf("%v", rand.Float64())
+		randomStr = strconv.FormatFloat(rand.Float64(), 'f', -1, 64)
 	}
 	measureFuncStr, param := getMeasureFuncStr(measureFunc)
 	measureWithEvalStr := measureFuncStr + `(eval(` + randomStr + `))`
@@ -10312,7 +10512,7 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc sutils.Aggr
 	// Query Form: app_name=bracecould | stats sum(http_status), measureFunc(eval(if(http_status=500, trueValueField, falseValueConstant)))
 	measureFuncStr, param := getMeasureFuncStr(measureFunc)
 	trueValueField := utils.GetRandomString(10, utils.Alpha)
-	falseValueConstant := fmt.Sprintf("%v", rand.Float64())
+	falseValueConstant := strconv.FormatFloat(rand.Float64(), 'f', -1, 64)
 	measureWithEvalStr := measureFuncStr + `(eval(if(http_status=500, ` + trueValueField + `, ` + falseValueConstant + `)))`
 
 	query := []byte(`app_name=bracecould | stats sum(http_status), ` + measureWithEvalStr)
@@ -10404,7 +10604,7 @@ func Test_MVExpand_NoLimit(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
 	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
 	assert.Equal(t, "batch", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
-	assert.Equal(t, utils.NewUnsetOption[int64](), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+	assert.Equal(t, utils.None[int64](), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_WithLimit(t *testing.T) {
@@ -10422,7 +10622,7 @@ func Test_MVExpand_WithLimit(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
 	assert.Equal(t, "mvexpand", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Command)
 	assert.Equal(t, "app_name", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
-	assert.Equal(t, utils.NewOptionWithValue(int64(5)), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
+	assert.Equal(t, utils.Some(int64(5)), aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Limit)
 }
 
 func Test_MVExpand_InvalidLimit(t *testing.T) {
@@ -11530,6 +11730,65 @@ func Test_Index_6(t *testing.T) {
 	assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "http_status")
 	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
+}
+
+func Test_ToJson_Expr(t *testing.T) {
+	queryPlain := []byte(`city=* | tojson`)
+	queryWDtype := []byte(`city=Boston | tojson auto(f) none(g) bool(h) json(i) str(k) num(l)`)
+	queryWFillNull := []byte(`city=Boston | tojson fill_null=true`)
+	queryWDefaultType := []byte(`city=Boston | tojson default_type=bool`)
+	queryWIncludeInternal := []byte(`city=Boston | tojson include_internal=true`)
+	queryWMix := []byte(`city=Boston | tojson app_name height width auto(weight) num(latency) fill_null=true default_type=json include_internal=true`)
+
+	res, err := spl.Parse("", queryPlain)
+	assert.Nil(t, err)
+	q := res.(ast.QueryStruct)
+	agg := q.PipeCommands.ToJsonExpr
+	assert.True(t, agg.AllFields)
+	assert.Len(t, agg.FieldsDtypes, 1)
+	assert.Equal(t, structs.TJ_None, agg.FieldsDtypes[0].Dtype)
+	assert.Equal(t, ".*", agg.FieldsDtypes[0].Regex.GetRawRegex())
+
+	res, err = spl.Parse("", queryWDtype)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.False(t, agg.AllFields)
+	expectedDtypes := []structs.ToJsonDtypes{
+		structs.TJ_Auto, structs.TJ_None, structs.TJ_Bool,
+		structs.TJ_Json, structs.TJ_Str, structs.TJ_Num,
+	}
+	assert.Len(t, agg.FieldsDtypes, 6)
+	for i, dtypeOpt := range agg.FieldsDtypes {
+		assert.Equal(t, expectedDtypes[i], dtypeOpt.Dtype)
+	}
+
+	res, err = spl.Parse("", queryWFillNull)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.True(t, agg.FillNull)
+
+	res, err = spl.Parse("", queryWDefaultType)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.Equal(t, structs.TJ_Bool, agg.DefaultType.Dtype)
+
+	res, err = spl.Parse("", queryWIncludeInternal)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.True(t, agg.IncludeInternal)
+
+	res, err = spl.Parse("", queryWMix)
+	assert.Nil(t, err)
+	agg = res.(ast.QueryStruct).PipeCommands.ToJsonExpr
+	assert.False(t, agg.AllFields)
+	assert.Len(t, agg.FieldsDtypes, 5)
+	assert.Equal(t, structs.TJ_Auto, agg.FieldsDtypes[3].Dtype)
+	assert.Equal(t, "weight", agg.FieldsDtypes[3].Regex.GetRawRegex())
+	assert.Equal(t, structs.TJ_Num, agg.FieldsDtypes[4].Dtype)
+	assert.Equal(t, "latency", agg.FieldsDtypes[4].Regex.GetRawRegex())
+	assert.True(t, agg.FillNull)
+	assert.True(t, agg.IncludeInternal)
+	assert.Equal(t, structs.TJ_Json, agg.DefaultType.Dtype)
 }
 
 func Test_Eval_Expr(t *testing.T) {

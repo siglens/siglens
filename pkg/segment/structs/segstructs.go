@@ -201,6 +201,7 @@ type QueryAggregators struct {
 	StatisticExpr   *StatisticExpr
 	TransactionExpr *TransactionArguments
 	WhereExpr       *BoolExpr
+	ToJsonExpr      *ToJsonExpr
 }
 
 type GenerateEvent struct {
@@ -261,6 +262,7 @@ type RunningStreamStatsResults struct {
 	RangeStat           *RangeStat
 	CardinalityMap      map[string]int
 	CardinalityHLL      *utils.GobbableHll
+	PercTDigest         *utils.GobbableTDigest
 	ValuesMap           map[string]struct{}
 }
 
@@ -365,6 +367,33 @@ type AppendCmdOption struct {
 	OptionType string
 	Value      interface{}
 }
+
+type ToJsonExpr struct {
+	FieldsDtypes    []*ToJsonFieldsDtypeOptions
+	DefaultType     *ToJsonFieldsDtypeOptions
+	FillNull        bool
+	IncludeInternal bool
+	OutputField     string
+	AllFields       bool
+}
+
+type ToJsonFieldsDtypeOptions struct {
+	Dtype ToJsonDtypes
+	Regex *utils.GobbableRegex
+}
+
+type ToJsonDtypes uint8
+
+const (
+	TJ_None ToJsonDtypes = iota
+	TJ_Auto
+	TJ_Bool
+	TJ_Json
+	TJ_Num
+	TJ_Str
+	// Data type will be set later during processing
+	TJ_PostProcess
+)
 
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
@@ -1537,13 +1566,11 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvzip":            {},
 	"mv_to_json_array": {},
 	"object_to_array":  {},
-	"printf":           {},
 	"tojson":           {},
 	"cluster":          {},
 	"getfields":        {},
 	"isnum":            {},
 	"isnotnull":        {},
-	"spath":            {},
 	"eventcount":       {},
 }
 

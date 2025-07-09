@@ -21,11 +21,12 @@ $('#available-fields').off('click').on('click', availableFieldsClickHandler);
 $('#available-fields .fields').off('click').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
 
 //eslint-disable-next-line no-unused-vars
-function renderAvailableFields(columnOrder, columnCount) {
+function renderAvailableFields(columnOrder, columnCount, currentPanel) {
     let el = $('#available-fields .fields');
     let columnsToIgnore = ['timestamp', 'logs'];
     el.empty();
     $('.column-count').html(columnCount);
+
     columnOrder.forEach((colName, _index) => {
         if (columnsToIgnore.indexOf(colName) == -1) {
             if (!availColNames.includes(colName)) {
@@ -50,25 +51,19 @@ function renderAvailableFields(columnOrder, columnCount) {
     let afieldDropDown = document.getElementById('available-fields');
     afieldDropDown.style.width = 'auto';
 
-    if (updatedSelFieldList) {
-        selectedFieldsList = _.intersection(selectedFieldsList, availColNames);
-    } else {
-        selectedFieldsList = _.union(selectedFieldsList, availColNames);
-    }
+    $('#available-fields').data('currentPanel', currentPanel);
 
-    if (selectedFieldsList.length != 0) {
+    if (currentPanel.selectedFields && currentPanel.selectedFields.length > 0) {
         availColNames.forEach((colName, _index) => {
-            if (selectedFieldsList.includes(colName)) {
+            if (currentPanel.selectedFields.includes(colName)) {
                 $(`.toggle-${string2Hex(colName)}`).addClass('active');
             } else {
                 $(`.toggle-${string2Hex(colName)}`).removeClass('active');
             }
         });
     }
-}
-//eslint-disable-next-line no-unused-vars
-function resetAvailableFields() {
-    $('#available-fields .fields').html('');
+
+    updateSelectAllCheckmark(currentPanel);
 }
 
 // prevent the available fields popup from closing when you toggle an available field
@@ -78,63 +73,38 @@ function availableFieldsClickHandler(evt) {
 
 function availableFieldsSelectHandler(evt) {
     let colName = evt.currentTarget.dataset.index;
-
     let encColName = string2Hex(colName);
-    // don't toggle the timestamp column
-    if (colName !== 'timestamp') {
-        // toggle the column visibility
-        $(`.toggle-${encColName}`).toggleClass('active');
-        const isSelected = $(`.toggle-${encColName}`).hasClass('active');
 
-        if (isSelected) {
-            // Update the selectedFieldsList everytime a field is selected
-            if (!selectedFieldsList.includes(colName)) {
-                selectedFieldsList.push(colName);
-            }
-        } else {
-            // Everytime the field is unselected, remove it from selectedFieldsList
-            selectedFieldsList = selectedFieldsList.filter((field) => field !== colName);
+    $(`.toggle-${encColName}`).toggleClass('active');
+    const isSelected = $(`.toggle-${encColName}`).hasClass('active');
+
+    if (isSelected) {
+        if (!currentPanel.selectedFields.includes(colName)) {
+            currentPanel.selectedFields.push(colName);
         }
-    }
-
-    let visibleColumns = 0;
-    let totalColumns = -1;
-
-    availColNames.forEach((colName, _index) => {
-        if (selectedFieldsList.includes(colName)) {
-            visibleColumns++;
-            totalColumns++;
-        }
-    });
-
-    if (visibleColumns == 1) {
-        shouldCloseAllDetails = true;
     } else {
-        if (shouldCloseAllDetails) {
-            shouldCloseAllDetails = false;
-        }
+        currentPanel.selectedFields = currentPanel.selectedFields.filter((field) => field !== colName);
     }
+
+    updateSelectAllCheckmark(currentPanel);
+
+    updateColumns();
+    panelGridOptions.api.sizeColumnsToFit();
+}
+
+function updateSelectAllCheckmark(currentPanel) {
     let el = $('#available-fields .select-unselect-header');
 
-    // uncheck the toggle-all fields if the selected columns count is different
-    if (visibleColumns < totalColumns) {
-        let cmClass = el.find('.select-unselect-checkmark');
-        cmClass.remove();
-    }
-    // We do not count time and log column
-    if (visibleColumns == totalColumns - 2) {
+    let visibleColumns = currentPanel.selectedFields ? currentPanel.selectedFields.length - 1 : 0; //Remove timestamp
+    let totalColumns = availColNames.length;
+
+    el.find('.select-unselect-checkmark').remove();
+
+    if (visibleColumns === totalColumns && totalColumns > 0) {
         if (theme === 'light') {
             el.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
         } else {
             el.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
         }
     }
-
-    if (window.location.pathname.includes('dashboard.html')) {
-        updateColumns();
-        currentPanel.selectedFields = selectedFieldsList;
-        panelGridOptions.api.sizeColumnsToFit();
-    }
-
-    updatedSelFieldList = true;
 }

@@ -572,27 +572,6 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*sutils.RecordR
 	return finalLogs, allCols, nil
 }
 
-func humanizeUints(v uint64) string {
-	if v < 1000 {
-		return strconv.FormatUint(v, 10)
-	}
-	parts := []string{"", "", "", "", "", "", ""}
-	j := len(parts) - 1
-	for v > 999 {
-		parts[j] = strconv.FormatUint(v%1000, 10)
-		switch len(parts[j]) {
-		case 2:
-			parts[j] = "0" + parts[j]
-		case 1:
-			parts[j] = "00" + parts[j]
-		}
-		v = v / 1000
-		j--
-	}
-	parts[j] = strconv.FormatUint(v, 10)
-	return strings.Join(parts[j:], ",")
-}
-
 func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues bool) ([]*structs.BucketHolder, []string, []string, []string, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
@@ -615,7 +594,7 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues boo
 			bucketHolder.MeasureVal[mfName] = measureVal
 		case sutils.SS_DT_UNSIGNED_NUM:
 			if humanizeValues {
-				measureVal = humanizeUints(aggVal.CVal.(uint64))
+				measureVal = utils.HumanizeUints(aggVal.CVal.(uint64))
 			}
 			bucketHolder.MeasureVal[mfName] = measureVal
 		case sutils.SS_DT_SIGNED_NUM:

@@ -178,6 +178,7 @@ func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, 
 			isBlkFullyEncosed, qid, aggsKeyWorkingBuf, timeRangeBuckets, nodeRes)
 	}
 	allSearchResults.AddBlockResults(blkResults)
+	blkResults.Close()
 }
 
 func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, MFuncs []*structs.MeasureAggregator,
@@ -220,14 +221,16 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		}
 	}
 
-	measureColKeyIdxAndIndices := make(map[int][]int)
+	idxToIndicies := make(map[int][]int)
 	for cName, indices := range measureInfo {
 		cKeyidx, ok := multiColReader.GetColKeyIndex(cName)
 		if ok {
-			measureColKeyIdxAndIndices[cKeyidx] = indices
+			idxToIndicies[cKeyidx] = indices
 			colsToReadIndices[cKeyidx] = struct{}{}
 		}
 	}
+	// Convert to a slice to optimize for read-only iteration.
+	measureColKeyIdxAndIndices := utils.MapToSlice(idxToIndicies)
 
 	err := multiColReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
 	if err != nil {
@@ -326,7 +329,10 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			}
 		}
 
-		for colKeyIdx, indices := range measureColKeyIdxAndIndices {
+		for _, kvPair := range measureColKeyIdxAndIndices {
+			colKeyIdx := kvPair.Key
+			indices := kvPair.Value
+
 			err := multiColReader.ExtractValueFromColumnFile(colKeyIdx, blockNum, recNum,
 				qid, false, &retCVal)
 			if err != nil {
@@ -809,6 +815,7 @@ func applyAggregationsToSingleBlockFastPath(aggs *structs.QueryAggregators,
 		queryMetrics.IncrementNumBlocksWithMatch(1)
 	}
 	allSearchResults.AddBlockResults(blkResults)
+	blkResults.Close()
 }
 
 func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSearchRecords *SegmentSearchStatus,
@@ -961,8 +968,14 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			nonDeColsKeyIndices[timestampColKeyIdx] = timestampKey
 		}
 
+		// Convert to slice to optimize read-only iteration.
+		nonDeIdxAndNames := utils.MapToSlice(nonDeColsKeyIndices)
+
 		for _, recNum := range sortedMatchedRecs {
-			for colKeyIdx, cname := range nonDeColsKeyIndices {
+			for _, kvPair := range nonDeIdxAndNames {
+				colKeyIdx := kvPair.Key
+				cname := kvPair.Value
+
 				isTsCol := colKeyIdx == timestampColKeyIdx
 				err := multiReader.ExtractValueFromColumnFile(colKeyIdx, blockStatus.BlockNum,
 					recNum, qid, isTsCol, &cValEnc)
@@ -1001,16 +1014,13 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 					var floatVal float64
 					var intVal int64
 					var valueType sutils.SS_IntUintFloatTypes
-					var numStr string
 					var err error
 					if cValEnc.IsFloat() {
 						valueType = sutils.SS_FLOAT64
 						floatVal, err = cValEnc.GetFloatValue()
-						numStr = fmt.Sprintf("%v", floatVal)
 					} else {
 						valueType = sutils.SS_INT64
 						intVal, err = cValEnc.GetIntValue()
-						numStr = fmt.Sprintf("%v", intVal)
 					}
 
 					if err != nil {
@@ -1018,7 +1028,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 						continue
 					}
 
-					stats.AddSegStatsNums(localStats, cname, valueType, intVal, 0, floatVal, numStr, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+					stats.AddSegStatsNums(localStats, cname, valueType, intVal, 0, floatVal, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				}
 			}
 		}
@@ -1066,29 +1076,26 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 			retVal[colName] = true
 			continue
 		}
-		results := make(map[uint16]map[string]interface{})
-		ok := mcr.GetDictEncCvalsFromColFileOldPipeline(results, colName, blockNum, filterdRecNums, qid)
+		results := map[string][]sutils.CValueEnclosure{
+			colName: make([]sutils.CValueEnclosure, len(filterdRecNums)),
+		}
+		ok := mcr.GetDictEncCvalsFromColFile(results, colName, blockNum, filterdRecNums, qid)
 		if !ok {
 			log.Errorf("qid=%d, segmentStatsWorker failed to get dict cvals for col %s", qid, colName)
 			continue
 		}
-		for recNum, cMap := range results {
-			for colName, rawVal := range cMap {
-				addValsToTimeStats(lStats, colName, latestTs, earliestTs, rawVal, mcr, needLatestOrEarliest, blockNum, recNum, qid)
+
+		for colName, rawVals := range results {
+			for i, rawVal := range rawVals {
+				recNum := filterdRecNums[i]
+				addValsToTimeStats(lStats, colName, latestTs, earliestTs, rawVal.CVal, mcr, needLatestOrEarliest, blockNum, recNum, qid)
 				colUsage, exists := aggColUsage[colName]
 				if !exists {
 					colUsage = sutils.NoEvalUsage
 				}
 				// If current col will be used by eval funcs, we should store the raw data and process it
 				if colUsage == sutils.WithEvalUsage || colUsage == sutils.BothUsage {
-					e := sutils.CValueEnclosure{}
-					err := e.ConvertValue(rawVal)
-					if err != nil {
-						log.Errorf("applySegmentStatsUsingDictEncoding: %v", err)
-						continue
-					}
-
-					if e.Dtype != sutils.SS_DT_STRING {
+					if rawVal.Dtype != sutils.SS_DT_STRING {
 						retVal[colName] = true
 						continue
 					}
@@ -1105,7 +1112,8 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 
 						lStats[colName] = stats
 					}
-					stats.Records = append(stats.Records, &e)
+					rawValCopy := rawVal
+					stats.Records = append(stats.Records, &rawValCopy)
 
 					// Current col only used by eval statements
 					if colUsage == sutils.WithEvalUsage {
@@ -1113,7 +1121,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 					}
 				}
 
-				if rawVal == nil {
+				if rawVal.IsNull() {
 					continue
 				}
 
@@ -1130,13 +1138,16 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 					hasPercFunc = false
 				}
 
-				switch val := rawVal.(type) {
-				case string:
+				switch rawVal.Dtype {
+				case sutils.SS_DT_STRING:
+					val := rawVal.CVal.(string)
 					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
-				case int64:
-					stats.AddSegStatsNums(lStats, colName, sutils.SS_INT64, val, 0, 0, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
-				case float64:
-					stats.AddSegStatsNums(lStats, colName, sutils.SS_FLOAT64, 0, 0, val, fmt.Sprintf("%v", val), bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+				case sutils.SS_DT_SIGNED_NUM:
+					val := rawVal.CVal.(int64)
+					stats.AddSegStatsNums(lStats, colName, sutils.SS_INT64, val, 0, 0, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
+				case sutils.SS_DT_FLOAT:
+					val := rawVal.CVal.(float64)
+					stats.AddSegStatsNums(lStats, colName, sutils.SS_FLOAT64, 0, 0, val, bb, aggColUsage, hasValuesFunc, hasListFunc, hasPercFunc)
 				default:
 					// This means the column is not dict encoded. So add it to the return value
 					retVal[colName] = true
@@ -1168,6 +1179,12 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		return
 	}
 
+	// Allocate a block of RRCs to avoid overhead of many allocations and GC
+	// tracking many items. If we need more RRCs, we'll allocate a new block.
+	const rrcsBlockSize = 256 // Kind of arbitrary.
+	rrcs := make([]sutils.RecordResultContainer, rrcsBlockSize)
+	nextRrcsIdx := 0
+
 	segKeyEnc := allSearchResults.GetAddSegEnc(searchReq.SegmentKey)
 	numRecsMatched := uint16(0)
 	for recNum := uint(0); recNum < uint(recIT.AllRecLen); recNum++ {
@@ -1189,16 +1206,23 @@ func iterRecsAddRrc(recIT *BlockRecordIterator, mcr *segread.MultiColSegmentRead
 		}
 		numRecsMatched++
 
-		rrc := &sutils.RecordResultContainer{
-			SegKeyInfo: sutils.SegKeyInfo{
-				SegKeyEnc: segKeyEnc,
-				IsRemote:  false,
-			},
-			BlockNum:         blockStatus.BlockNum,
-			RecordNum:        recNumUint16,
-			VirtualTableName: searchReq.VirtualTableName,
-			TimeStamp:        recTs,
+		if nextRrcsIdx >= rrcsBlockSize {
+			// Allocate a new block.
+			rrcs = make([]sutils.RecordResultContainer, rrcsBlockSize)
+			nextRrcsIdx = 0
 		}
+
+		rrc := &rrcs[nextRrcsIdx]
+		nextRrcsIdx++
+		rrc.SegKeyInfo = sutils.SegKeyInfo{
+			SegKeyEnc: segKeyEnc,
+			IsRemote:  false,
+		}
+		rrc.BlockNum = blockStatus.BlockNum
+		rrc.RecordNum = recNumUint16
+		rrc.VirtualTableName = searchReq.VirtualTableName
+		rrc.TimeStamp = recTs
+
 		blkResults.Add(rrc)
 
 	}

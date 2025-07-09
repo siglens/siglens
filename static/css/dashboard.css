@@ -802,6 +802,7 @@
   border-right: none;
   border-radius: 1px 0;
   cursor: pointer;
+  z-index: 1;
 }
 
 #panel-desc-info {
@@ -999,7 +1000,7 @@
   top: 90px;
   cursor: default;
   box-shadow: var(--box-shadow);
-  z-index: 0;
+  z-index: 1;
 }
 
 #add-widget-options .editPanelMenu-options {
@@ -1328,4 +1329,37 @@
   margin-bottom: 16px;
   border: 1px solid var(--border-color-regular);
   border-radius: 5px;
+}
+
+.dashboard-error-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 90vh;
+}
+
+.error-card {
+  background: var(--timepicker-bg-color);
+  border: 1px solid var(--search-input-border);
+  border-radius: 8px;
+  box-shadow: var(--box-shadow);
+  padding: 40px;
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.error-details {
+  background-color: rgba(220, 53, 69, 0.1);
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: #dc3545;
+}
+
+.error-actions button svg {
+  height: 13px;
+  margin-right: 10px;
 }

@@ -53,34 +53,34 @@ func verifyValidOrNil[U any](t *testing.T, nonNilValues []U, nilValues []U) {
 }
 
 func Test_Constructor_NonNilableType(t *testing.T) {
-	option := NewUnsetOption[int]()
+	option := None[int]()
 	_, ok := option.Get()
 	assert.False(t, ok)
 
-	option = NewOptionWithValue(42)
+	option = Some(42)
 	value, ok := option.Get()
 	assert.True(t, ok)
 	assert.Equal(t, 42, value)
 }
 
 func Test_Constructor_NilableType(t *testing.T) {
-	option := NewUnsetOption[*int]()
+	option := None[*int]()
 	_, ok := option.Get()
 	assert.False(t, ok)
 
 	x := 42
-	option = NewOptionWithValue(&x)
+	option = Some(&x)
 	value, ok := option.Get()
 	assert.True(t, ok)
 	assert.Equal(t, &x, value)
 
-	option = NewOptionWithValue[*int](nil)
+	option = Some[*int](nil)
 	_, ok = option.Get()
 	assert.False(t, ok)
 }
 
 func Test_SetAndClear_NonNilableType(t *testing.T) {
-	option := NewUnsetOption[int]()
+	option := None[int]()
 	option.Set(42)
 	value, ok := option.Get()
 	assert.True(t, ok)
@@ -92,7 +92,7 @@ func Test_SetAndClear_NonNilableType(t *testing.T) {
 }
 
 func Test_SetAndClear_NilableType(t *testing.T) {
-	option := NewUnsetOption[map[string]int]()
+	option := None[map[string]int]()
 	option.Set(map[string]int{"foo": 42})
 	value, ok := option.Get()
 	assert.True(t, ok)
@@ -125,7 +125,7 @@ func Test_Set_NilValue(t *testing.T) {
 }
 
 func verifyValueIsNone[U any](t *testing.T, nilValue U) {
-	option := NewUnsetOption[U]()
+	option := None[U]()
 	option.Set(nilValue)
 	_, ok := option.Get()
 	assert.False(t, ok)
@@ -146,11 +146,11 @@ func Test_NilOptionStruct(t *testing.T) {
 }
 
 func Test_Option_EncodeDecode_newOption(t *testing.T) {
-	option := NewOptionWithValue(42)
+	option := Some(42)
 	encoded, err := option.GobEncode()
 	assert.NoError(t, err)
 
-	decoded := NewUnsetOption[int]()
+	decoded := None[int]()
 	err = decoded.GobDecode(encoded)
 	assert.NoError(t, err)
 
@@ -160,11 +160,11 @@ func Test_Option_EncodeDecode_newOption(t *testing.T) {
 }
 
 func Test_Option_EncodeDecode_replaceOption(t *testing.T) {
-	option := NewOptionWithValue(42)
+	option := Some(42)
 	encoded, err := option.GobEncode()
 	assert.NoError(t, err)
 
-	decoded := NewOptionWithValue(1)
+	decoded := Some(1)
 	err = decoded.GobDecode(encoded)
 	assert.NoError(t, err)
 
@@ -175,17 +175,17 @@ func Test_Option_EncodeDecode_replaceOption(t *testing.T) {
 
 func Test_Option_EncodeDecode_badEncoding(t *testing.T) {
 	encoded := []byte("bad encoding")
-	decoded := NewOptionWithValue(42)
+	decoded := Some(42)
 	err := decoded.GobDecode(encoded)
 	assert.Error(t, err)
 }
 
 func Test_Option_EncodeDecode_nilOption(t *testing.T) {
-	option := NewUnsetOption[int]()
+	option := None[int]()
 	encoded, err := option.GobEncode()
 	assert.NoError(t, err)
 
-	decoded := NewOptionWithValue(1)
+	decoded := Some(1)
 	err = decoded.GobDecode(encoded)
 	assert.NoError(t, err)
 
@@ -194,8 +194,8 @@ func Test_Option_EncodeDecode_nilOption(t *testing.T) {
 }
 
 func Test_EqualOptions(t *testing.T) {
-	option1 := NewOptionWithValue(42)
-	option2 := NewOptionWithValue(42)
+	option1 := Some(42)
+	option2 := Some(42)
 	assert.True(t, EqualOptions(option1, option2))
 
 	option2.Set(43)

@@ -28,6 +28,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func init() {
+	gob.Register(&GobbableRegex{})
+	gob.Register(&GobbableList{})
+	gob.Register(&GobbableTDigest{})
+	gob.Register(&GobbableHll{})
+}
+
 type GobbableRegex struct {
 	rawRegex      string
 	compiledRegex *regexp.Regexp

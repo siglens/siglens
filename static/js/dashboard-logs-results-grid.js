@@ -22,6 +22,38 @@ let isFetching = false;
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
 
+function escapeHtml(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function createLogsCellRenderer() {
+    return (params) => {
+        let logString = '';
+        let counter = 0;
+
+        _.forEach(params.data, (value, key) => {
+            if (key === 'timestamp') {
+                return; // Skip timestamp field
+            }
+
+            let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
+
+            // Handle different value types and escape HTML
+            let formattedValue;
+            if (typeof value === 'object' && value !== null) {
+                const jsonString = JSON.stringify(JSON.unflatten(value), null, 2);
+                formattedValue = escapeHtml(jsonString);
+            } else {
+                formattedValue = escapeHtml(String(value));
+            }
+
+            logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}<b>${key}</b> ${formattedValue}</span>`;
+            counter++;
+        });
+        return logString;
+    };
+}
+
 let panelLogsColumnDefs = [
     {
         field: 'timestamp',
@@ -35,18 +67,7 @@ let panelLogsColumnDefs = [
     {
         field: 'logs',
         headerName: 'logs',
-        cellRenderer: (params) => {
-            let logString = '';
-            let counter = 0;
-
-            _.forEach(params.data, (value, key) => {
-                let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
-
-                logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}<b>${key}</b>` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
-                counter++;
-            });
-            return logString;
-        },
+        cellRenderer: createLogsCellRenderer(),
     },
 ];
 
@@ -93,29 +114,24 @@ function createPanelGridOptions(currentPanel) {
                             scrollingErrorPopup();
                             return; // Prevent further scrolling
                         }
-                        //eslint-disable-next-line no-undef
                         isFetching = true;
                         showLoadingIndicator();
                         if (data && data.searchText == 'error') {
                             alert('Error');
                             hideLoadingIndicator(); // Hide loading indicator on error
-                            //eslint-disable-next-line no-undef
                             isFetching = false;
                             return;
                         }
                         runPanelLogsQuery(data, panelID, currentPanel)
                             .then(() => {
-                                //eslint-disable-next-line no-undef
                                 isFetching = false;
                             })
                             .catch((error) => {
                                 console.warn('Error fetching data', error);
-                                //eslint-disable-next-line no-undef
                                 isFetching = false;
                             })
                             .finally(() => {
                                 hideLoadingIndicator();
-                                //eslint-disable-next-line no-undef
                                 isFetching = false;
                             });
                     }
@@ -183,6 +199,7 @@ function showLoadingIndicator() {
 function hideLoadingIndicator() {
     panelGridOptions.api.hideOverlay();
 }
+
 //eslint-disable-next-line no-unused-vars
 function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
     panelID = panelId;
@@ -198,6 +215,8 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
         new agGrid.Grid(panelGridDiv, panelGridOptions);
     }
     if (panelId != -1) {
+        panelLogsRowData = [];
+
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
         panelGridOptions = createPanelGridOptions(currentPanel);
 
@@ -311,6 +330,7 @@ function panelLogOptionTableHandler(panelGridOptions, panelLogsColumnDefs) {
     panelGridOptions.columnApi.setColumnVisible('timestamp', true);
     panelGridOptions.columnApi.setColumnVisible('logs', false);
 }
+
 //eslint-disable-next-line no-unused-vars
 function renderPanelAggsGrid(columnOrder, hits, panelId) {
     let aggsColumnDefs = [];
@@ -337,7 +357,7 @@ function renderPanelAggsGrid(columnOrder, hits, panelId) {
         enableCellTextSelection: true,
         suppressRowClickSelection: true,
         suppressDragLeaveHidesColumns: true,
-        ensureDomOrder: true
+        ensureDomOrder: true,
     };
     $(`.panelDisplay .big-number-display-container`).hide();
     if (panelId == -1) panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
@@ -432,7 +452,7 @@ function toggleAllAvailableFieldsHandler(_evt) {
             panelGridOptions.columnApi.setColumnVisible(colName, true);
         });
 
-        selectedFieldsList = [...availColNames];
+        currentPanel.selectedFields = [...availColNames];
     } else {
         isChecked.remove();
 
@@ -441,13 +461,13 @@ function toggleAllAvailableFieldsHandler(_evt) {
             panelGridOptions.columnApi.setColumnVisible(colName, false);
         });
 
-        selectedFieldsList = [];
+        currentPanel.selectedFields = [];
     }
 
     panelGridOptions.columnApi.setColumnVisible('logs', false);
-
     updatedSelFieldList = true;
 }
+
 function scrollingErrorPopup() {
     $('.mypopupOverlay').addClass('active');
     $('#error-popup.popupContent').addClass('active');
@@ -473,20 +493,22 @@ function resetPanelLogsColumnDefs() {
         {
             field: 'logs',
             headerName: 'logs',
-            cellRenderer: (params) => {
-                let logString = '';
-                let counter = 0;
-
-                _.forEach(params.data, (value, key) => {
-                    let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
-
-                    logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}<b>${key} </b>` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
-                    counter++;
-                });
-                return logString;
-            },
+            cellRenderer: createLogsCellRenderer(),
         },
     ];
 
     panelLogsRowData = [];
 }
+
+const myCellRenderer = (params) => {
+    if (typeof params.data !== 'object' || params.data === null) return '';
+    const value = params.data[params.colName];
+    if (value == null || value === '') return '';
+
+    if (typeof value === 'object') {
+        const jsonString = JSON.stringify(JSON.unflatten(value));
+        return escapeHtml(jsonString);
+    }
+
+    return escapeHtml(String(value));
+};

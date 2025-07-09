@@ -6,7 +6,7 @@ echo "Install prerequisites"
 sudo apt-get install --yes git golang
 
 echo "Get and build SigLens"
-git clone https://github.com/siglens/siglens.git --branch 1.0.41
+git clone https://github.com/siglens/siglens.git --branch 1.0.54
 cd siglens
 go mod tidy
 go build -o siglens cmd/siglens/main.go

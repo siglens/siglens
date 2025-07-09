@@ -19,6 +19,7 @@ package structs
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
@@ -32,6 +33,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/beevik/etree"
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 
@@ -505,6 +507,10 @@ var timeFormatReplacements = []struct {
 
 var ErrFloatMissingField = fmt.Errorf("Missing field")
 var ErrFloatFieldNull = fmt.Errorf("field was null")
+var ErrBitwiseOpNotInt = fmt.Errorf("NumericExpr.Evaluate: bitwise operation only works on integers")
+var ErrBitwiseOpExceedsSizeLimit = fmt.Errorf("NumericExpr.Evaluate: bitwise operation can only take integers of up to 53 bits")
+var ErrBitwiseOpNoNeg = fmt.Errorf("NumericExpr.Evaluate: bitwise operation only works on positive integers")
+var ErrBitwiseOpShiftExceedsLimit = fmt.Errorf("NumericExpr.Evaluate: bitwise shift operations can have a max shift of %v", MAX_BIT_SHIFT_SIZE)
 
 var ErrWithCodeConversionErr = utils.NewErrorWithCode(utils.CONVERSION_ERR,
 	sutils.ErrFloatConversionFailed)
@@ -514,6 +520,10 @@ var ErrWithCodeFloatMissingField = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
 
 var ErrWithCodeFieldNull = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
 	ErrFloatFieldNull)
+
+// https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.4/evaluation-functions/bitwise-functions#ariaid-title1
+const MAX_BIT_OPERATION_NUM_SIZE = 1<<53 - 1
+const MAX_BIT_SHIFT_SIZE = 53
 
 func (self *DedupExpr) AcquireProcessedSegmentsLock() {
 	self.processedSegmentsLock.Lock()
@@ -703,6 +713,35 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 				return validateBoolExprError(err, "BoolExpr.Evaluate: can not evaluate Eval In function")
 			}
 			return getBoolCValueEnclosure(inFlag), nil
+		case "isobject":
+			val, err := self.LeftValue.EvaluateToString(fieldToValue)
+			if err != nil {
+				return validateBoolExprError(err, "BoolExpr.Evaluate: can not evaluate to string in isobject")
+			}
+			var v any
+			err = json.Unmarshal([]byte(val), &v)
+			if err != nil {
+				return getBoolCValueEnclosure(false), nil
+			} else {
+				return getBoolCValueEnclosure(true), nil
+			}
+		case "ismv":
+			err := fmt.Errorf("error while evaluating ismv")
+			fields := self.GetFields()
+			if len(fields) != 0 {
+				val, ok := fieldToValue[fields[0]]
+				if ok {
+					if val.Dtype == sutils.SS_DT_STRING_SLICE {
+						return getBoolCValueEnclosure(true), nil
+					} else {
+						return getBoolCValueEnclosure(false), nil
+					}
+				} else {
+					return validateBoolExprError(err, "BoolExpr.Evaluate: Field doesn't exist")
+				}
+			} else {
+				return validateBoolExprError(err, "BoolExpr.Evaluate: ismv takes exactly one argument")
+			}
 		case "isbool":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
@@ -710,7 +749,6 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 			}
 			isBool := strings.ToLower(val) == "true" || strings.ToLower(val) == "false" || val == "0" || val == "1"
 			return getBoolCValueEnclosure(isBool), nil
-
 		case "isint":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
@@ -725,7 +763,7 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 				return validateBoolExprError(err, "BoolExpr.Evaluate: 'isnum' can not evaluate to String")
 			}
 
-			_, parseErr := strconv.ParseFloat(val, 64)
+			_, parseErr := utils.FastParseFloat([]byte(val))
 			return getBoolCValueEnclosure(parseErr == nil), nil
 		case "isstr":
 			_, floatErr := self.LeftValue.EvaluateToFloat(fieldToValue)
@@ -1170,6 +1208,508 @@ func handleSplit(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 	return stringsList, nil
 }
 
+func extractInnerJSONObj(outerJSON, path string) []string {
+
+	var outerObj interface{}
+
+	err := json.Unmarshal([]byte(outerJSON), &outerObj)
+	if err != nil {
+		return nil
+	}
+
+	// This is an invalid path; we check for this here since this would cause issues later on
+	if strings.Contains(path, ".{") {
+		return nil
+	}
+
+	// we convert path into a format that is easier to work with
+	// e.g. "field1.field2.array{0}{1}.field3" -> "field1.field2.array.{0}.{1}.field3" -> ["field1", "field2", "array", "{0}", "{1}", "field3"]
+	newPath := strings.ReplaceAll(path, "{", ".{")
+	if newPath[0] == '.' {
+		newPath = newPath[1:]
+	}
+	parts := strings.Split(newPath, ".")
+
+	return extractInnerJSONObjUsingParts(outerObj, parts)
+}
+
+// helper function for extractInnerJSONObj
+func extractInnerJSONObjUsingParts(currentObj interface{}, parts []string) []string {
+
+	if len(parts) == 0 {
+		// this means that we are at the end of the path, so we return the current object
+
+		// splunk requires that we specify the indices of the array
+		// e.g. field1.array1{0}
+		// For accessing all records in array1, use field1.array1{} or field1.array1{}{}, etc.
+		// Do not use field1.array1
+		switch currentObj := currentObj.(type) {
+		case []interface{}:
+			return nil
+		case string:
+			return []string{currentObj} // this is handled separately because we don't want extra quotes
+		case map[string]interface{}, bool, float64, nil:
+			jsonBytes, err := json.Marshal(currentObj)
+			if err != nil {
+				return nil
+			}
+
+			// single-element array containing the only data
+			return []string{string(jsonBytes)}
+		default:
+			// should not happen
+			log.Errorf("extractInnerJSONObjUsingParts: unexpected type for array element: %T", currentObj)
+			return nil
+		}
+	}
+
+	firstPart := parts[0]
+
+	if len(firstPart) >= 2 && firstPart[0] == '{' && firstPart[len(firstPart)-1] == '}' {
+		// part is an array index, e.g. "{5}", "{}"
+
+		switch currentObj := currentObj.(type) {
+		case []interface{}:
+			if firstPart == "{}" {
+				var result []string
+				for _, subObj := range currentObj {
+					// query each json object in the array
+					matched := extractInnerJSONObjUsingParts(subObj, parts[1:])
+					if matched != nil {
+						result = append(result, matched...)
+					}
+				}
+				if len(result) == 0 {
+					return nil
+				}
+				return result
+			}
+
+			// firstPart = {<index>}
+			index, err := strconv.Atoi(firstPart[1 : len(firstPart)-1]) // remove the curly braces and convert to int
+			if err != nil {
+				return nil
+			}
+
+			if index < 0 || index >= len(currentObj) { // index out of bounds
+				return nil
+			}
+
+			// recursively query inner JSON object
+			return extractInnerJSONObjUsingParts(currentObj[index], parts[1:])
+		default:
+			return nil
+		}
+	} else {
+		// part is a field name
+		switch value := currentObj.(type) {
+		case map[string]interface{}:
+			nestedObject, ok := value[firstPart]
+
+			if !ok { // key doesn't exist
+				return nil
+			}
+
+			return extractInnerJSONObjUsingParts(nestedObject, parts[1:])
+		default:
+			return nil
+		}
+	}
+}
+
+func extractInnerXMLObj(inputStr, path string) []string {
+
+	doc := etree.NewDocument()
+	err := doc.ReadFromString(inputStr)
+	if err != nil {
+		return nil
+	}
+
+	// This is an invalid path; we check for this here since this would cause issues later on
+	if strings.Contains(path, ".{") {
+		return nil
+	}
+
+	// we convert path into a format that is easier to work with
+	// e.g. "field1.field2.array{0}.field3" -> "field1.field2.array.{0}.field3" -> ["field1", "field2", "array", "{0}", "field3"]
+	newPath := strings.ReplaceAll(path, "{", ".{")
+	if newPath[0] == '.' {
+		newPath = newPath[1:]
+	}
+	parts := strings.Split(newPath, ".")
+
+	return extractInnerXMLObjUsingParts(&doc.Element, parts)
+}
+
+// helper function for extractValueFromJSON
+func extractInnerXMLObjUsingParts(value *etree.Element, parts []string) []string {
+
+	if len(parts) == 0 {
+		var sb strings.Builder
+		children := value.ChildElements()
+		numChildren := len(children)
+		if numChildren == 0 {
+			// <name>Alice</name> -> Alice
+			text := value.Text()
+			if text == "" {
+				return nil
+			}
+			sb.WriteString(text)
+			return []string{sb.String()}
+		} else {
+			// <root>a<tag/>b<tag2/>c<tag3/>d</root> -> ["a", "b", "c", "d", "<tag/>b<tag2/>c<tag3/>"]
+			// see evaluationstructs_test.go: Test_Spath_XML_Unclear for more examples
+			var result []string
+
+			text := value.Text()
+			if text != "" {
+				result = append(result, text)
+			}
+
+			for i, child := range children {
+				// add any textual data to the result array
+				text := child.Tail()
+				if text != "" {
+					result = append(result, text)
+				}
+
+				// add inner tags to the last element of the result array
+				child.WriteTo(&sb, &etree.WriteSettings{})
+				if i != numChildren-1 {
+					// for every inner tag except the last one, add the text immediately after it
+					// to the last element of the result array
+					sb.WriteString(child.Tail())
+				}
+			}
+
+			// construct the last element (which consists of all inner tags and any text data between them)
+			// and append it to the result array
+			// sb.String() is not empty since numChildren > 0
+			result = append(result, sb.String())
+			return result
+		}
+	}
+
+	firstPart := parts[0]
+
+	if len(firstPart) >= 3 && firstPart[0] == '{' && firstPart[1] == '@' && firstPart[len(firstPart)-1] == '}' {
+		// firstPart is an attribute name, e.g. "{@attr1}"
+
+		attr := value.SelectAttr(firstPart[2 : len(firstPart)-1])
+		if attr == nil {
+			return nil
+		}
+		return []string{attr.Value}
+	}
+
+	// zero, one or more of the sub-objects with the tag stored in firstPart
+	subObjArr := value.SelectElements(firstPart)
+
+	if len(parts) >= 2 && len(parts[1]) > 2 && parts[1][0] == '{' && parts[1][1] != '@' && parts[1][len(parts[1])-1] == '}' {
+		// parts[0] = "array_name"
+		// parts[1] = "{index}"
+
+		index, err := strconv.Atoi(parts[1][1 : len(parts[1])-1]) // remove the curly braces and convert to int
+		if err != nil {
+			return nil
+		}
+
+		index-- // converting from 1-indexing (XML) to 0-indexing (Go)
+		if index < 0 || index >= len(subObjArr) {
+			return nil
+		}
+		return extractInnerXMLObjUsingParts(subObjArr[index], parts[2:])
+	} else if len(subObjArr) == 0 {
+		return nil
+	} else if len(subObjArr) == 1 {
+		return extractInnerXMLObjUsingParts(subObjArr[0], parts[1:])
+	} else {
+		var result []string
+		for _, subObj := range subObjArr {
+			matched := extractInnerXMLObjUsingParts(subObj, parts[1:])
+			if matched != nil {
+				result = append(result, matched...)
+			}
+		}
+		if len(result) == 0 {
+			return nil
+		}
+		return result
+	}
+}
+
+func handleSpath(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	// eval spath(value, path)
+	if len(self.StringExprParams) != 2 {
+		return nil, fmt.Errorf("MultiValueExpr.Evaluate: spath requires two arguments")
+	}
+	valueStr, err := self.StringExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
+		return nil, fmt.Errorf("MultiValueExpr.Evaluate: cannot evaluate input value as a string: %v", err)
+	}
+
+	// Spath only considers the first 5000 characters in the value and attempts to extract the value
+	// even though this may result in an invalid JSON / XML, in which case it fails silently
+	// https://docs.splunk.com/Documentation/SplunkCloud/latest/SearchReference/Spath#Overriding_the_spath_extraction_character_limit
+	if len(valueStr) > 5000 {
+		valueStr = valueStr[:5000]
+	}
+
+	pathStr, err := self.StringExprParams[1].Evaluate(fieldToValue)
+	if err != nil {
+		return nil, fmt.Errorf("MultiValueExpr.Evaluate: cannot evaluate path as a string: %v", err)
+	}
+
+	extractedValue := extractInnerJSONObj(valueStr, pathStr)
+	if extractedValue != nil {
+		return extractedValue, nil
+	}
+
+	extractedValue = extractInnerXMLObj(valueStr, pathStr)
+	if extractedValue != nil {
+		return extractedValue, nil
+	}
+
+	// If both JSON and XML value extraction fail, spath returns nil
+	return nil, nil
+}
+
+func handleMVSort(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
+		return []string{}, fmt.Errorf("handleMVSort: mvsort requires one multiValueExpr argument")
+	}
+	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
+		return []string{}, fmt.Errorf("handleMVSort: %v", err)
+	}
+	// does lexicograrphical sorting => for numbers checks the first digit
+	// => 123456 < 2
+	sort.Strings(mvSlice)
+	return mvSlice, nil
+}
+
+func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 2 {
+		return []string{}, fmt.Errorf("handleMVZip: mvzip requires two multiValueExpr argument")
+	}
+
+	var delimiter string
+	if self.StringExprParams == nil || len(self.StringExprParams) != 1 {
+		delimiter = ","
+	} else {
+		// delimiter must be enclosed in quotation marks
+		if len(self.StringExprParams[0].RawString) != 0 {
+			delimiter = self.StringExprParams[0].RawString
+		} else {
+			delimiter = ","
+		}
+	}
+
+	mvLeft, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		mvLeft = append(mvLeft, "")
+	} else if err != nil {
+		return []string{}, fmt.Errorf("handleMVZip: %v", err)
+	}
+	mvRight, err := self.MultiValueExprParams[1].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		mvRight = append(mvRight, "")
+	} else if err != nil {
+		return []string{}, fmt.Errorf("handleMVZip: %v", err)
+	}
+
+	// mvzip is simmilar to python zip => the resulting array size will be = to the shortest array
+	minLen := min(len(mvLeft), len(mvRight))
+	resultSlice := make([]string, minLen)
+	for i := 0; i < minLen; i++ {
+		resultSlice[i] = mvLeft[i] + delimiter + mvRight[i]
+	}
+
+	return resultSlice, nil
+}
+
+func handleMVToJsonArray(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
+		return []string{}, fmt.Errorf("handleMVToJsonArray: mv_to_json_array requires one multiValueExpr argument")
+	}
+	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
+		return []string{}, fmt.Errorf("handleMVToJsonArray: %v", err)
+	}
+
+	resultArr := make([]any, len(mvSlice))
+	if self.InferTypes {
+		for idx, val := range mvSlice {
+			switch val {
+			case "true":
+				resultArr[idx] = true
+				continue
+			case "false":
+				resultArr[idx] = false
+				continue
+			case "null":
+				resultArr[idx] = nil
+				continue
+			default:
+				// Do Nothing. Handled below
+			}
+
+			if num, err := utils.FastParseFloat([]byte(mvSlice[idx])); err == nil {
+				resultArr[idx] = num
+				continue
+			}
+
+			// parser automatically removes extra quotes
+			if len(mvSlice[idx]) != 0 {
+				resultArr[idx] = mvSlice[idx]
+			} else {
+				resultArr[idx] = nil
+			}
+		}
+	}
+
+	var jsonBytes []byte
+	if resultArr[0] != nil {
+		jsonBytes, err = json.Marshal(resultArr)
+	} else {
+		jsonBytes, err = json.Marshal(mvSlice)
+	}
+	if err != nil {
+		return []string{}, fmt.Errorf("handleMVToJsonArray: error marshaling multivalue field %v; err: %v", mvSlice, err)
+	}
+	return []string{string(jsonBytes)}, nil
+
+}
+
+func handleMVDedup(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
+		return []string{}, fmt.Errorf("handleMVDedup: mvdedup requires one multiValueExpr argument")
+	}
+	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		return nil, err
+	} else if err != nil {
+		return []string{}, fmt.Errorf("handleMVDedup: %v", err)
+	}
+
+	seen := make(map[string]string, len(mvSlice))
+	dedupedSlice := []string{}
+	for _, val := range mvSlice {
+		if _, ok := seen[val]; ok {
+			continue
+		}
+		seen[val] = ""
+		dedupedSlice = append(dedupedSlice, val)
+	}
+
+	return dedupedSlice, nil
+}
+
+func handleMVAppend(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.ValueExprParams == nil || len(self.ValueExprParams) < 1 || self.ValueExprParams[0] == nil {
+		return []string{}, fmt.Errorf("handleMVAppend: mvappend requires atleast one argument")
+	}
+
+	finalMVSlice := []string{}
+	for _, param := range self.ValueExprParams {
+		switch param.ValueExprMode {
+		case VEMMultiValueExpr:
+			mvSlice, err := param.MultiValueExpr.Evaluate(fieldToValue)
+			if utils.IsNilValueError(err) {
+				return nil, err
+			} else if err != nil {
+				return []string{}, fmt.Errorf("handleMVAppend: %v", err)
+			}
+			finalMVSlice = append(finalMVSlice, mvSlice...)
+		case VEMStringExpr:
+			if len(param.StringExpr.RawString) != 0 {
+				finalMVSlice = append(finalMVSlice, param.StringExpr.RawString)
+			} else {
+				result, err := param.StringExpr.ConcatExpr.Evaluate(fieldToValue)
+				if utils.IsNilValueError(err) {
+					return nil, err
+				} else if err != nil {
+					return []string{}, fmt.Errorf("handleMVAppend: %v", err)
+				}
+				finalMVSlice = append(finalMVSlice, result)
+			}
+		}
+	}
+	return finalMVSlice, nil
+}
+
+func (self *BoolExpr) ExtractSingleField() string {
+
+	fields := self.GetFields()
+	if len(fields) == 0 {
+		return ""
+	}
+
+	uniqueFields := make(map[string]struct{})
+	for _, field := range fields {
+		uniqueFields[field] = struct{}{}
+	}
+
+	if len(uniqueFields) == 1 {
+		for field := range uniqueFields {
+			return field
+		}
+	}
+
+	return ""
+}
+
+func handleMVFilter(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
+	if self.Condition == nil {
+		return []string{}, fmt.Errorf("handleMVFilter: missing predicate condition")
+	}
+
+	targetField := self.Condition.ExtractSingleField()
+	if targetField == "" {
+		return []string{}, fmt.Errorf("handleMVFilter: unable to extract field from condition")
+	}
+
+	mvRaw, ok := fieldToValue[targetField]
+	if !ok || mvRaw.Dtype != sutils.SS_DT_STRING_SLICE {
+		return []string{}, fmt.Errorf("handleMVFilter: field %s is not a multivalue field", targetField)
+	}
+
+	var mvSlice []string
+	if mvRaw.CVal != nil {
+		mvSlice = mvRaw.CVal.([]string)
+	} else {
+		return []string{}, nil
+	}
+
+	result := []string{}
+
+	for _, val := range mvSlice {
+		tempFieldToValue := map[string]sutils.CValueEnclosure{
+			targetField: {
+				Dtype: sutils.SS_DT_STRING,
+				CVal:  val,
+			},
+		}
+
+		ok, err := self.Condition.Evaluate(tempFieldToValue)
+		if err != nil {
+			return []string{}, fmt.Errorf("handleMVFilter: condition evaluation failed: %v", err)
+		}
+
+		if ok {
+			result = append(result, val)
+		}
+	}
+
+	return result, nil
+}
+
 func handleMVIndex(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
 	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: mvindex requires one multiValueExpr argument")
@@ -1236,8 +1776,22 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 	switch self.Op {
 	case "split":
 		return handleSplit(self, fieldToValue)
+	case "spath":
+		return handleSpath(self, fieldToValue)
 	case "mvindex":
 		return handleMVIndex(self, fieldToValue)
+	case "mvsort":
+		return handleMVSort(self, fieldToValue)
+	case "mvzip":
+		return handleMVZip(self, fieldToValue)
+	case "mv_to_json_array":
+		return handleMVToJsonArray(self, fieldToValue)
+	case "mvdedup":
+		return handleMVDedup(self, fieldToValue)
+	case "mvappend":
+		return handleMVAppend(self, fieldToValue)
+	case "mvfilter":
+		return handleMVFilter(self, fieldToValue)
 	default:
 		return []string{}, fmt.Errorf("MultiValueExpr.Evaluate: invalid Op %v", self.Op)
 	}
@@ -1876,7 +2430,7 @@ func MatchAndExtractNamedGroups(str string, rexExp *regexp.Regexp) (map[string]s
 }
 
 func MatchAndPopulateNamedGroups(str string, rexExp *regexp.Regexp,
-	newColValues map[string][]sutils.CValueEnclosure, idx int) error {
+	newColValues map[string][]sutils.CValueEnclosure, idx int, numItems int) error {
 	match := rexExp.FindStringSubmatch(str)
 	if len(match) == 0 {
 		return fmt.Errorf("MatchAndPopulateNamedGroups: no str in field match the pattern")
@@ -1887,6 +2441,9 @@ func MatchAndPopulateNamedGroups(str string, rexExp *regexp.Regexp,
 	}
 
 	for i, name := range names {
+		if newColValues[name] == nil {
+			newColValues[name] = make([]sutils.CValueEnclosure, numItems)
+		}
 		if i != 0 && name != "" {
 			newColValues[name][idx].Dtype = sutils.SS_DT_STRING
 			newColValues[name][idx].CVal = match[i]
@@ -2195,6 +2752,275 @@ func (self *NumericExpr) getSigFigs(strVal string, fltVal float64) int {
 	return sigfigs
 }
 
+func splPrintfHumanizeHelper(verbCounter int, value any, formatValues []any, buffer *[]byte, verb byte, parseInt func(string) (int64, error), parseFloat func(string) (float64, error)) {
+	var strVal string
+	formatValues[verbCounter] = value
+	numFlagsWConsumeArgs := 0
+	lastPercentPos := -1
+	for i := len(*buffer) - 1; i >= 0; i-- {
+		if (*buffer)[i] == '%' {
+			lastPercentPos = i
+			break
+		} else if (*buffer)[i] == '*' {
+			numFlagsWConsumeArgs++
+		}
+	}
+	//  only use the last verb for formatting. i.e the buffer from the lastPercentPos
+	formattedVal := fmt.Sprintf(string(append((*buffer)[lastPercentPos:], verb)), formatValues[(verbCounter-numFlagsWConsumeArgs):verbCounter+1]...)
+	// can't use precomputed hasDecimal since formatting may remove the decimal
+	hasDecimal := strings.Contains(formattedVal, ".")
+	// remove spaces, leading zeros, signs from the left.
+	// remove spaces and trailing zeros from the right
+	// we add back these removed values at the end
+	trimmedVal := strings.TrimSpace(formattedVal)
+	start := strings.Index(formattedVal, trimmedVal)
+	end := start + len(trimmedVal)
+	if trimmedVal[0] == '+' || trimmedVal[0] == '-' {
+		trimmedVal = trimmedVal[1:]
+		start += 1
+	}
+	for i := 0; i < len(trimmedVal); i++ {
+		if trimmedVal[i] != '0' || (trimmedVal[i] == '.' && hasDecimal) {
+			break
+		}
+		start++
+	}
+	if hasDecimal {
+		for i := len(trimmedVal) - 1; i >= 0; i-- {
+			if trimmedVal[i] != '0' || trimmedVal[i] == '.' {
+				break
+			}
+			end--
+		}
+	}
+	removedLeft := formattedVal[:start]
+	removedRight := formattedVal[end:]
+	switch value.(type) {
+	case int64:
+		intVal, err := parseInt(trimmedVal)
+		if err != nil {
+			log.Errorf("splPrintfToGoPrintfConverter: Unable to parse int value; val: %v", formattedVal)
+		} else {
+			strVal = humanize.Comma(intVal)
+		}
+	case float64:
+		fltVal, err := parseFloat(trimmedVal)
+		if err != nil {
+			log.Errorf("splPrintfToGoPrintfConverter: Unable to parse float value; val: %v", formattedVal)
+		} else {
+			strVal = humanize.Commaf(fltVal)
+		}
+	case uint64:
+		uintVal, err := strconv.ParseUint(trimmedVal, 10, 64)
+		if err != nil {
+			log.Errorf("splPrintfToGoPrintfConverter: Unable to parse uint value; val: %v", formattedVal)
+		} else {
+			strVal = utils.HumanizeUints(uintVal)
+		}
+	case string:
+		strVal = formattedVal
+	default:
+		log.Errorf("splPrintfToGoPrintfConverter: Unable to determine dtype when adding val to buffer; val: %v", formattedVal)
+	}
+	strVal = removedLeft + strVal + removedRight
+	formatValues[verbCounter] = strVal
+	if numFlagsWConsumeArgs != 0 {
+		for i := verbCounter - numFlagsWConsumeArgs; i < verbCounter; i++ {
+			formatValues[i] = nil
+		}
+	}
+	// Clear any formatting flags from the previous '%' token.
+	// For example, consider the format string "%.5g": the rounding has already been applied earlier
+	// when we initially processed this format using sprintf.
+	//
+	// If we now substitute the formatted value 's' directly into the format string, like replacing %g with %s,
+	// the format string becomes "%.5s". This causes the final sprintf call to re-apply formatting (like rounding or truncation),
+	// which is incorrect because the value has already been rounded once.
+
+	if lastPercentPos != -1 {
+		*buffer = (*buffer)[:lastPercentPos]
+	}
+	*buffer = append(*buffer, '%', 's')
+}
+
+func splPrintfToGoPrintfConverter(buffer *[]byte, originalVerb byte, formatValues []any, valStr string, verbCounter int, humanizeVal bool) error {
+	var splToGoFmt = map[byte]byte{
+		'a': 'x',
+		'A': 'X',
+		'i': 'd',
+		'z': 's',
+		'u': '-',
+		'x': '-',
+		'X': '-',
+		'o': '-',
+		'p': '-',
+	}
+
+	parseInt := func(s string) (int64, error) {
+		return strconv.ParseInt(s, 10, 64)
+	}
+	parseFloat := func(s string) (float64, error) {
+		return utils.FastParseFloat([]byte(s))
+	}
+
+	addToBuffer := func(buffer *[]byte, verb byte, value any, formatValues []any, humanizeVal bool, verbCounter int) {
+		if humanizeVal {
+			splPrintfHumanizeHelper(verbCounter, value, formatValues, buffer, verb, parseInt, parseFloat)
+		} else {
+			formatValues[verbCounter] = value
+			*buffer = append(*buffer, verb)
+		}
+	}
+
+	hasDecimal := strings.Contains(valStr, ".")
+
+	var verb byte
+	if val, ok := splToGoFmt[originalVerb]; ok {
+		verb = val
+	} else {
+		verb = originalVerb
+	}
+	var INVALID_INT_DTYPE_PRINTF_ERR = fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format specifier requires an integer value; received: %v", verb, valStr)
+	var INVALID_FLOAT_DTYPE_PRINTF_ERR = fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format specifier requires a float value; received: %v", verb, valStr)
+	var INVALID_DTYPE_PRINTF_ERR = fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format specifier requires either an integer or a float value; received: %v", verb, valStr)
+
+	switch verb {
+	// only accepts integers
+	case 'b', 'c', 'd', 'q':
+		if !hasDecimal {
+			if val, err := parseInt(valStr); err == nil {
+				addToBuffer(buffer, verb, val, formatValues, humanizeVal, verbCounter)
+				// c in go doesn't accept a string value. Therefore we handle it manually
+			} else if verb == 'c' {
+				if len(valStr) > 0 {
+					var first rune
+					for _, r := range valStr {
+						first = r
+						break
+					}
+					addToBuffer(buffer, 'c', first, formatValues, humanizeVal, verbCounter)
+				} else {
+					return fmt.Errorf("splPrintfToGoPrintfConverter: printf - %v format requires a non empty string", verb)
+				}
+			} else {
+				return INVALID_INT_DTYPE_PRINTF_ERR
+			}
+		} else {
+			return INVALID_INT_DTYPE_PRINTF_ERR
+		}
+	// only accepts floats
+	case 'e', 'E', 'f', 'F', 'g', 'G':
+		// according to splunks example, there is no strict checking
+		// => 123 can be treated as 123.0
+		val, err := parseFloat(valStr)
+		if err != nil {
+			return INVALID_FLOAT_DTYPE_PRINTF_ERR
+		}
+		addToBuffer(buffer, verb, val, formatValues, humanizeVal, verbCounter)
+	// works for both integer and floats
+	case 'X', 'x':
+		if hasDecimal {
+			val, err := parseFloat(valStr)
+			if err != nil {
+				return INVALID_DTYPE_PRINTF_ERR
+			}
+			addToBuffer(buffer, verb, val, formatValues, humanizeVal, verbCounter)
+		} else {
+			val, err := parseInt(valStr)
+			if err != nil {
+				return INVALID_DTYPE_PRINTF_ERR
+			}
+			addToBuffer(buffer, verb, val, formatValues, humanizeVal, verbCounter)
+		}
+	// these are verbs which don't have an equivalent in go. Therefore we handle it manually
+	case '-':
+		switch originalVerb {
+		// x, o, u - return unsigned values
+		case 'x', 'o', 'u', 'X', 'p':
+			if hasDecimal && originalVerb != 'o' {
+				if originalVerb == 'u' {
+					originalVerb = 'f'
+				} else if originalVerb == 'p' {
+					originalVerb = 'X'
+				}
+				val, err := parseFloat(valStr)
+				if err != nil {
+					return INVALID_DTYPE_PRINTF_ERR
+				}
+				if val < 0 {
+					val = val * -1
+				}
+				addToBuffer(buffer, originalVerb, val, formatValues, humanizeVal, verbCounter)
+			} else {
+				if originalVerb == 'u' {
+					originalVerb = 'd'
+				} else if originalVerb == 'o' {
+					if hasDecimal {
+						valStr = strings.Split(valStr, ".")[0]
+					}
+				} else if originalVerb == 'p' {
+					originalVerb = 'X'
+				}
+				val, err := parseInt(valStr)
+				if err != nil {
+					return INVALID_DTYPE_PRINTF_ERR
+				}
+				if val < 0 {
+					val = val * -1
+				}
+				addToBuffer(buffer, originalVerb, val, formatValues, humanizeVal, verbCounter)
+			}
+		default:
+			return INVALID_DTYPE_PRINTF_ERR
+		}
+	// rest are only string formatters which require a string argument
+	default:
+		addToBuffer(buffer, verb, valStr, formatValues, humanizeVal, verbCounter)
+	}
+	return nil
+}
+
+func splPrintfHandleArgs(verbCounter int, fieldToValue map[string]sutils.CValueEnclosure, self *TextExpr) (string, error) {
+	var valStr string
+	var err error
+	if verbCounter < len(self.ValueList) {
+		fieldName := self.ValueList[verbCounter].FieldName
+		if fieldName != "" {
+			fltVal, err := handleNoArgFunction(fieldName)
+			if err != nil {
+				if val, ok := fieldToValue[fieldName]; ok {
+					switch val.Dtype {
+					case sutils.SS_DT_STRING:
+						valStr = val.CVal.(string)
+					case sutils.SS_DT_SIGNED_NUM:
+						valStr = strconv.FormatInt(val.CVal.(int64), 10)
+					case sutils.SS_DT_UNSIGNED_NUM:
+						valStr = strconv.FormatUint(val.CVal.(uint64), 10)
+					case sutils.SS_DT_FLOAT:
+						valStr = strconv.FormatFloat(val.CVal.(float64), 'f', -1, 64)
+					default:
+						return "", fmt.Errorf("splPrintfHandleArgs: Unable to determine dtype for value in fieldToValueMap; val: %v", val)
+					}
+				}
+			} else {
+				valStr = strconv.FormatFloat(fltVal, 'f', -1, 64)
+			}
+		} else {
+			if len(self.ValueList[verbCounter].RawString) == 0 {
+				valStr, err = self.ValueList[verbCounter].ConcatExpr.Evaluate(fieldToValue)
+			} else {
+				valStr = self.ValueList[verbCounter].RawString
+			}
+			if err != nil {
+				return "", fmt.Errorf("splPrintfHandleArgs: error while evaluating ConcatExpr")
+			}
+		}
+	} else {
+		return "", fmt.Errorf("splPrintfHandleArgs: printf didn't receive enough arguments to format")
+	}
+	return valStr, nil
+}
+
 func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[string]sutils.CValueEnclosure, sigfigArr *[]SigfigInfo) (float64, string, error) {
 	if expr.IsTerminal {
 		value, err := expr.Evaluate(fieldToValue)
@@ -2277,6 +3103,21 @@ func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[
 			return result, "", err
 		}
 	}
+}
+
+func isValidBitwiseOperationInput(left float64, right float64) (uint64, uint64, error) {
+	// Only positive integer values are allowed
+	// https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.4/evaluation-functions/bitwise-functions
+	if left < 0 || right < 0 {
+		return 0, 0, ErrBitwiseOpNoNeg
+	}
+	if left-math.Floor(left) != 0 || right-math.Floor(right) != 0 {
+		return 0, 0, ErrBitwiseOpNotInt
+	}
+	if left > MAX_BIT_OPERATION_NUM_SIZE || right > MAX_BIT_OPERATION_NUM_SIZE {
+		return 0, 0, ErrBitwiseOpExceedsSizeLimit
+	}
+	return uint64(left), uint64(right), nil
 }
 
 // Evaluate this NumericExpr to a float, replacing each field in the expression
@@ -2470,6 +3311,51 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 				return 0, err
 			}
 			return math.Exp(exp), nil
+		case "bit_and":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			return float64(left & right), nil
+		case "bit_or":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			return float64(left | right), nil
+		case "bit_xor":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			return float64(left ^ right), nil
+		case "bit_not":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			if self.Right == nil {
+				right = MAX_BIT_OPERATION_NUM_SIZE
+			}
+			return float64(left &^ right), nil
+		case "bit_shift_left":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			if right >= MAX_BIT_SHIFT_SIZE {
+				return 0.0, ErrBitwiseOpShiftExceedsLimit
+			}
+			return float64((int64(left) << int64(right)) & MAX_BIT_OPERATION_NUM_SIZE), nil
+		case "bit_shift_right":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			if right >= MAX_BIT_SHIFT_SIZE {
+				return 0.0, ErrBitwiseOpShiftExceedsLimit
+			}
+			return float64(left >> right), nil
 		case "tonumber":
 			if self.Val == nil {
 				return 0, fmt.Errorf("NumericExpr.Evaluate: tonumber operation requires a string expression")
@@ -2612,6 +3498,96 @@ func parseTime(dateStr, format string) (time.Time, error) {
 	return time.Parse(format, dateStr)
 }
 
+func handlePrintf(self *TextExpr, fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
+	if self.Param == nil {
+		return "", fmt.Errorf("handlePrintf: invalid format specifier")
+	}
+
+	if len(self.Param.RawString) == 0 {
+		if len(self.ValueList) != 0 {
+			return "", fmt.Errorf("handlePrintf: format specifier empty, but values still provided")
+		} else {
+			return "", nil
+		}
+	}
+	format := self.Param.RawString
+	var formatResult []byte
+	var pointerToResBuff = &formatResult
+	var formatValues []any = make([]any, len(self.ValueList))
+	formatEnd := len(format)
+	humanizeRes := false
+	verbCounter := 0
+
+	for i := 0; i < formatEnd; i++ {
+		lasti := i
+		for i < formatEnd && format[i] != '%' {
+			i++
+		}
+		if i > lasti {
+			*pointerToResBuff = append(*pointerToResBuff, format[lasti:i]...)
+		}
+		if i >= formatEnd {
+			break
+		}
+
+		// check if the verb is %%, and continue since %% doesn't consume any arguments
+		lookAhead := i + 1
+		if lookAhead == formatEnd || format[lookAhead] == '%' {
+			// if there is a trailing % at the end of a string, Splunk treats it as a percentage symbol
+			*pointerToResBuff = append(*pointerToResBuff, format[i])
+			*pointerToResBuff = append(*pointerToResBuff, '%')
+			i++
+			continue
+		}
+
+		// skip to the verbs (while checking for flags not handled by golang)
+		for ; i < len(format); i++ {
+			if !((format[i] >= 'A' && format[i] <= 'Z') || (format[i] >= 'a' && format[i] <= 'z')) {
+				if format[i] == '\'' {
+					humanizeRes = true
+					// don't write to buffer
+					continue
+				}
+				// asterixis consumes one argument
+				if format[i] == '*' {
+					valStr, err := splPrintfHandleArgs(verbCounter, fieldToValue, self)
+					if err != nil {
+						return "", err
+					}
+					valInt, err := strconv.ParseInt(valStr, 10, 64)
+					if err != nil {
+						return "", fmt.Errorf("handlePrintf: got invalid dtype for * replacement; got: %v", valStr)
+					}
+					formatValues[verbCounter] = valInt
+					verbCounter++
+				}
+				*pointerToResBuff = append(*pointerToResBuff, format[i])
+			} else {
+				break
+			}
+		}
+
+		valStr, err := splPrintfHandleArgs(verbCounter, fieldToValue, self)
+		if err != nil {
+			return "", err
+		}
+		err = splPrintfToGoPrintfConverter(pointerToResBuff, format[i], formatValues, valStr, verbCounter, humanizeRes)
+		if err != nil {
+			return "", err
+		}
+		verbCounter++
+		humanizeRes = false
+	}
+	cleanedFormattedArr := formatValues[:0]
+	for _, v := range formatValues {
+		if v != nil {
+			cleanedFormattedArr = append(cleanedFormattedArr, v)
+		}
+	}
+	val := fmt.Sprintf(string(formatResult), cleanedFormattedArr...)
+	return val, nil
+}
+
 func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
@@ -2648,6 +3624,12 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 			ip[i] &= mask[i]
 		}
 		return ip.String(), nil
+	case "printf":
+		formattedString, err := handlePrintf(self, fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		return formattedString, nil
 	case "replace":
 		if len(self.ValueList) < 2 {
 			return "", fmt.Errorf("TextExpr.EvaluateText: 'replace' operation requires a regex and a replacement")
@@ -3030,7 +4012,7 @@ func (self *TextExpr) GetFields() []string {
 		return nil
 	}
 	fields := make([]string, 0)
-	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
+	if self.IsTerminal || (self.Op != "max" && self.Op != "min" && self.Op != "printf") {
 		if self.Param != nil {
 			fields = append(fields, self.Param.GetFields()...)
 		}
@@ -3049,7 +4031,6 @@ func (self *TextExpr) GetFields() []string {
 		if self.MultiValueExpr != nil {
 			fields = append(fields, self.MultiValueExpr.GetFields()...)
 		}
-
 		return fields
 	}
 	for _, expr := range self.ValueList {
