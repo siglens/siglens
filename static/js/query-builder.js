@@ -236,15 +236,14 @@ async function filterStart(evt) {
                             $('#completed').show();
                             checkFirstBox(1);
 
-                            setTimeout(() => {
-                                $('#value-first').focus();
-                                $('#value-first').autocomplete('search', '');
-                            }, 100);
+                            $('#value-first').focus();
                         },
                     })
                     .on('focus', function () {
                         if (!$(this).val().trim()) $(this).keydown();
                     });
+
+                $('#symbol').focus();
 
                 $('#value-first')
                     .autocomplete({
@@ -260,12 +259,6 @@ async function filterStart(evt) {
 
                 $('#value-first').prop('disabled', false);
 
-                $('#symbol').focus();
-
-                setTimeout(() => {
-                    $('#symbol').autocomplete('search', '');
-                }, 100);
-
                 checkFirstBox(0);
             },
         })
@@ -274,10 +267,6 @@ async function filterStart(evt) {
         });
 
     $('#column-first').focus();
-
-    setTimeout(() => {
-        $('#column-first').autocomplete('search', '');
-    }, 100);
 }
 
 async function secondFilterStart(evt) {
@@ -332,10 +321,6 @@ async function secondFilterStart(evt) {
                     });
 
                 $('#value-second').focus();
-
-                setTimeout(() => {
-                    $('#value-second').autocomplete('search', '');
-                }, 100);
             },
         })
         .on('focus', function () {
@@ -406,10 +391,6 @@ async function ThirdFilterStart(evt) {
         });
 
     $('#column-third').focus();
-
-    setTimeout(() => {
-        $('#column-third').autocomplete('search', '');
-    }, 100);
 }
 /**
  * check first box
@@ -1282,6 +1263,8 @@ $('.custom-reset-button').on('click', function (e) {
 
     $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
     $('#filter-input').val('*');
+
+    $('.custom-reset-button').hide();
 });
 
 function updateResetButtonVisibility() {
