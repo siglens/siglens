@@ -267,8 +267,6 @@ func (sr *SearchResults) AddError(err error) {
 func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats, incomingSegStat *structs.SegStats, measureAgg *structs.MeasureAggregator) (*structs.SegStats, error) {
 	var sstResult *sutils.NumTypeEnclosure
 	var err error
-
-	log.Infof("UpdateNonEvalSegStats: measureAgg = %#v", measureAgg)
 	switch measureAgg.MeasureFunc {
 	case sutils.Min:
 		res, err := segread.GetSegMin(runningSegStat, incomingSegStat)

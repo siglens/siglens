@@ -955,8 +955,6 @@ func (s *Searcher) fetchStatsResults() (*iqr.IQR, error) {
 }
 
 func (s *Searcher) fetchGroupByResults(searchResults *segresults.SearchResults, aggs *structs.QueryAggregators) (*structs.NodeResult, error) {
-	log.Infof("aggs: %#v", aggs)
-	log.Infof("s: %#v", s)
 	if s.qsrs == nil {
 		err := s.initializeQSRs()
 		if err != nil {
