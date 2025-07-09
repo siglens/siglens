@@ -222,7 +222,7 @@ input.form-control {
 
 .column-third {
     width: 100% !important;
-    height: 30px;
+    height: 26px;
     margin-right: 10px;
 }
 
@@ -789,7 +789,6 @@ div.show-record-popup .ui-dialog-buttonpane button {
 #histogram-container {
     height: var(--histogram-height, 180px);
     min-height: 100px;
-    /* Prevent collapsing too small */
     max-height: 50vh;
     background: var(--black1-to-white0);
     border-radius: 4px;
@@ -1290,4 +1289,8 @@ html[data-theme="dark"] .icon-container svg {
     height: 14px;
     stroke-width: 1.5px;
     stroke: var(--text-color);
+}
+
+.ui-widget input::placeholder {
+    font-style: italic;
 }

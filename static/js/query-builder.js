@@ -22,6 +22,7 @@ $(function () {
     $('#custom-chart-tab').tabs();
     $('#save-query-div').children().show();
 });
+
 $('#custom-code-tab').tabs({
     activate: function (_event, _ui) {
         let currentTab = $('#custom-code-tab').tabs('option', 'active');
@@ -47,6 +48,7 @@ $('#custom-code-tab').tabs({
         }
     },
 });
+
 $('#custom-chart-tab').tabs({
     activate: function (_event, _ui) {
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
@@ -62,11 +64,7 @@ $('#custom-chart-tab').tabs({
         }
     },
 });
-//querybuilder and run-filter-btn text:
-//search -> " "
-//run -> "  "
-//cancel -> "   "
-//running -> "    "
+
 $(document).ready(function () {
     $('#add-con')
         .off('click')
@@ -81,14 +79,14 @@ $(document).ready(function () {
         .off('click')
         .on('click', function (e) {
             e.stopPropagation();
-            ThirdFilterStart(e);
+            thirdFilterStart(e);
         });
-    $('#filter-box-3').off('click').on('click', ThirdFilterStart);
+    $('#filter-box-3').off('click').on('click', thirdFilterStart);
     $('#completed').on('click', filterComplete);
     $('#completed-second').on('click', secondFilterComplete);
     $('#cancel-enter').on('click', cancelInfo);
     $('#cancel-enter-second').on('click', secondCancelInfo);
-    $('#cancel-enter-third').on('click', ThirdCancelInfo);
+    $('#cancel-enter-third').on('click', thirdCancelInfo);
 
     $('#add-con').show();
     $('#add-con-second').show();
@@ -99,23 +97,22 @@ $(document).ready(function () {
     $('#add-filter').hide();
     $('#add-filter-second').hide();
 
-
     if (thirdBoxSet.size > 0) $('#aggregations').hide();
     else $('#aggregations').show();
     if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
     else $('#aggregate-attribute-text').show();
     if (firstBoxSet.size > 0) $('#search-filter-text').hide();
     else $('#search-filter-text').show();
+
     setShowColumnInfoDialog();
+
     updateResetButtonVisibility();
-
 });
-
-
 
 const tags = document.getElementById('tags');
 const tagSecond = document.getElementById('tags-second');
 const tagThird = document.getElementById('tags-third');
+
 tags.addEventListener('click', function (event) {
     // If the clicked element has the class 'delete-button'
     if (event.target.classList.contains('delete-button')) {
@@ -130,6 +127,7 @@ tags.addEventListener('click', function (event) {
         cancelInfo(event);
     }
 });
+
 tagSecond.addEventListener('click', function (event) {
     // If the clicked element has the class 'delete-button'
     if (event.target.classList.contains('delete-button')) {
@@ -144,6 +142,7 @@ tagSecond.addEventListener('click', function (event) {
         secondCancelInfo(event);
     }
 });
+
 tagThird.addEventListener('click', function (event) {
     // If the clicked element has the class 'delete-button'
     if (event.target.classList.contains('delete-button')) {
@@ -155,9 +154,10 @@ tagThird.addEventListener('click', function (event) {
         updateResetButtonVisibility();
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
-        ThirdCancelInfo(event);
+        thirdCancelInfo(event);
     }
 });
+
 $(document).mouseup(function (e) {
     var firstCon = $('#add-filter');
     var secondCon = $('#add-filter-second');
@@ -166,9 +166,10 @@ $(document).mouseup(function (e) {
     if (!firstCon.is(e.target) && firstCon.has(e.target).length === 0 && !dropInfo.is(e.target) && dropInfo.has(e.target).length === 0 && !secondCon.is(e.target) && secondCon.has(e.target).length === 0 && !thirdCon.is(e.target) && thirdCon.has(e.target).length === 0) {
         cancelInfo(e);
         secondCancelInfo(e);
-        ThirdCancelInfo(e);
+        thirdCancelInfo(e);
     }
 });
+
 var calculations = ['min', 'max', 'count', 'avg', 'sum', 'sumsq', 'var', 'varp'];
 var ifCurIsNum = false;
 var availSymbol = [];
@@ -182,7 +183,15 @@ async function filterStart(evt) {
     $('#add-filter').css({ visibility: 'visible' });
     $('#filter-box-1').addClass('select-box');
 
+    $('#column-first').prop('disabled', true).attr('placeholder', 'Loading columns...');
+
     const columnsNames = await getColumns();
+
+    $('#column-first').prop('disabled', false).attr('placeholder', '');
+
+    if ($('#column-first').hasClass('ui-autocomplete-input')) {
+        $('#column-first').autocomplete('destroy');
+    }
 
     $('#column-first')
         .autocomplete({
@@ -190,7 +199,11 @@ async function filterStart(evt) {
             minLength: 0,
             maxheight: 100,
             select: async function (event, ui) {
-                $('#symbol').attr('type', 'text');
+                $('#symbol').val('').attr('type', 'text');
+                $('#value-first').val('').attr('type', 'text');
+
+                $('#symbol').prop('disabled', true).attr('placeholder', 'Loading...');
+                $('#value-first').prop('disabled', true).attr('placeholder', '');
 
                 let chooseColumn = ui.item.value.trim();
                 const columnData = await getValuesForColumn(chooseColumn);
@@ -206,47 +219,57 @@ async function filterStart(evt) {
                     ifCurIsNum = false;
                 }
 
-                $('#symbol').val('');
-                $('#value-first').val('');
-                //check if complete btn can click
-                checkFirstBox(0);
+                $('#symbol').prop('disabled', false).attr('placeholder', '');
+
+                if ($('#symbol').hasClass('ui-autocomplete-input')) {
+                    $('#symbol').autocomplete('destroy');
+                }
+                if ($('#value-first').hasClass('ui-autocomplete-input')) {
+                    $('#value-first').autocomplete('destroy');
+                }
 
                 $('#symbol')
                     .autocomplete({
                         source: availSymbol,
                         minLength: 0,
                         select: function (_event, _ui) {
-                            //check if complete btn can click
-                            checkFirstBox(1);
-                            $('#value-first').attr('type', 'text');
                             $('#completed').show();
+                            checkFirstBox(1);
 
-                            $('#value-first')
-                                .autocomplete({
-                                    source: columnValues,
-                                    minLength: 0,
-                                    select: function (_event, _ui) {
-                                        //check if complete btn can click
-                                        checkFirstBox(2);
-                                    },
-                                })
-                                .on('focus', function () {
-                                    if (!$(this).val().trim()) $(this).keydown();
-                                });
+                            $('#value-first').focus();
                         },
                     })
                     .on('focus', function () {
                         if (!$(this).val().trim()) $(this).keydown();
                     });
+
+                $('#symbol').focus();
+
+                $('#value-first')
+                    .autocomplete({
+                        source: columnValues,
+                        minLength: 0,
+                        select: function (_event, _ui) {
+                            checkFirstBox(2);
+                        },
+                    })
+                    .on('focus', function () {
+                        if (!$(this).val().trim()) $(this).keydown();
+                    });
+
+                $('#value-first').prop('disabled', false);
+
+                checkFirstBox(0);
             },
         })
         .on('focus', function () {
             if (!$(this).val().trim()) $(this).keydown();
         });
+
     $('#column-first').focus();
 }
 
-function secondFilterStart(evt) {
+async function secondFilterStart(evt) {
     evt.preventDefault();
     $('#filter-box-2').addClass('select-box');
     $('#column-second').attr('type', 'text');
@@ -254,10 +277,60 @@ function secondFilterStart(evt) {
     $('#cancel-enter-second').show();
     $('#add-filter-second').show();
     $('#add-filter-second').css({ visibility: 'visible' });
+
+    if ($('#column-second').hasClass('ui-autocomplete-input')) {
+        $('#column-second').autocomplete('destroy');
+    }
+
+    $('#column-second')
+        .autocomplete({
+            source: calculations.sort(),
+            minLength: 0,
+            maxheight: 100,
+            select: async function (event, ui) {
+                $('#value-second').attr('type', 'text');
+                $('#completed-second').show();
+                $('#value-second').val('');
+                $('#completed-second').attr('disabled', true);
+
+                $('#value-second').prop('disabled', true).attr('placeholder', 'Loading columns...');
+
+                const columnsNames = ui.item.value === 'count' ? await getColumns() : await getNumericColumns();
+
+                $('#value-second').prop('disabled', false).attr('placeholder', '');
+
+                if ($('#value-second').hasClass('ui-autocomplete-input')) {
+                    $('#value-second').autocomplete('destroy');
+                }
+
+                $('#value-second')
+                    .autocomplete({
+                        source: columnsNames.sort(),
+                        minLength: 0,
+                        select: function (_event, _ui) {
+                            let secVal = $('#column-second').val();
+                            if (secVal == null || secVal.trim() == '') {
+                                $('#completed-second').attr('disabled', true);
+                            } else {
+                                $('#completed-second').attr('disabled', false);
+                            }
+                        },
+                    })
+                    .on('focus', function () {
+                        if (!$(this).val().trim()) $(this).keydown();
+                    });
+
+                $('#value-second').focus();
+            },
+        })
+        .on('focus', function () {
+            if (!$(this).val().trim()) $(this).keydown();
+        });
+
     $('#column-second').focus();
 }
 
-async function ThirdFilterStart(evt) {
+async function thirdFilterStart(evt) {
     evt.preventDefault();
     $('#filter-box-3').addClass('select-box');
     $('#column-third').attr('type', 'text');
@@ -265,7 +338,16 @@ async function ThirdFilterStart(evt) {
     $('#add-filter-third').show();
     $('#add-filter-third').css({ visibility: 'visible' });
 
+    $('#column-third').prop('disabled', true).attr('placeholder', 'Loading columns...');
+
     const columnsNames = await getColumns();
+
+    $('#column-third').prop('disabled', false).attr('placeholder', '');
+
+    if ($('#column-third').hasClass('ui-autocomplete-input')) {
+        $('#column-third').autocomplete('destroy');
+    }
+
     $('#column-third')
         .autocomplete({
             source: columnsNames,
@@ -279,30 +361,35 @@ async function ThirdFilterStart(evt) {
                         alert('Duplicate filter!');
                         return;
                     } else thirdBoxSet.add(ui.item.value);
-                    // Set the text content of the tag to
-                    // the trimmed value
+
+                    // Set the text content of the tag to the trimmed value
                     tag.innerText = ui.item.value;
                     // Add a delete button to the tag
                     tag.innerHTML += '<button class="delete-button">×</button>';
                     // Append the tag to the tags list
                     tagThird.appendChild(tag);
+
                     var dom = $('#tags-third');
                     var x = dom[0].scrollWidth;
                     dom[0].scrollLeft = x;
+
                     $('#column-third').val('');
                     $(this).blur();
                     getSearchText();
                     updateResetButtonVisibility();
                 }
+
                 if (thirdBoxSet.size > 0) $('#aggregations').hide();
                 else $('#aggregations').show();
-                ThirdCancelInfo(event);
+
+                thirdCancelInfo(event);
                 return false;
             },
         })
         .on('focus', function () {
             if (!$(this).val().trim()) $(this).keydown();
         });
+
     $('#column-third').focus();
 }
 /**
@@ -317,6 +404,7 @@ function checkContent(obj) {
         $('#completed').attr('disabled', false);
     }
 }
+
 function checkFirstBox(curSelect) {
     let num = 0;
     if (($('#column-first').val() == null || $('#column-first').val().trim() == '') && curSelect != 0) num++;
@@ -328,6 +416,7 @@ function checkFirstBox(curSelect) {
         $('#completed').attr('disabled', false);
     }
 }
+
 //eslint-disable-next-line no-unused-vars
 function checkSecondContent(obj) {
     if ($(obj).val() === '' || $(obj).val() === null) {
@@ -336,6 +425,7 @@ function checkSecondContent(obj) {
         $('#completed-second').attr('disabled', false);
     }
 }
+
 /**
  * first box complete one filter info
  * @param {*} evt
@@ -381,9 +471,9 @@ function filterComplete(evt) {
         updateResetButtonVisibility();
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
-       
     }
 }
+
 function secondFilterComplete(evt) {
     evt.preventDefault();
     if ($('#column-second').val() == null || $('#column-second').val().trim() == '' || $('#value-second').val() == null || $('#value-second').val().trim() == '') {
@@ -420,7 +510,6 @@ function secondFilterComplete(evt) {
         updateResetButtonVisibility();
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
-        
     }
 }
 
@@ -452,6 +541,7 @@ function cancelInfo(evt) {
     $('#cancel-enter').hide();
     $('#add-con').show();
 }
+
 function secondCancelInfo(evt) {
     evt.preventDefault();
     evt.stopPropagation();
@@ -465,7 +555,8 @@ function secondCancelInfo(evt) {
     $('#cancel-enter-second').hide();
     $('#add-con-second').show();
 }
-function ThirdCancelInfo(event) {
+
+function thirdCancelInfo(event) {
     event.preventDefault();
     event.stopPropagation();
     $('#filter-box-3').removeClass('select-box');
@@ -474,45 +565,6 @@ function ThirdCancelInfo(event) {
     $('#column-third').attr('type', 'hidden');
     $('#add-con-third').show();
 }
-/**
- * first input box
- */
-
-$('#column-second')
-    .autocomplete({
-        source: calculations.sort(),
-        minLength: 0,
-        maxheight: 100,
-        select: async function (event, ui) {
-            $('#value-second').attr('type', 'text');
-            $('#completed-second').show();
-            $('#value-second').val('');
-
-            const columnsNames = await getColumns();
-
-            let columnInfo = columnsNames;
-            if (ui.item.value != 'count') {
-                columnInfo = await getNumericColumns();
-            }
-            $('#completed-second').attr('disabled', true);
-            $('#value-second')
-                .autocomplete({
-                    source: columnInfo.sort(),
-                    minLength: 0,
-                    select: function (_event, _ui) {
-                        let secVal = $('#column-second').val();
-                        if (secVal == null || secVal.trim() == '') $('#completed-second').attr('disabled', true);
-                        else $('#completed-second').attr('disabled', false);
-                    },
-                })
-                .on('focus', function () {
-                    if (!$(this).val().trim()) $(this).keydown();
-                });
-        },
-    })
-    .on('focus', function () {
-        if (!$(this).val().trim()) $(this).keydown();
-    });
 
 /**
  * get cur column names from back-end for first input box
@@ -730,6 +782,7 @@ $(document).click(function (event) {
     }
 });
 
+// Allow Editing Existing Filters in Query Builder
 let originalTagContent = null;
 let isCurrentlyEditing = false;
 
@@ -1077,6 +1130,10 @@ $('#tags-third').on('click', 'li', function (event) {
             $('#filter-box-3').off('click');
             $('#add-con-third').off('click');
 
+            if ($('#column-third').hasClass('ui-autocomplete-input')) {
+                $('#column-third').autocomplete('destroy');
+            }
+
             $('#column-third')
                 .autocomplete({
                     source: columnsNames,
@@ -1113,9 +1170,9 @@ $('#tags-third').on('click', 'li', function (event) {
                         if (thirdBoxSet.size > 0) $('#aggregations').hide();
                         else $('#aggregations').show();
 
-                        ThirdCancelInfo(event);
+                        thirdCancelInfo(event);
 
-                        $('#add-con-third, #filter-box-3').off('click').on('click', ThirdFilterStart);
+                        $('#add-con-third, #filter-box-3').off('click').on('click', thirdFilterStart);
                         isCurrentlyEditing = false;
 
                         return false;
@@ -1133,8 +1190,8 @@ $('#tags-third').on('click', 'li', function (event) {
             .on('mousedown.filterEdit3', function (e) {
                 if (!$(e.target).closest('#add-filter-third').length && !$(e.target).closest('.ui-autocomplete').length && !$(e.target).closest('#tags-third li').length) {
                     restoreOriginalThirdFilter(tagElement);
-                    ThirdCancelInfo(e);
-                    $('#add-con-third, #filter-box-3').off('click').on('click', ThirdFilterStart);
+                    thirdCancelInfo(e);
+                    $('#add-con-third, #filter-box-3').off('click').on('click', thirdFilterStart);
                     isCurrentlyEditing = false;
 
                     $(document).off('mousedown.filterEdit3');
@@ -1145,8 +1202,8 @@ $('#tags-third').on('click', 'li', function (event) {
             .off('click')
             .on('click', function (e) {
                 restoreOriginalThirdFilter(tagElement);
-                ThirdCancelInfo(e);
-                $('#add-con-third, #filter-box-3').off('click').on('click', ThirdFilterStart);
+                thirdCancelInfo(e);
+                $('#add-con-third, #filter-box-3').off('click').on('click', thirdFilterStart);
                 isCurrentlyEditing = false;
             });
 
@@ -1154,8 +1211,6 @@ $('#tags-third').on('click', 'li', function (event) {
         updateResetButtonVisibility();
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
-
-        
     }
 });
 
@@ -1167,11 +1222,9 @@ function restoreOriginalThirdFilter(tagElement) {
 
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
-    
+
         getSearchText();
         updateResetButtonVisibility();
-
-
     }
 }
 
@@ -1211,19 +1264,13 @@ $('.custom-reset-button').on('click', function (e) {
     $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
     $('#filter-input').val('*');
 
+    $('.custom-reset-button').hide();
 });
 
-
 function updateResetButtonVisibility() {
-    const hasFiltersInVariables =
-        (firstBoxSet && firstBoxSet.size > 0) ||
-        (secondBoxSet && secondBoxSet.size > 0) ||
-        (thirdBoxSet && thirdBoxSet.size > 0);
-    
-    const hasFiltersInDOM =
-        $('#tags li').length > 0 ||
-        $('#tags-second li').length > 0 ||
-        $('#tags-third li').length > 0;
+    const hasFiltersInVariables = (firstBoxSet && firstBoxSet.size > 0) || (secondBoxSet && secondBoxSet.size > 0) || (thirdBoxSet && thirdBoxSet.size > 0);
+
+    const hasFiltersInDOM = $('#tags li').length > 0 || $('#tags-second li').length > 0 || $('#tags-third li').length > 0;
 
     const hasFilters = hasFiltersInVariables || hasFiltersInDOM;
 
@@ -1233,5 +1280,3 @@ function updateResetButtonVisibility() {
         $('.custom-reset-button').hide();
     }
 }
-
-
