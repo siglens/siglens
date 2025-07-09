@@ -267,6 +267,8 @@ func (sr *SearchResults) AddError(err error) {
 func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats, incomingSegStat *structs.SegStats, measureAgg *structs.MeasureAggregator) (*structs.SegStats, error) {
 	var sstResult *sutils.NumTypeEnclosure
 	var err error
+
+	log.Infof("UpdateNonEvalSegStats: measureAgg = %#v", measureAgg)
 	switch measureAgg.MeasureFunc {
 	case sutils.Min:
 		res, err := segread.GetSegMin(runningSegStat, incomingSegStat)
@@ -326,6 +328,8 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		return runningSegStat, nil
 	case sutils.Cardinality:
 		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
+	case sutils.EstdcError:
+		sstResult, err = segread.GetSegEstdcError(runningSegStat, incomingSegStat)
 	case sutils.Perc:
 		sstResult, err = segread.GetSegPerc(runningSegStat, incomingSegStat, measureAgg.Param)
 	case sutils.Count:

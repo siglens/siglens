@@ -917,11 +917,11 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 				return
 			}
 			eVal.CVal = hll.RelativeError()
-			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
+			eVal.Dtype = sutils.SS_DT_FLOAT
 		} else {
 			finalVal := runningStats[valIdx].hll.RelativeError()
 			eVal.CVal = finalVal
-			eVal.Dtype = sutils.SS_DT_UNSIGNED_NUM
+			eVal.Dtype = sutils.SS_DT_FLOAT
 
 			*hllToMerge = runningStats[valIdx].hll
 		}

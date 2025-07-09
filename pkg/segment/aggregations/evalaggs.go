@@ -918,13 +918,13 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 	if len(fields) == 0 {
 		err = PerformAggEvalForCardinality(measureAgg, hll, nil)
 		if err != nil {
-			return fmt.Errorf("ComputeAggEvalForCardinality: Error while performing eval agg for cardinality, err: %v", err)
+			return fmt.Errorf("ComputeAggEvalForEstdcError: Error while performing eval agg for estdc_error, err: %v", err)
 		}
 		result = int64(hll.Cardinality())
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForCardinality: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
+			return fmt.Errorf("ComputeAggEvalForEstdcError: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
 
 		length := len(sst.Records)
@@ -932,12 +932,12 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 			fieldToValue := make(map[string]sutils.CValueEnclosure)
 			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
 			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForCardinality: Error while populating fieldToValue from sstMap, err: %v", err)
+				return fmt.Errorf("ComputeAggEvalForEstdcError: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
 			err = PerformAggEvalForCardinality(measureAgg, hll, fieldToValue)
 			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForCardinality: Error while performing eval agg for cardinality, err: %v", err)
+				return fmt.Errorf("ComputeAggEvalForEstdcError: Error while performing eval agg for estdc_error, err: %v", err)
 			}
 		}
 		result = int64(hll.Cardinality())
@@ -1439,6 +1439,39 @@ func AddMeasureAggInRunningStatsForValues(m *structs.MeasureAggregator, allConve
 	}
 	return idx, nil
 }
+
+// func AddMeasureAggInRunningStatsForEstdcError(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+
+// 	measureCol := m.MeasureCol
+// 	if m.ValueColRequest != nil {
+// 		fields := m.ValueColRequest.GetFields()
+// 		if len(fields) != 1 {
+// 			return idx, fmt.Errorf("AddMeasureAggInRunningStatsForRange: Incorrect number of fields for aggCol: %v", m.String())
+// 		}
+// 		measureCol = fields[0]
+// 	}
+
+// 	if _, ok := colToIdx[measureCol]; !ok {
+// 		colToIdx[measureCol] = make([]int, 0)
+// 	}
+
+// 	// this determines the order of the columns in runningStats: sum, sumsq, count
+// 	measureFuncs := []sutils.AggregateFunctions{sutils.Sum, sutils.Sumsq, sutils.Count}
+
+// 	for _, measureFunc := range measureFuncs {
+// 		*allReverseIndex = append(*allReverseIndex, idx)
+// 		colToIdx[measureCol] = append(colToIdx[measureCol], idx)
+// 		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+// 			MeasureCol:      measureCol,
+// 			MeasureFunc:     measureFunc,
+// 			ValueColRequest: m.ValueColRequest,
+// 			StrEnc:          m.StrEnc,
+// 		})
+// 		idx++
+// 	}
+
+// 	return idx, nil
+// }
 
 // Determine if cols used by eval statements or not
 func DetermineAggColUsage(measureAgg *structs.MeasureAggregator, aggCols map[string]bool, aggColUsage map[string]sutils.AggColUsageMode, valuesUsage map[string]bool, listUsage map[string]bool, percUsage map[string]bool) {

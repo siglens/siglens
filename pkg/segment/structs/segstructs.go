@@ -696,6 +696,14 @@ func (ss *SegStats) GetHllCardinality() uint64 {
 	return ss.Hll.Cardinality()
 }
 
+func (ss *SegStats) GetHllError() float64 {
+	if ss == nil || ss.Hll == nil {
+		return 0
+	}
+
+	return ss.Hll.RelativeError()
+}
+
 func (ss *SegStats) GetHllBytes() []byte {
 	if ss == nil || ss.Hll == nil {
 		return nil

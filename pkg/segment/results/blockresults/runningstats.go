@@ -92,7 +92,7 @@ type SerializedRunningStats struct {
 func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []runningStats {
 	retVal := make([]runningStats, len(internalMeasureFns))
 	for i := 0; i < len(internalMeasureFns); i++ {
-		if internalMeasureFns[i].MeasureFunc == sutils.Cardinality {
+		if internalMeasureFns[i].MeasureFunc == sutils.Cardinality || internalMeasureFns[i].MeasureFunc == sutils.EstdcError {
 			retVal[i] = runningStats{hll: structs.CreateNewHll()}
 		} else if internalMeasureFns[i].MeasureFunc == sutils.Avg {
 			retVal[i] = runningStats{avgStat: &structs.AvgStat{}}
@@ -387,7 +387,7 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				}
 				i += (len(fields) - 1)
 			}
-		case sutils.Cardinality:
+		case sutils.Cardinality, sutils.EstdcError:
 			if rr.currStats[i].ValueColRequest == nil {
 				err := (*runningStats)[i].hll.StrictUnion(toJoinRunningStats[i].hll.Hll)
 				if err != nil {
