@@ -96,6 +96,8 @@ $(document).ready(function () {
     $('#cancel-enter-second').hide();
     $('#add-filter').hide();
     $('#add-filter-second').hide();
+
+
     if (thirdBoxSet.size > 0) $('#aggregations').hide();
     else $('#aggregations').show();
     if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
@@ -103,7 +105,11 @@ $(document).ready(function () {
     if (firstBoxSet.size > 0) $('#search-filter-text').hide();
     else $('#search-filter-text').show();
     setShowColumnInfoDialog();
+    updateResetButtonVisibility();
+
 });
+
+
 
 const tags = document.getElementById('tags');
 const tagSecond = document.getElementById('tags-second');
@@ -117,6 +123,7 @@ tags.addEventListener('click', function (event) {
         firstBoxSet.delete(str.substring(0, str.length - 1));
         event.target.parentNode.remove();
         getSearchText();
+        updateResetButtonVisibility();
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
         cancelInfo(event);
@@ -131,6 +138,7 @@ tagSecond.addEventListener('click', function (event) {
         secondBoxSet.delete(str.substring(0, str.length - 1));
         event.target.parentNode.remove();
         getSearchText();
+        updateResetButtonVisibility();
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
         secondCancelInfo(event);
@@ -145,6 +153,7 @@ tagThird.addEventListener('click', function (event) {
         thirdBoxSet.delete(str.substring(0, str.length - 1));
         event.target.parentNode.remove();
         getSearchText();
+        updateResetButtonVisibility();
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
         ThirdCancelInfo(event);
@@ -384,6 +393,7 @@ async function ThirdFilterStart(evt) {
                     $('#column-third').val('');
                     $(this).blur();
                     getSearchText();
+                    updateResetButtonVisibility();
                 }
 
                 if (thirdBoxSet.size > 0) $('#aggregations').hide();
@@ -479,8 +489,10 @@ function filterComplete(evt) {
         var x = dom[0].scrollWidth;
         dom[0].scrollLeft = x;
         getSearchText();
+        updateResetButtonVisibility();
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
+       
     }
 }
 
@@ -517,8 +529,10 @@ function secondFilterComplete(evt) {
         var x = dom[0].scrollWidth;
         dom[0].scrollLeft = x;
         getSearchText();
+        updateResetButtonVisibility();
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
+        
     }
 }
 
@@ -961,6 +975,7 @@ $('#tags').on('click', 'li', function (event) {
             });
 
         getSearchText();
+        updateResetButtonVisibility();
         if (firstBoxSet.size > 0) $('#search-filter-text').hide();
         else $('#search-filter-text').show();
     }
@@ -1095,6 +1110,7 @@ $('#tags-second').on('click', 'li', function (event) {
             });
 
         getSearchText();
+        updateResetButtonVisibility();
         if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
         else $('#aggregate-attribute-text').show();
     }
@@ -1171,6 +1187,7 @@ $('#tags-third').on('click', 'li', function (event) {
                             $('#column-third').val('');
                             $(this).blur();
                             getSearchText();
+                            updateResetButtonVisibility();
                         }
 
                         if (thirdBoxSet.size > 0) $('#aggregations').hide();
@@ -1214,8 +1231,11 @@ $('#tags-third').on('click', 'li', function (event) {
             });
 
         getSearchText();
+        updateResetButtonVisibility();
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
+
+        
     }
 });
 
@@ -1227,6 +1247,71 @@ function restoreOriginalThirdFilter(tagElement) {
 
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
+    
         getSearchText();
+        updateResetButtonVisibility();
+
+
     }
 }
+
+// Reset the query builder
+$('.custom-reset-button').on('click', function (e) {
+    e.stopPropagation();
+
+    $(this).addClass('active');
+
+    firstBoxSet = new Set();
+    let tags = document.getElementById('tags');
+    if (tags) {
+        while (tags.firstChild) {
+            tags.removeChild(tags.firstChild);
+        }
+        $('#search-filter-text').show();
+    }
+
+    secondBoxSet = new Set();
+    let tagsSecond = document.getElementById('tags-second');
+    if (tagsSecond) {
+        while (tagsSecond.firstChild) {
+            tagsSecond.removeChild(tagsSecond.firstChild);
+        }
+        $('#aggregate-attribute-text').show();
+    }
+
+    thirdBoxSet = new Set();
+    let tagsThird = document.getElementById('tags-third');
+    if (tagsThird) {
+        while (tagsThird.firstChild) {
+            tagsThird.removeChild(tagsThird.firstChild);
+        }
+        $('#aggregations').show();
+    }
+
+    $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
+    $('#filter-input').val('*');
+
+});
+
+
+function updateResetButtonVisibility() {
+    const hasFiltersInVariables =
+        (firstBoxSet && firstBoxSet.size > 0) ||
+        (secondBoxSet && secondBoxSet.size > 0) ||
+        (thirdBoxSet && thirdBoxSet.size > 0);
+    
+    const hasFiltersInDOM =
+        $('#tags li').length > 0 ||
+        $('#tags-second li').length > 0 ||
+        $('#tags-third li').length > 0;
+
+    const hasFilters = hasFiltersInVariables || hasFiltersInDOM;
+
+    if (hasFilters) {
+        $('.custom-reset-button').show();
+    } else {
+        $('.custom-reset-button').hide();
+    }
+}
+
+

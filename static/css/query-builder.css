@@ -317,6 +317,34 @@ input.form-control {
     width: 100%;
 }
 
+.custom-reset-button {
+    background-color: transparent;
+    color: var(--table-or-regular-text-color);
+    font-family: Inter, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    padding: 3px 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 1px;
+    margin-top: -6px;
+    transition: background-color 0.2s ease-in-out;
+    white-space: nowrap;
+    text-decoration: underline;
+}
+
+.custom-reset-button:hover,
+.custom-reset-button:focus {
+    background-color: var(--drop-down-btn-bg-hover);
+    color: var(--text-color);
+    text-decoration: none;
+    outline: none;
+}
+
 .search-img {
     background-image: url("../assets/search-img.svg");
     height: 26px;
@@ -1261,9 +1289,4 @@ html[data-theme="dark"] .icon-container svg {
     height: 14px;
     stroke-width: 1.5px;
     stroke: var(--text-color);
-}
-
-.ui-widget input::placeholder {
-    font-style: italic;
-    font-size: 11px;
 }

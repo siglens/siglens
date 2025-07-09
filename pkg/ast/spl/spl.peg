@@ -4007,7 +4007,7 @@ AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
 }
 
 PercentileVal <- numStr:(FloatAsString / IntegerAsString) {
-    floatVal, err := utils.FastParseFloat([]byte(numStr.(string)))
+    floatVal, err := strconv.ParseFloat(numStr.(string), 64)
     if err != nil {
         return nil, fmt.Errorf("Invalid percentage value: %v", numStr.(string))
     }
