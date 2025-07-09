@@ -4783,6 +4783,187 @@ func Test_evalFunctionsPi(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "pi")
 }
 
+func Test_evalFunctionsBitwise(t *testing.T) {
+	// and, or, xor, require minimum of two arguments to work
+	query := []byte(`city=Boston | eval biwiseAndFail=bit_and(field1)`)
+	_, err := spl.Parse("", query)
+	assert.Error(t, err)
+
+	// bit_shift_* require exactly 2 arguments to work
+	query = []byte(`city=Boston | eval bitwiseShiftFail=bit_shift_left(field1)`)
+	_, err = spl.Parse("", query)
+	assert.Error(t, err)
+	t.Run("BitAnd", func(t *testing.T) {
+		query := []byte(`city=Boston | eval bitwiseAnd=bit_and(field1, field2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.OutputTransforms)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right)
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Value, "field1")
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right.Value, "field2")
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.NewColName, "bitwiseAnd")
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_and")
+	})
+
+	// Test bit_or function
+	t.Run("BitOr", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval bitwiseOr=bit_or(field1, field2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "bitwiseOr")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_or")
+	})
+
+	// Test bit_xor function
+	t.Run("BitXor", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval bitwiseXor=bit_xor(field1, field2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "bitwiseXor")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_xor")
+	})
+
+	// Test bit_not function
+	t.Run("BitNot", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval bitwiseNot=bit_not(field1)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "bitwiseNot")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_not")
+	})
+
+	// Test bit_shift_left function
+	t.Run("BitShiftLeft", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval leftShift=bit_shift_left(field1, 2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "leftShift")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_shift_left")
+	})
+
+	// Test bit_shift_right function
+	t.Run("BitShiftRight", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval rightShift=bit_shift_right(field1, 2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "rightShift")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_shift_right")
+	})
+
+	// Test nested bitwise operations
+	t.Run("NestedBitwiseOperations", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval complexBitwise=bit_or(bit_and(field1, field2), bit_xor(field3, field4))`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "complexBitwise")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_or")
+	})
+
+	// Test bitwise operations with multiple arguments
+	t.Run("BitwiseMultipleArgs", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval multiArg=bit_and(field1, field2, field3)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "multiArg")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_and")
+	})
+}
+
 func Test_evalFunctionsFloor(t *testing.T) {
 	query := []byte(`city=Boston | stats count AS Count BY weekday | eval floor=floor(Count + 0.2)`)
 	res, err := spl.Parse("", query)
