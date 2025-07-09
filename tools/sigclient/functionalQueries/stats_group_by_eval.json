@@ -1,9 +1,9 @@
 {
-    "queryText": "http_method=POST AND (app_name=Bracecould OR app_name=R*) | regex app_name=\".*could\" | stats avg(latency) as avg_latency, max(latency) as max, min(longitude) as min, sum(latitude) as sum, range(latency), count as cnt, values(weekday), dc(weekday) as distinct_count, list(http_method) BY gender, http_status | eval abs_sum=abs(sum) | eval concated=abs_sum.sum.\"_\".ltrim(gender, \"fem\") | eval round_sum=round(sum, 2) | eval avg_sum_min_max= (sum + max + min)/3 | eval len_gender=len(gender) | eval request_status=if(http_status >= 400, \"Error\", \"Success\") | eval bool_success=if(in(http_status, 400, 404, 500), \"0\", 1) | eval is_string=if(isstr(bool_success), bool_success, 0) | eval decoded_url=urldecode(\"http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader\") | where request_status in(\"Success\") | eval splitVal=split(concated, \".\") | eval max_cnt=max(162, cnt) | eval exact_per=exact(cnt/max_cnt) | eval gender_short=if(match(gender, \"^m\"), \"A\", \"F\") | eval toNumber=tonumber(bool_success) | eval status_hex=tostring(http_status, \"hex\") | eval substr_res=substr(\"splendid\", 1, 3) . substr(\"chunk\", -3) | eval logValue=log(http_status, 2) | eval formatted_time=strftime(1719415380000, \"%Y\") | eval timeType=typeof(formatted_time) | eval short_gen=if(searchmatch(\"gender=m*e\"), \"M\", \"F\") | eval x=\"hi\" | eval y=\"a\" | eval z=\"great\" | eval match=if(searchmatch(\"x=hi y=a? z=*\"), \"yes\", \"no\") | eval nowResult=relative_time(now(), \"-1h\") | eval timeResult=relative_time(time()/1000, \"-1h\") | eval finalResult=if(nowResult=timeResult, \"Pass\", \"Fail\") | fields -nowResult, timeResult", 
+    "queryText": "http_method=POST AND (app_name=Bracecould OR app_name=R*) | regex app_name=\".*could\" | stats avg(latency) as avg_latency, max(latency) as max, min(longitude) as min, sum(latitude) as sum, range(latency), count as cnt, values(weekday), dc(weekday) as distinct_count, estdc_error(weekday) as dcerror, list(http_method) BY gender, http_status | eval abs_sum=abs(sum) | eval concated=abs_sum.sum.\"_\".ltrim(gender, \"fem\") | eval round_sum=round(sum, 2) | eval avg_sum_min_max= (sum + max + min)/3 | eval len_gender=len(gender) | eval request_status=if(http_status >= 400, \"Error\", \"Success\") | eval bool_success=if(in(http_status, 400, 404, 500), \"0\", 1) | eval is_string=if(isstr(bool_success), bool_success, 0) | eval decoded_url=urldecode(\"http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader\") | where request_status in(\"Success\") | eval splitVal=split(concated, \".\") | eval max_cnt=max(162, cnt) | eval exact_per=exact(cnt/max_cnt) | eval gender_short=if(match(gender, \"^m\"), \"A\", \"F\") | eval toNumber=tonumber(bool_success) | eval status_hex=tostring(http_status, \"hex\") | eval substr_res=substr(\"splendid\", 1, 3) . substr(\"chunk\", -3) | eval logValue=log(http_status, 2) | eval formatted_time=strftime(1719415380000, \"%Y\") | eval timeType=typeof(formatted_time) | eval short_gen=if(searchmatch(\"gender=m*e\"), \"M\", \"F\") | eval x=\"hi\" | eval y=\"a\" | eval z=\"great\" | eval match=if(searchmatch(\"x=hi y=a? z=*\"), \"yes\", \"no\") | eval nowResult=relative_time(now(), \"-1h\") | eval timeResult=relative_time(time()/1000, \"-1h\") | eval finalResult=if(nowResult=timeResult, \"Pass\", \"Fail\") | fields -nowResult, timeResult",
     "expectedResult": {
-         "bucketCount": 5,
-         "qtype": "aggs-query",
-         "groupByCols": [
+        "bucketCount": 5,
+        "qtype": "aggs-query",
+        "groupByCols": [
             "gender",
             "http_status"
         ],
@@ -18,6 +18,7 @@
             "avg_latency",
             "cnt",
             "distinct_count",
+            "dcerror",
             "max",
             "timeType",
             "decoded_url",
@@ -58,6 +59,7 @@
                     "concated": "61.451397-61.451397_ale",
                     "decoded_url": "http://www.splunk.com/download?r=header",
                     "distinct_count": 1,
+                    "dcerror": 0,
                     "exact_per": 0.006172839506172839,
                     "finalResult": "Pass",
                     "formatted_time": "2024",
@@ -108,6 +110,7 @@
                     "concated": "113.240357113.240357_ale",
                     "decoded_url": "http://www.splunk.com/download?r=header",
                     "distinct_count": 2,
+                    "dcerror": 0,
                     "exact_per": 1,
                     "finalResult": "Pass",
                     "formatted_time": "2024",
@@ -160,6 +163,7 @@
                     "concated": "16.02448916.024489_ale",
                     "decoded_url": "http://www.splunk.com/download?r=header",
                     "distinct_count": 1,
+                    "dcerror": 0,
                     "exact_per": 0.006172839506172839,
                     "finalResult": "Pass",
                     "formatted_time": "2024",
@@ -210,6 +214,7 @@
                     "concated": "51.497329-51.497329_ale",
                     "decoded_url": "http://www.splunk.com/download?r=header",
                     "distinct_count": 2,
+                    "dcerror": 0,
                     "exact_per": 1,
                     "finalResult": "Pass",
                     "formatted_time": "2024",
@@ -262,6 +267,7 @@
                     "concated": "36.876998-36.876998_ale",
                     "decoded_url": "http://www.splunk.com/download?r=header",
                     "distinct_count": 1,
+                    "dcerror": 0,
                     "exact_per": 0.006172839506172839,
                     "finalResult": "Pass",
                     "formatted_time": "2024",
