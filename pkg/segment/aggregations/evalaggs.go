@@ -918,13 +918,13 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 	if len(fields) == 0 {
 		err = PerformAggEvalForCardinality(measureAgg, hll, nil)
 		if err != nil {
-			return fmt.Errorf("ComputeAggEvalForEstdcError: Error while performing eval agg for estdc_error, err: %v", err)
+			return fmt.Errorf("ComputeAggEvalForCardinality: Error while performing eval agg for cardinality, err: %v", err)
 		}
 		result = int64(hll.Cardinality())
 	} else {
 		sst, ok := sstMap[fields[0]]
 		if !ok {
-			return fmt.Errorf("ComputeAggEvalForEstdcError: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
+			return fmt.Errorf("ComputeAggEvalForCardinality: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
 		}
 
 		length := len(sst.Records)
@@ -932,12 +932,12 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 			fieldToValue := make(map[string]sutils.CValueEnclosure)
 			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
 			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForEstdcError: Error while populating fieldToValue from sstMap, err: %v", err)
+				return fmt.Errorf("ComputeAggEvalForCardinality: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
 			err = PerformAggEvalForCardinality(measureAgg, hll, fieldToValue)
 			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForEstdcError: Error while performing eval agg for estdc_error, err: %v", err)
+				return fmt.Errorf("ComputeAggEvalForCardinality: Error while performing eval agg for cardinality, err: %v", err)
 			}
 		}
 		result = int64(hll.Cardinality())
