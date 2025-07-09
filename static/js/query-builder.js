@@ -79,14 +79,14 @@ $(document).ready(function () {
         .off('click')
         .on('click', function (e) {
             e.stopPropagation();
-            ThirdFilterStart(e);
+            thirdFilterStart(e);
         });
-    $('#filter-box-3').off('click').on('click', ThirdFilterStart);
+    $('#filter-box-3').off('click').on('click', thirdFilterStart);
     $('#completed').on('click', filterComplete);
     $('#completed-second').on('click', secondFilterComplete);
     $('#cancel-enter').on('click', cancelInfo);
     $('#cancel-enter-second').on('click', secondCancelInfo);
-    $('#cancel-enter-third').on('click', ThirdCancelInfo);
+    $('#cancel-enter-third').on('click', thirdCancelInfo);
 
     $('#add-con').show();
     $('#add-con-second').show();
@@ -154,7 +154,7 @@ tagThird.addEventListener('click', function (event) {
         updateResetButtonVisibility();
         if (thirdBoxSet.size > 0) $('#aggregations').hide();
         else $('#aggregations').show();
-        ThirdCancelInfo(event);
+        thirdCancelInfo(event);
     }
 });
 
@@ -166,7 +166,7 @@ $(document).mouseup(function (e) {
     if (!firstCon.is(e.target) && firstCon.has(e.target).length === 0 && !dropInfo.is(e.target) && dropInfo.has(e.target).length === 0 && !secondCon.is(e.target) && secondCon.has(e.target).length === 0 && !thirdCon.is(e.target) && thirdCon.has(e.target).length === 0) {
         cancelInfo(e);
         secondCancelInfo(e);
-        ThirdCancelInfo(e);
+        thirdCancelInfo(e);
     }
 });
 
@@ -330,7 +330,7 @@ async function secondFilterStart(evt) {
     $('#column-second').focus();
 }
 
-async function ThirdFilterStart(evt) {
+async function thirdFilterStart(evt) {
     evt.preventDefault();
     $('#filter-box-3').addClass('select-box');
     $('#column-third').attr('type', 'text');
@@ -382,7 +382,7 @@ async function ThirdFilterStart(evt) {
                 if (thirdBoxSet.size > 0) $('#aggregations').hide();
                 else $('#aggregations').show();
 
-                ThirdCancelInfo(event);
+                thirdCancelInfo(event);
                 return false;
             },
         })
@@ -556,7 +556,7 @@ function secondCancelInfo(evt) {
     $('#add-con-second').show();
 }
 
-function ThirdCancelInfo(event) {
+function thirdCancelInfo(event) {
     event.preventDefault();
     event.stopPropagation();
     $('#filter-box-3').removeClass('select-box');
@@ -1170,9 +1170,9 @@ $('#tags-third').on('click', 'li', function (event) {
                         if (thirdBoxSet.size > 0) $('#aggregations').hide();
                         else $('#aggregations').show();
 
-                        ThirdCancelInfo(event);
+                        thirdCancelInfo(event);
 
-                        $('#add-con-third, #filter-box-3').off('click').on('click', ThirdFilterStart);
+                        $('#add-con-third, #filter-box-3').off('click').on('click', thirdFilterStart);
                         isCurrentlyEditing = false;
 
                         return false;
@@ -1190,8 +1190,8 @@ $('#tags-third').on('click', 'li', function (event) {
             .on('mousedown.filterEdit3', function (e) {
                 if (!$(e.target).closest('#add-filter-third').length && !$(e.target).closest('.ui-autocomplete').length && !$(e.target).closest('#tags-third li').length) {
                     restoreOriginalThirdFilter(tagElement);
-                    ThirdCancelInfo(e);
-                    $('#add-con-third, #filter-box-3').off('click').on('click', ThirdFilterStart);
+                    thirdCancelInfo(e);
+                    $('#add-con-third, #filter-box-3').off('click').on('click', thirdFilterStart);
                     isCurrentlyEditing = false;
 
                     $(document).off('mousedown.filterEdit3');
@@ -1202,8 +1202,8 @@ $('#tags-third').on('click', 'li', function (event) {
             .off('click')
             .on('click', function (e) {
                 restoreOriginalThirdFilter(tagElement);
-                ThirdCancelInfo(e);
-                $('#add-con-third, #filter-box-3').off('click').on('click', ThirdFilterStart);
+                thirdCancelInfo(e);
+                $('#add-con-third, #filter-box-3').off('click').on('click', thirdFilterStart);
                 isCurrentlyEditing = false;
             });
 
