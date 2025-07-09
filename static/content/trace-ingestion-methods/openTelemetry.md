@@ -3,7 +3,7 @@ import TabItem from '@theme/TabItem';
 
 # OpenTelemetry Collector
 
-_Ingesting logs into Siglens using OpenTelemetry_
+_Ingesting traces into Siglens using OpenTelemetry_
 
 <Tabs
   className="bg-light"
@@ -49,7 +49,7 @@ exporters:
       
 service:
   pipelines:
-    logs:
+    traces:
       receivers: [otlp]
       processors: [batch]
       exporters: [otlphttp/siglens]
@@ -123,7 +123,7 @@ config:
 
   service:
     pipelines:
-      logs:
+      traces:
         receivers: [otlp]
         processors: [batch]
         exporters: [otlphttp/siglens]
