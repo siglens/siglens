@@ -485,8 +485,6 @@ func removeFrontElementFromWindow(window *utils.GobbableList, ssResults *structs
 			return fmt.Errorf("removeFrontElementFromWindow: Error: cardinality map does not contain the value: %v which is present in the window", strValue)
 		}
 		ssResults.CurrResult.CVal = float64(len(ssResults.CardinalityMap))
-	} else if measureAgg == sutils.EstdcError {
-		// do nothing
 	}
 
 	window.Remove(window.Front())

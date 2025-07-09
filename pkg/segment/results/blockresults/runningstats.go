@@ -225,7 +225,7 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				}
 				continue
 			}
-			step, err := rr.AddEvalResultsForCardinalityOrEstdcError(runningStats, measureResults, i, fieldToValue)
+			step, err := rr.AddEvalResultsForCardinalityRelated(runningStats, measureResults, i, fieldToValue)
 			if err != nil {
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Cardinality/EstdcError", err)
 			}
@@ -756,7 +756,7 @@ func (rr *RunningBucketResults) AddEvalResultsForPerc(runningStats *[]runningSta
 }
 
 // used for cardinality and estdc_error
-func (rr *RunningBucketResults) AddEvalResultsForCardinalityOrEstdcError(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+func (rr *RunningBucketResults) AddEvalResultsForCardinalityRelated(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
 
 	(*runningStats)[i].syncRawValue()
 	if (*runningStats)[i].rawVal.CVal == nil {
@@ -770,7 +770,7 @@ func (rr *RunningBucketResults) AddEvalResultsForCardinalityOrEstdcError(running
 	if rr.currStats[i].ValueColRequest == nil {
 		strVal, err := measureResults[i].GetString()
 		if err != nil {
-			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinalityOrEstdcError: failed to add measurement to running stats, err: %v", err)
+			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinalityRelated: failed to add measurement to running stats, err: %v", err)
 		}
 		hll.AddRaw(xxhash.Sum64String(strVal))
 		(*runningStats)[i].rawVal.CVal = hll
@@ -780,7 +780,7 @@ func (rr *RunningBucketResults) AddEvalResultsForCardinalityOrEstdcError(running
 
 	err := agg.PerformAggEvalForCardinality(rr.currStats[i], hll, fieldToValue)
 	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinalityOrEstdcError: failed to evaluate ValueColRequest to string, err: %v", err)
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinalityRelated: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
 	(*runningStats)[i].rawVal.CVal = hll
 	(*runningStats)[i].number = nil
