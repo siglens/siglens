@@ -360,7 +360,6 @@ const (
 	Group
 	Values
 	List
-	Estdc
 	EstdcError
 	ExactPerc
 	Median
@@ -509,8 +508,6 @@ func (e AggregateFunctions) String() string {
 		return "values"
 	case List:
 		return "list"
-	case Estdc:
-		return "estdc"
 	case EstdcError:
 		return "estdc_error"
 	case ExactPerc:
