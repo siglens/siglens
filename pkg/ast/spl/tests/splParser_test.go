@@ -1853,76 +1853,43 @@ func Test_aggCountAlias(t *testing.T) {
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Count)
 }
 
-func Test_aggDistinctCount(t *testing.T) {
-	query := []byte(`search A=1 | stats distinct_count(city)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
+func Test_aggDistinctCountAndAliases(t *testing.T) {
+	dcAliases := []string{"distinct_count", "dc", "estdc"} // we treat estdc as an alias for distinct_count
+	for _, dcAlias := range dcAliases {
+		query := []byte(`search A=1 | stats ` + dcAlias + `(city)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
 
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+		assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+		assert.Equal(t, filterNode.Comparison.Field, "A")
+		assert.Equal(t, filterNode.Comparison.Op, "=")
+		assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
+		pipeCommands := res.(ast.QueryStruct).PipeCommands
+		assert.NotNil(t, pipeCommands)
+		assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+		assert.Len(t, pipeCommands.MeasureOperations, 1)
+		assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
+		assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
 
-	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-	assert.Equal(t, 0, len(indexNames))
+		astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.Equal(t, 0, len(indexNames))
 
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+		assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
+		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
-}
-
-func Test_aggDistinctCountAlias(t *testing.T) {
-	query := []byte(`search A=1 | stats dc(city)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
-
-	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-	assert.Equal(t, 0, len(indexNames))
-
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
-
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
+		assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
+		assert.Len(t, aggregator.MeasureOperations, 1)
+		assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
+		assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
+	}
 }
 
 func Test_groupbyOneField(t *testing.T) {
@@ -10569,7 +10536,7 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc sutils.Aggr
 func getAggFunctions() []sutils.AggregateFunctions {
 	return []sutils.AggregateFunctions{sutils.Count, sutils.Sum, sutils.Avg, sutils.Min, sutils.Max,
 		sutils.Range, sutils.Cardinality, sutils.Values, sutils.List,
-		sutils.Estdc, sutils.EstdcError, sutils.Median,
+		sutils.EstdcError, sutils.Median,
 		sutils.Mode, sutils.Stdev, sutils.Stdevp, sutils.Sumsq, sutils.Var,
 		sutils.Varp, sutils.First, sutils.Last, sutils.Earliest, sutils.Latest,
 		sutils.EarliestTime, sutils.LatestTime, sutils.StatsRate,

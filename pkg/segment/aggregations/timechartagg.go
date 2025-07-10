@@ -394,6 +394,22 @@ func MergeVal(eVal *sutils.CValueEnclosure, eValToMerge sutils.CValueEnclosure, 
 				batchErr.AddError("MergeVal:HLL_STATS", errHllMerge)
 			}
 		}
+	case sutils.EstdcError:
+		if useAdditionForMerge {
+			aggFunc = sutils.Sum
+		} else {
+			if hllToMerge != nil {
+				err := hll.StrictUnion(hllToMerge.Hll)
+				if err != nil {
+					batchErr.AddError("MergeVal:HLL_STATS", err)
+				}
+				eVal.CVal = hll.RelativeError()
+				eVal.Dtype = sutils.SS_DT_FLOAT
+				return
+			} else {
+				batchErr.AddError("MergeVal:HLL_STATS", errHllMerge)
+			}
+		}
 	case sutils.Perc:
 		if useAdditionForMerge {
 			aggFunc = sutils.Sum
