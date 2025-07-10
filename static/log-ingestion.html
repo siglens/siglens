@@ -48,44 +48,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
     <link rel="stylesheet" href="./css/instructions.css?cb={{ AppVersion }}" />
     
-    <style>
-        .copy-button {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background-color: var(--myOrg-input, rgba(255, 255, 255, 0.1));
-            border-radius: 4px;
-            border: 1px solid var(--border-primary);
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-            z-index: 10;
-        }
-        
-        .pre-wrapper {
-            position: relative;
-        }
-        
-        .pre-wrapper:hover .copy-button {
-            opacity: 1;
-        }
-        
-        .copy-button.success {
-            background-color: #28a745;
-            border-color: #28a745;
-        }
-        
-        .copy-icon::before {
-            content: none;
-            font-family: "Font Awesome 5 Free";
-            font-weight: 900;
-            color: var(--text-primary);
-            font-size: 14px;
-        }
-    </style>
-
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -385,10 +347,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <div id="sample-data">
                                 <div class="content content-container" style="flex: 1; padding: 0 10px; overflow-y: auto; font-size: 14px; max-width: 1000px; box-sizing: border-box;">
                                     <h3 style="font-size: 32px; margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-primary); padding-bottom: 16px;">Send Test Data</h3>
-                                    <p style="font-style: italic;">Get started by sending sample logs data</p>
-                                <div class="admonition-content">
-                                    <button type="button" class="btn btn-primary test-data-btn" id="test-data-btn">Send Test Data</button>
-                                </div>
+                                    <div style="display: flex; align-items: center; gap: 20px;">
+                                        <p style="font-style: italic; margin-bottom: 0;">Get started by sending sample logs data</p>
+                                        <button type="button" class="btn btn-primary test-data-btn" id="test-data-btn">Send Test Data</button>
+                                    </div>
                                 </div>
                             </div>
                             <div id="verify-connection">
@@ -435,6 +397,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
         <script src="./js/ingestion.js?cb={{ AppVersion }}"></script>
         <script src="./js/footer.js?cb={{ AppVersion }}"></script>
+
+        <script>
+            // Handle copy button functionality
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('.copy-button').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const preWrapper = this.closest('.pre-wrapper');
+                        const textArea = preWrapper.querySelector('textarea');
+                        
+                        if (textArea) {
+                            // Use Clipboard API instead of select() to avoid visual selection
+                            const text = textArea.value;
+                            navigator.clipboard.writeText(text).then(() => {
+                                // Add success class to button
+                                this.classList.add('success');
+                                
+                                // Remove success class after 2 seconds
+                                setTimeout(() => {
+                                    this.classList.remove('success');
+                                }, 2000);
+                            });
+                        }
+                    });
+                });
+            });
+        </script>
 
         {{ .RunCheck2 | safeHTML }}
         {{ .RunCheck3 | safeHTML }}
