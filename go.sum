@@ -204,6 +204,8 @@ github.com/shirou/gopsutil/v4 v4.24.12 h1:qvePBOk20e0IKA1QXrIIU+jmk+zEiYVVx06WjB
 github.com/shirou/gopsutil/v4 v4.24.12/go.mod h1:DCtMPAad2XceTeIAbGyVfycbYQNBGk2P8cvDi7/VN9o=
 github.com/siglens/go-hll v0.0.0-20240828170019-5e666abc6309 h1:c3L+x3lPDpYAdVmoVs6Pfgu8Rp/ink268tw2Kc3OUyA=
 github.com/siglens/go-hll v0.0.0-20240828170019-5e666abc6309/go.mod h1:ffCMB+HBSutfWw57KlZ8sZPoVNlx0LyfShsKBATEkVM=
+github.com/siglens/go-hll v0.0.0-20250702141534-039cd711c944 h1:mAeBgKRM1W8tOTk1Orknv9Wdy/dtxbovc0tUjZK8B7M=
+github.com/siglens/go-hll v0.0.0-20250702141534-039cd711c944/go.mod h1:ffCMB+HBSutfWw57KlZ8sZPoVNlx0LyfShsKBATEkVM=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/slack-go/slack v0.12.2 h1:x3OppyMyGIbbiyFhsBmpf9pwkUzMhthJMRNmNlA4LaQ=
