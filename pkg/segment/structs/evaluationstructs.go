@@ -1546,45 +1546,26 @@ func handleMVToJsonArray(self *MultiValueExpr, fieldToValue map[string]sutils.CV
 	resultArr := make([]any, len(mvSlice))
 	if self.InferTypes {
 		for idx, val := range mvSlice {
-			switch val {
-			case "true":
-				resultArr[idx] = true
-				continue
-			case "false":
-				resultArr[idx] = false
-				continue
-			case "null":
-				resultArr[idx] = nil
-				continue
-			default:
-				// Do Nothing. Handled below
-			}
-
-			if num, err := utils.FastParseFloat([]byte(mvSlice[idx])); err == nil {
-				resultArr[idx] = num
-				continue
-			}
-
-			// parser automatically removes extra quotes
-			if len(mvSlice[idx]) != 0 {
-				resultArr[idx] = mvSlice[idx]
-			} else {
+			// Try to convert val to a JSON object
+			err := json.Unmarshal([]byte(val), &resultArr[idx])
+			if err != nil {
+				// if the conversion fails, this is not a JSON object and the resultant value should be nil
 				resultArr[idx] = nil
 			}
 		}
-	}
-
-	var jsonBytes []byte
-	if resultArr[0] != nil {
-		jsonBytes, err = json.Marshal(resultArr)
+		jsonBytes, err := json.Marshal(resultArr)
+		if err != nil {
+			return []string{}, fmt.Errorf("handleMVToJsonArray: error marshaling multivalue field %v; err: %v", mvSlice, err)
+		}
+		return []string{string(jsonBytes)}, nil
 	} else {
-		jsonBytes, err = json.Marshal(mvSlice)
+		// don't infer types
+		jsonBytes, err := json.Marshal(mvSlice)
+		if err != nil {
+			return []string{}, fmt.Errorf("handleMVToJsonArray: error marshaling multivalue field %v; err: %v", mvSlice, err)
+		}
+		return []string{string(jsonBytes)}, nil
 	}
-	if err != nil {
-		return []string{}, fmt.Errorf("handleMVToJsonArray: error marshaling multivalue field %v; err: %v", mvSlice, err)
-	}
-	return []string{string(jsonBytes)}, nil
-
 }
 
 func handleMVDedup(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
