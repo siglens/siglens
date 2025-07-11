@@ -32,10 +32,10 @@ func Test_parseSearchBody(t *testing.T) {
 	nowTs := uint64(1659874108987)
 	jssrc["startEpoch"] = "now-15m"
 	jssrc["endEpoch"] = "now"
-	jssrc["scroll"] = 0
+	jssrc["from"] = 0
 	jssrc[runTimechartFlag] = true
 
-	stext, sepoch, eepoch, fsize, idxname, scroll, includeNulls, runTimechart := ParseSearchBody(jssrc, nowTs)
+	stext, sepoch, eepoch, fsize, idxname, scroll, includeNulls, runTimechart, _ := ParseSearchBody(jssrc, nowTs)
 	assert.Equal(t, "abc def", stext)
 	assert.Equal(t, nowTs-15*60_000, sepoch, "expected=%v, actual=%v", nowTs-15*60_000, sepoch)
 	assert.Equal(t, nowTs, eepoch, "expected=%v, actual=%v", nowTs, eepoch)
@@ -46,11 +46,11 @@ func Test_parseSearchBody(t *testing.T) {
 	assert.True(t, runTimechart, "runTimechart should be true")
 
 	jssrc["from"] = 500
-	_, _, _, finalSize, _, scroll, _, _ := ParseSearchBody(jssrc, nowTs)
+	_, _, _, finalSize, _, scroll, _, _, _ := ParseSearchBody(jssrc, nowTs)
 	assert.Equal(t, uint64(700), finalSize, "expected=%v, actual=%v", 700, scroll)
 	assert.Equal(t, 500, scroll, "expected=%v, actual=%v", 500, scroll)
 
 	jssrc["includeNulls"] = true
-	_, _, _, _, _, _, includeNulls, _ = ParseSearchBody(jssrc, nowTs)
+	_, _, _, _, _, _, includeNulls, _, _ = ParseSearchBody(jssrc, nowTs)
 	assert.True(t, includeNulls, "includeNulls should be true")
 }
