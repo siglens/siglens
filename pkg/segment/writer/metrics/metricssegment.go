@@ -36,6 +36,7 @@ import (
 
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
+	"github.com/dustin/go-humanize"
 	"github.com/siglens/siglens/pkg/blob"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -1472,7 +1473,10 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		return err
 	}
 
-	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.mSegEncodedSize, ms.currBlockNum+1, finalDir)
+	log.Infof("rotating metric segment org: %v, size: %v, numBlocks: %v, dpCount: %v dir: %+v",
+		ms.Orgid, humanize.Comma(int64(ms.mSegEncodedSize)), ms.currBlockNum+1,
+		humanize.Comma(int64(ms.datapointCount)), finalDir)
+
 	if !forceRotate {
 		nextSuffix, err := suffix.GetNextSuffix(ms.Mid, "ts")
 		if err != nil {
