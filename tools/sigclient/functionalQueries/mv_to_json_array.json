@@ -6,72 +6,56 @@
             "relation": "eq"
         },
         "qtype": "logs-query",
-        "uniqueKeyCols": [
-            "ident"
-        ],
         "records": [
             {
                 "city": "Boston",
                 "ident": "0a7902e4-2869-45e5-99de-22b1aeecfede",
-                "inferred": [
-                    "[\"Grace\",\"Frank\",true,false,null,12,24,\"LightGrayream\",8592022,2.183694,170.515377]"
-                ],
-                "non_inferred": [
-                    "[\"Grace\",\"Frank\",\"true\",\"false\",\"null\",\"12\",\"24\",\"LightGrayream\",\"8592022\",\"2.183694\",\"170.515377\"]"
-                ]
+                "inferred": "[null,null,true,false,null,12,24,null,8592022,2.183694,170.515377]",
+                "non_inferred": "[\"Grace\",\"Frank\",\"true\",\"false\",\"null\",\"12\",\"24\",\"LightGrayream\",\"8592022\",\"2.183694\",\"170.515377\"]",
+                "timestamp": 1752224399998
             },
             {
                 "city": "Boston",
                 "ident": "5644ebc3-afb2-4b47-a411-8510b027dbf9",
-                "inferred": [
-                    "[\"Grace\",\"Frank\",true,false,null,12,24,\"Kangaroocan\",6410194,-7.533632,-26.665981]"
-                ],
-                "non_inferred": [
-                    "[\"Grace\",\"Frank\",\"true\",\"false\",\"null\",\"12\",\"24\",\"Kangaroocan\",\"6410194\",\"-7.533632\",\"-26.665981\"]"
-                ]
+                "inferred": "[null,null,true,false,null,12,24,null,6410194,-7.533632,-26.665981]",
+                "non_inferred": "[\"Grace\",\"Frank\",\"true\",\"false\",\"null\",\"12\",\"24\",\"Kangaroocan\",\"6410194\",\"-7.533632\",\"-26.665981\"]",
+                "timestamp": 1752224399901
             },
             {
                 "city": "Boston",
                 "ident": "b40f3267-3d65-4ffb-a88f-51af0bdff718",
-                "inferred": [
-                    "[\"Grace\",\"Frank\",true,false,null,12,24,\"DarkMagentayoga\",2719463,49.165076,-137.509444]"
-                ],
-                "non_inferred": [
-                    "[\"Grace\",\"Frank\",\"true\",\"false\",\"null\",\"12\",\"24\",\"DarkMagentayoga\",\"2719463\",\"49.165076\",\"-137.509444\"]"
-                ]
+                "inferred": "[null,null,true,false,null,12,24,null,2719463,49.165076,-137.509444]",
+                "non_inferred": "[\"Grace\",\"Frank\",\"true\",\"false\",\"null\",\"12\",\"24\",\"DarkMagentayoga\",\"2719463\",\"49.165076\",\"-137.509444\"]",
+                "timestamp": 1752224399827
             },
             {
                 "city": "Boston",
                 "ident": "59e37369-feb2-40ac-a01f-3636d234a8e6",
-                "inferred": [
-                    "[\"Grace\",\"Frank\",true,false,null,12,24,\"LightGreencovey\",9286131,-47.897448,169.614265]"
-                ],
-                "non_inferred": [
-                    "[\"Grace\",\"Frank\",\"true\",\"false\",\"null\",\"12\",\"24\",\"LightGreencovey\",\"9286131\",\"-47.897448\",\"169.614265\"]"
-                ]
+                "inferred": "[null,null,true,false,null,12,24,null,9286131,-47.897448,169.614265]",
+                "non_inferred": "[\"Grace\",\"Frank\",\"true\",\"false\",\"null\",\"12\",\"24\",\"LightGreencovey\",\"9286131\",\"-47.897448\",\"169.614265\"]",
+                "timestamp": 1752224399783
             },
             {
                 "city": "Boston",
                 "ident": "452922de-6bb7-4552-9dcf-e76360d78795",
-                "inferred": [
-                    "[\"Grace\",\"Frank\",true,false,null,12,24,\"Doorride\",7446604,-24.899319,154.051647]"
-                ],
-                "non_inferred": [
-                    "[\"Grace\",\"Frank\",\"true\",\"false\",\"null\",\"12\",\"24\",\"Doorride\",\"7446604\",\"-24.899319\",\"154.051647\"]"
-                ]
+                "inferred": "[null,null,true,false,null,12,24,null,7446604,-24.899319,154.051647]",
+                "non_inferred": "[\"Grace\",\"Frank\",\"true\",\"false\",\"null\",\"12\",\"24\",\"Doorride\",\"7446604\",\"-24.899319\",\"154.051647\"]",
+                "timestamp": 1752224399759
             }
         ],
-        "allColumns": [
-            "city",
-            "inferred",
-            "non_inferred",
-            "ident"
-        ],
-        "columnsOrder": [
-            "city",
-            "inferred",
-            "non_inferred",
-            "ident"
-        ]
+    "allColumns": [
+        "ident",
+        "non_inferred",
+        "inferred",
+        "city",
+        "timestamp"
+    ],
+    "columnsOrder": [
+        "timestamp",
+        "city",
+        "inferred",
+        "non_inferred",
+        "ident"
+    ]
     }
 }
