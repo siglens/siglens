@@ -43,19 +43,19 @@
                 "timestamp": 1752224399759
             }
         ],
-    "allColumns": [
-        "ident",
-        "non_inferred",
-        "inferred",
-        "city",
-        "timestamp"
-    ],
-    "columnsOrder": [
-        "timestamp",
-        "city",
-        "inferred",
-        "non_inferred",
-        "ident"
-    ]
+        "allColumns": [
+            "ident",
+            "non_inferred",
+            "inferred",
+            "city",
+            "timestamp"
+        ],
+        "columnsOrder": [
+            "timestamp",
+            "city",
+            "inferred",
+            "non_inferred",
+            "ident"
+        ]
     }
 }
