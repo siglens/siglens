@@ -398,31 +398,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <script src="./js/ingestion.js?cb={{ AppVersion }}"></script>
         <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
-        <script>
-            // Handle copy button functionality
-            document.addEventListener('DOMContentLoaded', function() {
-                document.querySelectorAll('.copy-button').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const preWrapper = this.closest('.pre-wrapper');
-                        const textArea = preWrapper.querySelector('textarea');
-                        
-                        if (textArea) {
-                            // Use Clipboard API instead of select() to avoid visual selection
-                            const text = textArea.value;
-                            navigator.clipboard.writeText(text).then(() => {
-                                // Add success class to button
-                                this.classList.add('success');
-                                
-                                // Remove success class after 2 seconds
-                                setTimeout(() => {
-                                    this.classList.remove('success');
-                                }, 2000);
-                            });
-                        }
-                    });
-                });
-            });
-        </script>
 
         {{ .RunCheck2 | safeHTML }}
         {{ .RunCheck3 | safeHTML }}
