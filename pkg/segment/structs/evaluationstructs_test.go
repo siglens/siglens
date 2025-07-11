@@ -2430,3 +2430,46 @@ func Test_Spath_XML_Unclear(t *testing.T) {
 		assert.Equal(t, testCase.expectedValue, actualValue)
 	}
 }
+
+func Test_Mv_to_JSON(t *testing.T) {
+
+	type args struct {
+		mvResult      []string
+		inferTypes    bool
+		expectedValue string
+	}
+
+	var testCases = []args{
+		{
+			mvResult:      []string{"unquoted", "\"quoted\"", "1", "2.3", "[\"array\", 4]", "{\"key\": [\"value\"]}", "true", "false", "null"},
+			inferTypes:    false,
+			expectedValue: `["unquoted","\"quoted\"","1","2.3","[\"array\", 4]","{\"key\": [\"value\"]}","true","false","null"]`,
+		},
+		{
+			mvResult:      []string{"unquoted", "\"quoted\"", "1", "2.3", "[\"array\", 4]", "{\"key\": [\"value\"]}", "true", "false", "null"},
+			inferTypes:    true,
+			expectedValue: `[null,"quoted",1,2.3,["array",4],{"key":["value"]},true,false,null]`,
+		},
+	}
+	mvExpr := &MultiValueExpr{
+		MultiValueExprMode: MVEMField,
+		FieldName:          "test_field",
+	}
+	textExpr := &TextExpr{
+		Op:             "mv_to_json",
+		MultiValueExpr: mvExpr,
+	}
+	fieldToValue := make(map[string]sutils.CValueEnclosure)
+
+	for _, testCase := range testCases {
+
+		fieldToValue["test_field"] = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING_SLICE,
+			CVal:  testCase.mvResult,
+		}
+		textExpr.InferTypes = testCase.inferTypes
+		actualValue, err := handleMVToJsonArray(textExpr, fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, testCase.expectedValue, actualValue)
+	}
+}
