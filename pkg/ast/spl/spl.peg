@@ -2704,31 +2704,6 @@ MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:St
 
     return node, nil
 }
-/ (opName:("mv_to_json_array") L_PAREN multiValueExpr:MultiValueExpr rest:(COMMA ("true" / "false") "()")? R_PAREN ) {
-    opNameStr, err := transferUint8ToString(opName)
-    if err != nil {
-        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
-    }
-
-    node := &structs.MultiValueExpr {
-        Op: opNameStr,
-        MultiValueExprParams: []*structs.MultiValueExpr{multiValueExpr.(*structs.MultiValueExpr)},
-        InferTypes: false, // default value
-    }
-
-    if rest != nil {
-        restSlice := rest.([]any)
-        inferTypes, err := transferUint8ToString(restSlice[1])
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
-        }
-        if inferTypes == "true" {
-            node.InferTypes = true
-        }
-    }
-
-    return node, nil
-}
 / (opName:("mvappend") L_PAREN firstVal:StringOrMultiValueExpr rest:(COMMA StringOrMultiValueExpr)* R_PAREN ) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
@@ -3035,6 +3010,26 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
         Val: val.(*structs.ValueExpr),
         Param: format.(*structs.StringExpr),
     }, nil
+}
+/ "mv_to_json_array" L_PAREN multiValueExpr:MultiValueExpr rest:(COMMA ("true" / "false") "()")? R_PAREN {
+    node := &structs.TextExpr {
+        Op: "mv_to_json_array",
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
+        InferTypes: false, // default value
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        inferTypes, err := transferUint8ToString(restSlice[1])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+        }
+        if inferTypes == "true" {
+            node.InferTypes = true
+        }
+    }
+
+    return node, nil
 }
 
 QuotedPathString <- str:QuotedString {
