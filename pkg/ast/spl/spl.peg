@@ -175,14 +175,12 @@ func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
         return sutils.Max
     case "range":
         return sutils.Range
-    case "distinct_count", "dc":
+    case "distinct_count", "dc", "estdc":
         return sutils.Cardinality
     case "values":
         return sutils.Values
     case "list":
         return sutils.List
-    case "estdc":
-        return sutils.Estdc
     case "estdc_error":
         return sutils.EstdcError
     case "mode":
@@ -3973,7 +3971,7 @@ AggFunction <- agg:(AggCount / AggPercCommon / AggCommon) {
     return agg, nil
 }
 
-// TODO Processing Logic: stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
+// TODO Processing Logic: stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, earliest_time, earliest
 CommonAggName <- ("values" / "varp" / "var" / "sumsq" / "sum" / "stdevp" / "stdev" / "rate" / "range" / "mode" / "min" / "median" / "mean" / "max" / 
 "list" / "latest_time" / "latest" / "last" / "first" / "estdc_error" / "estdc" / "earliest_time" / "earliest" / "distinct_count" / "dc" / "avg") {
     return string(c.text), nil
