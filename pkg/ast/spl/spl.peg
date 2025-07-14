@@ -3823,7 +3823,7 @@ JsonExprLevel1 <- jsonExpr:JsonExpr {
     return expr, nil
 }
 
-JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(JsonExprLevel1) rest:(COMMA String COMMA JsonExprLevel1)* R_PAREN {
+JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(JsonExprLevel1) rest:(COMMA JsonExprLevel1 COMMA JsonExprLevel1)* R_PAREN {
     isValidJsonObjectKey := func(key *structs.JsonExpr) error {
         // key can only be a string => either a field or a StringExpr
         // https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.3/evaluation-functions/json-functions#ariaid-title2
@@ -3853,6 +3853,7 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
 
     astDs[0] = &structs.JsonExpr{
         JsonExprMode: structs.JEMKeyVal,
+        IsTerminal: true,
         Key: key,
         Value: value,
     }
@@ -3867,7 +3868,7 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
                 return nil, fmt.Errorf("spl peg: failed to assert firstKey as string; Check the %v argument of the function", idx+1)
             }
 
-            err := isValidJsonObjectKey(key)
+            err := isValidJsonObjectKey(restKey)
             if err != nil {
                 return nil, err
             }
@@ -3878,6 +3879,7 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
             }
             astDs = append(astDs, &structs.JsonExpr{
                 JsonExprMode: structs.JEMKeyVal,
+                IsTerminal: true,
                 Key: restKey,
                 Value: restValue,
             })
