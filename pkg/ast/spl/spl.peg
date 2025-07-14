@@ -296,6 +296,14 @@ func createJsonExprAst(op string, leftExpr *structs.JsonExpr, rightExpr *structs
     }, nil
 }
 
+func getRawValJsonObjectKey(key *structs.JsonExpr) string {
+    if key.JsonExprMode == structs.JEMField {
+        return key.FieldValue
+    } else {
+        return key.InputString.RawString 
+    }
+}
+
 func transferUint8ToString(opName interface{}) (string, error){
     strData, ok := opName.([]byte)
     if !ok {
@@ -3834,6 +3842,7 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
     }
     
     astDs := make([]*structs.JsonExpr, 1, 5)
+    keyToIdxMap := make(map[string]int)
 
     key, ok := firstKey.(*structs.JsonExpr)
     if !ok {
@@ -3851,15 +3860,20 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
         return nil, fmt.Errorf("spl peg: failed to assert firstValue as *structs.JsonExpr; Check the second argument of the function")
     }
 
+    rawKey := getRawValJsonObjectKey(key)
+
+    keyToIdxMap[rawKey] = 0
+
     astDs[0] = &structs.JsonExpr{
         JsonExprMode: structs.JEMKeyVal,
-        IsTerminal: true,
+        IsTerminal: value.JsonExprMode != structs.JEMExpr,
         Key: key,
         Value: value,
     }
 
     var restKey *structs.JsonExpr
     var restValue *structs.JsonExpr
+
     if rest != nil {
         for idx, arg := range rest.([]any) {
             // Each item in rest is [",", Key, ",", Value]
@@ -3877,12 +3891,23 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
             if !ok {
                 return nil, fmt.Errorf("spl peg: failed to assert firstValue as *structs.JsonExpr; Check the %v argument of the function", idx+1)
             }
-            astDs = append(astDs, &structs.JsonExpr{
+
+            rawKey = getRawValJsonObjectKey(restKey)
+
+            keyValueStruct := &structs.JsonExpr{
                 JsonExprMode: structs.JEMKeyVal,
-                IsTerminal: true,
+                IsTerminal: restValue.JsonExprMode != structs.JEMExpr,
                 Key: restKey,
                 Value: restValue,
-            })
+            }
+
+            var v int
+            if v, ok = keyToIdxMap[rawKey]; ok {
+                astDs[v] = keyValueStruct
+            } else {
+                keyToIdxMap[rawKey] = len(astDs)
+                astDs = append(astDs, keyValueStruct)
+            }
         }
     }
 
