@@ -1508,14 +1508,13 @@ func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 	}
 
 	var delimiter string
+	var err error
 	if self.StringExprParams == nil || len(self.StringExprParams) != 1 {
 		delimiter = ","
 	} else {
-		// delimiter must be enclosed in quotation marks
-		if len(self.StringExprParams[0].RawString) != 0 {
-			delimiter = self.StringExprParams[0].RawString
-		} else {
-			delimiter = ","
+		delimiter, err = self.StringExprParams[0].Evaluate(fieldToValue)
+		if err != nil {
+			return []string{}, fmt.Errorf("handleMVZip: cannot evaluate delimiter as a string: %v", err)
 		}
 	}
 
