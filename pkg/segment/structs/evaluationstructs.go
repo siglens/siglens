@@ -276,7 +276,7 @@ type TextExpr struct {
 	Cluster        *Cluster   // generates a cluster label
 	SPathExpr      *SPathExpr // To extract information from the structured data formats XML and JSON.
 	Regex          *utils.GobbableRegex
-	InferTypes     bool // used for mv_to_json_array to read results as JSON values
+	BoolParam      *BoolExpr
 }
 
 type ConditionExpr struct {
@@ -3546,7 +3546,15 @@ func handleMVToJsonArray(self *TextExpr, fieldToValue map[string]sutils.CValueEn
 	}
 
 	resultArr := make([]any, len(mvSlice))
-	if self.InferTypes {
+
+	inferTypes := false // default value
+	if self.BoolParam != nil {
+		inferTypes, err = self.BoolParam.Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("handleMVToJsonArray: %v", err)
+		}
+	}
+	if inferTypes {
 		for idx, val := range mvSlice {
 			// Try to convert val to a JSON object
 			err := json.Unmarshal([]byte(val), &resultArr[idx])

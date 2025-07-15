@@ -3009,22 +3009,15 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
         Param: format.(*structs.StringExpr),
     }, nil
 }
-/ "mv_to_json_array" L_PAREN multiValueExpr:MultiValueExpr rest:(COMMA ("true" / "false") "()")? R_PAREN {
+/ "mv_to_json_array" L_PAREN multiValueExpr:MultiValueExpr rest:(COMMA BoolExpr)? R_PAREN {
     node := &structs.TextExpr {
         Op: "mv_to_json_array",
         MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
-        InferTypes: false, // default value
     }
 
     if rest != nil {
         restSlice := rest.([]any)
-        inferTypes, err := transferUint8ToString(restSlice[1])
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
-        }
-        if inferTypes == "true" {
-            node.InferTypes = true
-        }
+        node.BoolParam = restSlice[1].(*structs.BoolExpr)
     }
 
     return node, nil
@@ -3143,8 +3136,12 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
         ValueOp: "",
     }
 
-    if literalFunction == "true()" {
+    literalFunctionStr := string(literalFunction.([]byte))
+
+    if literalFunctionStr == "true()" {
         cur.Value = true
+    } else {
+        cur.Value = false
     }
     return cur, nil
 }
