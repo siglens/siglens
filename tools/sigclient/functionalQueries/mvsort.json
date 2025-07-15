@@ -1,5 +1,5 @@
 {
-    "queryText": "city=boston | eval mv1=http_method.\",\".batch.\",\".account_status.\",\".http_status | eval mv2=latency.\",\".app_name.\",\".app_version | makemv delim=\",\" mv1 | makemv delim=\",\" mv2 | eval sorted1 = mvsort(mv1) | eval sorted2 = mvsort(mv2) | head 5 | fields sorted1, sorted2, ident",
+    "queryText": "city=boston | eval mv1=http_method.\",\".batch.\",\".account_status.\",\".http_status | eval mv2=latency.\",\".app_name.\",\".app_version | makemv delim=\",\" mv1 | makemv delim=\",\" mv2 | eval sorted1 = mvsort(mv1) | eval sorted2 = mvsort(mv2) | head 5 | fields mv1, mv2, sorted1, sorted2, ident",
     "expectedResult": {
         "totalMatched": {
             "value": 5,
@@ -12,6 +12,17 @@
         "records": [
             {
                 "ident": "0a7902e4-2869-45e5-99de-22b1aeecfede",
+                "mv1": [
+                    "GET",
+                    "batch-75",
+                    "active",
+                    "301"
+                ],
+                "mv2": [
+                    "8592022",
+                    "LightGrayream",
+                    "5.17.17"
+                ],
                 "sorted1": [
                     "301",
                     "GET",
@@ -26,6 +37,17 @@
             },
             {
                 "ident": "5644ebc3-afb2-4b47-a411-8510b027dbf9",
+                "mv1": [
+                    "POST",
+                    "batch-683",
+                    "inactive",
+                    "301"
+                ],
+                "mv2": [
+                    "6410194",
+                    "Kangaroocan",
+                    "1.14.17"
+                ],
                 "sorted1": [
                     "301",
                     "POST",
@@ -40,6 +62,11 @@
             },
             {
                 "ident": "b40f3267-3d65-4ffb-a88f-51af0bdff718",
+                "mv2": [
+                    "2719463",
+                    "DarkMagentayoga",
+                    "1.6.11"
+                ],
                 "sorted2": [
                     "1.6.11",
                     "2719463",
@@ -48,6 +75,17 @@
             },
             {
                 "ident": "59e37369-feb2-40ac-a01f-3636d234a8e6",
+                "mv1": [
+                    "PATCH",
+                    "batch-792",
+                    "inactive",
+                    "500"
+                ],
+                "mv2": [
+                    "9286131",
+                    "LightGreencovey",
+                    "3.17.20"
+                ],
                 "sorted1": [
                     "500",
                     "PATCH",
@@ -62,6 +100,17 @@
             },
             {
                 "ident": "452922de-6bb7-4552-9dcf-e76360d78795",
+                "mv1": [
+                    "DELETE",
+                    "batch-364",
+                    "active",
+                    "301"
+                ],
+                "mv2": [
+                    "7446604",
+                    "Doorride",
+                    "1.10.12"
+                ],
                 "sorted1": [
                     "301",
                     "DELETE",
@@ -75,15 +124,19 @@
                 ]
             }
         ],
-        "allColumns": [
-            "ident",
-            "sorted2",
-            "sorted1"
-        ],
-        "columnsOrder": [
-            "sorted1",
-            "sorted2",
-            "ident"
-        ]
+    "allColumns": [
+        "mv1",
+        "mv2",
+        "sorted1",
+        "sorted2",
+        "ident"
+    ],
+    "columnsOrder": [
+        "mv1",
+        "mv2",
+        "sorted1",
+        "sorted2",
+        "ident"
+    ]
     }
 }
