@@ -51,9 +51,10 @@ type BoolExpr struct {
 	IsTerminal bool
 
 	// Only used when IsTerminal is true.
+	Value      bool // Used for true() or false(); used only when ValueOp is ""
 	LeftValue  *ValueExpr
 	RightValue *ValueExpr
-	ValueOp    string       // Only = or != for strings; can also be <, <=, >, >= for numbers.
+	ValueOp    string       // Only = or != for strings; can also be <, <=, >, >= for numbers. Is an empty string for true() or false().
 	ValueList  []*ValueExpr //Use for in(<value>, <list>)
 
 	// Only used when IsTerminal is false. For a unary BoolOp, RightExpr should be nil.
@@ -707,6 +708,8 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 
 	if self.IsTerminal {
 		switch self.ValueOp {
+		case "":
+			return getBoolCValueEnclosure(self.Value), nil
 		case "in":
 			inFlag, err := isInValueList(fieldToValue, self.LeftValue, self.ValueList)
 			if err != nil {

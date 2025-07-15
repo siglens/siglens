@@ -3142,6 +3142,17 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
 / expr: (EvalComparisonExpr / BoolComparisonExpr) {
     return expr, nil
 }
+/ literalFunction:("true()" / "false()") {
+    cur := &structs.BoolExpr {
+        IsTerminal: true,
+        ValueOp: "",
+    }
+
+    if literalFunction == "true()" {
+        cur.Value = true
+    }
+    return cur, nil
+}
 
 //TODO: implement the processing logic for: searchmatch, isnotnull, isnum
 EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull" / "isnum" / "searchmatch" / "ismv" / "isobject") L_PAREN value:ValueExpr R_PAREN ) {
