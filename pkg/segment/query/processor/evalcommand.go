@@ -25,6 +25,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type evalProcessor struct {
@@ -76,6 +77,7 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		for field, record := range records {
 			fieldToValue[field] = record[i]
 		}
+		log.Infof("evalProcessor.Process: Evaluating ValueExpr for record %d with fieldToValue: %#v", i, fieldToValue)
 
 		value, err := p.options.ValueExpr.EvaluateValueExpr(fieldToValue)
 		if err != nil {

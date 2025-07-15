@@ -561,6 +561,8 @@ func PopulateFieldToValueFromMeasureResults(fieldToValue map[string]sutils.CValu
 		}
 	}
 
+	log.Infof("RunningBucketResults.PopulateFieldToValueFromMeasureResults: populated fieldToValue with %d fields", len(fieldToValue))
+
 	return fieldToValue, nil
 }
 

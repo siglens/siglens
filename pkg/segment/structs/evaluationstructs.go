@@ -880,6 +880,9 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 			return nil, fmt.Errorf("BoolExpr.Evaluate: error evaluating ValueExprs, errLeft: %v, errRight: %v", errLeft, errRight)
 		}
 
+		log.Infof("BoolExpr.Evaluate: Evaluating BoolExpr with ValueOp: %v, LeftValue: %v, RightValue: %v", self.ValueOp, leftVal, rightVal)
+		log.Infof("BoolExpr.Evaluate: FieldToValue is: %#v", fieldToValue)
+
 		if isLeftValNull || isRightValNull {
 			// If any of the values are NULL, then the result cannot be determined.
 			// Return NULL.
@@ -921,6 +924,7 @@ func GetBoolResult(leftVal bool, rightVal bool, Op BoolOperator) (bool, error) {
 // with the value specified by fieldToValue. If the field is not present in the fieldToValue map
 // then false is returned.
 func (self *BoolExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (bool, error) {
+	log.Printf("BoolExpr.Evaluate: Evaluating BoolExpr with BoolOp: %#v", self)
 	if self.IsTerminal {
 		cValueEnclosure, err := self.evaluateToCValueEnclosure(fieldToValue)
 		if err != nil {
@@ -4020,6 +4024,9 @@ func (self *TextExpr) GetFields() []string {
 		}
 		if self.MultiValueExpr != nil {
 			fields = append(fields, self.MultiValueExpr.GetFields()...)
+		}
+		if self.BoolParam != nil {
+			fields = append(fields, self.BoolParam.GetFields()...)
 		}
 		return fields
 	}
