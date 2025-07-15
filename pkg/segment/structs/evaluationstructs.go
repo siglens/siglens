@@ -921,7 +921,6 @@ func GetBoolResult(leftVal bool, rightVal bool, Op BoolOperator) (bool, error) {
 // with the value specified by fieldToValue. If the field is not present in the fieldToValue map
 // then false is returned.
 func (self *BoolExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure) (bool, error) {
-	log.Printf("BoolExpr.Evaluate: Evaluating BoolExpr with BoolOp: %#v", self)
 	if self.IsTerminal {
 		cValueEnclosure, err := self.evaluateToCValueEnclosure(fieldToValue)
 		if err != nil {
