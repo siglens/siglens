@@ -280,6 +280,13 @@ func processJsonLogs(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 
 		for _, value := range stream.Values {
+			// Clear leftover fields from previous iterations
+			for key := range allIngestData {
+				if _, ok := stream.Stream[key]; !ok && key != "timestamp" && key != "line" {
+					delete(allIngestData, key)
+				}
+			}
+
 			if len(value) < 2 {
 				utils.SendError(ctx, "Invalid log entry format", "", nil)
 				return

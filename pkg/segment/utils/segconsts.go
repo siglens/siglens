@@ -1060,7 +1060,7 @@ func (e *CValueEnclosure) GetValueAsString() (string, error) {
 		return strconv.FormatInt(e.CVal.(int64), 10), nil
 	case SS_DT_FLOAT:
 		return fmt.Sprintf("%f", e.CVal.(float64)), nil
-	case SS_DT_BACKFILL:
+	case SS_DT_BACKFILL, SS_INVALID:
 		return "", nil
 	default:
 		return "", fmt.Errorf("CValueEnclosure.GetValueAsString: unsupported Dtype: %v", e.Dtype)
