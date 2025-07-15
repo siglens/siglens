@@ -3997,6 +3997,45 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
 
     return result, nil
 }
+/ "json_array" L_PAREN value:JsonExprLevel1 rest:(COMMA JsonExprLevel1)* R_PAREN {
+    castedValue, ok := value.(*structs.JsonExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: failed to assert first value as *structs.JsonExpr")
+    }
+
+    args := make([]*structs.JsonExpr, 1, 5)
+    args[0] = castedValue
+
+    if rest != nil {
+        var restValue *structs.JsonExpr
+        for idx, arg := range rest.([]any) {
+            restValue, ok = arg.([]any)[1].(*structs.JsonExpr)
+            if !ok {
+                return nil, fmt.Errorf("spl peg: failed to assert value as *structs.JsonExpr; Check the %v argument of the function", idx+1)
+            }
+            args = append(args, restValue)
+        }
+    }
+
+    var result *structs.JsonExpr
+    var err error
+    if len(args) == 1 {
+        result, err = createJsonExprAst("json_array", args[0], nil, structs.JEMExpr)
+        if err != nil {
+            return nil, err
+        }
+    } else {
+        result = args[0]
+        for i := 1; i < len(args); i++ {
+            result, err = createJsonExprAst("json_array", result, args[i], structs.JEMExpr)
+            if err != nil {
+                return nil, err
+            }
+        }
+    }
+
+    return result, nil
+}
 
 LenExpr <- str:QuotedString !(EVAL_CONCAT) {
 
