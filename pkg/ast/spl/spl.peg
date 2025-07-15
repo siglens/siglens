@@ -2908,27 +2908,17 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
 
     return textExpr, nil
 }
-/ "tojson" L_PAREN containInternalFields:(("true" / "false") "()")? R_PAREN {
-    expr := &structs.StringExpr {
-        StringExprMode: structs.SEMRawString,
-        RawString: "true", // default value
+/ "tojson" L_PAREN containInternalFields:(BoolExpr)? R_PAREN {
+    
+    textExpr := &structs.TextExpr {
+        Op: "tojson",
     }
 
     if containInternalFields != nil {
-        restSlice := containInternalFields.([]any)
-        containInternalFieldsStr, err := transferUint8ToString(restSlice[0])
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-        }
-        if containInternalFieldsStr == "false" {
-            expr.RawString = "false"
-        }
+		textExpr.BoolParam = containInternalFields.(*structs.BoolExpr)
     }
 
-    return &structs.TextExpr{
-        Op: "tojson",
-        Param: expr,
-    }, nil
+    return textExpr, nil
 }
 / "cluster" L_PAREN field:EvalFieldToRead threshold:(COMMA "threshold:" FloatAsString)? match:(COMMA "match:" ("termlist" / "termset" / "ngramset"))? delims:(COMMA "delims:" QuotedString)? R_PAREN {
     textExpr := &structs.TextExpr {
@@ -3009,22 +2999,15 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
         Param: format.(*structs.StringExpr),
     }, nil
 }
-/ "mv_to_json_array" L_PAREN multiValueExpr:MultiValueExpr rest:(COMMA ("true" / "false") "()")? R_PAREN {
+/ "mv_to_json_array" L_PAREN multiValueExpr:MultiValueExpr rest:(COMMA BoolExpr)? R_PAREN {
     node := &structs.TextExpr {
         Op: "mv_to_json_array",
         MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
-        InferTypes: false, // default value
     }
 
     if rest != nil {
         restSlice := rest.([]any)
-        inferTypes, err := transferUint8ToString(restSlice[1])
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
-        }
-        if inferTypes == "true" {
-            node.InferTypes = true
-        }
+        node.BoolParam = restSlice[1].(*structs.BoolExpr)
     }
 
     return node, nil
@@ -3136,6 +3119,21 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
 }
 / expr: (EvalComparisonExpr / BoolComparisonExpr) {
     return expr, nil
+}
+/ literalFunction:("true()" / "false()") {
+    cur := &structs.BoolExpr {
+        IsTerminal: true,
+        ValueOp: "",
+    }
+
+    literalFunctionStr := string(literalFunction.([]byte))
+
+    if literalFunctionStr == "true()" {
+        cur.Value = true
+    } else {
+        cur.Value = false
+    }
+    return cur, nil
 }
 
 //TODO: implement the processing logic for: searchmatch, isnotnull, isnum

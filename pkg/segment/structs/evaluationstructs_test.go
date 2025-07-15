@@ -2455,9 +2455,14 @@ func Test_Mv_to_JSON(t *testing.T) {
 		MultiValueExprMode: MVEMField,
 		FieldName:          "test_field",
 	}
+	boolParam := &BoolExpr{
+		IsTerminal: true,
+		ValueOp:    "",
+	}
 	textExpr := &TextExpr{
 		Op:             "mv_to_json",
 		MultiValueExpr: mvExpr,
+		BoolParam:      boolParam,
 	}
 	fieldToValue := make(map[string]sutils.CValueEnclosure)
 
@@ -2467,7 +2472,7 @@ func Test_Mv_to_JSON(t *testing.T) {
 			Dtype: sutils.SS_DT_STRING_SLICE,
 			CVal:  testCase.mvResult,
 		}
-		textExpr.InferTypes = testCase.inferTypes
+		boolParam.Value = testCase.inferTypes
 		actualValue, err := handleMVToJsonArray(textExpr, fieldToValue)
 		assert.Nil(t, err)
 		assert.Equal(t, testCase.expectedValue, actualValue)

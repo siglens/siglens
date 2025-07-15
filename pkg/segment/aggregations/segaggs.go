@@ -3936,7 +3936,12 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 func evaluateBoolExpr(boolExpr *structs.BoolExpr, record map[string]interface{}) bool {
 	// Terminal condition
 	if boolExpr.IsTerminal {
-		return evaluateSimpleCondition(boolExpr, record)
+
+		if boolExpr.ValueOp == "" {
+			return boolExpr.Value
+		} else {
+			return evaluateSimpleCondition(boolExpr, record)
+		}
 	}
 
 	// Recursive evaluation

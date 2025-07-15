@@ -51,9 +51,10 @@ type BoolExpr struct {
 	IsTerminal bool
 
 	// Only used when IsTerminal is true.
+	Value      bool // Used for true() or false(); used only when ValueOp is ""
 	LeftValue  *ValueExpr
 	RightValue *ValueExpr
-	ValueOp    string       // Only = or != for strings; can also be <, <=, >, >= for numbers.
+	ValueOp    string       // Only = or != for strings; can also be <, <=, >, >= for numbers. Is an empty string for true() or false().
 	ValueList  []*ValueExpr //Use for in(<value>, <list>)
 
 	// Only used when IsTerminal is false. For a unary BoolOp, RightExpr should be nil.
@@ -275,7 +276,7 @@ type TextExpr struct {
 	Cluster        *Cluster   // generates a cluster label
 	SPathExpr      *SPathExpr // To extract information from the structured data formats XML and JSON.
 	Regex          *utils.GobbableRegex
-	InferTypes     bool // used for mv_to_json_array to read results as JSON values
+	BoolParam      *BoolExpr
 }
 
 type ConditionExpr struct {
@@ -707,6 +708,8 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 
 	if self.IsTerminal {
 		switch self.ValueOp {
+		case "":
+			return getBoolCValueEnclosure(self.Value), nil
 		case "in":
 			inFlag, err := isInValueList(fieldToValue, self.LeftValue, self.ValueList)
 			if err != nil {
@@ -3552,7 +3555,15 @@ func handleMVToJsonArray(self *TextExpr, fieldToValue map[string]sutils.CValueEn
 	}
 
 	resultArr := make([]any, len(mvSlice))
-	if self.InferTypes {
+
+	inferTypes := false // default value
+	if self.BoolParam != nil {
+		inferTypes, err = self.BoolParam.Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("handleMVToJsonArray: %v", err)
+		}
+	}
+	if inferTypes {
 		for idx, val := range mvSlice {
 			// Try to convert val to a JSON object
 			err := json.Unmarshal([]byte(val), &resultArr[idx])
@@ -4018,6 +4029,9 @@ func (self *TextExpr) GetFields() []string {
 		}
 		if self.MultiValueExpr != nil {
 			fields = append(fields, self.MultiValueExpr.GetFields()...)
+		}
+		if self.BoolParam != nil {
+			fields = append(fields, self.BoolParam.GetFields()...)
 		}
 		return fields
 	}
