@@ -1489,10 +1489,20 @@ func handleMVSort(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnc
 	} else if err != nil {
 		return []string{}, fmt.Errorf("handleMVSort: %v", err)
 	}
-	// does lexicograrphical sorting => for numbers checks the first digit
+	// does lexicographical sorting => for numbers checks the first digit
 	// => 123456 < 2
-	sort.Strings(mvSlice)
-	return mvSlice, nil
+
+	// if it is a field, we don't want to modify it, so we create a copy of it
+	// otherwise we sort it in-place
+	if self.MultiValueExprParams[0].MultiValueExprMode == MVEMField {
+		mvSliceCopy := make([]string, len(mvSlice))
+		copy(mvSliceCopy, mvSlice)
+		sort.Strings(mvSliceCopy)
+		return mvSliceCopy, nil
+	} else {
+		sort.Strings(mvSlice)
+		return mvSlice, nil
+	}
 }
 
 func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
@@ -1501,14 +1511,13 @@ func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 	}
 
 	var delimiter string
+	var err error
 	if self.StringExprParams == nil || len(self.StringExprParams) != 1 {
 		delimiter = ","
 	} else {
-		// delimiter must be enclosed in quotation marks
-		if len(self.StringExprParams[0].RawString) != 0 {
-			delimiter = self.StringExprParams[0].RawString
-		} else {
-			delimiter = ","
+		delimiter, err = self.StringExprParams[0].Evaluate(fieldToValue)
+		if err != nil {
+			return []string{}, fmt.Errorf("handleMVZip: cannot evaluate delimiter as a string: %v", err)
 		}
 	}
 

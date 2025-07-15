@@ -4200,10 +4200,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     margin-bottom: 10px;
 }
 
-.inviteBtn {
-    width: 60px;
-}
-
 .inviteBtn:disabled,
 #del-org-btn:disabled,
 #del-index-btn:disabled {
@@ -6796,7 +6792,7 @@ p#versionInfo {
     border-radius: 5px;
 }
 
-#pqs-id-details .close-btn {
+.close-btn {
     background: url(../assets/cross-btn-icon.svg);
     height: 11px;
     width: 11px;
