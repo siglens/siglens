@@ -124,19 +124,19 @@
                 ]
             }
         ],
-    "allColumns": [
-        "mv1",
-        "mv2",
-        "sorted1",
-        "sorted2",
-        "ident"
-    ],
-    "columnsOrder": [
-        "mv1",
-        "mv2",
-        "sorted1",
-        "sorted2",
-        "ident"
-    ]
+        "allColumns": [
+            "mv1",
+            "mv2",
+            "sorted1",
+            "sorted2",
+            "ident"
+        ],
+        "columnsOrder": [
+            "mv1",
+            "mv2",
+            "sorted1",
+            "sorted2",
+            "ident"
+        ]
     }
 }
