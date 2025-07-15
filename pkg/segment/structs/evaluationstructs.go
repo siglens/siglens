@@ -208,6 +208,7 @@ type ValueExpr struct {
 	ConditionExpr  *ConditionExpr
 	BooleanExpr    *BoolExpr
 	MultiValueExpr *MultiValueExpr
+	JsonExpr       *JsonExpr
 }
 
 type ConcatExpr struct {
@@ -230,6 +231,23 @@ type MultiValueExpr struct {
 	ValueExprParams      []*ValueExpr
 	InferTypes           bool // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
 	FieldName            string
+}
+
+type JsonExpr struct {
+	JsonExprMode  JsonExprMode
+	Op            string
+	IsTerminal    bool
+	InputIsNull   bool
+	ValueIsField  bool
+	FieldValue    string
+	InputString   *StringExpr
+	InputNumber   *NumericExpr
+	InputBoolean  *BoolExpr
+	InputMultiVal *MultiValueExpr
+	Left          *JsonExpr
+	Right         *JsonExpr
+	Key           *JsonExpr
+	Value         *JsonExpr
 }
 
 type NumericExpr struct {
@@ -444,6 +462,7 @@ const (
 	VEMConditionExpr         // Only ConditionExpr is valud
 	VEMBooleanExpr           // Only BooleanExpr is valid
 	VEMMultiValueExpr        // Only MultiValueExpr is valid
+	VEMJsonExpr
 )
 
 type StringExprMode uint8
@@ -472,6 +491,19 @@ type MultiValueExprMode uint8
 const (
 	MVEMMultiValueExpr = iota // only used when mode is a MultiValueExpr
 	MVEMField
+)
+
+type JsonExprMode uint8
+
+const (
+	JEMExpr = iota
+	JEMField
+	JEMString
+	JEMNumber
+	JEMBoolean
+	JEMMultiVal
+	JEMNull
+	JEMKeyVal
 )
 
 var timeFormatReplacements = []struct {
