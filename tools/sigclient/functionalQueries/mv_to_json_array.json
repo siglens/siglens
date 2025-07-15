@@ -45,7 +45,6 @@
             "city"
         ],
         "columnsOrder": [
-            "timestamp",
             "city",
             "inferred",
             "non_inferred",
