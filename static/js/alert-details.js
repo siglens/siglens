@@ -39,11 +39,9 @@ $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
 
     if ($('#properties-grid').length) {
-        //eslint-disable-next-line no-undef
         new agGrid.Grid(document.querySelector('#properties-grid'), propertiesGridOptions);
     }
     if ($('#history-grid').length) {
-        //eslint-disable-next-line no-undef
         new agGrid.Grid(document.querySelector('#history-grid'), historyGridOptions);
     }
 
@@ -51,7 +49,7 @@ $(document).ready(async function () {
     alertDetailsFunctions();
 
     startAutoRefresh();
-    
+
     //eslint-disable-next-line no-undef
     historyPagination = createPagination('history-pagination', {
         pageSize: 20,
@@ -106,35 +104,28 @@ async function getAlert(id) {
     fetchAlertHistory();
 }
 
-const propertiesBtn = document.getElementById('properties-btn');
-const historyBtn = document.getElementById('history-btn');
+$('#properties-btn').on('click', function () {
+    $('#properties-grid').show();
+    $('#history-grid, #history-search-container, #history-pagination').hide();
+    $('#properties-btn').addClass('active');
+    $('#history-btn').removeClass('active');
+    historyPagination.hide();
+    $('#alert-details .btn-container').show();
+});
 
-if (propertiesBtn) {
-    propertiesBtn.addEventListener('click', function () {
-        document.getElementById('properties-grid').style.display = 'block';
-        document.getElementById('history-grid').style.display = 'none';
-        document.getElementById('history-search-container').style.display = 'none';
-        document.getElementById('history-pagination').style.display = 'none';
-        propertiesBtn.classList.add('active');
-        historyBtn.classList.remove('active');
-        historyPagination.hide();
-        $('#alert-details .btn-container').show();
-    });
-}
-if (historyBtn) {
-    historyBtn.addEventListener('click', function () {
-        document.getElementById('properties-grid').style.display = 'none';
-        document.getElementById('history-grid').style.display = 'block';
-        document.getElementById('history-search-container').style.display = 'block';
-        document.getElementById('history-pagination').style.display = 'block';
-        historyBtn.classList.add('active');
-        propertiesBtn.classList.remove('active');
+$('#history-btn').on('click', function () {
+    $('#properties-grid').hide();
+    $('#history-grid, #history-search-container, #history-pagination').show();
+    $('#history-btn').addClass('active');
+    $('#properties-btn').removeClass('active');
 
-        displayHistoryDataPaginated(1, historyPagination.getPageSize());
+    const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
+    const dataToShow = searchTerm ? getFilteredHistoryData(searchTerm) : alertHistoryData;
+    historyPagination.updateState(dataToShow.length, historyPagination.getCurrentPage());
 
-        $('#alert-details .btn-container').hide();
-    });
-}
+    displayHistoryDataPaginated(1, historyPagination.getPageSize());
+    $('#alert-details .btn-container').hide();
+});
 
 const propertiesGridOptions = {
     columnDefs: [
@@ -268,8 +259,10 @@ function fetchAlertHistory() {
 
                 const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
                 const dataToShow = searchTerm ? getFilteredHistoryData(searchTerm) : alertHistoryData;
-                historyPagination.updateState(dataToShow.length, historyPagination.getCurrentPage());
-                displayHistoryDataPaginated(historyPagination.getCurrentPage(), historyPagination.getPageSize());
+                if ($('#history-btn').hasClass('active')) {
+                    historyPagination.updateState(dataToShow.length, historyPagination.getCurrentPage());
+                    displayHistoryDataPaginated(historyPagination.getCurrentPage(), historyPagination.getPageSize());
+                }
             })
             .catch(function (err) {
                 console.error('Error fetching alert history:', err);
