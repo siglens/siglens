@@ -2908,27 +2908,17 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
 
     return textExpr, nil
 }
-/ "tojson" L_PAREN containInternalFields:(("true" / "false") "()")? R_PAREN {
-    expr := &structs.StringExpr {
-        StringExprMode: structs.SEMRawString,
-        RawString: "true", // default value
+/ "tojson" L_PAREN containInternalFields:(BoolExpr)? R_PAREN {
+    
+    textExpr := &structs.TextExpr {
+        Op: "tojson",
     }
 
     if containInternalFields != nil {
-        restSlice := containInternalFields.([]any)
-        containInternalFieldsStr, err := transferUint8ToString(restSlice[0])
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-        }
-        if containInternalFieldsStr == "false" {
-            expr.RawString = "false"
-        }
+		textExpr.BoolParam = containInternalFields.(*structs.BoolExpr)
     }
 
-    return &structs.TextExpr{
-        Op: "tojson",
-        Param: expr,
-    }, nil
+    return textExpr, nil
 }
 / "cluster" L_PAREN field:EvalFieldToRead threshold:(COMMA "threshold:" FloatAsString)? match:(COMMA "match:" ("termlist" / "termset" / "ngramset"))? delims:(COMMA "delims:" QuotedString)? R_PAREN {
     textExpr := &structs.TextExpr {
