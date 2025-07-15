@@ -880,9 +880,6 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 			return nil, fmt.Errorf("BoolExpr.Evaluate: error evaluating ValueExprs, errLeft: %v, errRight: %v", errLeft, errRight)
 		}
 
-		log.Infof("BoolExpr.Evaluate: Evaluating BoolExpr with ValueOp: %v, LeftValue: %v, RightValue: %v", self.ValueOp, leftVal, rightVal)
-		log.Infof("BoolExpr.Evaluate: FieldToValue is: %#v", fieldToValue)
-
 		if isLeftValNull || isRightValNull {
 			// If any of the values are NULL, then the result cannot be determined.
 			// Return NULL.
