@@ -1557,21 +1557,20 @@ var unsupportedStatsFuncs = map[sutils.AggregateFunctions]struct{}{
 }
 
 var unsupportedEvalFuncs = map[string]struct{}{
-	"mvappend":         {},
-	"mvdedup":          {},
-	"mvfilter":         {},
-	"mvmap":            {},
-	"mvrange":          {},
-	"mvsort":           {},
-	"mvzip":            {},
-	"mv_to_json_array": {},
-	"object_to_array":  {},
-	"tojson":           {},
-	"cluster":          {},
-	"getfields":        {},
-	"isnum":            {},
-	"isnotnull":        {},
-	"eventcount":       {},
+	"mvappend":        {},
+	"mvdedup":         {},
+	"mvfilter":        {},
+	"mvmap":           {},
+	"mvrange":         {},
+	"mvsort":          {},
+	"mvzip":           {},
+	"object_to_array": {},
+	"tojson":          {},
+	"cluster":         {},
+	"getfields":       {},
+	"isnum":           {},
+	"isnotnull":       {},
+	"eventcount":      {},
 }
 
 type StatsFuncChecker struct{}
