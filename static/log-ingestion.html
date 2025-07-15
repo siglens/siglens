@@ -46,7 +46,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
     <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
-
+    <link rel="stylesheet" href="./css/instructions.css?cb={{ AppVersion }}" />
+    
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -344,26 +345,40 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
                             <div id="sample-data">
-                                <p class="caption mb-0"> Get started by sending sample logs data &nbsp; </p>
-                                <button type="button" class="btn btn-primary test-data-btn" id="test-data-btn">Send Test
-                                    Data</button>
+                                <div class="content content-container" style="flex: 1; padding: 0 10px; overflow-y: auto; font-size: 14px; max-width: 1000px; box-sizing: border-box;">
+                                    <h3 style="font-size: 32px; margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-primary); padding-bottom: 16px;">Send Test Data</h3>
+                                    <div style="display: flex; align-items: center; gap: 20px;">
+                                        <p style="font-style: italic; margin-bottom: 0;">Get started by sending sample logs data</p>
+                                        <button type="button" class="btn btn-primary test-data-btn" id="test-data-btn">Send Test Data</button>
+                                    </div>
+                                </div>
                             </div>
                             <div id="verify-connection">
-                                <div>
-                                    <h5 class="myOrg-heading">Verify data collection</h5>
-                                    <p>Test the pipes by running the following command in your terminal:</p>
-                                    <div class="ingestion-container">
-                                        <h5 class="myOrg-heading mt-0">Elastic Bulk</h5>
-                                        <div class="position-relative">
-                                            <textarea name="" id="verify-command-esbulk" cols="30" rows="6"
-                                                class="form-control copyable" readonly></textarea>
+                                <div class="content content-container" style="flex: 1; padding: 0 10px; overflow-y: auto; font-size: 14px; max-width: 1000px; box-sizing: border-box;">
+                                    <h3 style="font-size: 32px; margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-primary); padding-bottom: 16px;">Verify data connection</h3>
+                                    <p style="font-style: italic;">Test the pipes by running the following command in your terminal:</p>
+                                    
+                                    <div class="mb-4">
+                                        <div class="pre-wrapper">
+                                            <button class="copy-button"><span class="copy-icon"></span></button>
+                                            <pre data-title="Elastic Bulk">
+                                                <code>
+                                                    <textarea id="verify-command-esbulk" readonly 
+                                                    style="display: block; width: 100%; height: 7em; border: none; background: transparent; resize: none; outline: none; overflow: hidden; text-align: left;"></textarea>
+                                                </code>
+                                            </pre>
                                         </div>
                                     </div>
-                                    <div class="ingestion-container">
-                                        <h5 class="myOrg-heading mt-0">Splunk HEC</h5>
-                                        <div class="position-relative">
-                                            <textarea name="" id="verify-command-hec" cols="30" rows="6"
-                                                class="form-control copyable" readonly></textarea>
+                                    
+                                    <div class="mb-4">
+                                        <div class="pre-wrapper">
+                                            <button class="copy-button"><span class="copy-icon"></span></button>
+                                            <pre data-title="Splunk HEC">
+                                                <code>
+                                                    <textarea id="verify-command-hec" readonly
+                                                    style="display: block; width: 100%; height: 5em; border: none; background: transparent; resize: none; outline: none; overflow: hidden; text-align: left;"></textarea>
+                                                </code>
+                                            </pre>
                                         </div>
                                     </div>
                                 </div>
@@ -382,6 +397,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
         <script src="./js/ingestion.js?cb={{ AppVersion }}"></script>
         <script src="./js/footer.js?cb={{ AppVersion }}"></script>
+
 
         {{ .RunCheck2 | safeHTML }}
         {{ .RunCheck3 | safeHTML }}
