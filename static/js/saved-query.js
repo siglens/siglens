@@ -177,10 +177,10 @@ class linkCellRenderer {
         let href;
         if (params.data.dataSource === 'metrics') {
             let href = 'metrics-explorer.html?queryString=' + encodeURIComponent(params.data.metricsQueryParams);
-            this.eGui.innerHTML = '<a class="query-link" href="' + href + '" title="' + params.data.description + '" style="display:block;">' + params.data.qname + '</a>';
+            this.eGui.innerHTML = '<a class="query-link" href="' + href + '" style="display:block;">' + params.data.qname + '</a>';
         } else {
             href = 'index.html?searchText=' + encodeURIComponent(params.data.searchText) + '&startEpoch=' + encodeURIComponent(params.data.startTime) + '&endEpoch=' + encodeURIComponent(params.data.endTime) + '&indexName=' + encodeURIComponent(params.data.indexName) + '&filterTab=' + encodeURIComponent(params.data.filterTab) + '&queryLanguage=' + encodeURIComponent(params.data.queryLanguage);
-            this.eGui.innerHTML = '<a class="query-link" href=' + href + '" title="' + params.data.description + '"style="display:block;">' + params.data.qname + '</a>';
+            this.eGui.innerHTML = '<a class="query-link" href=' + href + '" style="display:block;">' + params.data.qname + '</a>';
         }
     }
 
@@ -289,6 +289,13 @@ let queriesColumnDefs = [
         field: 'qdescription',
         headerName: 'Description',
         resizable: true,
+        cellStyle: {
+            'white-space': 'nowrap',
+            'overflow': 'hidden',
+            'text-overflow': 'ellipsis',
+            'max-width': '100%',
+            'display': 'block'
+        },
     },
     {
         field: 'type',
@@ -336,6 +343,7 @@ const sqgridOptions = {
         cellClass: 'align-center-grid',
         resizable: true,
         sortable: true,
+        suppressSizeToFit: false,
     },
     enableCellTextSelection: true,
     suppressScrollOnNewData: true,
