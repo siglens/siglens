@@ -5008,6 +5008,234 @@ func Test_evalFunctionsLog(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
+func Test_evalJSONFunctions_json_object(t *testing.T) {
+	tests := []struct {
+		expr    string
+		wantErr bool
+		check   func(e *structs.JsonExpr)
+	}{
+		{
+			`json_object("foo","bar")`, false,
+			func(e *structs.JsonExpr) {
+				fieldToValue := make(map[string]sutils.CValueEnclosure)
+				kv := collectKeyVals(e)[0]
+
+				keyV, err := kv.Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				valV, err := kv.Value.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+
+				assert.Equal(t, "foo", keyV)
+				assert.Equal(t, "bar", valV)
+			},
+		},
+		{
+			`json_object("num", 123)`, false,
+			func(e *structs.JsonExpr) {
+				fieldToValue := make(map[string]sutils.CValueEnclosure)
+				kv := collectKeyVals(e)[0]
+
+				k, err := kv.Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				v, err := kv.Value.InputNumber.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				assert.Equal(t, "num", k)
+				assert.Equal(t, float64(123), v)
+			},
+		},
+		{
+			`json_object("flag", true(), "f2", false(), "z", null())`, false,
+			func(e *structs.JsonExpr) {
+				fieldToValue := make(map[string]sutils.CValueEnclosure)
+				kvs := collectKeyVals(e)
+
+				k0, err := kvs[0].Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				v0 := kvs[0].Value.InputBooleanValue
+
+				k1, err := kvs[1].Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				v1 := kvs[1].Value.InputBooleanValue
+
+				k2, err := kvs[2].Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				v2 := kvs[2].Value.InputIsNull
+
+				assert.Equal(t, "flag", k0)
+				assert.Equal(t, true, v0)
+				assert.Equal(t, "f2", k1)
+				assert.Equal(t, false, v1)
+				assert.Equal(t, "z", k2)
+				assert.True(t, v2)
+			},
+		},
+		{
+			`json_object("f", myField)`, false,
+			func(e *structs.JsonExpr) {
+				fieldToValue := map[string]sutils.CValueEnclosure{"myField": sutils.CValueEnclosure{CVal: 123, Dtype: sutils.SS_DT_SIGNED_NUM}}
+				kv := collectKeyVals(e)[0]
+
+				k, err := kv.Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				v := kv.Value.FieldValue
+
+				assert.Equal(t, "f", k)
+				assert.Equal(t, "myField", v)
+			},
+		},
+		{
+			`json_object("a",1, "a",2)`, false,
+			func(e *structs.JsonExpr) {
+				fieldToValue := make(map[string]sutils.CValueEnclosure)
+				kv := collectKeyVals(e)[0]
+
+				k, err := kv.Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				v, err := kv.Value.InputNumber.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+
+				assert.Equal(t, "a", k)
+				assert.Equal(t, float64(2), v)
+			},
+		},
+		{
+			`json_object("o", json_object("i", 10))`, false,
+			func(e *structs.JsonExpr) {
+				fieldToValue := make(map[string]sutils.CValueEnclosure)
+				outer := collectKeyVals(e)[0]
+
+				ok, err := outer.Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				assert.Equal(t, "o", ok)
+
+				inner := outer.Value
+				innerKV := collectKeyVals(inner)[0]
+
+				ik, err := innerKV.Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				iv, err := innerKV.Value.InputNumber.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+
+				assert.Equal(t, "i", ik)
+				assert.Equal(t, float64(iv), iv)
+			},
+		},
+		{
+			`json_object("a", json_array(json_object("b", 2), json_object("c",3)))`, false,
+			func(e *structs.JsonExpr) {
+				fieldToValue := make(map[string]sutils.CValueEnclosure)
+				outer := collectKeyVals(e)[0]
+				arr := outer.Value
+				args := collectJsonArguments(arr)
+
+				keys := []string{}
+				for _, el := range args {
+					k, err := el.Key.InputString.Evaluate(fieldToValue)
+					assert.NoError(t, err)
+					keys = append(keys, k)
+				}
+
+				assert.ElementsMatch(t, []string{"b", "c"}, keys)
+			},
+		},
+		{
+			`json_object("e", json_extract(json_object("x","y"), "$.x"))`, false,
+			func(e *structs.JsonExpr) {
+				fieldToValue := make(map[string]sutils.CValueEnclosure)
+				outer := collectKeyVals(e)[0]
+
+				ek, err := outer.Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				assert.Equal(t, "e", ek)
+
+				ext := outer.Value
+				assert.Equal(t, "json_extract", ext.Op)
+
+				base := ext.Left
+				bk, err := base.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				assert.Equal(t, "$.x", bk)
+
+				p, err := ext.Right.Key.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				assert.Equal(t, "x", p)
+
+				v, err := ext.Right.Value.InputString.Evaluate(fieldToValue)
+				assert.NoError(t, err)
+				assert.Equal(t, "y", v)
+			},
+		},
+		{
+			`json_object(123, "v")`, true, nil,
+		},
+	}
+
+	for _, tt := range tests {
+		q := fmt.Sprintf(`city=Test | eval x=%s`, tt.expr)
+		res, err := spl.Parse("", []byte(q))
+		if tt.wantErr {
+			assert.Error(t, err, "expected error: %s", tt.expr)
+			continue
+		}
+		assert.NoError(t, err, "unexpected error: %s", tt.expr)
+		jsonExpr := findJsonObjectExpr(res)
+		assert.NotNil(t, jsonExpr, "missing JsonExpr: %s", tt.expr)
+		tt.check(jsonExpr)
+	}
+}
+
+// collectKeyVals flattens chained KeyVal nodes into a slice
+func collectKeyVals(root *structs.JsonExpr) []*structs.JsonExpr {
+	var out []*structs.JsonExpr
+	var visit func(n *structs.JsonExpr)
+	visit = func(n *structs.JsonExpr) {
+		if n.JsonExprMode == structs.JEMKeyVal {
+			out = append(out, n)
+		}
+		if n.Left != nil {
+			visit(n.Left)
+		}
+		if n.Right != nil {
+			visit(n.Right)
+		}
+	}
+	visit(root)
+	return out
+}
+
+// collectJsonArguments for array nodes: returns slice of JsonExpr args
+func collectJsonArguments(arr *structs.JsonExpr) []*structs.JsonExpr {
+	var out []*structs.JsonExpr
+	var visit func(n *structs.JsonExpr)
+	visit = func(n *structs.JsonExpr) {
+		if n.Op == "json_array" && n.JsonExprMode == structs.JEMExpr {
+			if n.Left != nil {
+				out = append(out, n.Left)
+			}
+			if n.Right != nil {
+				// if Right is another array, recurse
+				if n.Right.Op == "json_array" && n.Right.JsonExprMode == structs.JEMExpr {
+					visit(n.Right)
+				} else {
+					// terminal element — append directly
+					out = append(out, n.Right)
+				}
+			}
+		}
+	}
+	visit(arr)
+	return out
+}
+
+func findJsonObjectExpr(q interface{}) *structs.JsonExpr {
+	qs, ok := q.(ast.QueryStruct)
+	if !ok {
+		return nil
+	}
+	pipe := qs.PipeCommands.EvalExpr.ValueExpr.JsonExpr
+	return pipe
+}
+
 func Test_evalFunctionsPower(t *testing.T) {
 	query := []byte(`city=Boston | stats count AS Count BY http_status | eval newField=pow(http_status, 2)`)
 	res, err := spl.Parse("", query)

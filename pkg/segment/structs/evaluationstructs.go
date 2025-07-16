@@ -234,20 +234,21 @@ type MultiValueExpr struct {
 }
 
 type JsonExpr struct {
-	JsonExprMode  JsonExprMode
-	Op            string
-	IsTerminal    bool
-	InputIsNull   bool
-	ValueIsField  bool
-	FieldValue    string
-	InputString   *StringExpr
-	InputNumber   *NumericExpr
-	InputBoolean  *BoolExpr
-	InputMultiVal *MultiValueExpr
-	Left          *JsonExpr
-	Right         *JsonExpr
-	Key           *JsonExpr
-	Value         *JsonExpr
+	JsonExprMode      JsonExprMode
+	Op                string
+	IsTerminal        bool
+	InputIsNull       bool
+	ValueIsField      bool
+	FieldValue        string
+	InputString       *StringExpr
+	InputNumber       *NumericExpr
+	InputBoolean      *BoolExpr
+	InputBooleanValue bool
+	InputMultiVal     *MultiValueExpr
+	Left              *JsonExpr
+	Right             *JsonExpr
+	Key               *JsonExpr
+	Value             *JsonExpr
 }
 
 type NumericExpr struct {

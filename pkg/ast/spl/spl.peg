@@ -317,7 +317,7 @@ func createJsonExprKeyValueAst(opNameStr string, firstKey any, firstValue any, r
     isValidKey := func(key *structs.JsonExpr) error {
         // key can only be a string => either a field or a StringExpr
         // https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.3/evaluation-functions/json-functions#ariaid-title2
-        if key.JsonExprMode != structs.JEMString && key.JsonExprMode != structs.JEMField {
+        if !(key.JsonExprMode == structs.JEMString || key.JsonExprMode == structs.JEMField) {
             return fmt.Errorf("spl peg: key can only be a string")
         }
         return nil
@@ -3902,6 +3902,33 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
 JsonExprLevel1 <- jsonExpr:JsonExpr {
     return jsonExpr, nil
 }
+/ value:BoolExpr {
+    boolExpr, ok := value.(*structs.BoolExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: failed to assert value as *structs.BoolExpr")
+    }
+    expr := &structs.JsonExpr{
+        JsonExprMode: structs.JEMBoolean,
+        IsTerminal: true,
+        ValueIsField: false,
+        InputBoolean: boolExpr,
+    }
+
+    return expr, nil
+}
+/ value:("true" / "false") L_PAREN R_PAREN {
+    boolValue, err := transferUint8ToString(value)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: failed to convert literal true to string")
+    }
+    expr := &structs.JsonExpr {
+        JsonExprMode: structs.JEMBoolean,
+        IsTerminal: true,
+        ValueIsField: false,
+        InputBooleanValue: boolValue == "true",
+    }
+    return expr, nil
+}
 / field:EvalFieldToRead {
     fieldStr, ok := field.(string)
     if !ok {
@@ -3958,20 +3985,6 @@ JsonExprLevel1 <- jsonExpr:JsonExpr {
 
     return expr, nil
 }
-/ value:BoolExpr {
-    boolExpr, ok := value.(*structs.BoolExpr)
-    if !ok {
-        return nil, fmt.Errorf("spl peg: failed to assert value as *structs.BoolExpr")
-    }
-    expr := &structs.JsonExpr{
-        JsonExprMode: structs.JEMBoolean,
-        IsTerminal: true,
-        ValueIsField: false,
-        InputBoolean: boolExpr,
-    }
-
-    return expr, nil
-}
 / value:("null" L_PAREN R_PAREN) {
     expr := &structs.JsonExpr{
         JsonExprMode: structs.JEMNull,
@@ -4017,7 +4030,7 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
     }
 
     if opNameStr == "json_entries" || opNameStr == "json_keys" {
-        if leftJsonExpr.JsonExprMode != structs.JEMString || leftJsonExpr.JsonExprMode != structs.JEMField {
+        if !(leftJsonExpr.JsonExprMode == structs.JEMString || leftJsonExpr.JsonExprMode == structs.JEMField) {
             // https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.4/evaluation-functions/json-functions#e1d0bff6_e301_4880_8e8d_daf710234e07__json_delete.28.26lt.3Bobject.26gt.3B.2C.26lt.3Bkeys.26gt.3B.29
             // text from documentation - The <value> argument can be a valid JSON object or the name of a field that contains a valid JSON object.
             return nil, fmt.Errorf("spl peg: value argument can only take a json string or a field")
@@ -4111,16 +4124,18 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
     if paths != nil {
         // paths structure - [",", pathValue]
         // if length is greater than 2 that means there are more than one paths
-        if len(paths.([]any)) > 2 {
-            // firstValue = first path value (i.e. value at index 1)
-            // rest of the values including commas are from index 2
-            result, err = createJsonExprAst(opNameStr, paths.([]any)[1], paths.([]any)[2:], 1)
-        } else {
-            // rest is nil here
-            result, err = createJsonExprAst(opNameStr, paths.([]any)[1], nil, 1)
-        }
-        if err != nil {
-            return nil, err
+        for _, pathArg := range paths.([]any) {
+            if len(paths.([]any)) > 2 {
+                // firstValue = first path value (i.e. value at index 1)
+                // rest of the values including commas are from index 2
+                result, err = createJsonExprAst(opNameStr, pathArg.([]any)[1], paths.([]any)[2:], 1)
+            } else {
+                // rest is nil here
+                result, err = createJsonExprAst(opNameStr, pathArg.([]any)[1], nil, 1)
+            }
+            if err != nil {
+                return nil, err
+            }
         }
     }
 
