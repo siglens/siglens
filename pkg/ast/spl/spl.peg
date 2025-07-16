@@ -286,11 +286,14 @@ func createNumericExpr(op string, leftNumericExpr *structs.NumericExpr, rightNum
     }, nil
 }
 
-func createJsonExprAst(op string, leftExpr *structs.JsonExpr, rightExpr *structs.JsonExpr, mode structs.JsonExprMode) (*structs.JsonExpr, error) {
-    if leftExpr.Op == "" {
+func createJsonExprSingleNodeAst(op string, leftExpr *structs.JsonExpr, rightExpr *structs.JsonExpr, mode structs.JsonExprMode) (*structs.JsonExpr, error) {
+    if leftExpr == nil && rightExpr == nil {
+        return nil, fmt.Errorf("spl peg: both left and right expressions can not be nil at the same time; %v", op)
+    }
+    if leftExpr != nil && leftExpr.Op == "" {
         leftExpr.Op = op
     }
-    if rightExpr.Op == "" {
+    if rightExpr != nil && rightExpr.Op == "" {
         rightExpr.Op = op
     }
     return &structs.JsonExpr{
@@ -315,12 +318,19 @@ func createJsonExprKeyValueAst(opNameStr string, firstKey any, firstValue any, r
         // key can only be a string => either a field or a StringExpr
         // https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.3/evaluation-functions/json-functions#ariaid-title2
         if key.JsonExprMode != structs.JEMString && key.JsonExprMode != structs.JEMField {
-            return fmt.Errorf("spl peg: key in json_object can only be a string")
+            return fmt.Errorf("spl peg: key can only be a string")
         }
         return nil
     }
 
-    astDs := make([]*structs.JsonExpr, 1, 5)
+    var capacityOfAstDs int = 1
+    if rest != nil {
+        // each key value pair in rest is accompanied by two commas
+        // [",", "key", ",", "value"]
+        // therefore we divide by 4 to get the actual length. (key+value = 1 node)
+        capacityOfAstDs = len(rest.([]any)) / 4 + 1
+    }
+    astDs := make([]*structs.JsonExpr, 1, capacityOfAstDs)
     keyToIdxMap := make(map[string]int)
 
     key, ok := firstKey.(*structs.JsonExpr)
@@ -349,6 +359,7 @@ func createJsonExprKeyValueAst(opNameStr string, firstKey any, firstValue any, r
 
     keyToIdxMap[rawKey] = 0
 
+    // the node is not a terminal node if the JsonExpr is a nested Expr
     astDs[0] = &structs.JsonExpr{
         Op: opNameStr,
         JsonExprMode: structs.JEMKeyVal,
@@ -393,9 +404,10 @@ func createJsonExprKeyValueAst(opNameStr string, firstKey any, firstValue any, r
                 Value: restValue,
             }
 
-            var v int
-            if v, ok = keyToIdxMap[rawKey]; ok {
-                astDs[v] = keyValueStruct
+            // deduplication of keys, last/latest key overwrites the previous key if exists
+            var indexInStructure int
+            if indexInStructure, ok = keyToIdxMap[rawKey]; ok {
+                astDs[indexInStructure] = keyValueStruct
             } else {
                 keyToIdxMap[rawKey] = len(astDs)
                 astDs = append(astDs, keyValueStruct)
@@ -407,11 +419,53 @@ func createJsonExprKeyValueAst(opNameStr string, firstKey any, firstValue any, r
     result := astDs[0]
     for i := 1; i < len(astDs); i++ {
         var err error
-        result, err = createJsonExprAst(opNameStr, result, astDs[i], structs.JEMExpr)
+        result, err = createJsonExprSingleNodeAst(opNameStr, result, astDs[i], structs.JEMExpr)
         if err != nil {
             return nil, err
         }
     }    
+
+    return result, nil
+}
+
+func createJsonExprAst(opNameStr string, firstValue any, rest any, argumentOffset int) (*structs.JsonExpr, error) {
+    castedValue, ok := firstValue.(*structs.JsonExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: failed to assert first value as *structs.JsonExpr")
+    }
+
+    var capacityArgs int = 1
+    if rest != nil {
+        // each value in rest is of the type - [",", "value"]
+        // therefore we divide by two to get the actual length.
+        // + 1 is for firstValue
+        capacityArgs = len(rest.([]any)) / 2 + 1
+    }
+
+    args := make([]*structs.JsonExpr, 1, capacityArgs)
+    args[0] = castedValue
+
+    if rest != nil {
+        var restValue *structs.JsonExpr
+        for idx, arg := range rest.([]any) {
+            restValue, ok = arg.([]any)[1].(*structs.JsonExpr)
+            if !ok {
+                return nil, fmt.Errorf("spl peg: failed to assert value as *structs.JsonExpr; Check the %v argument of the function", idx+1+argumentOffset)
+            }
+            args = append(args, restValue)
+        }
+    }
+
+    var result *structs.JsonExpr
+    var err error
+
+    result = args[0]
+    for i := 1; i < len(args); i++ {
+        result, err = createJsonExprSingleNodeAst(opNameStr, result, args[i], structs.JEMExpr)
+        if err != nil {
+            return nil, err
+        }
+    }
 
     return result, nil
 }
@@ -3951,46 +4005,65 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
     
     return result, nil
 }
-/ opName:"json" L_PAREN value:JsonExprLevel1 R_PAREN {
+/ opName:("json" / "json_entries" / "json_keys" / "json_valid") L_PAREN value:JsonExprLevel1 R_PAREN {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("spl peg: error in converting opName to str; err: %v", err)
-    }
+    } 
 
     leftJsonExpr, ok := value.(*structs.JsonExpr)
     if !ok {
-        return nil, fmt.Errorf("failed to assert expr as *structs.JsonExpr")
+        return nil, fmt.Errorf("spl peg: failed to assert expr as *structs.JsonExpr; Check the argument of the function")
     }
 
-    node, err := createJsonExprAst(opNameStr, leftJsonExpr, nil, structs.JEMExpr)
+    if opNameStr == "json_entries" || opNameStr == "json_keys" {
+        if leftJsonExpr.JsonExprMode != structs.JEMString || leftJsonExpr.JsonExprMode != structs.JEMField {
+            // https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.4/evaluation-functions/json-functions#e1d0bff6_e301_4880_8e8d_daf710234e07__json_delete.28.26lt.3Bobject.26gt.3B.2C.26lt.3Bkeys.26gt.3B.29
+            // text from documentation - The <value> argument can be a valid JSON object or the name of a field that contains a valid JSON object.
+            return nil, fmt.Errorf("spl peg: value argument can only take a json string or a field")
+        }
+    }
+
+    node, err := createJsonExprSingleNodeAst("json", leftJsonExpr, nil, structs.JEMExpr)
     if err != nil {
         return nil, err
     }
     
     return node, nil
 }
-/ opName:"json_append" L_PAREN json:JsonExprLevel1 COMMA path:JsonExprLevel1 COMMA value:JsonExprLevel1 rest:(COMMA JsonExprLevel1 COMMA JsonExprLevel1)* R_PAREN {
+/ opName:("json_append" / "json_extend" / "json_set" / "json_set_exact") L_PAREN json:JsonExprLevel1 COMMA path:JsonExprLevel1 COMMA value:JsonExprLevel1 rest:(COMMA JsonExprLevel1 COMMA JsonExprLevel1)* R_PAREN {
     // json can only be a field that references a json object
     // https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.3/evaluation-functions/json-functions#ariaid-title4
     // words from documentation - <json> (the name of a valid JSON document such as a JSON object)
 
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: error in converting opName to str; err: %v", err)
+    }
+
     castedJson, ok := json.(*structs.JsonExpr)
     if !ok {
-        return nil, fmt.Errorf("spl peg: failed to assert expr as *structs.JsonExpr")
+        return nil, fmt.Errorf("spl peg: failed to assert expr as *structs.JsonExpr; Check the json argument of the function")
     }
 
     // change this condition to allow other dtypes if splunk allows them since it is not stated in the documentation
     if castedJson.JsonExprMode != structs.JEMField {
-        return nil, fmt.Errorf("spl peg: json field can only be a field")
+        if opNameStr == "json_append" {
+            return nil, fmt.Errorf("spl peg: json argument can only be a field")
+        // not explicitly stated for json_extend/json_set/json_set_exact
+        } else if castedJson.JsonExprMode != structs.JEMString {
+            return nil, fmt.Errorf("spl peg: json argument can only be a field or a json string")
+        }
     }
 
-    result, err := createJsonExprKeyValueAst("json_append", path, value, rest)
+    var result *structs.JsonExpr
+    result, err = createJsonExprKeyValueAst(opNameStr, path, value, rest)
     if err != nil {
         return nil, err
     }
 
     // JsonExpr.Right will contain the field that may be pointing to a json object
-    result, err = createJsonExprAst("json_append", result, castedJson, structs.JEMExpr)
+    result, err = createJsonExprSingleNodeAst(opNameStr, result, castedJson, structs.JEMExpr)
     if err != nil {
         return nil, err
     }
@@ -3998,40 +4071,90 @@ JsonExpr <- "json_object" L_PAREN firstKey:(JsonExprLevel1) COMMA firstValue:(Js
     return result, nil
 }
 / "json_array" L_PAREN value:JsonExprLevel1 rest:(COMMA JsonExprLevel1)* R_PAREN {
-    castedValue, ok := value.(*structs.JsonExpr)
+    result, err := createJsonExprAst("json_array", value, rest, 0)
+    if err != nil {
+        return nil, err
+    }
+
+    return result, nil
+}
+/ "json_delete" L_PAREN object:JsonExprLevel1 COMMA "[" SPACE? firstKey:JsonExprLevel1 rest:(COMMA JsonExprLevel1)* SPACE? "]" R_PAREN {
+    castedJson, ok := object.(*structs.JsonExpr)
     if !ok {
-        return nil, fmt.Errorf("spl peg: failed to assert first value as *structs.JsonExpr")
+        return nil, fmt.Errorf("spl peg: failed to assert object argument as *structs.JsonExpr")
     }
 
-    args := make([]*structs.JsonExpr, 1, 5)
-    args[0] = castedValue
-
-    if rest != nil {
-        var restValue *structs.JsonExpr
-        for idx, arg := range rest.([]any) {
-            restValue, ok = arg.([]any)[1].(*structs.JsonExpr)
-            if !ok {
-                return nil, fmt.Errorf("spl peg: failed to assert value as *structs.JsonExpr; Check the %v argument of the function", idx+1)
-            }
-            args = append(args, restValue)
-        }
+    result, err := createJsonExprAst("json_delete", firstKey, rest, 1)
+    if err != nil {
+        return nil, err
     }
 
+    result, err = createJsonExprSingleNodeAst("json_delete", result, castedJson, structs.JEMExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return result, nil
+}
+/ opName:("json_extract" / "json_extract_exact") L_PAREN json:JsonExprLevel1 paths:(COMMA JsonExprLevel1)* R_PAREN {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: error in converting opName to str; err: %v", err)
+    }
+
+    castedJson, ok := json.(*structs.JsonExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: failed to assert json argument as *structs.JsonExpr")
+    }
+    
     var result *structs.JsonExpr
-    var err error
-    if len(args) == 1 {
-        result, err = createJsonExprAst("json_array", args[0], nil, structs.JEMExpr)
+    if paths != nil {
+        // paths structure - [",", pathValue]
+        // if length is greater than 2 that means there are more than one paths
+        if len(paths.([]any)) > 2 {
+            // firstValue = first path value (i.e. value at index 1)
+            // rest of the values including commas are from index 2
+            result, err = createJsonExprAst(opNameStr, paths.([]any)[1], paths.([]any)[2:], 1)
+        } else {
+            // rest is nil here
+            result, err = createJsonExprAst(opNameStr, paths.([]any)[1], nil, 1)
+        }
         if err != nil {
             return nil, err
         }
-    } else {
-        result = args[0]
-        for i := 1; i < len(args); i++ {
-            result, err = createJsonExprAst("json_array", result, args[i], structs.JEMExpr)
-            if err != nil {
-                return nil, err
-            }
-        }
+    }
+
+    result, err = createJsonExprSingleNodeAst(opNameStr, result, castedJson, structs.JEMExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return result, nil
+}
+/ "json_has_key_exact" L_PAREN object:JsonExprLevel1 key:JsonExprLevel1 R_PAREN {
+    isValid := func (value *structs.JsonExpr) bool {
+        return value.JsonExprMode == structs.JEMField || value.JsonExprMode == structs.JEMString
+    }
+
+    castedObject, ok := object.(*structs.JsonExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: failed to assert object argument to *structs.JsonExpr")
+    }
+    if !isValid(castedObject) {
+        return nil, fmt.Errorf("spl peg: object argument of json_has_key_exact can only accept a field or a json string")
+    }
+
+    castedKey, ok := object.(*structs.JsonExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: failed to assert key argument to *structs.JsonExpr")
+    }
+    if !isValid(castedKey) {
+        return nil, fmt.Errorf("spl peg: key argument of json_has_key_exact can onlyy accept a field or a json string")
+    }
+
+    result, err := createJsonExprSingleNodeAst("json_has_key_exact", castedKey, castedObject, structs.JEMExpr)
+    if err != nil {
+        return nil, err
     }
 
     return result, nil
