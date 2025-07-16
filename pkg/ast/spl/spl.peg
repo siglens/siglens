@@ -152,13 +152,32 @@ func getParseError(err error) error {
 }
 
 // Remove the first and last character of the string
-func removeQuotes(s any) string {
-    str := s.(string)
-    if len(str) < 3 {
-        return ""
-    }
+// Unescape \" to " and \\ to \
+// Other escape sequences are NOT handled (e.g. \n remains \n) 
+func removeQuotesAndUnescape(s any) string {
+	str := s.(string)
+	if len(str) < 3 {
+		return ""
+	}
 
-    return str[1:len(str)-1]
+	newStr := ""
+	backSlash := false
+	for _, ch := range str[1 : len(str)-1] {
+		if backSlash {
+			if ch == '"' || ch == '\\' {
+				newStr += string(ch)
+			} else {
+				newStr += "\\" + string(ch)
+			}
+			backSlash = false
+		} else if ch == '\\' {
+			backSlash = true
+		} else {
+			newStr += string(ch)
+		}
+	}
+
+	return newStr
 }
 
 func GetAggregateFunction(funcName string) sutils.AggregateFunctions {
@@ -626,7 +645,7 @@ Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filt
 }
 
 IndexAssign <- index:("_index") EQUAL indexName:String {
-    return removeQuotes(indexName), nil
+    return removeQuotesAndUnescape(indexName), nil
 }
 
 // TODO: Allow for multiple operators (AND, NOT, parenthesis) and make it flexible so that it can be used anywhere in the search filter.
@@ -2323,7 +2342,7 @@ RenameExpr <- originalPattern:FieldName AS newPattern:QuotedString {
     renameExpr := &structs.RenameExpr {
         RenameExprMode: structs.REMPhrase,
         OriginalPattern: originalPattern.(string),
-        NewPattern: removeQuotes(newPattern),
+        NewPattern: removeQuotesAndUnescape(newPattern),
     }
 
     return renameExpr, nil
@@ -2353,7 +2372,7 @@ RenameExpr <- originalPattern:FieldName AS newPattern:QuotedString {
 }
 
 RexBlock <- PIPE CMD_REX "field" EQUAL field:EvalFieldToRead SPACE str:QuotedString {
-    pattern := removeQuotes(str)
+    pattern := removeQuotesAndUnescape(str)
     rexColNames, err := getRexColNames(pattern)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: RexBlock: %v", err)
@@ -2867,7 +2886,7 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
     node := &structs.TextExpr {
         Op: opNameStr,
         Param: expr.(*structs.StringExpr),
-        StrToRemove: removeQuotes(strToRemove),
+        StrToRemove: removeQuotesAndUnescape(strToRemove),
     }
 
     return node, nil
@@ -3015,14 +3034,14 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringE
 
 QuotedPathString <- str:QuotedString {
     return &SPathFieldExpr{
-        PathValue: removeQuotes(str),
+        PathValue: removeQuotesAndUnescape(str),
         IsPathFieldName: false,
     }, nil
 }
 
 UnquotedPathValue <- str:UnquotedString {
     return &SPathFieldExpr{
-        PathValue: removeQuotes(str),
+        PathValue: removeQuotesAndUnescape(str),
         IsPathFieldName: true,
     }, nil
 }
@@ -3310,7 +3329,7 @@ StringExpr <- text:TextExpr !(EVAL_CONCAT) {
 / str:QuotedString !(EVAL_CONCAT) {
     expr := &structs.StringExpr {
         StringExprMode: structs.SEMRawString,
-        RawString: removeQuotes(str),
+        RawString: removeQuotesAndUnescape(str),
     }
 
     return expr, nil
@@ -3363,7 +3382,7 @@ ConcatAtom <- text:TextExpr {
 / str:QuotedString {
     atom := &structs.ConcatAtom {
         IsField: false,
-        Value: removeQuotes(str),
+        Value: removeQuotesAndUnescape(str),
     }
 
     return atom, nil
@@ -3704,7 +3723,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
         ValueIsField: false,
-        Value: removeQuotes(str.(string)),
+        Value: removeQuotesAndUnescape(str.(string)),
         NumericExprMode: structs.NEMLenString,
     }
 
@@ -4501,7 +4520,7 @@ FieldName <- [-/a-zA-Z0-9:*][-/a-zA-Z0-9:_.*]* {
     return string(c.text), nil
 }
 / QuotedString {
-    return removeQuotes(string(c.text)), nil
+    return removeQuotesAndUnescape(string(c.text)), nil
 }
 
 FieldNameStartWith_ <- [a-zA-Z0-9:_.*][a-zA-Z0-9:_.*]* {
@@ -4781,7 +4800,7 @@ QuotedStringNoOp <- '"' [^" !(OR / AND)]*  '"' {
 
 TransactionQuotedStringValue <- str:QuotedStringNoOp {
     filterStrExpr := &structs.FilterStringExpr{
-       StringValue: removeQuotes(str.(string)),
+       StringValue: removeQuotesAndUnescape(str.(string)),
     }
 
     return filterStrExpr, nil
@@ -4886,7 +4905,7 @@ StringDelimiter <- "delim" EQUAL str:QuotedString {
     mvColOptionArgs := &MultiValueColOptionArgs{
         argOption: "delimiter",
         mvColExpr : &structs.MultiValueColLetRequest{
-            DelimiterString: removeQuotes(str),
+            DelimiterString: removeQuotesAndUnescape(str),
         },
     }
 
@@ -4894,7 +4913,7 @@ StringDelimiter <- "delim" EQUAL str:QuotedString {
 }
 
 RegexDelimiter <- "tokenizer" EQUAL str:QuotedString {
-    pattern := removeQuotes(str)
+    pattern := removeQuotesAndUnescape(str)
     _, err := regexp.Compile(pattern)
     if err != nil {
         return nil, fmt.Errorf("Error parsing tokenizer regular expression: %v. Error: %v", pattern, err)
@@ -4990,7 +5009,7 @@ PathField <- ("path" EQUAL SPathFieldString / SPathFieldString ) {
         pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path="))
         pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path ="))
         if pathField != "" && pathField[0] == '"' {
-            pathField = removeQuotes(pathField)
+            pathField = removeQuotesAndUnescape(pathField)
         }
     }
     return "path=" + pathField, nil
@@ -5063,7 +5082,7 @@ FormatSeparator <- "mvsep" EQUAL str:QuotedString {
     return &FormatResultsRequestArguments{
         argOption: "mvsep",
         formatResultExpr: &structs.FormatResultsRequest{
-            MVSeparator: removeQuotes(str),
+            MVSeparator: removeQuotesAndUnescape(str),
         },
     }, nil
 }
@@ -5085,19 +5104,19 @@ FormatEmptyStr <- "emptystr" EQUAL str:QuotedString {
     return &FormatResultsRequestArguments{
         argOption: "emptystr",
         formatResultExpr: &structs.FormatResultsRequest{
-            EmptyString: removeQuotes(str),
+            EmptyString: removeQuotesAndUnescape(str),
         },
     }, nil
 }
 
 FormatRowColOptions <- rowPrefix:QuotedString SPACE colPrefix:QuotedString SPACE colSeparator:QuotedString SPACE colEnd:QuotedString SPACE rowSeparator:QuotedString SPACE rowEnd:QuotedString {
     rowColOptions := &structs.RowColOptions{
-        RowPrefix: removeQuotes(rowPrefix),       
-        ColumnPrefix: removeQuotes(colPrefix),    
-        ColumnSeparator: removeQuotes(colSeparator), 
-        ColumnEnd: removeQuotes(colEnd),       
-        RowSeparator: removeQuotes(rowSeparator),    
-        RowEnd: removeQuotes(rowEnd),          
+        RowPrefix: removeQuotesAndUnescape(rowPrefix),       
+        ColumnPrefix: removeQuotesAndUnescape(colPrefix),    
+        ColumnSeparator: removeQuotesAndUnescape(colSeparator), 
+        ColumnEnd: removeQuotesAndUnescape(colEnd),       
+        RowSeparator: removeQuotesAndUnescape(rowSeparator),    
+        RowEnd: removeQuotesAndUnescape(rowEnd),          
     }
 
     return &FormatResultsRequestArguments{
@@ -5224,7 +5243,7 @@ FillNullBlock <- PIPE CMD_FILLNULL valueOption: FillNullValueOption? fields:Fill
 }
 
 FillNullValueOption <- SPACE "value" EQUAL str:String {
-    return removeQuotes(str), nil
+    return removeQuotesAndUnescape(str), nil
 }
 
 FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
@@ -5363,7 +5382,7 @@ InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionLis
     if whereClause != nil {
         inputLookup.WhereExpr = whereClause.(*structs.BoolExpr)
     }
-    inputLookup.Filename = removeQuotes(filename.(string))
+    inputLookup.Filename = removeQuotesAndUnescape(filename.(string))
     if inputLookup.Max == 0 {
         inputLookup.Max = 1000000000
     }
