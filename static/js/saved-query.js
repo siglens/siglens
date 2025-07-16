@@ -176,11 +176,11 @@ class linkCellRenderer {
         this.eGui = document.createElement('span');
         let href;
         if (params.data.dataSource === 'metrics') {
-            let href = 'metrics-explorer.html?queryString=' + encodeURIComponent(params.data.metricsQueryParams);
-            this.eGui.innerHTML = '<a class="query-link" href="' + href + '" title="' + params.data.description + '" style="display:block;">' + params.data.qname + '</a>';
+            href = 'metrics-explorer.html?queryString=' + encodeURIComponent(params.data.metricsQueryParams);
+            this.eGui.innerHTML = '<a class="query-link" href="' + href + '" title="' + params.data.description + '" style="display:block; width:100%; height:100%;">' + params.data.qname + '</a>';
         } else {
             href = 'index.html?searchText=' + encodeURIComponent(params.data.searchText) + '&startEpoch=' + encodeURIComponent(params.data.startTime) + '&endEpoch=' + encodeURIComponent(params.data.endTime) + '&indexName=' + encodeURIComponent(params.data.indexName) + '&filterTab=' + encodeURIComponent(params.data.filterTab) + '&queryLanguage=' + encodeURIComponent(params.data.queryLanguage);
-            this.eGui.innerHTML = '<a class="query-link" href=' + href + '" title="' + params.data.description + '"style="display:block;">' + params.data.qname + '</a>';
+            this.eGui.innerHTML = '<a class="query-link" href="' + href + '" title="' + params.data.description + '" style="display:block; width:100%; height:100%;">' + params.data.qname + '</a>';
         }
     }
 
@@ -198,13 +198,14 @@ class btnCellRenderer {
         this.eGui = document.createElement('div');
         this.eGui.innerHTML = `
         <div id="alert-grid-btn">
-            <input type="button" class="btn-simple" id="delbutton"  />
+            <input type="button" class="btn-simple" id="delbutton" style="cursor:pointer;" />
         </div>`;
 
         // get references to the elements we want
         this.eButton = this.eGui.querySelector('.btn-simple');
-        this.eventListener = () => {
-            $('.popupOverlay, .popupContent').addClass('active');
+        this.eventListener = (e) => {
+            e.stopPropagation(); // Stop event from bubbling up
+            $('.popupOverlay, .popupContent:first').addClass('active');
             $('#delete-btn').data('params', params);
         };
         this.eButton.addEventListener('click', this.eventListener);
@@ -228,51 +229,47 @@ class btnCellRenderer {
     }
 }
 
-// Delete confirmation popup
-$(document).ready(function () {
-    var currentPage = window.location.pathname;
-    if (currentPage.startsWith('/metrics-explorer.html')) {
-        //eslint-disable-next-line no-undef
-        isMetricsScreen = true;
+// Fix the description cell renderer class
+class descriptionCellRenderer {
+    init(params) {
+        this.eGui = document.createElement('div');
+        this.eGui.style.width = "100%";
+        this.eGui.style.height = "100%";
+        
+        // Get description value or use empty string if undefined
+        const description = params.value || '';
+        const truncatedDesc = description.length > 100 ? description.substring(0, 100) + '...' : description;
+        
+        // Create a div with truncated text and proper styling
+        this.eGui.innerHTML = `<div class="description-cell" style="cursor:pointer; width:100%; height:100%; display:block;" data-full-description="${encodeURIComponent(description)}">${truncatedDesc}</div>`;
+        
+        // Store a reference to the cell element and add click handler directly
+        this.eGui.onclick = (e) => {
+            e.stopPropagation();
+            // Display the full description in the popup
+            document.getElementById('description-content').textContent = description;
+            
+            // Show the popup - make sure we're selecting the right popup (second one)
+            $('.popupOverlay').addClass('active');
+            $('.popupContent:eq(1)').addClass('active');
+        };
     }
-    $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
-        $('.popupOverlay, .popupContent').removeClass('active');
-    });
 
-    // delete function
-    $('#delete-btn').click(function () {
-        let params = $('#delete-btn').data('params');
-        $.ajax({
-            method: 'get',
-            url: 'api/usersavedqueries/deleteone/' + params.data.qname,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                Accept: '*/*',
-            },
-            crossDomain: true,
-        }).then(function () {
-            let deletedRowID = params.data.rowId;
-            sqgridOptions.api.applyTransaction({
-                remove: [{ rowId: deletedRowID }],
-            });
-        });
-    });
+    getGui() {
+        return this.eGui;
+    }
 
-    $(document).on('keydown', (event) => {
-        if (event.key === 'Escape') {
-            $('.popupOverlay, .popupContent').removeClass('active');
+    destroy() {
+        // Clean up by removing the click handler
+        if (this.eGui) {
+            this.eGui.onclick = null;
         }
-    });
+    }
 
-    $('#sq-filter-input').keyup(function (event) {
-        if (event.keyCode == '13') {
-            searchSavedQueryHandler(event);
-        } else {
-            displayOriginalSavedQueries();
-        }
-    });
-    $('#sq-filter-input').on('input', searchSavedQueryHandler);
-});
+    refresh() {
+        return false;
+    }
+}
 
 let queriesColumnDefs = [
     {
@@ -288,6 +285,8 @@ let queriesColumnDefs = [
     {
         field: 'qdescription',
         headerName: 'Description',
+        cellRenderer: descriptionCellRenderer,
+        cellClass: 'truncate-cell', // Add this class for styling
         resizable: true,
     },
     {
@@ -474,3 +473,62 @@ function getSearchedQuery() {
             el.show();
         });
 }
+
+// Delete confirmation popup
+$(document).ready(function () {
+    var currentPage = window.location.pathname;
+    if (currentPage.startsWith('/saved-queries.html')) {
+        //eslint-disable-next-line no-undef
+        isMetricsScreen = true;
+    }
+    $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
+        $('.popupOverlay, .popupContent').removeClass('active');
+    });
+
+    // delete function
+    $('#delete-btn').click(function () {
+        let params = $('#delete-btn').data('params');
+        $.ajax({
+            method: 'get',
+            url: 'api/usersavedqueries/deleteone/' + params.data.qname,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                Accept: '*/*',
+            },
+            crossDomain: true,
+        }).then(function () {
+            let deletedRowID = params.data.rowId;
+            sqgridOptions.api.applyTransaction({
+                remove: [{ rowId: deletedRowID }],
+            });
+        });
+    });
+
+    // Close description popup when close button is clicked
+    $('#close-desc-btn').click(function() {
+        $('.popupOverlay').removeClass('active');
+        $('.popupContent:eq(1)').removeClass('active');
+    });
+
+    // Update the escape key handler to close both popups
+    $(document).on('keydown', function(event) {
+        if (event.key === 'Escape') {
+            $('.popupOverlay, .popupContent').removeClass('active');
+        }
+    });
+
+    $('#sq-filter-input').keyup(function (event) {
+        if (event.keyCode == '13') {
+            searchSavedQueryHandler(event);
+        } else {
+            displayOriginalSavedQueries();
+        }
+    });
+    $('#sq-filter-input').on('input', searchSavedQueryHandler);
+
+    // Make sure clicking on the overlay closes both popups
+    $('.popupOverlay').click(function() {
+        $('.popupOverlay, .popupContent').removeClass('active');
+    });
+});
+
