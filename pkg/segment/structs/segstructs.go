@@ -1564,6 +1564,7 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvrange":         {},
 	"mvsort":          {},
 	"mvzip":           {},
+	"sigfig":          {},
 	"object_to_array": {},
 	"tojson":          {},
 	"cluster":         {},
