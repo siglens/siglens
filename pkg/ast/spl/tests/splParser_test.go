@@ -12031,3 +12031,79 @@ func Test_term_multipleWildcard(t *testing.T) {
 	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, "*to*", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
 }
+
+func Test_unescapeStrings(t *testing.T) {
+	query := []byte(
+		`* | eval 
+		escaped_quotes = "String with \"escaped\" quotes",
+		escaped_backslash = "String with \\backslash",
+		double_backslash = "String with \\\\double backslash",
+		mixed_escapes = "Mixed \"quotes\" and \\backslashes",
+		complex_str = "Complex \"string\" with \\\"nested\\\" quotes and \\\\backslashes",
+		backslash_quote = "Backslash before quote \\\"",
+		quote_backslash = "Quote before backslash \"\\"`)
+
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	aggregator := res.(ast.QueryStruct).PipeCommands
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+
+	escapedQuotes := aggregator
+	assert.NotNil(t, escapedQuotes.Next)
+	assert.NotNil(t, escapedQuotes.EvalExpr)
+	assert.Equal(t, "escaped_quotes", escapedQuotes.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(escapedQuotes.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(escapedQuotes.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `String with "escaped" quotes`, escapedQuotes.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	escapedBackslash := escapedQuotes.Next
+	assert.NotNil(t, escapedBackslash.Next)
+	assert.NotNil(t, escapedBackslash.EvalExpr)
+	assert.Equal(t, "escaped_backslash", escapedBackslash.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(escapedBackslash.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(escapedBackslash.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `String with \backslash`, escapedBackslash.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	doubleBackslash := escapedBackslash.Next
+	assert.NotNil(t, doubleBackslash.Next)
+	assert.NotNil(t, doubleBackslash.EvalExpr)
+	assert.Equal(t, "double_backslash", doubleBackslash.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(doubleBackslash.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(doubleBackslash.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `String with \\double backslash`, doubleBackslash.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	mixedEscapes := doubleBackslash.Next
+	assert.NotNil(t, mixedEscapes.Next)
+	assert.NotNil(t, mixedEscapes.EvalExpr)
+	assert.Equal(t, "mixed_escapes", mixedEscapes.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(mixedEscapes.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(mixedEscapes.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `Mixed "quotes" and \backslashes`, mixedEscapes.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	complexStr := mixedEscapes.Next
+	assert.NotNil(t, complexStr.Next)
+	assert.NotNil(t, complexStr.EvalExpr)
+	assert.Equal(t, "complex_str", complexStr.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(complexStr.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(complexStr.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `Complex "string" with \"nested\" quotes and \\backslashes`, complexStr.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	backslashQuote := complexStr.Next
+	assert.NotNil(t, backslashQuote.Next)
+	assert.NotNil(t, backslashQuote.EvalExpr)
+	assert.Equal(t, "backslash_quote", backslashQuote.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(backslashQuote.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(backslashQuote.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `Backslash before quote \"`, backslashQuote.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	quoteBackslash := backslashQuote.Next
+	assert.Nil(t, quoteBackslash.Next)
+	assert.NotNil(t, quoteBackslash.EvalExpr)
+	assert.Equal(t, "quote_backslash", quoteBackslash.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(quoteBackslash.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(quoteBackslash.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `Quote before backslash "\`, quoteBackslash.EvalExpr.ValueExpr.StringExpr.RawString)
+}
