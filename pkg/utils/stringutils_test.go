@@ -230,19 +230,82 @@ func TestSelectMatchingStringsWithWildcard(t *testing.T) {
 
 func Test_MightBeFloat(t *testing.T) {
 	tests := []struct {
+		name     string
 		input    string
 		expected bool
 	}{
-		{"1.0", true},
-		{"1", true},
-		{"1:10:50", false},
-		{"v1.0", false},
-		{"-1E-10", true},
-		{"+42", true},
+		// Basic valid cases
+		{"simple integer", "1", true},
+		{"simple float", "1.0", true},
+		{"negative number", "-42", true},
+		{"positive number", "+42", true},
+		{"scientific notation", "-1E-10", true},
+		{"scientific notation uppercase", "123E+45", true},
+		{"scientific notation lowercase", "123e-45", true},
+		{"decimal only", ".5", true},
+		{"leading zero", "0.123", true},
+		{"zero", "0", true},
+		{"negative zero", "-0", true},
+		{"multiple digits", "123456", true},
+		{"complex float", "-123.456e+78", true},
+
+		// Special float values
+		{"NaN uppercase", "NaN", true},
+		{"NaN lowercase", "nan", true},
+		{"Infinity", "Inf", true},
+		{"infinity lowercase", "inf", true},
+		{"negative infinity", "-Inf", true},
+		{"negative infinity lowercase", "-inf", true},
+
+		// Invalid cases
+		{"empty string", "", false},
+		{"time format", "1:10:50", false},
+		{"version string", "v1.0", false},
+		{"alphabetic", "abc", false},
+		{"mixed alphanumeric", "123abc", false},
+		{"special characters", "123$", false},
+		{"space", "1 2", false},
+		{"comma", "1,000", false},
+		{"semicolon", "1;2", false},
+		{"colon", "1:2", false},
+		{"slash", "1/2", false},
+		{"backslash", "1\\2", false},
+		{"parentheses", "(123)", false},
+		{"brackets", "[123]", false},
+		{"curly braces", "{123}", false},
+		{"percent", "50%", false},
+		{"hash", "#123", false},
+		{"ampersand", "123&", false},
+		{"asterisk", "123*", false},
+		{"question mark", "123?", false},
+		{"exclamation", "123!", false},
+		{"at symbol", "123@", false},
+		{"underscore", "123_", false},
+		{"pipe", "123|", false},
+		{"tilde", "123~", false},
+		{"backtick", "123`", false},
+		{"unicode", "123π", false},
+		{"tab", "123\t", false},
+		{"newline", "123\n", false},
+		{"carriage return", "123\r", false},
+
+		// Edge cases that should still return true (basic character validation)
+		{"multiple dots", "1.2.3", true},  // Contains only valid chars
+		{"multiple signs", "+-123", true}, // Contains only valid chars
+		{"multiple E", "1E2E3", true},     // Contains only valid chars
+		{"just dot", ".", true},           // Contains only valid chars
+		{"just sign", "+", true},          // Contains only valid chars
+		{"just E", "E", true},             // Contains only valid chars
+		{"empty E notation", "E", true},   // Contains only valid chars
+		{"sign with E", "+E", true},       // Contains only valid chars
+		{"dot with E", ".E", true},        // Contains only valid chars
 	}
+
 	for _, test := range tests {
-		if got := MightBeFloat(test.input); got != test.expected {
-			t.Errorf("MightBeFloat(%q) = %v, want %v", test.input, got, test.expected)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			if got := MightBeFloat(test.input); got != test.expected {
+				t.Errorf("MightBeFloat(%q) = %v, want %v", test.input, got, test.expected)
+			}
+		})
 	}
 }
