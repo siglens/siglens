@@ -791,7 +791,7 @@ function validateContactForm() {
 
 function displayAllContacts(res) {
     if (contactGridDiv === null) {
-        contactGridDiv = document.querySelector('.all-contacts-grid');
+        contactGridDiv = document.querySelector('#ag-grid');
         //eslint-disable-next-line no-undef
         new agGrid.Grid(contactGridDiv, contactGridOptions);
     }
