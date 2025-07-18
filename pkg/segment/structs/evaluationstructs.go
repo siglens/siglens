@@ -3055,12 +3055,6 @@ func (self *NumericExpr) evaluateWithSigfig(fieldToValue map[string]sutils.CValu
 			}
 		}
 		return emptyInfo, fmt.Errorf("NumericExpr.evaluateWithSigfig: cannot convert %v to float", self.Value)
-
-		// value, err := self.Evaluate(fieldToValue)
-		// if err != nil {
-		// 	return emptyInfo, err
-		// }
-		// return getFloatSigFigs(value), nil
 	}
 
 	var leftInfo, rightInfo SigfigInfo
