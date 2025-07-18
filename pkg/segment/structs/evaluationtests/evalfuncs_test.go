@@ -19,6 +19,7 @@ package evaluationtests
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -61,6 +62,12 @@ func Test_Sigfig(t *testing.T) {
 	for _, test := range testCases {
 		_, aggs := parseSPL(t, fmt.Sprintf(query, test.EquationString))
 		res := evaluateNumericExpr(t, aggs)
+
+		// special check for NaN since NaN != NaN in Go
+		if math.IsNaN(test.ExpectedAnswer.(float64)) {
+			assert.True(t, math.IsNaN(res), "Expected NaN but got %v", res)
+			continue
+		}
 		assert.Equal(t, test.ExpectedAnswer, res)
 	}
 }
@@ -220,7 +227,7 @@ func getTestCasesPrintf() []TestCase {
 
 func getTestCasesSigfig() []TestCase {
 	return []TestCase{
-		// addition/substraction
+		// addition/subtraction
 		{
 			EquationString: "2.34 + 1.2",
 			ExpectedAnswer: 3.5,
@@ -231,7 +238,7 @@ func getTestCasesSigfig() []TestCase {
 		},
 		{
 			EquationString: "123 + 4.56",
-			ExpectedAnswer: 128.0,
+			ExpectedAnswer: 127.56,
 		},
 		{
 			EquationString: "0.1234 - 0.005",
@@ -240,6 +247,10 @@ func getTestCasesSigfig() []TestCase {
 		{
 			EquationString: "3.1 + 0.004 + 12.55",
 			ExpectedAnswer: 15.7,
+		},
+		{
+			EquationString: "0.99 + 0.01 + 0.1",
+			ExpectedAnswer: 1.1,
 		},
 		// multiplication/division
 		{
@@ -257,6 +268,10 @@ func getTestCasesSigfig() []TestCase {
 		{
 			EquationString: "0.078 / 1.23",
 			ExpectedAnswer: 0.063,
+		},
+		{
+			EquationString: "1 * 0",
+			ExpectedAnswer: 0.0,
 		},
 		// mix - also checks premature rounding
 		{
@@ -320,6 +335,55 @@ func getTestCasesSigfig() []TestCase {
 		{
 			EquationString: "(1.234 + 2.2) + 3.23",
 			ExpectedAnswer: 6.7, // still 6.664→6.7 at the very end
+		},
+		// special cases, unclear if this will be needed
+		{
+			EquationString: "1 / 0",
+			ExpectedAnswer: math.Inf(1),
+		},
+		{
+			EquationString: "-1 / 0",
+			ExpectedAnswer: math.Inf(-1),
+		},
+		{
+			EquationString: "0 / 0",
+			ExpectedAnswer: math.NaN(),
+		},
+		{
+			EquationString: "1.0 / 0",
+			ExpectedAnswer: math.Inf(1),
+		},
+		{
+			EquationString: "-1.0 / 0",
+			ExpectedAnswer: math.Inf(-1),
+		},
+		{
+			EquationString: "0.0 / 0",
+			ExpectedAnswer: math.NaN(),
+		},
+		{
+			EquationString: "1 / 0.0",
+			ExpectedAnswer: math.Inf(1),
+		},
+		{
+			EquationString: "-1 / 0.0",
+			ExpectedAnswer: math.Inf(-1),
+		},
+		{
+			EquationString: "0 / 0.0",
+			ExpectedAnswer: math.NaN(),
+		},
+		{
+			EquationString: "1.0 / 0.0",
+			ExpectedAnswer: math.Inf(1),
+		},
+		{
+			EquationString: "-1.0 / 0.0",
+			ExpectedAnswer: math.Inf(-1),
+		},
+		{
+			EquationString: "0.0 / 0.0",
+			ExpectedAnswer: math.NaN(),
 		},
 	}
 
