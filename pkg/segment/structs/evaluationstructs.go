@@ -398,8 +398,8 @@ type SPathExpr struct {
 
 type SigfigInfo struct {
 	Value         float64
-	SigFigs       uint32
-	DecimalPlaces uint32
+	SigFigs       int
+	DecimalPlaces int
 }
 
 type RunningLatestOrEarliestVal struct {
@@ -616,8 +616,8 @@ func (self *RexExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosur
 }
 
 func (self *SigfigInfo) UpdateDecimalPlaces() {
-	if math.IsNaN(self.Value) || math.IsInf(self.Value, 0) || self.SigFigs == math.MaxUint32 {
-		self.DecimalPlaces = math.MaxUint32
+	if math.IsNaN(self.Value) || math.IsInf(self.Value, 0) || self.SigFigs == math.MaxInt {
+		self.DecimalPlaces = math.MaxInt
 		return
 	}
 
@@ -631,18 +631,16 @@ func (self *SigfigInfo) UpdateDecimalPlaces() {
 			self.DecimalPlaces = self.SigFigs
 		} else {
 			countLeadingZeroes := len(splits[1]) - len(strings.TrimLeft(splits[1], "0"))
-			self.DecimalPlaces = self.SigFigs + uint32(countLeadingZeroes)
+			self.DecimalPlaces = self.SigFigs + countLeadingZeroes
 		}
-	} else if self.SigFigs > uint32(len(integral)) {
-		self.DecimalPlaces = self.SigFigs - uint32(len(integral))
 	} else {
-		self.DecimalPlaces = 0
+		self.DecimalPlaces = self.SigFigs - len(integral)
 	}
 }
 
 func (self *SigfigInfo) UpdateSigFigs() {
-	if math.IsNaN(self.Value) || math.IsInf(self.Value, 0) || self.DecimalPlaces == math.MaxUint32 {
-		self.SigFigs = math.MaxUint32
+	if math.IsNaN(self.Value) || math.IsInf(self.Value, 0) || self.DecimalPlaces == math.MaxInt {
+		self.SigFigs = math.MaxInt
 		return
 	}
 
@@ -653,10 +651,10 @@ func (self *SigfigInfo) UpdateSigFigs() {
 	integral = strings.TrimLeft(integral, "0")
 	if integral == "" && len(splits) == 2 {
 		countLeadingZeroes := len(splits[1]) - len(strings.TrimLeft(splits[1], "0"))
-		self.SigFigs = uint32(max(0, int(self.DecimalPlaces)-countLeadingZeroes))
+		self.SigFigs = max(0, int(self.DecimalPlaces)-countLeadingZeroes)
 		return
 	}
-	self.SigFigs = uint32(len(integral)) + self.DecimalPlaces
+	self.SigFigs = len(integral) + self.DecimalPlaces
 }
 
 func checkStringInFields(searchStr string, fieldToValue map[string]sutils.CValueEnclosure) (bool, error) {
@@ -2697,8 +2695,8 @@ func getStrSigFigs(strVal string) SigfigInfo {
 		// integers are precise
 		return SigfigInfo{
 			Value:         floatVal,
-			SigFigs:       math.MaxUint32,
-			DecimalPlaces: math.MaxUint32,
+			SigFigs:       math.MaxInt,
+			DecimalPlaces: math.MaxInt,
 		}
 	}
 
@@ -2733,15 +2731,14 @@ func getStrSigFigs(strVal string) SigfigInfo {
 
 	// bounds check
 	sigfigs = max(0, sigfigs)
-	sigfigs = min(math.MaxUint32, sigfigs)
+	sigfigs = min(math.MaxInt, sigfigs)
 
-	decs = max(0, decs)
-	decs = min(math.MaxUint32, decs)
+	decs = min(math.MaxInt, decs)
 
 	return SigfigInfo{
 		Value:         floatVal,
-		SigFigs:       uint32(sigfigs),
-		DecimalPlaces: uint32(decs),
+		SigFigs:       int(sigfigs),
+		DecimalPlaces: int(decs),
 	}
 }
 
