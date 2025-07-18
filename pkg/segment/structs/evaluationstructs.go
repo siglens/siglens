@@ -3166,6 +3166,15 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 		return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert %v to float", self.Value)
 	} else {
 
+		if self.Op == "sigfig" {
+			// sigfig has its own evaluation logic
+			sigfigInfo, err := self.Left.evaluateWithSigfig(fieldToValue)
+			if err != nil {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: error while evaluating sigfig; err: %v", err)
+			}
+			return round(sigfigInfo.Value, int(sigfigInfo.DecimalPlaces)), nil
+		}
+
 		left := float64(0)
 		var err error
 		if self.Left != nil {
@@ -3198,15 +3207,6 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 			return math.Abs(left), nil
 		case "ceil":
 			return math.Ceil(left), nil
-		case "sigfig":
-			sigfigInfo, err := self.Left.evaluateWithSigfig(fieldToValue)
-			if err != nil {
-				return -1, fmt.Errorf("NumericExpr.Evaluate: error while evaluating sigfig; err: %v", err)
-			}
-			if sigfigInfo.Value != left {
-				log.Errorf("NumericExpr.Evaluate: sigfig value %v does not match left value %v", sigfigInfo.Value, left)
-			}
-			return round(sigfigInfo.Value, int(sigfigInfo.DecimalPlaces)), nil
 		case "acosh":
 			if left < 1 {
 				return -1, fmt.Errorf("NumericExpr.Evaluate: acosh requires values >= 1, got: %v", left)
