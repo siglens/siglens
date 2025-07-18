@@ -4107,9 +4107,8 @@ func (self *ConditionExpr) GetFields() []string {
 
 // Specifying a value and a precision
 func round(number float64, precision int) float64 {
-	if precision > 15 {
-		// this can be because this is an exact value
-		// or is computed using exact values
+	if precision == math.MaxInt {
+		// this is used for precise values to denote that no rounding is needed
 		return number
 	}
 	scale := math.Pow10(precision)
