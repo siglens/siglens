@@ -336,7 +336,38 @@ func getTestCasesSigfig() []TestCase {
 			EquationString: "(1.234 + 2.2) + 3.23",
 			ExpectedAnswer: 6.7, // still 6.664→6.7 at the very end
 		},
-		// special cases, unclear if this will be needed
+		// leading zeroes
+		{
+			EquationString: "0.000123 + 0.000456",
+			ExpectedAnswer: 0.000579,
+		},
+		{
+			EquationString: "0.1 / 0.009",
+			ExpectedAnswer: 10.0,
+		},
+		{
+			EquationString: "0.000123 * 0.000456",
+			ExpectedAnswer: 0.0000000561,
+		},
+		{
+			EquationString: "0.000123 / 0.000456",
+			ExpectedAnswer: 0.270,
+		},
+		// trailing zeroes
+		{
+			EquationString: "1.2300 + 0.0045",
+			ExpectedAnswer: 1.2345,
+		},
+		{
+			EquationString: "1.2300 * 0.0045",
+			ExpectedAnswer: 0.0055, // 0.005535 → 0.0055 (2 sigfigs)
+		},
+		// this case tests for negative integers in SigFigInfo.DecimalPlaces
+		{
+			EquationString: "1.2300 / 0.0045",
+			ExpectedAnswer: 270.0, // 273.3333333333333 → 270.0 (2 sigfigs)
+		},
+		// special values, unclear if this will be needed
 		{
 			EquationString: "1 / 0",
 			ExpectedAnswer: math.Inf(1),
