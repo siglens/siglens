@@ -615,6 +615,7 @@ func (self *RexExpr) GetNullFields(fieldToValue map[string]sutils.CValueEnclosur
 	return findNullFields(self.GetFields(), fieldToValue)
 }
 
+// updates self.DecimalPlaces based on self.Value and self.SigFigs.
 func (self *SigfigInfo) UpdateDecimalPlaces() {
 	if math.IsNaN(self.Value) || math.IsInf(self.Value, 0) || self.SigFigs == math.MaxInt {
 		self.DecimalPlaces = math.MaxInt
@@ -638,6 +639,7 @@ func (self *SigfigInfo) UpdateDecimalPlaces() {
 	}
 }
 
+// updates self.SigFigs based on self.Value and self.DecimalPlaces.
 func (self *SigfigInfo) UpdateSigFigs() {
 	if math.IsNaN(self.Value) || math.IsInf(self.Value, 0) || self.DecimalPlaces == math.MaxInt {
 		self.SigFigs = math.MaxInt
@@ -3075,6 +3077,9 @@ func (self *NumericExpr) evaluateWithSigfig(fieldToValue map[string]sutils.CValu
 
 	switch self.Op {
 	case "+", "-":
+		// https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.3/evaluation-functions/mathematical-functions#ariaid-title12
+		// For addition and subtraction, the result should have the same number of decimal places
+		// as the least precise number of all of the operands.
 		resultInfo := SigfigInfo{
 			DecimalPlaces: min(leftInfo.DecimalPlaces, rightInfo.DecimalPlaces),
 		}
@@ -3086,6 +3091,9 @@ func (self *NumericExpr) evaluateWithSigfig(fieldToValue map[string]sutils.CValu
 		resultInfo.UpdateSigFigs()
 		return resultInfo, nil
 	case "*", "/":
+		// https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.3/evaluation-functions/mathematical-functions#ariaid-title12
+		// For multiplication and division, the result should have the minimum number of
+		// significant figures of all of the operands.
 		resultInfo := SigfigInfo{
 			SigFigs: min(leftInfo.SigFigs, rightInfo.SigFigs),
 		}
