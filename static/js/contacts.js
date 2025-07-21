@@ -37,8 +37,8 @@ const contactFormHTML = `
     </div>
     <div id="main-container">
         <div class="contact-container">
-        <div class="mb-0 d-flex justify-content-between">
-            <div class="mb-0">
+        <div class="d-flex justify-content-between">
+            <div>
                 <label for="type">Type</label>
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="contact-types"
@@ -53,14 +53,14 @@ const contactFormHTML = `
                     </div>
                 </div>
             </div>
-            <div class="button-container mb-0">
+            <div class="button-container">
                 <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button">
                     <div class="send-icon"></div>
                     <div class="mb-0">Test</div>
                 </button>
             </div>
         </div>
-            <div class="slack-container">
+    <div class="slack-container inner-container">
     <div>
     <div style="position: relative;">
         <label for="slack-channel-id">Channel ID</label>
@@ -78,12 +78,14 @@ const contactFormHTML = `
         id="info-slack-token"></i>
     </div>
 </div>
-<div class="webhook-container">
-    <label for="webhook">Webhook URL</label>
-    <input type="text" class="form-control" id="webhook-id">
-    <div class="headers-section mt-3">
+<div class="webhook-container inner-container">
+    <div>
+        <label for="webhook">Webhook URL</label>
+        <input type="text" class="form-control" id="webhook-id">
+    </div>
+    <div class="headers-section">
         <label for="additional-headers">Custom Headers</label>
-        <p>Optionally provide extra custom headers to be used in the request.</p>
+        <p class="grey-text mb-0">Optionally provide extra custom headers to be used in the request.</p>
         
         <div class="headers-main-container">
         <div class="headers-labels">
