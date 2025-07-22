@@ -92,7 +92,7 @@ type SerializedRunningStats struct {
 func initRunningStats(internalMeasureFns []*structs.MeasureAggregator) []runningStats {
 	retVal := make([]runningStats, len(internalMeasureFns))
 	for i := 0; i < len(internalMeasureFns); i++ {
-		if internalMeasureFns[i].MeasureFunc == sutils.Cardinality {
+		if internalMeasureFns[i].MeasureFunc == sutils.Cardinality || internalMeasureFns[i].MeasureFunc == sutils.EstdcError {
 			retVal[i] = runningStats{hll: structs.CreateNewHll()}
 		} else if internalMeasureFns[i].MeasureFunc == sutils.Avg {
 			retVal[i] = runningStats{avgStat: &structs.AvgStat{}}
@@ -216,18 +216,18 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				batchErr.AddError("RunningBuckketResults.AddMeasureResults:Percentile", err)
 			}
 			i += step
-		case sutils.Cardinality:
+		case sutils.Cardinality, sutils.EstdcError:
 			if rr.currStats[i].ValueColRequest == nil {
 				err := hllAddRawCval((*runningStats)[i].hll, &measureResults[i])
 				if err != nil {
-					batchErr.AddError("RunningBucketResults.AddMeasureResults:Cardinality", err)
+					batchErr.AddError("RunningBucketResults.AddMeasureResults:Cardinality/EstdcError", err)
 					continue
 				}
 				continue
 			}
-			step, err := rr.AddEvalResultsForCardinality(runningStats, measureResults, i, fieldToValue)
+			step, err := rr.AddEvalResultsForCardinalityRelated(runningStats, measureResults, i, fieldToValue)
 			if err != nil {
-				batchErr.AddError("RunningBucketResults.AddMeasureResults:Cardinality", err)
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:Cardinality/EstdcError", err)
 			}
 			i += step
 		case sutils.Values:
@@ -387,7 +387,7 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 				}
 				i += (len(fields) - 1)
 			}
-		case sutils.Cardinality:
+		case sutils.Cardinality, sutils.EstdcError:
 			if rr.currStats[i].ValueColRequest == nil {
 				err := (*runningStats)[i].hll.StrictUnion(toJoinRunningStats[i].hll.Hll)
 				if err != nil {
@@ -755,7 +755,8 @@ func (rr *RunningBucketResults) AddEvalResultsForPerc(runningStats *[]runningSta
 	return len(fieldToValue) - 1, nil
 }
 
-func (rr *RunningBucketResults) AddEvalResultsForCardinality(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
+// used for cardinality and estdc_error
+func (rr *RunningBucketResults) AddEvalResultsForCardinalityRelated(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
 
 	(*runningStats)[i].syncRawValue()
 	if (*runningStats)[i].rawVal.CVal == nil {
@@ -769,7 +770,7 @@ func (rr *RunningBucketResults) AddEvalResultsForCardinality(runningStats *[]run
 	if rr.currStats[i].ValueColRequest == nil {
 		strVal, err := measureResults[i].GetString()
 		if err != nil {
-			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinality: failed to add measurement to running stats, err: %v", err)
+			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinalityRelated: failed to add measurement to running stats, err: %v", err)
 		}
 		hll.AddRaw(xxhash.Sum64String(strVal))
 		(*runningStats)[i].rawVal.CVal = hll
@@ -779,7 +780,7 @@ func (rr *RunningBucketResults) AddEvalResultsForCardinality(runningStats *[]run
 
 	err := agg.PerformAggEvalForCardinality(rr.currStats[i], hll, fieldToValue)
 	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCardinalityRelated: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
 	(*runningStats)[i].rawVal.CVal = hll
 	(*runningStats)[i].number = nil

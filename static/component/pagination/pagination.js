@@ -41,7 +41,6 @@ class Pagination {
     init() {
         this.render();
         this.attachEventListeners();
-        this.hide();
     }
 
     render() {

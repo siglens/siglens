@@ -320,26 +320,23 @@ function sendTestDataWithoutBearerToken() {
 
 
 function setupCopyFunctionality() {
-    $('.copyable').each(function () {
-        var copyIcon = $('<span class="copy-icon"></span>');
-        $(this).after(copyIcon);
-    });
+    $('.copy-button').on('click', function(event) {
+        var copyButton = $(this);
+        var textarea = copyButton.siblings('pre').find('textarea');
+        var textValue = textarea.val();
 
-    $('.copy-icon').on('click', function (_event) {
-        var copyIcon = $(this);
-        var inputOrTextarea = copyIcon.prev('.copyable');
-        var inputValue = inputOrTextarea.val();
+        if (textValue) {
+            var tempInput = document.createElement('textarea');
+            tempInput.value = textValue;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
 
-        var tempInput = document.createElement('textarea');
-        tempInput.value = inputValue;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        document.execCommand('copy');
-        document.body.removeChild(tempInput);
-
-        copyIcon.addClass('success');
-        setTimeout(function () {
-            copyIcon.removeClass('success');
-        }, 1000);
+            $('.copy-icon').addClass('success');
+            setTimeout(function() {
+                $('.copy-icon').removeClass('success');
+            }, 1000);
+        }
     });
 }

@@ -211,8 +211,9 @@ function loadMoreResults() {
 
     if (initialSearchData && (data.searchText !== initialSearchData.searchText || data.indexName !== initialSearchData.indexName || data.startEpoch !== initialSearchData.startEpoch || data.endEpoch !== initialSearchData.endEpoch || data.queryLanguage !== initialSearchData.queryLanguage)) {
         // Show error if search params changed
-        scrollingErrorPopup();
         isLoadingMore = false;
+        isLoadMoreOperation = false;
+        scrollingErrorPopup();
         updateLoadMoreMessage();
         return;
     }

@@ -559,6 +559,34 @@ func GetSegCardinality(runningSegStat *structs.SegStats,
 	return &res, nil
 }
 
+func GetSegEstdcError(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
+
+	res := sutils.NumTypeEnclosure{
+		Ntype:    sutils.SS_DT_FLOAT,
+		IntgrVal: 0,
+		FloatVal: 0.0,
+	}
+
+	if currSegStat == nil {
+		return &res, fmt.Errorf("GetSegEstdcError: currSegStat is nil")
+	}
+
+	// if this is the first segment, then running will be nil, and we return the first seg's stats
+	if runningSegStat == nil {
+		res.FloatVal = currSegStat.GetHllError()
+		return &res, nil
+	}
+
+	err := runningSegStat.Hll.StrictUnion(currSegStat.Hll.Hll)
+	if err != nil {
+		return nil, fmt.Errorf("GetSegEstdcError: error in Hll.Merge, err: %+v", err)
+	}
+	res.FloatVal = runningSegStat.GetHllError()
+
+	return &res, nil
+}
+
 func GetSegCount(runningSegStat *structs.SegStats,
 	currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
 

@@ -1011,18 +1011,12 @@ function addDefaultPanel() {
 }
 
 // DASHBOARD SETTINGS PAGE
-let editPanelFlag = false;
+
 let aceEditor;
 
 function handleDbSettings() {
-    if ($('.panelEditor-container').css('display') !== 'none') {
-        $('.panelEditor-container').hide();
-        $('#new-dashboard').hide();
-        editPanelFlag = true;
-        $('.popupOverlay').addClass('active');
-    } else {
-        $('#new-dashboard').hide();
-    }
+   
+    $('#new-dashboard').hide();
     $('.dbSet-container').show();
 
     const currentUrl = new URL(window.location.href);
@@ -1161,14 +1155,10 @@ function discardDbSetting() {
     const breadcrumb = new Breadcrumb();
     breadcrumb.render(dbData.folder?.breadcrumbs, dbData.name, false, dbData.isFavorite, false, false);
 
-    if (editPanelFlag) {
-        $('.panelEditor-container').css('display', 'flex');
-        $('.popupOverlay').addClass('active');
-        editPanelFlag = false;
-    } else {
-        $('#new-dashboard').show();
-        displayPanels();
-    }
+
+    $('#new-dashboard').show();
+    displayPanels();
+
     $('.dbSet-dbName').val('');
     $('.dbSet-dbDescr').val('');
     $('.dbSet-jsonModelData').val('');

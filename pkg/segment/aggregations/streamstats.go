@@ -50,7 +50,7 @@ func InitRunningStreamStatsResults(measureFunc sutils.AggregateFunctions) *struc
 	}
 
 	switch measureFunc {
-	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality:
+	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality, sutils.EstdcError:
 		runningSSResult.CurrResult = sutils.CValueEnclosure{
 			Dtype: sutils.SS_DT_FLOAT,
 			CVal:  0.0,
@@ -108,7 +108,7 @@ func calculateAvg(ssResults *structs.RunningStreamStatsResults, window bool) sut
 func validateCurrResultDType(measureAgg sutils.AggregateFunctions, currResult sutils.CValueEnclosure) error {
 
 	switch measureAgg {
-	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality:
+	case sutils.Count, sutils.Sum, sutils.Avg, sutils.Range, sutils.Cardinality, sutils.EstdcError:
 		if currResult.Dtype != sutils.SS_DT_FLOAT {
 			return fmt.Errorf("validateCurrResultDType: Error: currResult value is not a float for measureAgg: %v", measureAgg)
 		}
@@ -180,6 +180,13 @@ func PerformNoWindowStreamStatsOnSingleFunc(ssOption *structs.StreamStatsOptions
 		}
 		ssResults.CardinalityHLL.AddRaw(xxhash.Sum64String(strValue))
 		ssResults.CurrResult.CVal = float64(ssResults.CardinalityHLL.Cardinality())
+	case sutils.EstdcError:
+		strValue := fmt.Sprintf("%v", colValue.CVal)
+		if ssResults.CardinalityHLL == nil {
+			ssResults.CardinalityHLL = structs.CreateNewHll()
+		}
+		ssResults.CardinalityHLL.AddRaw(xxhash.Sum64String(strValue))
+		ssResults.CurrResult.CVal = float64(ssResults.CardinalityHLL.RelativeError())
 	case sutils.Values:
 		strValue := fmt.Sprintf("%v", colValue.CVal)
 		if ssResults.ValuesMap == nil {
@@ -228,7 +235,7 @@ func removeFrontElementFromWindow(window *utils.GobbableList, ssResults *structs
 		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) - frontElement.Value.CVal.(float64)
 	} else if measureAgg == sutils.Count {
 		ssResults.CurrResult.CVal = ssResults.CurrResult.CVal.(float64) - 1
-	} else if measureAgg == sutils.Cardinality || measureAgg == sutils.Values {
+	} else if measureAgg == sutils.Cardinality || measureAgg == sutils.Values || measureAgg == sutils.EstdcError {
 		if frontElement.Value.Dtype != sutils.SS_DT_STRING {
 			return fmt.Errorf("removeFrontElementFromWindow: Error: front element in the window does not have a string value, has value: %v, function: %v", frontElement.Value, measureAgg)
 		}
@@ -367,6 +374,8 @@ func getResults(ssResults *structs.RunningStreamStatsResults, measureAgg sutils.
 		ssResults.CurrResult.CVal = maxFloatVal - minFloatval
 		return ssResults.CurrResult, true, nil
 	case sutils.Cardinality:
+		return ssResults.CurrResult, true, nil
+	case sutils.EstdcError:
 		return ssResults.CurrResult, true, nil
 	case sutils.Values:
 		return getValues(ssResults.CardinalityMap), true, nil
@@ -556,7 +565,7 @@ func performMeasureFunc(currIndex int, ssResults *structs.RunningStreamStatsResu
 			return sutils.CValueEnclosure{}, fmt.Errorf("performMeasureFunc: Error while getting float value from min window element, err: %v", err)
 		}
 		ssResults.CurrResult.CVal = maxFloatVal - minFloatval
-	case sutils.Cardinality, sutils.Values:
+	case sutils.Cardinality, sutils.Values, sutils.EstdcError:
 		if ssResults.CardinalityMap == nil {
 			ssResults.CardinalityMap = make(map[string]int, 0)
 		}

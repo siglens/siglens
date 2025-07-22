@@ -133,7 +133,7 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	case SS_DT_GOBBABLE_HLL_PTR:
 		{
 			switch fun {
-			case Cardinality:
+			case Cardinality, EstdcError:
 				hll1 := e1.CVal.(*utils.GobbableHll)
 				hll2 := e2.CVal.(*utils.GobbableHll)
 				err := hll1.StrictUnion(hll2.Hll)

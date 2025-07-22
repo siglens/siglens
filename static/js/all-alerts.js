@@ -127,6 +127,23 @@ function stateCellRenderer(params) {
     return `<div style="background-color: ${color}; padding: 2px 10px; border-radius: 3px; color: white">${state}</div>`;
 }
 
+function labelsCellRenderer(params) {
+    if (!params.value) return '';
+
+    const labels = params.value.split(', ');
+    let html = '<div class="groups-container">';
+
+    labels.forEach((label) => {
+        const [key, value] = label.split('=');
+        html += `<span class="group-pill">
+            <span>${key} = ${value}</span>
+        </span>`;
+    });
+
+    html += '</div>';
+    return html;
+}
+
 class btnRenderer {
     static activeDropdown = null;
     static globalListenerAdded = false;
@@ -519,6 +536,7 @@ let alertColumnDefs = [
         headerName: 'Alert Name',
         field: 'alertName',
         width: 100,
+        cellStyle: { fontWeight: '500' },
     },
     {
         headerName: 'Alert Type',
@@ -528,6 +546,7 @@ let alertColumnDefs = [
     {
         headerName: 'Labels',
         field: 'labels',
+        cellRenderer: labelsCellRenderer,
     },
     {
         headerName: 'Actions',
@@ -540,7 +559,7 @@ const alertGridOptions = {
     columnDefs: alertColumnDefs,
     rowData: alertRowData,
     animateRows: true,
-    rowHeight: 34,
+    rowHeight: 44,
     headerHeight: 26,
     suppressDragLeaveHidesColumns: true,
     defaultColDef: {
@@ -626,4 +645,3 @@ function onRowClicked(event) {
     window.location.href = '../alert-details.html' + queryString;
     event.stopPropagation();
 }
-

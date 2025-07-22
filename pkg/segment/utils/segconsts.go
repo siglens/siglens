@@ -360,7 +360,6 @@ const (
 	Group
 	Values
 	List
-	Estdc
 	EstdcError
 	ExactPerc
 	Median
@@ -509,8 +508,6 @@ func (e AggregateFunctions) String() string {
 		return "values"
 	case List:
 		return "list"
-	case Estdc:
-		return "estdc"
 	case EstdcError:
 		return "estdc_error"
 	case ExactPerc:
@@ -1063,7 +1060,7 @@ func (e *CValueEnclosure) GetValueAsString() (string, error) {
 		return strconv.FormatInt(e.CVal.(int64), 10), nil
 	case SS_DT_FLOAT:
 		return fmt.Sprintf("%f", e.CVal.(float64)), nil
-	case SS_DT_BACKFILL:
+	case SS_DT_BACKFILL, SS_INVALID:
 		return "", nil
 	default:
 		return "", fmt.Errorf("CValueEnclosure.GetValueAsString: unsupported Dtype: %v", e.Dtype)

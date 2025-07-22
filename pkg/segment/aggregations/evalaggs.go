@@ -817,6 +817,7 @@ func ComputeAggEvalForVarp(measureAgg *structs.MeasureAggregator, sstMap map[str
 	return nil
 }
 
+// this is used for dc(which we treat the same as estdc), as well as estdc_error
 func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, hll *utils.GobbableHll, fieldToValue map[string]sutils.CValueEnclosure) error {
 	if len(fieldToValue) == 0 {
 		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
@@ -944,6 +945,58 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 
 	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_SIGNED_NUM,
+		CVal:  result,
+	}
+
+	return nil
+}
+
+func ComputeAggEvalForEstdcError(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
+	fields := measureAgg.ValueColRequest.GetFields()
+	var result float64
+	var err error
+	var hll *utils.GobbableHll
+	_, ok := runningEvalStats[measureAgg.String()]
+	if !ok {
+		hll = structs.CreateNewHll()
+		runningEvalStats[measureAgg.String()] = hll
+	} else {
+		hll, ok = runningEvalStats[measureAgg.String()].(*utils.GobbableHll)
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForEstdcError: can not convert hll for measureAgg: %v", measureAgg.String())
+		}
+	}
+
+	if len(fields) == 0 {
+		err = PerformAggEvalForCardinality(measureAgg, hll, nil)
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForEstdcError: Error while performing eval agg for estdc_error, err: %v", err)
+		}
+		result = hll.RelativeError()
+	} else {
+		sst, ok := sstMap[fields[0]]
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForEstdcError: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
+		}
+
+		length := len(sst.Records)
+		for i := 0; i < length; i++ {
+			fieldToValue := make(map[string]sutils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForEstdcError: Error while populating fieldToValue from sstMap, err: %v", err)
+			}
+
+			err = PerformAggEvalForCardinality(measureAgg, hll, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForEstdcError: Error while performing eval agg for estdc_error, err: %v", err)
+			}
+		}
+		result = hll.RelativeError()
+	}
+
+	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
+		Dtype: sutils.SS_DT_FLOAT,
 		CVal:  result,
 	}
 
@@ -1329,6 +1382,31 @@ func AddMeasureAggInRunningStatsForCardinality(m *structs.MeasureAggregator, all
 		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
 			MeasureCol:      field,
 			MeasureFunc:     sutils.Cardinality,
+			ValueColRequest: m.ValueColRequest,
+			StrEnc:          m.StrEnc,
+		})
+		idx++
+	}
+	return idx, nil
+}
+
+func AddMeasureAggInRunningStatsForEstdcError(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+
+	fields := m.ValueColRequest.GetFields()
+	if len(fields) == 0 {
+		return idx, fmt.Errorf("AddMeasureAggInRunningStatsForEstdcError: Incorrect number of fields for aggCol: %v", m.String())
+	}
+
+	// Use the index of agg to map to the corresponding index of the runningStats result, so that we can determine which index of the result set contains the result we need.
+	*allReverseIndex = append(*allReverseIndex, idx)
+	for _, field := range fields {
+		if _, ok := colToIdx[field]; !ok {
+			colToIdx[field] = make([]int, 0)
+		}
+		colToIdx[field] = append(colToIdx[field], idx)
+		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+			MeasureCol:      field,
+			MeasureFunc:     sutils.EstdcError,
 			ValueColRequest: m.ValueColRequest,
 			StrEnc:          m.StrEnc,
 		})

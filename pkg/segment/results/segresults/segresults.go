@@ -326,6 +326,8 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		return runningSegStat, nil
 	case sutils.Cardinality:
 		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
+	case sutils.EstdcError:
+		sstResult, err = segread.GetSegEstdcError(runningSegStat, incomingSegStat)
 	case sutils.Perc:
 		sstResult, err = segread.GetSegPerc(runningSegStat, incomingSegStat, measureAgg.Param)
 	case sutils.Count:
@@ -427,6 +429,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			err = aggregations.ComputeAggEvalForRange(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Cardinality:
 			err = aggregations.ComputeAggEvalForCardinality(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		case sutils.EstdcError:
+			err = aggregations.ComputeAggEvalForEstdcError(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Count:
 			err = aggregations.ComputeAggEvalForCount(measureAgg, sstMap, sr.segStatsResults.measureResults)
 		case sutils.Sum:
@@ -1110,7 +1114,7 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 					CVal:  finalAvgStat.Sum / float64(finalAvgStat.Count),
 				}
 			}
-		case sutils.Cardinality:
+		case sutils.Cardinality, sutils.EstdcError:
 			currHll, exist := sr.runningEvalStats[measureAgg.String()]
 			if !exist {
 				currHll = structs.CreateNewHll()
@@ -1136,9 +1140,16 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 
 			sr.runningEvalStats[measureAgg.String()] = CValEnc.CVal.(*utils.GobbableHll)
 
-			sr.segStatsResults.measureResults[measureAgg.String()] = sutils.CValueEnclosure{
-				Dtype: sutils.SS_DT_SIGNED_NUM,
-				CVal:  int64(CValEnc.CVal.(*utils.GobbableHll).Cardinality()),
+			if aggOp == sutils.Cardinality {
+				sr.segStatsResults.measureResults[measureAgg.String()] = sutils.CValueEnclosure{
+					Dtype: sutils.SS_DT_SIGNED_NUM,
+					CVal:  int64(CValEnc.CVal.(*utils.GobbableHll).Cardinality()),
+				}
+			} else { // aggOp == sutils.EstdcError
+				sr.segStatsResults.measureResults[measureAgg.String()] = sutils.CValueEnclosure{
+					Dtype: sutils.SS_DT_FLOAT,
+					CVal:  CValEnc.CVal.(*utils.GobbableHll).RelativeError(),
+				}
 			}
 		case sutils.Values:
 			currSet, exist := sr.runningEvalStats[measureAgg.String()]
@@ -1235,7 +1246,7 @@ func (sr *SearchResults) GetRemoteStats() (*RemoteStats, error) {
 						AvgStat: metadata.(*structs.AvgStat),
 					}
 				}
-			case sutils.Cardinality:
+			case sutils.Cardinality, sutils.EstdcError:
 				metadata, exist := sr.runningEvalStats[measureAgg.String()]
 				if exist {
 					_, isHLL := metadata.(*utils.GobbableHll)

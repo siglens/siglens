@@ -86,6 +86,8 @@ func Test_sstReadWrite(t *testing.T) {
 
 	assert.Equal(t, inSst.GetHllCardinality(), outSst.GetHllCardinality())
 
+	assert.Equal(t, inSst.GetHllError(), outSst.GetHllError())
+
 	assert.Equal(t, inSst.GetHllBytes(), outSst.GetHllBytes())
 
 	assert.Equal(t, inSst.Min, outSst.Min)

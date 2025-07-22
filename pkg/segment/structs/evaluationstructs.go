@@ -51,9 +51,10 @@ type BoolExpr struct {
 	IsTerminal bool
 
 	// Only used when IsTerminal is true.
+	Value      bool // Used for true() or false(); used only when ValueOp is ""
 	LeftValue  *ValueExpr
 	RightValue *ValueExpr
-	ValueOp    string       // Only = or != for strings; can also be <, <=, >, >= for numbers.
+	ValueOp    string       // Only = or != for strings; can also be <, <=, >, >= for numbers. Is an empty string for true() or false().
 	ValueList  []*ValueExpr //Use for in(<value>, <list>)
 
 	// Only used when IsTerminal is false. For a unary BoolOp, RightExpr should be nil.
@@ -228,7 +229,6 @@ type MultiValueExpr struct {
 	StringExprParams     []*StringExpr
 	MultiValueExprParams []*MultiValueExpr
 	ValueExprParams      []*ValueExpr
-	InferTypes           bool // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
 	FieldName            string
 }
 
@@ -276,6 +276,7 @@ type TextExpr struct {
 	Cluster        *Cluster   // generates a cluster label
 	SPathExpr      *SPathExpr // To extract information from the structured data formats XML and JSON.
 	Regex          *utils.GobbableRegex
+	BoolParam      *BoolExpr
 }
 
 type ConditionExpr struct {
@@ -507,6 +508,10 @@ var timeFormatReplacements = []struct {
 
 var ErrFloatMissingField = fmt.Errorf("Missing field")
 var ErrFloatFieldNull = fmt.Errorf("field was null")
+var ErrBitwiseOpNotInt = fmt.Errorf("NumericExpr.Evaluate: bitwise operation only works on integers")
+var ErrBitwiseOpExceedsSizeLimit = fmt.Errorf("NumericExpr.Evaluate: bitwise operation can only take integers of up to 53 bits")
+var ErrBitwiseOpNoNeg = fmt.Errorf("NumericExpr.Evaluate: bitwise operation only works on positive integers")
+var ErrBitwiseOpShiftExceedsLimit = fmt.Errorf("NumericExpr.Evaluate: bitwise shift operations can have a max shift of %v", MAX_BIT_SHIFT_SIZE)
 
 var ErrWithCodeConversionErr = utils.NewErrorWithCode(utils.CONVERSION_ERR,
 	sutils.ErrFloatConversionFailed)
@@ -516,6 +521,10 @@ var ErrWithCodeFloatMissingField = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
 
 var ErrWithCodeFieldNull = utils.NewErrorWithCode(utils.NIL_VALUE_ERR,
 	ErrFloatFieldNull)
+
+// https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.4/evaluation-functions/bitwise-functions#ariaid-title1
+const MAX_BIT_OPERATION_NUM_SIZE = 1<<53 - 1
+const MAX_BIT_SHIFT_SIZE = 53
 
 func (self *DedupExpr) AcquireProcessedSegmentsLock() {
 	self.processedSegmentsLock.Lock()
@@ -699,6 +708,8 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]sutils.C
 
 	if self.IsTerminal {
 		switch self.ValueOp {
+		case "":
+			return getBoolCValueEnclosure(self.Value), nil
 		case "in":
 			inFlag, err := isInValueList(fieldToValue, self.LeftValue, self.ValueList)
 			if err != nil {
@@ -1478,10 +1489,20 @@ func handleMVSort(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnc
 	} else if err != nil {
 		return []string{}, fmt.Errorf("handleMVSort: %v", err)
 	}
-	// does lexicograrphical sorting => for numbers checks the first digit
+	// does lexicographical sorting => for numbers checks the first digit
 	// => 123456 < 2
-	sort.Strings(mvSlice)
-	return mvSlice, nil
+
+	// if it is a field, we don't want to modify it, so we create a copy of it
+	// otherwise we sort it in-place
+	if self.MultiValueExprParams[0].MultiValueExprMode == MVEMField {
+		mvSliceCopy := make([]string, len(mvSlice))
+		copy(mvSliceCopy, mvSlice)
+		sort.Strings(mvSliceCopy)
+		return mvSliceCopy, nil
+	} else {
+		sort.Strings(mvSlice)
+		return mvSlice, nil
+	}
 }
 
 func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
@@ -1490,14 +1511,13 @@ func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 	}
 
 	var delimiter string
+	var err error
 	if self.StringExprParams == nil || len(self.StringExprParams) != 1 {
 		delimiter = ","
 	} else {
-		// delimiter must be enclosed in quotation marks
-		if len(self.StringExprParams[0].RawString) != 0 {
-			delimiter = self.StringExprParams[0].RawString
-		} else {
-			delimiter = ","
+		delimiter, err = self.StringExprParams[0].Evaluate(fieldToValue)
+		if err != nil {
+			return []string{}, fmt.Errorf("handleMVZip: cannot evaluate delimiter as a string: %v", err)
 		}
 	}
 
@@ -1522,61 +1542,6 @@ func handleMVZip(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEncl
 	}
 
 	return resultSlice, nil
-}
-
-func handleMVToJsonArray(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
-	if self.MultiValueExprParams == nil || len(self.MultiValueExprParams) != 1 || self.MultiValueExprParams[0] == nil {
-		return []string{}, fmt.Errorf("handleMVToJsonArray: mv_to_json_array requires one multiValueExpr argument")
-	}
-	mvSlice, err := self.MultiValueExprParams[0].Evaluate(fieldToValue)
-	if utils.IsNilValueError(err) {
-		return nil, err
-	} else if err != nil {
-		return []string{}, fmt.Errorf("handleMVToJsonArray: %v", err)
-	}
-
-	resultArr := make([]any, len(mvSlice))
-	if self.InferTypes {
-		for idx, val := range mvSlice {
-			switch val {
-			case "true":
-				resultArr[idx] = true
-				continue
-			case "false":
-				resultArr[idx] = false
-				continue
-			case "null":
-				resultArr[idx] = nil
-				continue
-			default:
-				// Do Nothing. Handled below
-			}
-
-			if num, err := utils.FastParseFloat([]byte(mvSlice[idx])); err == nil {
-				resultArr[idx] = num
-				continue
-			}
-
-			// parser automatically removes extra quotes
-			if len(mvSlice[idx]) != 0 {
-				resultArr[idx] = mvSlice[idx]
-			} else {
-				resultArr[idx] = nil
-			}
-		}
-	}
-
-	var jsonBytes []byte
-	if resultArr[0] != nil {
-		jsonBytes, err = json.Marshal(resultArr)
-	} else {
-		jsonBytes, err = json.Marshal(mvSlice)
-	}
-	if err != nil {
-		return []string{}, fmt.Errorf("handleMVToJsonArray: error marshaling multivalue field %v; err: %v", mvSlice, err)
-	}
-	return []string{string(jsonBytes)}, nil
-
 }
 
 func handleMVDedup(self *MultiValueExpr, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
@@ -1776,8 +1741,6 @@ func (self *MultiValueExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclos
 		return handleMVSort(self, fieldToValue)
 	case "mvzip":
 		return handleMVZip(self, fieldToValue)
-	case "mv_to_json_array":
-		return handleMVToJsonArray(self, fieldToValue)
 	case "mvdedup":
 		return handleMVDedup(self, fieldToValue)
 	case "mvappend":
@@ -3097,6 +3060,21 @@ func (self *NumericExpr) evaluateWithSigfig(expr *NumericExpr, fieldToValue map[
 	}
 }
 
+func isValidBitwiseOperationInput(left float64, right float64) (uint64, uint64, error) {
+	// Only positive integer values are allowed
+	// https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/9.4/evaluation-functions/bitwise-functions
+	if left < 0 || right < 0 {
+		return 0, 0, ErrBitwiseOpNoNeg
+	}
+	if left-math.Floor(left) != 0 || right-math.Floor(right) != 0 {
+		return 0, 0, ErrBitwiseOpNotInt
+	}
+	if left > MAX_BIT_OPERATION_NUM_SIZE || right > MAX_BIT_OPERATION_NUM_SIZE {
+		return 0, 0, ErrBitwiseOpExceedsSizeLimit
+	}
+	return uint64(left), uint64(right), nil
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
@@ -3288,6 +3266,51 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]sutils.CValueEnclosure
 				return 0, err
 			}
 			return math.Exp(exp), nil
+		case "bit_and":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			return float64(left & right), nil
+		case "bit_or":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			return float64(left | right), nil
+		case "bit_xor":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			return float64(left ^ right), nil
+		case "bit_not":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			if self.Right == nil {
+				right = MAX_BIT_OPERATION_NUM_SIZE
+			}
+			return float64(left &^ right), nil
+		case "bit_shift_left":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			if right >= MAX_BIT_SHIFT_SIZE {
+				return 0.0, ErrBitwiseOpShiftExceedsLimit
+			}
+			return float64((int64(left) << int64(right)) & MAX_BIT_OPERATION_NUM_SIZE), nil
+		case "bit_shift_right":
+			left, right, err := isValidBitwiseOperationInput(left, right)
+			if err != nil {
+				return 0, err
+			}
+			if right >= MAX_BIT_SHIFT_SIZE {
+				return 0.0, ErrBitwiseOpShiftExceedsLimit
+			}
+			return float64(left >> right), nil
 		case "tonumber":
 			if self.Val == nil {
 				return 0, fmt.Errorf("NumericExpr.Evaluate: tonumber operation requires a string expression")
@@ -3520,6 +3543,50 @@ func handlePrintf(self *TextExpr, fieldToValue map[string]sutils.CValueEnclosure
 	return val, nil
 }
 
+func handleMVToJsonArray(self *TextExpr, fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
+	if self.MultiValueExpr == nil {
+		return "", fmt.Errorf("handleMVToJsonArray: mv_to_json_array requires one multiValueExpr argument")
+	}
+	mvSlice, err := self.MultiValueExpr.Evaluate(fieldToValue)
+	if utils.IsNilValueError(err) {
+		return "", err
+	} else if err != nil {
+		return "", fmt.Errorf("handleMVToJsonArray: %v", err)
+	}
+
+	resultArr := make([]any, len(mvSlice))
+
+	inferTypes := false // default value
+	if self.BoolParam != nil {
+		inferTypes, err = self.BoolParam.Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("handleMVToJsonArray: %v", err)
+		}
+	}
+	if inferTypes {
+		for idx, val := range mvSlice {
+			// Try to convert val to a JSON object
+			err := json.Unmarshal([]byte(val), &resultArr[idx])
+			if err != nil {
+				// if the conversion fails, this is not a JSON object and the resultant value should be nil
+				resultArr[idx] = nil
+			}
+		}
+		jsonBytes, err := json.Marshal(resultArr)
+		if err != nil {
+			return "", fmt.Errorf("handleMVToJsonArray: error marshaling multivalue field %v; err: %v", mvSlice, err)
+		}
+		return string(jsonBytes), nil
+	} else {
+		// infer types is false
+		jsonBytes, err := json.Marshal(mvSlice)
+		if err != nil {
+			return "", fmt.Errorf("handleMVToJsonArray: error marshaling multivalue field %v; err: %v", mvSlice, err)
+		}
+		return string(jsonBytes), nil
+	}
+}
+
 func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
@@ -3623,6 +3690,8 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 
 		// If no match is found
 		return "", nil
+	case "mv_to_json_array":
+		return handleMVToJsonArray(self, fieldToValue)
 	case "mvappend":
 		fallthrough
 	case "mvdedup":
@@ -3636,8 +3705,6 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]sutils.CValueEnclosur
 	case "mvsort":
 		fallthrough
 	case "mvzip":
-		fallthrough
-	case "mv_to_json_array":
 		fallthrough
 	case "cluster":
 		fallthrough
@@ -3962,6 +4029,9 @@ func (self *TextExpr) GetFields() []string {
 		}
 		if self.MultiValueExpr != nil {
 			fields = append(fields, self.MultiValueExpr.GetFields()...)
+		}
+		if self.BoolParam != nil {
+			fields = append(fields, self.BoolParam.GetFields()...)
 		}
 		return fields
 	}

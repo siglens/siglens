@@ -35,7 +35,7 @@ require (
 	github.com/segmentio/analytics-go/v3 v3.2.1
 	github.com/seiflotfy/cuckoofilter v0.0.0-20240715131351-a2f2c23f1771
 	github.com/shirou/gopsutil/v4 v4.24.12
-	github.com/siglens/go-hll v0.0.0-20240828170019-5e666abc6309
+	github.com/siglens/go-hll v0.0.0-20250702141534-039cd711c944
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	github.com/valyala/bytebufferpool v1.0.0

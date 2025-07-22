@@ -1,0 +1,30 @@
+{
+    "queryText": "*|stats estdc_error(latency) as dcerror",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 100000,
+            "relation": "eq"
+        },
+        "qtype": "segstats-query",
+        "measureFunctions": [
+            "dcerror"
+        ],
+        "measure": [
+            {
+                "GroupByValues": [
+                    "*"
+                ],
+                "MeasureVal": {
+                    "dcerror": 0.004058444380522224
+                }
+            }
+        ],
+        "records": null,
+        "allColumns": [
+            "dcerror"
+        ],
+        "columnsOrder": [
+            "dcerror"
+        ]
+    }
+}

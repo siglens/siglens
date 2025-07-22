@@ -1853,76 +1853,43 @@ func Test_aggCountAlias(t *testing.T) {
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Count)
 }
 
-func Test_aggDistinctCount(t *testing.T) {
-	query := []byte(`search A=1 | stats distinct_count(city)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
+func Test_aggDistinctCountAndAliases(t *testing.T) {
+	dcAliases := []string{"distinct_count", "dc", "estdc"} // we treat estdc as an alias for distinct_count
+	for _, dcAlias := range dcAliases {
+		query := []byte(`search A=1 | stats ` + dcAlias + `(city)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
 
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+		assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+		assert.Equal(t, filterNode.Comparison.Field, "A")
+		assert.Equal(t, filterNode.Comparison.Op, "=")
+		assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
 
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
+		pipeCommands := res.(ast.QueryStruct).PipeCommands
+		assert.NotNil(t, pipeCommands)
+		assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+		assert.Len(t, pipeCommands.MeasureOperations, 1)
+		assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
+		assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
 
-	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-	assert.Equal(t, 0, len(indexNames))
+		astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.Equal(t, 0, len(indexNames))
 
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+		assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
+		assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
 
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
-}
-
-func Test_aggDistinctCountAlias(t *testing.T) {
-	query := []byte(`search A=1 | stats dc(city)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
-
-	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-	assert.Equal(t, 0, len(indexNames))
-
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, sutils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
-
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
+		assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
+		assert.Len(t, aggregator.MeasureOperations, 1)
+		assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
+		assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, sutils.Cardinality)
+	}
 }
 
 func Test_groupbyOneField(t *testing.T) {
@@ -4758,9 +4725,10 @@ func Test_evalFunctionsToJson(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
 	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMStringExpr)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "tojson")
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), structs.SEMRawString)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.RawString, "true")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.BoolParam)
+	assert.True(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.BoolParam.IsTerminal)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.BoolParam.ValueOp, "")
+	assert.True(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.BoolParam.Value)
 }
 
 func Test_evalFunctionsPi(t *testing.T) {
@@ -4781,6 +4749,187 @@ func Test_evalFunctionsPi(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "pi")
+}
+
+func Test_evalFunctionsBitwise(t *testing.T) {
+	// and, or, xor, require minimum of two arguments to work
+	query := []byte(`city=Boston | eval biwiseAndFail=bit_and(field1)`)
+	_, err := spl.Parse("", query)
+	assert.Error(t, err)
+
+	// bit_shift_* require exactly 2 arguments to work
+	query = []byte(`city=Boston | eval bitwiseShiftFail=bit_shift_left(field1)`)
+	_, err = spl.Parse("", query)
+	assert.Error(t, err)
+	t.Run("BitAnd", func(t *testing.T) {
+		query := []byte(`city=Boston | eval bitwiseAnd=bit_and(field1, field2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.OutputTransforms)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right)
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Value, "field1")
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right.Value, "field2")
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.NewColName, "bitwiseAnd")
+		assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_and")
+	})
+
+	// Test bit_or function
+	t.Run("BitOr", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval bitwiseOr=bit_or(field1, field2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "bitwiseOr")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_or")
+	})
+
+	// Test bit_xor function
+	t.Run("BitXor", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval bitwiseXor=bit_xor(field1, field2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "bitwiseXor")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_xor")
+	})
+
+	// Test bit_not function
+	t.Run("BitNot", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval bitwiseNot=bit_not(field1)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "bitwiseNot")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_not")
+	})
+
+	// Test bit_shift_left function
+	t.Run("BitShiftLeft", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval leftShift=bit_shift_left(field1, 2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "leftShift")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_shift_left")
+	})
+
+	// Test bit_shift_right function
+	t.Run("BitShiftRight", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval rightShift=bit_shift_right(field1, 2)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "rightShift")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_shift_right")
+	})
+
+	// Test nested bitwise operations
+	t.Run("NestedBitwiseOperations", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval complexBitwise=bit_or(bit_and(field1, field2), bit_xor(field3, field4))`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "complexBitwise")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_or")
+	})
+
+	// Test bitwise operations with multiple arguments
+	t.Run("BitwiseMultipleArgs", func(t *testing.T) {
+		query := []byte(`city=Boston | stats count AS Count BY http_status | eval multiArg=bit_and(field1, field2, field3)`)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.Next)
+		assert.NotNil(t, aggregator.Next.Next)
+		assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+		assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "multiArg")
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+		assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "bit_and")
+	})
 }
 
 func Test_evalFunctionsFloor(t *testing.T) {
@@ -5294,15 +5443,18 @@ func Test_evalFunctionsMvToJsonArray(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprMode), structs.MVEMMultiValueExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.Op, "mv_to_json_array")
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams)
-	assert.Equal(t, len(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams), 1)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0])
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].MultiValueExprMode), structs.MVEMField)
-	assert.Equal(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.MultiValueExprParams[0].FieldName), "http_status")
-	assert.True(t, (aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.MultiValueExpr.InferTypes))
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMStringExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode), structs.SEMTextExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "mv_to_json_array")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr.MultiValueExprMode), structs.MVEMField)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MultiValueExpr.FieldName, "http_status")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.BoolParam)
+	assert.True(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.BoolParam.IsTerminal)
+	assert.True(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.BoolParam.Value)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.BoolParam.ValueOp, "")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "newField")
 }
 
@@ -10286,7 +10438,7 @@ func performCommon_aggEval_Constant_Field(t *testing.T, measureFunc sutils.Aggre
 	if isField {
 		randomStr = utils.GetRandomString(10, utils.Alpha)
 	} else {
-		randomStr = fmt.Sprintf("%v", rand.Float64())
+		randomStr = strconv.FormatFloat(rand.Float64(), 'f', -1, 64)
 	}
 	measureFuncStr, param := getMeasureFuncStr(measureFunc)
 	measureWithEvalStr := measureFuncStr + `(eval(` + randomStr + `))`
@@ -10331,7 +10483,7 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc sutils.Aggr
 	// Query Form: app_name=bracecould | stats sum(http_status), measureFunc(eval(if(http_status=500, trueValueField, falseValueConstant)))
 	measureFuncStr, param := getMeasureFuncStr(measureFunc)
 	trueValueField := utils.GetRandomString(10, utils.Alpha)
-	falseValueConstant := fmt.Sprintf("%v", rand.Float64())
+	falseValueConstant := strconv.FormatFloat(rand.Float64(), 'f', -1, 64)
 	measureWithEvalStr := measureFuncStr + `(eval(if(http_status=500, ` + trueValueField + `, ` + falseValueConstant + `)))`
 
 	query := []byte(`app_name=bracecould | stats sum(http_status), ` + measureWithEvalStr)
@@ -10388,7 +10540,7 @@ func performCommon_aggEval_ConditionalExpr(t *testing.T, measureFunc sutils.Aggr
 func getAggFunctions() []sutils.AggregateFunctions {
 	return []sutils.AggregateFunctions{sutils.Count, sutils.Sum, sutils.Avg, sutils.Min, sutils.Max,
 		sutils.Range, sutils.Cardinality, sutils.Values, sutils.List,
-		sutils.Estdc, sutils.EstdcError, sutils.Median,
+		sutils.EstdcError, sutils.Median,
 		sutils.Mode, sutils.Stdev, sutils.Stdevp, sutils.Sumsq, sutils.Var,
 		sutils.Varp, sutils.First, sutils.Last, sutils.Earliest, sutils.Latest,
 		sutils.EarliestTime, sutils.LatestTime, sutils.StatsRate,
@@ -11878,4 +12030,80 @@ func Test_term_multipleWildcard(t *testing.T) {
 	assert.Equal(t, "city", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
 	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
 	assert.Equal(t, "*to*", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_unescapeStrings(t *testing.T) {
+	query := []byte(
+		`* | eval 
+		escaped_quotes = "String with \"escaped\" quotes",
+		escaped_backslash = "String with \\backslash",
+		double_backslash = "String with \\\\double backslash",
+		mixed_escapes = "Mixed \"quotes\" and \\backslashes",
+		complex_str = "Complex \"string\" with \\\"nested\\\" quotes and \\\\backslashes",
+		backslash_quote = "Backslash before quote \\\"",
+		quote_backslash = "Quote before backslash \"\\"`)
+
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	aggregator := res.(ast.QueryStruct).PipeCommands
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+
+	escapedQuotes := aggregator
+	assert.NotNil(t, escapedQuotes.Next)
+	assert.NotNil(t, escapedQuotes.EvalExpr)
+	assert.Equal(t, "escaped_quotes", escapedQuotes.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(escapedQuotes.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(escapedQuotes.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `String with "escaped" quotes`, escapedQuotes.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	escapedBackslash := escapedQuotes.Next
+	assert.NotNil(t, escapedBackslash.Next)
+	assert.NotNil(t, escapedBackslash.EvalExpr)
+	assert.Equal(t, "escaped_backslash", escapedBackslash.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(escapedBackslash.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(escapedBackslash.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `String with \backslash`, escapedBackslash.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	doubleBackslash := escapedBackslash.Next
+	assert.NotNil(t, doubleBackslash.Next)
+	assert.NotNil(t, doubleBackslash.EvalExpr)
+	assert.Equal(t, "double_backslash", doubleBackslash.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(doubleBackslash.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(doubleBackslash.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `String with \\double backslash`, doubleBackslash.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	mixedEscapes := doubleBackslash.Next
+	assert.NotNil(t, mixedEscapes.Next)
+	assert.NotNil(t, mixedEscapes.EvalExpr)
+	assert.Equal(t, "mixed_escapes", mixedEscapes.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(mixedEscapes.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(mixedEscapes.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `Mixed "quotes" and \backslashes`, mixedEscapes.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	complexStr := mixedEscapes.Next
+	assert.NotNil(t, complexStr.Next)
+	assert.NotNil(t, complexStr.EvalExpr)
+	assert.Equal(t, "complex_str", complexStr.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(complexStr.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(complexStr.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `Complex "string" with \"nested\" quotes and \\backslashes`, complexStr.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	backslashQuote := complexStr.Next
+	assert.NotNil(t, backslashQuote.Next)
+	assert.NotNil(t, backslashQuote.EvalExpr)
+	assert.Equal(t, "backslash_quote", backslashQuote.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(backslashQuote.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(backslashQuote.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `Backslash before quote \"`, backslashQuote.EvalExpr.ValueExpr.StringExpr.RawString)
+
+	quoteBackslash := backslashQuote.Next
+	assert.Nil(t, quoteBackslash.Next)
+	assert.NotNil(t, quoteBackslash.EvalExpr)
+	assert.Equal(t, "quote_backslash", quoteBackslash.EvalExpr.FieldName)
+	assert.Equal(t, structs.VEMStringExpr, int(quoteBackslash.EvalExpr.ValueExpr.ValueExprMode))
+	assert.Equal(t, structs.SEMRawString, int(quoteBackslash.EvalExpr.ValueExpr.StringExpr.StringExprMode))
+	assert.Equal(t, `Quote before backslash "\`, quoteBackslash.EvalExpr.ValueExpr.StringExpr.RawString)
 }
