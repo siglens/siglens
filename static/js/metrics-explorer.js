@@ -732,7 +732,7 @@ function createQueryElementTemplate(queryName) {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <textarea class="raw-query-input metrics-js-textarea" placeholder="Enter your query here"></textarea>
+                <textarea class="raw-query-input" placeholder="Enter your query here"></textarea>
                 <button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
             </div>
         </div>
