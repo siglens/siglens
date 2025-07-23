@@ -635,3 +635,10 @@ input:checked+.slider:before {
     background-color: var(--input-box-bg-color);
     color: var(--text-color);
 }
+
+.metrics-js-textarea {
+    border: 1px solid var(--search-input-border);
+    font-size: 12px;
+    background-color: var(--input-box-bg-color);
+    border-radius: 0;
+}

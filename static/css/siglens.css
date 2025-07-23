@@ -1294,6 +1294,7 @@ textarea {
     border: 1px solid var(--search-input-border);
     background: var(--search-bar-bg);
     font-size: 12px;
+    border-radius: 5px;
     padding: 8px;
 }
 
