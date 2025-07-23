@@ -5054,10 +5054,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     margin-right: 10px;
 }
 
-.label-container {
-    margin-bottom: 20px;
-}
-
 #label-evaluate-every,
 #for-span {
     position: relative;
@@ -5069,8 +5065,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     right: -30px;
 }
 
-
-
 .alert-condition-options,
 .contact-options,
 .contact-points-options,
@@ -5079,39 +5073,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     width: 120px;
 }
 
-.alert-condition-options li,
-.contact-options li,
-.contact-points-options li,
-.query-lang-container li {
-    background: var(--index-drop-down-item-inactive-bg-color);
-    color: var(--index-drop-down-item-inactive-text-color);
-    margin: 6px;
-    cursor: pointer;
-    padding: 6px 0;
-    padding-left: 12px;
-    font-weight: 400;
-    border-radius: 4px;
-}
-
-.alert-condition-option.active,
-.contact-option.active,
-.contact-points-option.active,
-.data-source-option.active,
-.logs-language-option.active {
-    background: var(--index-drop-down-item-active-bg-color);
-    color: var(--index-drop-down-item-active-text-color);
-}
-
-.alert-condition-option:hover,
-.contact-option:hover,
-.contact-points-option:hover,
-.data-source-option:hover,
-.logs-language-option:hover {
-    background: var(--index-drop-down-item-hover-bg-color);
-    color: var(--index-drop-down-item-hover-text-color);
-}
-
-.add-contact-form div {
+.add-contact-form>div,
+.contact-container>div,
+.contact-container .inner-container>div,
+.add-contact-form #main-container>div {
     margin-bottom: 20px;
 }
 
@@ -5216,6 +5181,23 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     color: var(--text-color);
     width: 300px;
     padding: 8px;
+}
+
+.groups-container {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px 0;
+}
+
+.group-pill {
+    background-color: var(--alert-background);
+    border: 1px solid var(--border-color-regular);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+    white-space: nowrap;
 }
 
 .delete-dialog #cancel-btn {
@@ -5536,7 +5518,7 @@ p#versionInfo {
 
 .add-label-container,
 .add-headers-container {
-    margin-bottom: 24px;
+    margin-bottom: 4px;
     display: flex;
     align-items: center;
 }
@@ -5597,7 +5579,6 @@ p#versionInfo {
 
 .headers-main-container {
     width: 100%;
-    margin-bottom: 15px;
 }
 
 .headers-container {
