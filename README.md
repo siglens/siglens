@@ -31,7 +31,7 @@ English | [简体中文](README_ZH_CN.md) | [日本語](README_JA_JP.md)
 
 
 # Why SigLens:
-Our experience servicing 10,000+ engineers with Observability tools taught us a few things:
+Our experience servicing 10,000+ engineers with Observability tools taught us a few  things:
 
 - Developers have to jump through different tools for logs, metrics, traces
 - Splunk, DataDog, NewRelic are very expensive 💸 💸 💸 
