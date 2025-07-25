@@ -12,7 +12,7 @@ require (
 	github.com/liangyaopei/hyper v0.0.0-20200731140808-9971b0a7a810
 	github.com/montanaflynn/stats v0.6.6
 	github.com/prometheus/prometheus v0.50.1
-	github.com/siglens/siglens v0.0.0-20240702233012-91a49a94d576
+	github.com/siglens/siglens v0.0.0-20250722140705-8f780ab3e6eb
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.4.0
 	github.com/stretchr/testify v1.8.4
