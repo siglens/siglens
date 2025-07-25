@@ -109,7 +109,6 @@ func createContactPoint(host string, webhookUrl string) error {
 }
 
 func getAllContactPoints(host string) ([]*alertutils.Contact, error) {
-
 	url := host + "/api/alerts/allContacts"
 
 	resp, err := sendHttpRequest("GET", url, nil)
@@ -143,20 +142,22 @@ func createAlert(host string, alertTypeString string, contactId string, alertNam
 	}
 
 	alert := &alertutils.AlertDetails{
-		AlertName: alertName,
-		AlertType: alertType,
-		Labels: []alertutils.AlertLabel{
-			{
-				LabelName:  "env",
-				LabelValue: "test",
+		AlertConfig: alertutils.AlertConfig{
+			AlertName: alertName,
+			AlertType: alertType,
+			Labels: []alertutils.AlertLabel{
+				{
+					LabelName:  "env",
+					LabelValue: "test",
+				},
 			},
+			Condition:    AlertQueryCondition,
+			Value:        AlertValue,
+			EvalWindow:   EvalWindow,
+			EvalInterval: EvalInterval,
+			Message:      AlertMessagePrefix + alertTypeString,
+			ContactID:    contactId,
 		},
-		Condition:    AlertQueryCondition,
-		Value:        AlertValue,
-		EvalWindow:   EvalWindow,
-		EvalInterval: EvalInterval,
-		Message:      AlertMessagePrefix + alertTypeString,
-		ContactID:    contactId,
 	}
 
 	if alertType == alertutils.AlertTypeMetrics {
@@ -168,6 +169,7 @@ func createAlert(host string, alertTypeString string, contactId string, alertNam
 			QueryText:     LogsQueryText,
 			StartTime:     LogsStartTime,
 			EndTime:       LogsEndTime,
+			Index:         "*",
 		}
 	}
 
@@ -205,7 +207,6 @@ func getAllAlerts(host string) ([]*alertutils.AlertDetails, error) {
 }
 
 func getAlertHistoryById(host string, alertId string) ([]*alertutils.AlertHistoryDetails, error) {
-
 	url := host + "/api/alerts/" + alertId + "/history"
 
 	resp, err := sendHttpRequest("GET", url, nil)
