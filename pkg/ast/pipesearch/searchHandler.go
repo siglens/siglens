@@ -76,7 +76,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 
 	iText, ok := jsonSource[KEY_INDEX_NAME]
 	if !ok || iText == "" {
-		indexName = "*"
+		log.Errorf("ParseSearchBody: indexName is not specified!")
 	} else if iText == KEY_TRACE_RELATED_LOGS_INDEX {
 		// TODO: set indexNameIn to otel-collector indexes
 		indexName = "*"
