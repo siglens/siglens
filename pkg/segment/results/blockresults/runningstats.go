@@ -1132,11 +1132,17 @@ func hllAddRawCval(hll *utils.GobbableHll, cval *sutils.CValueEnclosure) error {
 			hll.AddRaw(2) // cannot use AddRaw(0), 0 is not a valid value for AddRaw(). See: Hll.AddRaw()
 		}
 	case sutils.SS_DT_UNSIGNED_NUM:
-		hll.AddRaw(xxhash.Sum64(utils.Uint64ToBytesLittleEndian(cval.CVal.(uint64))))
+		bytes := [8]byte{}
+		utils.Uint64ToBytesLittleEndianInplace(cval.CVal.(uint64), bytes[:])
+		hll.AddRaw(xxhash.Sum64(bytes[:]))
 	case sutils.SS_DT_SIGNED_NUM:
-		hll.AddRaw(xxhash.Sum64(utils.Int64ToBytesLittleEndian(cval.CVal.(int64))))
+		bytes := [8]byte{}
+		utils.Int64ToBytesLittleEndianInplace(cval.CVal.(int64), bytes[:])
+		hll.AddRaw(xxhash.Sum64(bytes[:]))
 	case sutils.SS_DT_FLOAT:
-		hll.AddRaw(xxhash.Sum64(utils.Float64ToBytesLittleEndian(cval.CVal.(float64))))
+		bytes := [8]byte{}
+		utils.Float64ToBytesLittleEndianInplace(cval.CVal.(float64), bytes[:])
+		hll.AddRaw(xxhash.Sum64(bytes[:]))
 	case sutils.SS_DT_BACKFILL:
 		return utils.NewErrorWithCode(utils.NIL_VALUE_ERR, fmt.Errorf("CValueEnclosure GetString: nil value"))
 	default:
