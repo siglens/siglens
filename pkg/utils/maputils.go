@@ -301,5 +301,8 @@ func (twm *TwoWayMap[T1, T2]) GetMapCopy() map[T1]T2 {
 }
 
 func (twm *TwoWayMap[T1, T2]) Len() int {
+	twm.lock.RLock()
+	defer twm.lock.RUnlock()
+
 	return len(twm.normal)
 }
