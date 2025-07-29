@@ -302,7 +302,18 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 }
 
 func (b *BlockResults) Close() {
-	rrcsPool.Put(&b.UnsortedResults)
+	// We want to:
+	// 1. Put the UnsortedResults slice back into the pool.
+	// 2. Nil out the b.UnsortedResults field to:
+	//    a. Avoid potential memory leaks if GC won't clean it up.
+	//    b. Have an obvious failure if we try using this after closing it.
+	//
+	// If we put &b.UnsertedResults directly, there's an issue because the
+	// pointer references the field, so setting the field to nil means when we
+	// fetch this slice pointer from the pool again, it will point to a nil
+	// slice. So we need to make temporary slice.
+	slice := b.UnsortedResults
+	rrcsPool.Put(&slice)
 	b.UnsortedResults = nil
 }
 
