@@ -3453,20 +3453,38 @@ func formatTime(t time.Time, format string) string {
 	offsetHours := offset / 3600
 	offsetMinutes := (offset % 3600) / 60
 	formattedOffset := fmt.Sprintf("%+03d:%02d", offsetHours, offsetMinutes)
-	postReplacements := map[string]string{
-		"%w":  strconv.Itoa(int(t.Weekday())),                         // weekday as a decimal number
-		"%j":  strconv.Itoa(t.YearDay()),                              // day of the year as a decimal number
-		"%U":  strconv.Itoa(t.YearDay() / 7),                          // week number of the year (Sunday as the first day of the week)
-		"%W":  strconv.Itoa((int(t.Weekday()) - 1 + t.YearDay()) / 7), // week number of the year (Monday as the first day of the week)
-		"%V":  strconv.Itoa(week),                                     // ISO week number
-		"%+":  t.Format("Mon Jan 2 15:04:05 MST 2006"),                // date and time with timezone
-		"%N":  fmt.Sprintf("%09d", t.Nanosecond()),                    // nanoseconds
-		"%Q":  strconv.Itoa(t.Nanosecond() / 1e6),                     // milliseconds
-		"%Ez": formattedOffset,                                        // timezone offset
-		"%s":  strconv.FormatInt(t.Unix(), 10),                        // Unix Epoch Time timestamp
+
+	// In the hot path the timeStr won't include all of these. So avoid
+	// creating the replacement string if the thing to replace isn't present.
+	if strings.Contains(timeStr, "%w") { // weekday as a decimal number
+		timeStr = strings.ReplaceAll(timeStr, "%w", strconv.Itoa(int(t.Weekday())))
 	}
-	for k, v := range postReplacements {
-		timeStr = strings.ReplaceAll(timeStr, k, v)
+	if strings.Contains(timeStr, "%j") { // day of the year as a decimal number
+		timeStr = strings.ReplaceAll(timeStr, "%j", strconv.Itoa(t.YearDay()))
+	}
+	if strings.Contains(timeStr, "%U") { // week number of the year (Sunday as the first day of the week)
+		timeStr = strings.ReplaceAll(timeStr, "%U", strconv.Itoa(t.YearDay()/7))
+	}
+	if strings.Contains(timeStr, "%W") { // week number of the year (Monday as the first day of the week)
+		timeStr = strings.ReplaceAll(timeStr, "%W", strconv.Itoa((int(t.Weekday())-1+t.YearDay())/7))
+	}
+	if strings.Contains(timeStr, "%V") { // ISO week number
+		timeStr = strings.ReplaceAll(timeStr, "%V", strconv.Itoa(week))
+	}
+	if strings.Contains(timeStr, "%+") { // date and time with timezone
+		timeStr = strings.ReplaceAll(timeStr, "%+", t.Format("Mon Jan 2 15:04:05 MST 2006"))
+	}
+	if strings.Contains(timeStr, "%N") { // nanoseconds
+		timeStr = strings.ReplaceAll(timeStr, "%N", fmt.Sprintf("%09d", t.Nanosecond()))
+	}
+	if strings.Contains(timeStr, "%Q") { // milliseconds
+		timeStr = strings.ReplaceAll(timeStr, "%Q", strconv.Itoa(t.Nanosecond()/1e6))
+	}
+	if strings.Contains(timeStr, "%Ez") { // timezone offset
+		timeStr = strings.ReplaceAll(timeStr, "%Ez", formattedOffset)
+	}
+	if strings.Contains(timeStr, "%s") { // Unix Epoch Time timestamp
+		timeStr = strings.ReplaceAll(timeStr, "%s", strconv.FormatInt(t.Unix(), 10))
 	}
 
 	return timeStr
