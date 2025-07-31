@@ -3421,35 +3421,30 @@ func handleTrimFunctions(op string, value string, trim_chars string) string {
 
 // formatTime formats a time.Time object into a string based on the provided format string, using mappings from Go's time package and strftime.net.
 func formatTime(t time.Time, format string) string {
-	preReplacements := map[string]string{
-		"%e": "_2",
-		"%a": "Mon",
-		"%A": "Monday",
-		"%d": "02",
-		"%b": "Jan",
-		"%B": "January",
-		"%m": "01",
-		"%y": "06",
-		"%Y": "2006",
-		"%H": "15",
-		"%I": "03",
-		"%p": "PM",
-		"%M": "04",
-		"%S": "05",
-		"%f": ".000000",
-		"%z": "-0700",
-		"%Z": "MST",
-		"%c": "Mon Jan 2 15:04:05 2006",
-		"%x": "01/02/06",
-		"%X": "15:04:05",
-		"%%": "%",
-		"%k": "_15",
-		"%T": "15:04:05",
-		"%F": "2006-01-02", // The ISO 8601 date format
-	}
-	for k, v := range preReplacements {
-		format = strings.ReplaceAll(format, k, v)
-	}
+	format = strings.ReplaceAll(format, "%e", "_2")
+	format = strings.ReplaceAll(format, "%a", "Mon")
+	format = strings.ReplaceAll(format, "%A", "Monday")
+	format = strings.ReplaceAll(format, "%d", "02")
+	format = strings.ReplaceAll(format, "%b", "Jan")
+	format = strings.ReplaceAll(format, "%B", "January")
+	format = strings.ReplaceAll(format, "%m", "01")
+	format = strings.ReplaceAll(format, "%y", "06")
+	format = strings.ReplaceAll(format, "%Y", "2006")
+	format = strings.ReplaceAll(format, "%H", "15")
+	format = strings.ReplaceAll(format, "%I", "03")
+	format = strings.ReplaceAll(format, "%p", "PM")
+	format = strings.ReplaceAll(format, "%M", "04")
+	format = strings.ReplaceAll(format, "%S", "05")
+	format = strings.ReplaceAll(format, "%f", ".000000")
+	format = strings.ReplaceAll(format, "%z", "-0700")
+	format = strings.ReplaceAll(format, "%Z", "MST")
+	format = strings.ReplaceAll(format, "%c", "Mon Jan 2 15:04:05 2006")
+	format = strings.ReplaceAll(format, "%x", "01/02/06")
+	format = strings.ReplaceAll(format, "%X", "15:04:05")
+	format = strings.ReplaceAll(format, "%%", "%")
+	format = strings.ReplaceAll(format, "%k", "_15")
+	format = strings.ReplaceAll(format, "%T", "15:04:05")
+	format = strings.ReplaceAll(format, "%F", "2006-01-02") // The ISO 8601 date format
 
 	timeStr := t.Format(format)
 
