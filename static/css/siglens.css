@@ -4273,7 +4273,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     justify-content: space-between;
     align-items: center;
     color: var(--table-or-regular-text-color);
-    margin-top: 8px;
     cursor: pointer;
 }
 

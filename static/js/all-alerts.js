@@ -21,6 +21,13 @@ let alertGridDiv = null;
 let alertRowData = [];
 let autoRefreshInterval = null;
 
+let originalAlertRowData = [];
+let currentFilters = {
+    name: '',
+    state: '',
+    type: '',
+};
+
 let mapIndexToAlertState = new Map([
     [0, 'Inactive'],
     [1, 'Normal'],
@@ -51,6 +58,8 @@ $(document).ready(function () {
 
     startAutoRefresh();
 
+    searchFilterHandlers();
+
     //eslint-disable-next-line no-undef
     lucide.createIcons();
 });
@@ -64,6 +73,54 @@ function startAutoRefresh() {
     autoRefreshInterval = setInterval(() => {
         getAllAlerts();
     }, 30000);
+}
+
+function searchFilterHandlers() {
+    // Search functionality
+    $('#alert-search').on(
+        'input',
+        debounce(function () {
+            const inputValue = $('#alert-search').val();
+            currentFilters.name = inputValue.toLowerCase().trim();
+            applyFilters();
+            updateClearButtonVisibility();
+        }, 300)
+    );
+
+    // State filter dropdown
+    $('.state-filter-options .filter-option').on('click', function () {
+        const value = $(this).data('value');
+        const text = $(this).text();
+
+        $('.state-filter-options .filter-option').removeClass('active');
+        $(this).addClass('active');
+        $('#state-filter-text').text(text);
+
+        currentFilters.state = value;
+        applyFilters();
+        updateClearButtonVisibility();
+    });
+
+    // Type filter dropdown
+    $('.type-filter-options .filter-option').on('click', function () {
+        const value = $(this).data('value');
+        const text = $(this).text();
+
+        $('.type-filter-options .filter-option').removeClass('active');
+        $(this).addClass('active');
+        $('#type-filter-text').text(text);
+
+        // Apply filter
+        currentFilters.type = value;
+        applyFilters();
+        updateClearButtonVisibility();
+    });
+
+    $('#clear-filters').on('click', function () {
+        clearAllFilters();
+    });
+
+    updateClearButtonVisibility();
 }
 
 function handlePageDisplay() {
@@ -586,6 +643,8 @@ function displayAllAlerts(res) {
         alertGridDiv = document.querySelector('#ag-grid');
         new agGrid.Grid(alertGridDiv, alertGridOptions);
     }
+
+    originalAlertRowData = [];
     alertRowData = [];
     alertGridOptions.api.setColumnDefs(alertColumnDefs);
     let newRow = new Map();
@@ -625,14 +684,17 @@ function displayAllAlerts(res) {
         newRow.set('mutedFor', mutedFor);
         if (mutedFor) hasMutedAlerts = true;
 
-        alertRowData.push(Object.fromEntries(newRow));
+        const rowData = Object.fromEntries(newRow);
+        originalAlertRowData.push(rowData);
+        alertRowData.push(rowData);
     });
 
     // Update the count displays in the UI
     $('.logs-count').text(logsAlertCount + ' active');
     $('.metrics-count').text(metricsAlertCount + ' active');
 
-    alertGridOptions.api.setRowData(alertRowData);
+    applyFilters();
+
     const mutedForColumn = alertGridOptions.columnApi.getColumn('mutedFor');
     if (mutedForColumn) {
         alertGridOptions.columnApi.setColumnVisible('mutedFor', hasMutedAlerts);
@@ -644,4 +706,71 @@ function onRowClicked(event) {
     var queryString = '?id=' + event.data.alertId;
     window.location.href = '../alert-details.html' + queryString;
     event.stopPropagation();
+}
+
+function applyFilters() {
+    if (!originalAlertRowData.length) return;
+
+    let filteredData = originalAlertRowData.filter((row) => {
+        if (currentFilters.name && !row.alertName.toLowerCase().includes(currentFilters.name)) {
+            return false;
+        }
+
+        if (currentFilters.state && row.alertState !== currentFilters.state) {
+            return false;
+        }
+
+        if (currentFilters.type && row.alertType !== currentFilters.type) {
+            return false;
+        }
+
+        return true;
+    });
+
+    if (alertGridOptions && alertGridOptions.api) {
+        alertGridOptions.api.setRowData(filteredData);
+    }
+}
+
+function updateClearButtonVisibility() {
+    const hasActiveFilters = currentFilters.name || currentFilters.state || currentFilters.type;
+
+    if (hasActiveFilters) {
+        $('#clear-filters').show();
+    } else {
+        $('#clear-filters').hide();
+    }
+}
+
+function clearAllFilters() {
+    currentFilters = {
+        name: '',
+        state: '',
+        type: '',
+    };
+
+    $('#alert-search').val('');
+
+    $('.state-filter-options .filter-option').removeClass('active');
+    $('.state-filter-options .filter-option[data-value=""]').addClass('active');
+    $('#state-filter-text').text('All States');
+
+    $('.type-filter-options .filter-option').removeClass('active');
+    $('.type-filter-options .filter-option[data-value=""]').addClass('active');
+    $('#type-filter-text').text('All Types');
+
+    applyFilters();
+    updateClearButtonVisibility();
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }

@@ -82,6 +82,44 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </span>
                     </button>
                 </div>
+                <div class="d-flex w-100 gap-3 align-items-center mb-3">
+                    <input type="text" id="alert-search" class="search-input" placeholder="Search alerts by name">
+                    <div class="d-flex gap-2 align-items-center">
+                        <span class="filter-label">State:</span>
+                        <div class="dropdown filter-dropdown">
+                            <button class="btn dropdown-toggle" type="button" id="state-filter-btn"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown">
+                                <span id="state-filter-text">All States</span>
+                                <i class="dropdown-arrow"></i>
+                            </button>
+                            <div class="dropdown-menu box-shadow state-filter-options" aria-labelledby="state-filter-btn">
+                                <li class="filter-option active" data-value="">All States</li>
+                                <li class="filter-option" data-value="Normal">Normal</li>
+                                <li class="filter-option" data-value="Pending">Pending</li>
+                                <li class="filter-option" data-value="Firing">Firing</li>
+                                <li class="filter-option" data-value="Inactive">Inactive</li>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        <span class="filter-label">Type:</span>
+                        <div class="dropdown filter-dropdown">
+                            <button class="btn dropdown-toggle" type="button" id="type-filter-btn"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown">
+                                <span id="type-filter-text">All Types</span>
+                                <i class="dropdown-arrow"></i>
+                            </button>
+                            <div class="dropdown-menu box-shadow type-filter-options" aria-labelledby="type-filter-btn">
+                                <li class="filter-option active" data-value="">All Types</li>
+                                <li class="filter-option" data-value="Logs">Logs</li>
+                                <li class="filter-option" data-value="Metrics">Metrics</li>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="clear-filters" class="clear-filters-btn btn btn-grey">Clear Filters</button>
+                </div>
                 <div id="alert-grid-container">
                     <div id="ag-grid" class="ag-theme-mycustomtheme">
                     </div>
