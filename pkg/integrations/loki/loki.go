@@ -90,7 +90,11 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid int64) {
 //	}
 func processPromtailLogs(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
+		alreadyHandled, err := hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
+		if err != nil {
+			utils.SendError(ctx, err.Error(), "", err)
+			return
+		}
 		if alreadyHandled {
 			return
 		}
@@ -236,7 +240,11 @@ func processPromtailLogs(ctx *fasthttp.RequestCtx, myid int64) {
 //	}
 func processJsonLogs(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
+		alreadyHandled, err := hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
+		if err != nil {
+			utils.SendError(ctx, err.Error(), "", err)
+			return
+		}
 		if alreadyHandled {
 			return
 		}

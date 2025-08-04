@@ -38,7 +38,11 @@ import (
 
 func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_OTLP_TRACES, false)
+		alreadyHandled, err := hook(ctx, myid, grpc.INGEST_FUNC_OTLP_TRACES, false)
+		if err != nil {
+			setFailureResponse(ctx, fasthttp.StatusBadRequest, err.Error())
+			return
+		}
 		if alreadyHandled {
 			return
 		}
