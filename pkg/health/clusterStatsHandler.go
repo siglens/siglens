@@ -225,7 +225,11 @@ func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	}
 
 	granularity, startTs, endTs := parseIngestionStatsRequest(readJSON)
-	rStats, _ := usageStats.GetUsageStats(startTs, endTs, granularity, orgId)
+	rStats, err := usageStats.GetUsageStats(startTs, endTs, granularity, orgId)
+	if err != nil {
+		utils.SendError(ctx, "Failed to read usage stats", "", err)
+		return
+	}
 
 	if hook := hooks.GlobalHooks.AddMultinodeIngestStatsHook; hook != nil {
 		hook(rStats, startTs, endTs, uint8(granularity), orgId)
