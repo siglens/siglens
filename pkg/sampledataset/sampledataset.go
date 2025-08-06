@@ -203,7 +203,11 @@ func processSingleTrace(orgId int64, wg *sync.WaitGroup, sts *SyntheticTraceStat
 
 func ProcessSyntheticTraceRequest(ctx *fasthttp.RequestCtx, orgId int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, orgId, grpc.INGEST_FUNC_OTLP_TRACES, false)
+		alreadyHandled, err := hook(ctx, orgId, grpc.INGEST_FUNC_OTLP_TRACES, false)
+		if err != nil {
+			utils.SendError(ctx, err.Error(), "", err)
+			return
+		}
 		if alreadyHandled {
 			return
 		}
@@ -263,7 +267,11 @@ func generateTraceState(len int8, f *FakerState) string {
 
 func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, orgId int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, orgId, grpc.INGEST_FUNC_FAKE_DATA, false)
+		alreadyHandled, err := hook(ctx, orgId, grpc.INGEST_FUNC_FAKE_DATA, false)
+		if err != nil {
+			utils.SendError(ctx, err.Error(), "", err)
+			return
+		}
 		if alreadyHandled {
 			return
 		}

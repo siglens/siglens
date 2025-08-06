@@ -35,7 +35,11 @@ import (
 
 func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_SPLUNK, false)
+		alreadyHandled, err := hook(ctx, myid, grpc.INGEST_FUNC_SPLUNK, false)
+		if err != nil {
+			utils.SendError(ctx, err.Error(), "", err)
+			return
+		}
 		if alreadyHandled {
 			return
 		}
