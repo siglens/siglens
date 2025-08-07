@@ -86,6 +86,8 @@ type QueryStats struct {
 var QueryStatsMap = make(map[int64]*QueryStats)
 
 type ReadStats struct {
+	filepath               string
+	ByFilepath             map[string]*ReadStats // Used if this ReadStats aggregates across files.
 	TotalBytesCount        uint64
 	EventCount             uint64
 	MetricsDatapointsCount uint64
@@ -534,6 +536,7 @@ func readUsageStats(startEpoch, endEpoch time.Time, orgid int64) ([]*ReadStats, 
 			}
 
 			if readStats.TimeStamp.After(startEpoch) && readStats.TimeStamp.Before(endEpoch) {
+				readStats.filepath = statsFile
 				allStatsMap = append(allStatsMap, readStats)
 			}
 		}
@@ -641,6 +644,23 @@ func GetUsageStats(startTs int64, endTs int64, granularity UsageStatsGranularity
 		entry.TimeStamp = rStat.TimeStamp
 		entry.TraceBytesCount += rStat.TraceBytesCount
 		entry.TraceSpanCount += rStat.TraceSpanCount
+
+		if entry.ByFilepath == nil {
+			entry.ByFilepath = make(map[string]*ReadStats)
+		}
+		fileEntry, ok := entry.ByFilepath[rStat.filepath]
+		if !ok {
+			fileEntry = &ReadStats{}
+			entry.ByFilepath[rStat.filepath] = fileEntry
+		}
+		fileEntry.EventCount += rStat.EventCount
+		fileEntry.MetricsDatapointsCount += rStat.MetricsDatapointsCount
+		fileEntry.TotalBytesCount += rStat.TotalBytesCount
+		fileEntry.LogsBytesCount += rStat.LogsBytesCount
+		fileEntry.MetricsBytesCount += rStat.MetricsBytesCount
+		fileEntry.TimeStamp = rStat.TimeStamp
+		fileEntry.TraceBytesCount += rStat.TraceBytesCount
+		fileEntry.TraceSpanCount += rStat.TraceSpanCount
 
 		// for ActiveSeriesCount we cannot keep adding them, but rather we want to accumulate all the values
 		// for each bucket, then the average of that specific bucket, since it is a gauge
