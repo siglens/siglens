@@ -598,7 +598,9 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 		return nil, utils.TeeErrorf("GetFullResult: failed to get result; err=%v", err)
 	}
 
-	qp.querySummary.UpdateQueryTotalTime(time.Since(qp.startTime), response.BucketCount)
+	queryDuration := time.Since(qp.startTime)
+	qp.querySummary.UpdateQueryTotalTime(queryDuration, response.BucketCount)
+	response.ElapsedTimeMS = queryDuration.Milliseconds()
 
 	canScrollMore, relation, _, err := qp.getStatusParams(uint64(totalRecords))
 	if err != nil {

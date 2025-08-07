@@ -20,7 +20,7 @@ package structs
 type PipeSearchResponseOuter struct {
 	Hits                   PipeSearchResponse            `json:"hits"`
 	Aggs                   map[string]AggregationResults `json:"aggregations"`
-	ElapedTimeMS           int64                         `json:"elapedTimeMS"`
+	ElapsedTimeMS          int64                         `json:"elapsedTimeMS"`
 	AllPossibleColumns     []string                      `json:"allColumns"`
 	Errors                 []string                      `json:"errors,omitempty"`
 	MeasureFunctions       []string                      `json:"measureFunctions,omitempty"`
