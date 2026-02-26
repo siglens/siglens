@@ -445,18 +445,6 @@ func GetESVersion() *string {
 	return &runningConfig.ESVersion
 }
 
-// returns the configured ingest listen IP Addr
-// if the node is not an ingest node, this will not be set
-func GetIngestListenIP() string {
-	return runningConfig.IngestListenIP
-}
-
-// returns the configured query listen IP Addr
-// if the node is not a query node, this will not be set
-func GetQueryListenIP() string {
-	return runningConfig.QueryListenIP
-}
-
 // returns the configured ingest port
 // if the node is not an ingest node, this will not be set
 func GetIngestPort() uint64 {
@@ -839,8 +827,6 @@ func GetTestConfig(dataPath string) common.Configuration {
 	// ************************************
 
 	testConfig := common.Configuration{
-		IngestListenIP:              "[::]",
-		QueryListenIP:               "[::]",
 		IngestPort:                  8081,
 		QueryPort:                   5122,
 		IngestUrl:                   "",
@@ -981,13 +967,6 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if err != nil {
 		log.Errorf("ExtractConfigData: Error parsing yaml data: %v, err: %v", string(yamlData), err)
 		return config, err
-	}
-
-	if len(config.IngestListenIP) <= 0 {
-		config.IngestListenIP = "[::]"
-	}
-	if len(config.QueryListenIP) <= 0 {
-		config.QueryListenIP = "[::]"
 	}
 
 	if config.IngestPort <= 0 {

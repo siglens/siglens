@@ -102,8 +102,6 @@ func Test_ExtractConfigData(t *testing.T) {
  pauseMode: true
 `),
 			common.Configuration{
-				IngestListenIP:              "[::]",
-				QueryListenIP:               "[::]",
 				IngestPort:                  9090,
 				IngestUrl:                   "http://localhost:9090",
 				QueryPort:                   5122,
@@ -209,8 +207,6 @@ func Test_ExtractConfigData(t *testing.T) {
  `),
 
 			common.Configuration{
-				IngestListenIP:              "[::]",
-				QueryListenIP:               "[::]",
 				IngestPort:                  9090,
 				QueryPort:                   9000,
 				IngestUrl:                   "http://localhost:9090",
@@ -272,8 +268,6 @@ invalid input, we should error out
 `),
 
 			common.Configuration{
-				IngestListenIP:              "[::]",
-				QueryListenIP:               "[::]",
 				IngestPort:                  8081,
 				QueryPort:                   0,
 				IngestUrl:                   "http://localhost:8081",
@@ -329,8 +323,6 @@ invalid input, we should error out
 a: b
 `),
 			common.Configuration{
-				IngestListenIP:              "[::]",
-				QueryListenIP:               "[::]",
 				IngestPort:                  8081,
 				QueryPort:                   5122,
 				IngestUrl:                   "http://localhost:8081",
