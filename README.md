@@ -17,7 +17,7 @@
   [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=social&logo=linkedin)](https://www.linkedin.com/company/siglens-com)
 </div>
 
-English | [简体中文](README_ZH_CN.md)
+English
 
 <p align="center">
   
