@@ -2965,7 +2965,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     color: var(--text-color) !important;
     font-size: 12px;
     font-weight: bold;
-    user-select: all;
     font-family: Inter, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
 }
 
