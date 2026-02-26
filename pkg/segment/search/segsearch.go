@@ -191,7 +191,7 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 		return
 	}
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
-	searchRes := executeRawSearchOnNode(searchNode, searchReq, allBlockSearchHelpers, queryMetrics,
+	searchRes := applyRawSearchToNode(searchNode, searchReq, allBlockSearchHelpers, queryMetrics,
 		qid, allSearchResults, nodeRes, blockSummaries, timeRange)
 	mergeSegmentSearchStatus(segmentSearchRecords, searchRes, sutils.And, nodeRes)
 	err := applyAggregationsToResult(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
@@ -371,7 +371,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 		blkSum := req.SearchMetadata.BlockSummaries[blockNum]
 		if err != nil {
-			log.Errorf("qid=%v, applyAggregationsToSingleBlock: failed to initialize block results reader for %s. Err: %v",
+			log.Errorf("qid=%v, applyAggregationsSingleBlock: failed to initialize block results reader for %s. Err: %v",
 				qid, req.SegmentKey, err)
 			allSearchResults.AddError(err)
 		}
@@ -474,7 +474,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 	blkResults.Close()
 }
 
-func executeRawSearchOnNode(node *structs.SearchNode, searchReq *structs.SegmentSearchRequest, allBlockSearchHelpers []*structs.BlockSearchHelper,
+func applyRawSearchToNode(node *structs.SearchNode, searchReq *structs.SegmentSearchRequest, allBlockSearchHelpers []*structs.BlockSearchHelper,
 	queryMetrics *structs.QueryProcessingMetrics, qid uint64, allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult,
 	blockSummaries []*structs.BlockSummary, timeRange *dtu.TimeRange) *SegmentSearchStatus {
 
@@ -509,7 +509,7 @@ func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *struct
 
 	if cond.SearchNode != nil {
 		for _, sNode := range cond.SearchNode {
-			nodeSearchRes := executeRawSearchOnNode(sNode, searchReq, allBlockSearchHelpers, queryMetrics,
+			nodeSearchRes := applyRawSearchToNode(sNode, searchReq, allBlockSearchHelpers, queryMetrics,
 				qid, allSearchResults, nodeRes, blockSummaries, timeRange)
 			mergeSegmentSearchStatus(searchRes, nodeSearchRes, op, nodeRes)
 		}
@@ -694,7 +694,7 @@ func aggsFastPath(searchReq *structs.SegmentSearchRequest, searchNode *structs.S
 		return
 	}
 
-	err := applyAggregationsToResultFastPath(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
+	err := applyAggsToResultFastPath(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
 		sizeLimit, fileParallelism, queryMetrics, qid, allSearchResults)
 	if err != nil {
 		log.Errorf("qid=%d aggsFastPath: failed to apply aggregations to result for segKey %+v. Error: %v", qid, searchReq.SegmentKey, err)
@@ -763,7 +763,7 @@ func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism i
 	}
 
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
-	searchStatus := executeRawSearchOnNode(searchNode, req, allBlockSearchHelpers, queryMetrics,
+	searchStatus := applyRawSearchToNode(searchNode, req, allBlockSearchHelpers, queryMetrics,
 		qid, allSearchResults, nodeRes, blockSummaries, timeRange)
 	mergeSegmentSearchStatus(segmentSearchRecords, searchStatus, sutils.And, nodeRes)
 
