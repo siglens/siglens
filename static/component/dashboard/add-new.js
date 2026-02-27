@@ -90,30 +90,11 @@ class AddNewComponent {
         $('#db-name, #folder-name').on('focus', function () {
             $('.error-tip').removeClass('active').text('');
         });
-
-        $(document).on('keydown', (event) => {
-            if (event.key === 'Escape') {
-                this.closeModals();
-            }
-        });
-
-        $('#db-name, #db-description').on('keydown', (event) => {
-            if (event.key === 'Enter') {
-                this.createDashboard();
-            }
-        });
-
-        $('#folder-name').on('keydown', (event) => {
-            if (event.key === 'Enter') {
-                this.createFolder();
-            }
-        });
     }
 
     showDashboardModal() {
         $('.popupOverlay, #new-dashboard-modal').addClass('active');
         $('.error-tip').removeClass('active');
-        $('#db-name').focus();
 
         const currentFolderId = this.getCurrentFolderId();
         const currentFolderName = currentFolderId === 'root-folder' ? 'Dashboards' : $('.name-dashboard').text().trim();
@@ -133,7 +114,6 @@ class AddNewComponent {
     showFolderModal() {
         $('.popupOverlay, #new-folder-modal').addClass('active');
         $('.error-tip').removeClass('active');
-        $('#folder-name').focus();
     }
 
     closeModals() {
