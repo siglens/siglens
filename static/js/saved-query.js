@@ -258,8 +258,8 @@ $(document).ready(function () {
         });
     });
 
-    $(document).on('keydown', (event) => {
-        if (event.key === 'Escape') {
+    $(document).keypress(function (event) {
+        if (event.keyCode == '13') {
             $('.popupOverlay, .popupContent').removeClass('active');
         }
     });
@@ -291,10 +291,10 @@ let queriesColumnDefs = [
         resizable: true,
         cellStyle: {
             'white-space': 'nowrap',
-            'overflow': 'hidden',
+            overflow: 'hidden',
             'text-overflow': 'ellipsis',
             'max-width': '100%',
-            'display': 'block'
+            display: 'block',
         },
     },
     {
