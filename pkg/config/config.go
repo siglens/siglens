@@ -732,10 +732,6 @@ func SetPQSEnabled(enabled bool) {
 	runningConfig.PQSEnabled = strconv.FormatBool(enabled)
 }
 
-func SetQueryPort(value uint64) {
-	runningConfig.QueryPort = value
-}
-
 func GetQueryTimeoutSecs() int {
 	timeout := runningConfig.QueryTimeoutSecs
 	if timeout <= 0 {
