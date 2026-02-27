@@ -1048,8 +1048,6 @@ function handleDbSettings() {
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        $('.dbSet-dbName').val(res.name);
-        $('.dbSet-dbDescr').val(res.description);
         initAceEditor(JSON.unflatten(res));
     });
 
@@ -1081,7 +1079,6 @@ function addDbSettingsEventListeners() {
 function saveDbSetting() {
     if ($('.dbSet-generalHTML').is(':visible')) {
         let trimmedDbName = $('.dbSet-dbName').val().trim();
-        let trimmedDbDescription = $('.dbSet-dbDescr').val().trim();
 
         if (!trimmedDbName) {
             $('.error-tip').addClass('active');
@@ -1091,7 +1088,7 @@ function saveDbSetting() {
         }
 
         dbName = trimmedDbName;
-        dbDescr = trimmedDbDescription;
+        dbDescr = dbData.description;
     }
 
     if ($('.dbSet-jsonModelHTML').is(':visible')) {
