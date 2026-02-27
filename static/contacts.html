@@ -93,7 +93,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
             <div class="popupContent">
                 <h3 class="header">Confirmation</h3>
-                <p>Are you sure you want to delete the <strong id="contact-name-placeholder"></strong> contact point?</p>
+                <p>Are you sure you want to delete this contact point?</p>
                 <div class="btncontainer">
                     <button type="button" id="cancel-btn" class="btn btn-primary">Cancel</button>
                     <button type="button" id="delete-btn" class="btn btn-secondary">Delete</button>
@@ -101,9 +101,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
             <div class="delete-dialog">
                 <h3 class="header">Cannot delete contact point</h3>
-                <p>
-                    The contact point named <strong id="contact-name-placeholder-delete-dialog"></strong> is currently
-                    in use by multiple alerts.
+                <p> Contact point cannot be deleted because it is used in more alerts. Please update or delete these
+                    alerts first.
                 </p>
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="alert-btn" data-toggle="dropdown"
