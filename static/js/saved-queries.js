@@ -18,7 +18,7 @@
  */
 
 $(document).ready(() => {
-    $('.theme-btn').on('click', themePickerHandler);
+    $('#app-container').on('click', '.theme-btn', themePickerHandler);
     setupEventHandlers();
     getSavedQueries();
 });
