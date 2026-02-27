@@ -727,8 +727,6 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 .stop-search {
     background-color: var(--border-btn-color);
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 .stop-search:hover {
