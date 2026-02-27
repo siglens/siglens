@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -92,15 +91,6 @@ func InitDerivedConfig(hostID string) error {
 		return err
 	}
 
-	value := os.Getenv("PORT")
-	if value != "" {
-		queryPort, err := strconv.ParseUint(value, 10, 64)
-		if err != nil {
-			log.Errorf("InitDerivedConfig: failed to parse PORT: %v, err: %v", value, err)
-		} else {
-			SetQueryPort(queryPort)
-		}
-	}
 	return nil
 }
 
