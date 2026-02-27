@@ -546,8 +546,8 @@ function getQueryBuilderCode() {
         });
     }
     if (filterValue == '') filterValue = '*';
-    if (thirdBoxSet && thirdBoxSet.size > 0 && (secondBoxSet == null || secondBoxSet.size == 0)) $('#query-builder-btn').addClass('stop-search').prop('disabled', true);
-    else $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
+    if (thirdBoxSet && thirdBoxSet.size > 0 && (secondBoxSet == null || secondBoxSet.size == 0)) $('#query-builder-btn').addClass('stop-search');
+    else $('#query-builder-btn').removeClass('stop-search');
     return showError ? 'Searches with a Search Criteria must have an Aggregate Attribute' : filterValue;
 }
 
