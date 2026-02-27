@@ -92,7 +92,6 @@ function setDownloadLogsDialog() {
         </div>
     `);
 
-
     let dialog = null;
     let form = null;
     let qname = $('#qnameDL');
@@ -186,90 +185,13 @@ function setDownloadLogsDialog() {
         document.body.removeChild(downloadLink);
     }
 
-    function convertToXML(json) {
-        const items = JSON.parse(json);
-        let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n<root>\n';
-        if (!Array.isArray(items)) {
-            xmlString += '  <item>\n';
-            Object.keys(items).forEach((key) => {
-                xmlString += `    <${key}>${items[key]}</${key}>\n`;
-            });
-            xmlString += '  </item>\n';
-        } else {
-            items.forEach((item) => {
-                xmlString += '  <item>\n';
-                Object.keys(item).forEach((key) => {
-                    xmlString += `    <${key}>${item[key]}</${key}>\n`;
-                });
-                xmlString += '  </item>\n';
-            });
-        }
-        xmlString += '</root>';
-        return xmlString;
-    }
-
-    function downloadXml(xmlData, fileName) {
-        const blob = new Blob([xmlData], { type: 'text/xml' });
-        const url = URL.createObjectURL(blob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.download = fileName;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-    }
-
-    function convertToSQL(json) {
-        const data = JSON.parse(json);
-        const tableName = 'SQL_Table';
-
-        if (!Array.isArray(data)) {
-            const columns = Object.keys(data);
-            const values = columns
-                .map((col) => {
-                    const value = typeof data[col] === 'string' ? `'${data[col].replace(/'/g, "''")}'` : data[col];
-                    return value;
-                })
-                .join(', ');
-
-            return `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values});`;
-        }
-
-        // Generate SQL INSERT statements for each object in the data array
-        const columns = Object.keys(data[0]);
-
-        const sqlStatements = data.map((item) => {
-            const values = columns
-                .map((col) => {
-                    // Escape single quotes in string values and wrap in quotes
-                    const value = typeof item[col] === 'string' ? `'${item[col].replace(/'/g, "''")}'` : item[col];
-                    return value;
-                })
-                .join(', '); // Join column values with commas
-
-            return `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values});`;
-        });
-        return sqlStatements.join('\n');
-    }
-
-    function downloadSql(sqlData, fileName) {
-        const blob = new Blob([sqlData], { type: 'text/sql' });
-        const url = URL.createObjectURL(blob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.download = fileName;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-    }
-
-    $('input[name="downloadScope"]').on('change', function() {
+    $('input[name="downloadScope"]').on('change', function () {
         if ($(this).val() === 'all') {
-          $('#all-records-warning').show();
+            $('#all-records-warning').show();
         } else {
-          $('#all-records-warning').hide();
+            $('#all-records-warning').hide();
         }
-      });
+    });
 
     function download() {
         confirmDownload = true;
@@ -442,8 +364,6 @@ function setDownloadLogsDialog() {
     const downloadOptionToExtension = {
         'csv-block': '.csv',
         'json-block': '.json',
-        'xml-block': '.xml',
-        'sql-block': '.sql',
     };
 
     Object.keys(downloadOptionToExtension).forEach((optionId) => {
@@ -462,12 +382,6 @@ function setDownloadLogsDialog() {
         } else if (curChoose === '.csv') {
             const csvData = convertToCSV(json);
             downloadCsv(csvData, fileName);
-        } else if (curChoose === '.xml') {
-            const xmlData = convertToXML(json);
-            downloadXml(xmlData, fileName);
-        } else if (curChoose === '.sql') {
-            const sqlData = convertToSQL(json);
-            downloadSql(sqlData, fileName);
         }
     }
 }

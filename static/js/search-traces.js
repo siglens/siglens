@@ -222,7 +222,7 @@ function sortTraces(sortOption) {
 }
 
 function initDownloadDropdown() {
-    const downloadOptions = ['Download as CSV', 'Download as JSON', 'Download as XML', 'Download as SQL'];
+    const downloadOptions = ['Download as CSV', 'Download as JSON'];
 
     $('#download-dropdown').singleBox({
         fillIn: false,
