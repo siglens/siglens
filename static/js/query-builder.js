@@ -516,14 +516,9 @@ function secondFilterComplete(evt) {
 // Todo - update this function show error message of we do not build correct query
 function getSearchText() {
     let filterValue = getQueryBuilderCode();
-    if (filterValue != '') {
-        $('#query-input').val(filterValue);
-    }
-    if (filterValue === 'Searches with a Search Criteria must have an Aggregate Attribute') {
-        $('#query-builder-btn').addClass('stop-search').prop('disabled', true);
-    } else {
-        $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
-    }
+    if (filterValue != '') $('#query-input').val(filterValue);
+    if (filterValue == 'Searches with a Search Criteria must have an Aggregate Attribute') $('#query-builder-btn').addClass('stop-search');
+    else $('#query-builder-btn').removeClass('stop-search');
 }
 
 function cancelInfo(evt) {
