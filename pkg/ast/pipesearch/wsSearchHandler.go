@@ -94,7 +94,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	}
 
 	ti := structs.InitTableInfo(indexNameIn, orgid, false, ctx)
-	log.Infof("qid=%v, ProcessPipeSearchWebsocket: index=[%v] searchString=[%v] scrollFrom=[%v]",
+	log.Infof("qid=%v, ProcessPipeSearchWSRequest: index=[%v] searchString=[%v] scrollFrom=[%v]",
 		qid, ti.String(), searchText, scrollFrom)
 
 	var timechartSimpleNode *structs.ASTNode

@@ -62,8 +62,6 @@ var aliasToIndexNames map[int64]map[string]map[string]bool = make(map[int64]map[
 // holds all the tables for orgid -> tname -> bool
 var allVirtualTables map[int64]map[string]bool
 
-var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
-
 func InitVTable(fnMyIds func() []int64) error {
 	allVirtualTables = make(map[int64]map[string]bool)
 	var sb strings.Builder
@@ -683,9 +681,6 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid int64, isElastic bool, 
 			return []string{}
 		}
 		for indexName := range indexNames {
-			if isIndexExcluded(indexName) {
-				continue
-			}
 			if !isElastic && strings.Contains(indexName, ".kibana") {
 				continue
 			}
@@ -696,9 +691,6 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid int64, isElastic bool, 
 		indexNames := strings.Split(indexNameIn, ",")
 		for _, indexName := range indexNames {
 			if strings.Contains(indexName, "*") {
-				if isIndexExcluded(indexName) {
-					continue
-				}
 				regexStr := "^" + strings.ReplaceAll(indexName, "*", `.*`) + "$"
 				indexRegExp, err := regexp.Compile(regexStr)
 				if err != nil {
@@ -740,9 +732,6 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid int64, isElastic bool, 
 
 	// if there are no entries in the results map, return the index as is
 	if indexCount == 0 {
-		if isIndexExcluded(indexNameIn) {
-			return []string{}
-		}
 		results := []string{indexNameIn}
 		return filterOutUnauthorized(results, ctx)
 	} else {
@@ -763,15 +752,6 @@ func filterOutUnauthorized(indexes []string, ctx *fasthttp.RequestCtx) []string 
 		return hook(indexes, ctx)
 	}
 	return indexes
-}
-
-func isIndexExcluded(indexName string) bool {
-	for _, value := range excludedInternalIndices {
-		if strings.ReplaceAll(indexName, "*", "") == value {
-			return true
-		}
-	}
-	return false
 }
 
 func DeleteVirtualTable(tname *string, orgid int64) error {
