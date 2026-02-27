@@ -19,6 +19,7 @@ package fileutils
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -29,7 +30,7 @@ import (
 
 func TestAddAccessLogEntry(t *testing.T) {
 	// Create a temporary test access.log file
-	tempLogFile, err := os.CreateTemp("", "test_access.log")
+	tempLogFile, err := ioutil.TempFile("", "test_access.log")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +95,7 @@ func Test_AddLogEntryValidations(t *testing.T) {
 
 	for _, test := range cases {
 		// Create a temporary test access.log file
-		tempLogFile, err := os.CreateTemp("", "test_access.log")
+		tempLogFile, err := ioutil.TempFile("", "test_access.log")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -106,7 +107,7 @@ func Test_AddLogEntryValidations(t *testing.T) {
 		AddLogEntry(test.input, allowWebsocket, tempLogFile)
 
 		// Read the content of the temporary file
-		content, err := os.ReadFile(fileName)
+		content, err := ioutil.ReadFile(fileName)
 		if err != nil {
 			t.Fatal(err)
 		}
