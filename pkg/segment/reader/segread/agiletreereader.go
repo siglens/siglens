@@ -484,7 +484,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 			return fmt.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: failed to get level in tree for column: %s, err: %v", qid,
 				grpByCol, err)
 		}
-		maxGrpLevel = max(maxGrpLevel, uint16(level))
+		maxGrpLevel = sutils.MaxUint16(maxGrpLevel, uint16(level))
 		grpTreeLevels[i] = uint16(level)
 	}
 
