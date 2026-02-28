@@ -68,7 +68,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_Zero_MultiSegments(t *testing.T) {
 		MeasureOperations: []*structs.MeasureAggregator{
 			{
 				MeasureCol:  "*",
-				MeasureFunc: utils.Count,
+				MeasureFunc: sutils.Count,
 				StrEnc:      "count(*)",
 			},
 		}}
@@ -107,7 +107,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *testing.
 		MeasureOperations: []*structs.MeasureAggregator{
 			{
 				MeasureCol:  "*",
-				MeasureFunc: utils.Count,
+				MeasureFunc: sutils.Count,
 				StrEnc:      "count(*)",
 			},
 		}}
@@ -140,7 +140,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *testing.T
 		MeasureOperations: []*structs.MeasureAggregator{
 			{
 				MeasureCol:  "*",
-				MeasureFunc: utils.Count,
+				MeasureFunc: sutils.Count,
 				StrEnc:      "count(*)",
 			},
 		}}
@@ -183,7 +183,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t *testi
 		MeasureOperations: []*structs.MeasureAggregator{
 			{
 				MeasureCol:  "*",
-				MeasureFunc: utils.Count,
+				MeasureFunc: sutils.Count,
 				StrEnc:      "count(*)",
 			},
 		}}
@@ -223,7 +223,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_Zero_MultiSegment(t *testing.
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "*",
-					MeasureFunc: utils.Count,
+					MeasureFunc: sutils.Count,
 					StrEnc:      "count(*)",
 				},
 			},
@@ -267,7 +267,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *t
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "*",
-					MeasureFunc: utils.Count,
+					MeasureFunc: sutils.Count,
 					StrEnc:      "count(*)",
 				},
 			},
@@ -306,7 +306,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *te
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "*",
-					MeasureFunc: utils.Count,
+					MeasureFunc: sutils.Count,
 					StrEnc:      "count(*)",
 				},
 			},
@@ -364,7 +364,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "*",
-					MeasureFunc: utils.Count,
+					MeasureFunc: sutils.Count,
 					StrEnc:      "count(*)",
 				},
 			},
