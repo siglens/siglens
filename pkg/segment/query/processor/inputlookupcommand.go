@@ -31,6 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 )
 
 type inputlookupProcessor struct {
@@ -135,7 +136,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	count := uint64(0)
 	records := map[string][]sutils.CValueEnclosure{}
 
-	for !p.eof && count < min(p.options.Max, p.limit) {
+	for !p.eof && count < putils.MinUint64(p.options.Max, p.limit) {
 		count++
 		curr++
 		csvRecord, err := reader.Read()
