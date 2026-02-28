@@ -135,7 +135,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	count := uint64(0)
 	records := map[string][]sutils.CValueEnclosure{}
 
-	for !p.eof && count < min(p.options.Max, p.limit) {
+	for !p.eof && count < sutils.MinUint64(p.options.Max, p.limit) {
 		count++
 		curr++
 		csvRecord, err := reader.Read()
