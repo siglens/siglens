@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -405,7 +404,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_WithList(t *testing.T) {
 		MeasureOperations: []*structs.MeasureAggregator{
 			{
 				MeasureCol:  "measure1",
-				MeasureFunc: utils.List,
+				MeasureFunc: sutils.List,
 				StrEnc:      "list(measure1)",
 			},
 		}}
@@ -441,7 +440,7 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 		MeasureOperations: []*structs.MeasureAggregator{
 			{
 				MeasureCol:  "measure1",
-				MeasureFunc: utils.List,
+				MeasureFunc: sutils.List,
 				StrEnc:      "list(measure1)",
 			},
 		},
