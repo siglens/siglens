@@ -145,7 +145,7 @@ Main function that rebalances all memory limits with the following logic
   - when we remove unrotated data, we currently have no way to add it back so we will raw search the entire file
 
 5. After allocating for unrotated data, use remaining metadata size for rotated data
-  - set global var & rebalance in metadata package
+  - set global var & rebalance in metadata pacakge
 */
 func rebalanceMemoryAllocation() {
 	rawWriterSize := writer.GetInMemorySize()

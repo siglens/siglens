@@ -321,7 +321,7 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 
 		// cnames are create in WriteMockColSegFile, we will only verify one of cnames
 		// cnames start from key0..key11
-		// key1 stores "value1", and the blockLen was calculated by running thw writemock.. func with print statement
+		// key1 stores "value1", and the blockLen was calcualted by running thw writemock.. func with print statement
 
 		curBlkBmh := readAllBmi.AllBmh[uint16(i)]
 		cnameIdx := readAllBmi.CnameDict["key1"]

@@ -320,7 +320,7 @@ func getNumberOfSegmentsFromMemory(mem uint64) uint64 {
 	} else if retVal > concurreny {
 		retVal = concurreny
 	}
-	log.Infof("Initializing %d metrics segments based on %dMB allocated memory", retVal, mb)
+	log.Infof("Initalizing %d metrics segments based on %dMB allocated memory", retVal, mb)
 	return retVal
 }
 
@@ -813,7 +813,7 @@ func (mb *MetricsBlock) addTsidToBlock(tsid uint64) {
 	mb.sortedTsids = append(mb.sortedTsids, tsid)
 }
 
-// for an input raw json []byte, return the metric name, datapoint value, timestamp, all tags, and any errors occurred
+// for an input raw json []byte, return the metric name, datapoint value, timestamp, all tags, and any errors occured
 // The metric name is returned as a raw []byte
 // The tags
 func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint32, error) {

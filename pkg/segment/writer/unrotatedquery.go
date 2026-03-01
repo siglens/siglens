@@ -535,7 +535,7 @@ func (usi *UnrotatedSegmentInfo) getInMemorySize() uint64 {
 }
 
 /*
-Returns number of loaded unrotated metadata, and total number of unrotated metadata
+Retuns number of loaded unrotated metadata, and total number of unrotated metadata
 */
 func GetUnrotatedMetadataInfo() (uint64, uint64) {
 	UnrotatedInfoLock.RLock()
