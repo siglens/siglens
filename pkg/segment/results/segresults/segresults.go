@@ -61,7 +61,7 @@ func (e EarlyExitType) String() string {
 	}
 }
 
-// Stores information received by remote nodes for a query
+// Stores information recieved by remote nodes for a query
 type remoteSearchResult struct {
 
 	// for RRCs in BlockResults that come from remote nodes, this map stores the raw logs

@@ -649,7 +649,7 @@ func getPQSSummary() map[string]interface{} {
 	return response
 }
 
-// writes the json converted search node
+// writes the json coverted search node
 func GetPQSById(ctx *fasthttp.RequestCtx) {
 	pqid := utils.ExtractParamAsString(ctx.UserValue("pqid"))
 	finalResult := getPqsById(pqid)

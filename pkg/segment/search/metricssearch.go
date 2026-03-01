@@ -51,7 +51,7 @@ func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker
 
 	if req == nil {
 		log.Errorf("qid=%d, RawSearchMetricsSegment: received a nil search request", qid)
-		res.AddError(fmt.Errorf("received a nil search request"))
+		res.AddError(fmt.Errorf("recieved a nil search request"))
 		return
 	} else if req.BlkWorkerParallelism <= 0 {
 		log.Errorf("qid=%d, RawSearchMetricsSegment: invalid fileParallelism of %d - must be > 0", qid, req.BlkWorkerParallelism)
