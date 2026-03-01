@@ -46,7 +46,7 @@ var initialTagCapacity int = 10
 /*
 Allocates and returns a TagsHolder
 
-Caller is responsible for calling ReturnTagsHolder
+Caller is reponsible for calling ReturnTagsHolder
 */
 func GetTagsHolder() *TagsHolder {
 	holder := &TagsHolder{}

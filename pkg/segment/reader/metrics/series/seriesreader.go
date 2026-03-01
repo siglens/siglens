@@ -364,7 +364,7 @@ func getOffsetFromTsoFile(tsoVersion byte, low uint32, high uint32, nTsids uint3
 
 	for low <= high {
 		mid := (high + low) / 2
-		// multiplying 'mid' by 12 because every tsid info takes 8 bytes for tsid and 4 bytes for tsid offset
+		// mutliplying 'mid' by 12 because every tsid info takes 8 bytes for tsid and 4 bytes for tsid offset
 		offsetMid := mid * 12
 		// tsid takes 8 bytes in the tso buffer
 		tempBuffer := tsoBuf[offsetMid : offsetMid+8]
