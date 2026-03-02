@@ -355,16 +355,6 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 			return incomingSegStat, nil
 		}
 		return runningSegStat, nil
-	case sutils.List:
-		res, err := segread.GetSegList(runningSegStat, incomingSegStat)
-		if err != nil {
-			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
-		}
-		sr.segStatsResults.measureResults[measureAgg.String()] = *res
-		if runningSegStat == nil {
-			return incomingSegStat, nil
-		}
-		return runningSegStat, nil
 	default:
 		return nil, fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", measureAgg.String(), sr.qid)
 	}

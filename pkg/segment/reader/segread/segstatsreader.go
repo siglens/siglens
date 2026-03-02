@@ -775,50 +775,6 @@ func getVarp(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64,
 	return variance, nil
 }
 
-func GetSegList(runningSegStat *structs.SegStats,
-	currSegStat *structs.SegStats) (*sutils.CValueEnclosure, error) {
-	res := sutils.CValueEnclosure{
-		Dtype: sutils.SS_DT_STRING_SLICE,
-		CVal:  make([]string, 0),
-	}
-	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrList == nil {
-		return &res, fmt.Errorf("GetSegList: currSegStat does not contain string list %v", currSegStat)
-	}
-
-	// if this is the first segment, then running will be nil, and we return the first seg's stats
-	if runningSegStat == nil {
-		if len(currSegStat.StringStats.StrList) > 100 {
-			finalStringList := make([]string, 100)
-			copy(finalStringList, currSegStat.StringStats.StrList[:100])
-			res.CVal = finalStringList
-		} else {
-			finalStringList := make([]string, len(currSegStat.StringStats.StrList))
-			copy(finalStringList, currSegStat.StringStats.StrList)
-			res.CVal = finalStringList
-		}
-		return &res, nil
-	}
-
-	// Limit list size to match splunk.
-	strList := make([]string, 0, 100)
-
-	if runningSegStat.StringStats != nil && runningSegStat.StringStats.StrList != nil {
-		strList = sutils.AppendWithLimit(strList, runningSegStat.StringStats.StrList, 100)
-	}
-
-	strList = sutils.AppendWithLimit(strList, currSegStat.StringStats.StrList, 100)
-
-	res.CVal = strList
-	if runningSegStat.StringStats == nil {
-		runningSegStat.StringStats = &structs.StringStats{
-			StrList: strList,
-		}
-	} else {
-		runningSegStat.StringStats.StrList = strList
-	}
-	return &res, nil
-}
-
 // Get merged values from running segement stats and current segment stats
 func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*sutils.CValueEnclosure, error) {
 	res := sutils.CValueEnclosure{

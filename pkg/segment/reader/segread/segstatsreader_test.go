@@ -18,12 +18,9 @@
 package segread
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
-	"reflect"
-	"strconv"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -95,109 +92,6 @@ func Test_sstReadWrite(t *testing.T) {
 	assert.Equal(t, inSst.Max, outSst.Max)
 
 	_ = os.RemoveAll(fname)
-}
-
-func TestGetSegList(t *testing.T) {
-	// Utility function to generate a string list of a specific size
-	generateStringList := func(size int) []string {
-		list := make([]string, size)
-		for i := 0; i < size; i++ {
-			list[i] = "string" + strconv.Itoa(i)
-		}
-		return list
-	}
-
-	tests := []struct {
-		name           string
-		runningSegStat *structs.SegStats
-		currSegStat    *structs.SegStats
-		expectedRes    *sutils.CValueEnclosure
-		expectedErr    error
-	}{
-		{
-			name:           "currSegStat is nil",
-			runningSegStat: nil,
-			currSegStat:    nil,
-			expectedRes:    &sutils.CValueEnclosure{Dtype: sutils.SS_DT_STRING_SLICE, CVal: []string{}},
-			expectedErr:    errors.New("GetSegList: currSegStat does not contain string list <nil>"),
-		},
-		{
-			name:           "runningSegStat is nil, currSegStat has small list",
-			runningSegStat: nil,
-			currSegStat: &structs.SegStats{
-				StringStats: &structs.StringStats{
-					StrList: generateStringList(5),
-				},
-			},
-			expectedRes: &sutils.CValueEnclosure{
-				Dtype: sutils.SS_DT_STRING_SLICE,
-				CVal:  generateStringList(5),
-			},
-			expectedErr: nil,
-		},
-		{
-			name:           "runningSegStat is nil, currSegStat has large list",
-			runningSegStat: nil,
-			currSegStat: &structs.SegStats{
-				StringStats: &structs.StringStats{
-					StrList: generateStringList(100 + 5),
-				},
-			},
-			expectedRes: &sutils.CValueEnclosure{
-				Dtype: sutils.SS_DT_STRING_SLICE,
-				CVal:  generateStringList(100),
-			},
-			expectedErr: nil,
-		},
-		{
-			name: "both runningSegStat and currSegStat have lists",
-			runningSegStat: &structs.SegStats{
-				StringStats: &structs.StringStats{
-					StrList: generateStringList(3),
-				},
-			},
-			currSegStat: &structs.SegStats{
-				StringStats: &structs.StringStats{
-					StrList: generateStringList(4),
-				},
-			},
-			expectedRes: &sutils.CValueEnclosure{
-				Dtype: sutils.SS_DT_STRING_SLICE,
-				CVal:  append(generateStringList(3), generateStringList(4)...),
-			},
-			expectedErr: nil,
-		},
-		{
-			name: "empty string lists",
-			runningSegStat: &structs.SegStats{
-				StringStats: &structs.StringStats{
-					StrList: []string{},
-				},
-			},
-			currSegStat: &structs.SegStats{
-				StringStats: &structs.StringStats{
-					StrList: []string{},
-				},
-			},
-			expectedRes: &sutils.CValueEnclosure{
-				Dtype: sutils.SS_DT_STRING_SLICE,
-				CVal:  []string{},
-			},
-			expectedErr: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			res, err := GetSegList(tt.runningSegStat, tt.currSegStat)
-			if !reflect.DeepEqual(res, tt.expectedRes) {
-				t.Errorf("Expected result %v, got %v", tt.expectedRes, res)
-			}
-			if !reflect.DeepEqual(err, tt.expectedErr) {
-				t.Errorf("Expected error %v, got %v", tt.expectedErr, err)
-			}
-		})
-	}
 }
 
 func TestGetSegAvg_CurrSegStatIsNil(t *testing.T) {
