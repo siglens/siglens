@@ -445,8 +445,6 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			err = aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Values:
 			err = aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-		case sutils.List:
-			err = aggregations.ComputeAggEvalForList(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Perc:
 			err = aggregations.ComputeAggEvalForPerc(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		default:
@@ -1191,7 +1189,7 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 				return fmt.Errorf("MergeSegmentStats: String list not found for list agg %v, qid=%v", measureAgg.String(), sr.qid)
 			}
 			remoteList := remoteRes.StrList
-			currList = sutils.AppendWithLimit(currList, remoteList, sutils.MAX_SPL_LIST_SIZE)
+			currList = sutils.AppendWithLimit(currList, remoteList, 100)
 
 			sr.runningEvalStats[measureAgg.String()] = currList
 			sr.segStatsResults.measureResults[measureAgg.String()] = sutils.CValueEnclosure{

@@ -190,7 +190,7 @@ func TestComputeAggEvalForList_largeLists(t *testing.T) {
 	runningEvalStats := map[string]interface{}{
 		"vals": []string{},
 	}
-	list := make([]*sutils.CValueEnclosure, sutils.MAX_SPL_LIST_SIZE+100)
+	list := make([]*sutils.CValueEnclosure, 100+100)
 
 	for i := range list {
 		list[i] = &sutils.CValueEnclosure{
@@ -203,8 +203,8 @@ func TestComputeAggEvalForList_largeLists(t *testing.T) {
 	measureResults := make(map[string]sutils.CValueEnclosure)
 	err := ComputeAggEvalForList(dummyMeasureAggr, sstMap, measureResults, runningEvalStats)
 	assert.NoError(t, err)
-	assert.Equal(t, sutils.MAX_SPL_LIST_SIZE, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be MAX_SPL_LIST_SIZE")
-	assert.Equal(t, sutils.MAX_SPL_LIST_SIZE, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be MAX_SPL_LIST_SIZE")
+	assert.Equal(t, 100, len(measureResults["vals"].CVal.([]string)), "The length of the measureResults slice should be MAX_SPL_LIST_SIZE")
+	assert.Equal(t, 100, len(runningEvalStats["vals"].([]string)), "The length of the runningEvalStats slice should be MAX_SPL_LIST_SIZE")
 }
 
 func TestComputeAggEvalForList_TestUpdateWithMultipleEvals(t *testing.T) {

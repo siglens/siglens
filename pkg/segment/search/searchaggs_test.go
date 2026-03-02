@@ -415,7 +415,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t
 func Test_PerformMeasureAggsOnRecsSizeLimit_WithList(t *testing.T) {
 	numSegments := 2
 	sizeLimit := 0
-	recsSize := sutils.MAX_SPL_LIST_SIZE * 2
+	recsSize := 100 * 2
 	nodeResult := &structs.NodeResult{
 		RecsAggregator: structs.RecsAggregator{
 			PerformAggsOnRecs: true,

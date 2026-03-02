@@ -878,27 +878,6 @@ func PerformAggEvalForValues(measureAgg *structs.MeasureAggregator, strSet map[s
 	return float64(len(strSet)), nil
 }
 
-func PerformAggEvalForList(measureAgg *structs.MeasureAggregator, currentList []string, fieldToValue map[string]sutils.CValueEnclosure) ([]string, error) {
-	finalList := []string{}
-
-	if len(fieldToValue) == 0 || measureAgg.ValueColRequest.BooleanExpr == nil {
-		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
-		if err != nil {
-			return []string{}, fmt.Errorf("PerformAggEvalForList: Error while evaluating value col request function: %v", err)
-		}
-		finalList = append(currentList, valueStr)
-	} else {
-		boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-		if err != nil {
-			return []string{}, fmt.Errorf("PerformAggEvalForList: there are some errors in the eval function that is inside the values function: %v", err)
-		}
-		if boolResult {
-			finalList = append(currentList, "1")
-		}
-	}
-	return finalList, nil
-}
-
 func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 	var result int64
@@ -1057,64 +1036,6 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 		CVal:  uniqueStrings,
 	}
 
-	return nil
-}
-
-func ComputeAggEvalForList(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
-	fields := measureAgg.ValueColRequest.GetFields()
-	if len(fields) == 0 {
-		// For list, if there are no fields, we will use the default timestamp field
-		fields = []string{config.GetTimeStampKey()}
-	}
-	var finalList []string
-	_, ok := runningEvalStats[measureAgg.String()]
-	if !ok {
-		finalList = make([]string, 0)
-		runningEvalStats[measureAgg.String()] = finalList
-	} else {
-		finalList, ok = runningEvalStats[measureAgg.String()].([]string)
-		if !ok {
-			return fmt.Errorf("ComputeAggEvalForList: can not convert to list for measureAgg: %v", measureAgg.String())
-		}
-	}
-
-	if len(fields) == 0 {
-		fieldToValue := make(map[string]sutils.CValueEnclosure)
-		list, err := PerformAggEvalForList(measureAgg, finalList, fieldToValue)
-		if err != nil {
-			return fmt.Errorf("ComputeAggEvalForList: Error while performing eval agg for list, err: %v", err)
-		}
-		finalList = list
-	} else {
-		sst, ok := sstMap[fields[0]]
-		if !ok {
-			return fmt.Errorf("ComputeAggEvalForList: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
-		}
-
-		for i := range sst.Records {
-			fieldToValue := make(map[string]sutils.CValueEnclosure)
-			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
-			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForList: Error while populating fieldToValue from sstMap, err: %v", err)
-			}
-
-			list, err := PerformAggEvalForList(measureAgg, finalList, fieldToValue)
-			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForList: Error while performing eval agg for list, err: %v", err)
-			}
-			finalList = list
-		}
-	}
-
-	// limit the list to MAX_SPL_LIST_SIZE
-	if len(finalList) > sutils.MAX_SPL_LIST_SIZE {
-		finalList = finalList[:sutils.MAX_SPL_LIST_SIZE]
-	}
-	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
-		Dtype: sutils.SS_DT_STRING_SLICE,
-		CVal:  finalList,
-	}
-	runningEvalStats[measureAgg.String()] = finalList
 	return nil
 }
 

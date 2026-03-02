@@ -410,10 +410,6 @@ func Test_EncodeDecodeSegStats(t *testing.T) {
 					"str1": {},
 					"str2": {},
 				},
-				StrList: []string{
-					"str1",
-					"str2",
-				},
 			},
 			Records: nil,
 		},
@@ -444,10 +440,6 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 				"str1": {},
 				"str2": {},
 			},
-			StrList: []string{
-				"str1",
-				"str2",
-			},
 		},
 		Records: nil,
 	}
@@ -460,10 +452,6 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 			StrSet: map[string]struct{}{
 				"str1": {},
 				"str2": {},
-			},
-			StrList: []string{
-				"str1",
-				"str2",
 			},
 		},
 		Records: nil,
@@ -479,19 +467,6 @@ func Test_EqualsIsDeepEquals(t *testing.T) {
 		"str1": {},
 		"str2": {},
 		"str3": {},
-	}
-
-	assert.NotEqual(t, segStat1, segStat2)
-
-	segStat2.StringStats.StrSet = map[string]struct{}{
-		"str1": {},
-		"str2": {},
-	}
-
-	segStat2.StringStats.StrList = []string{
-		"str1",
-		"str2",
-		"str3",
 	}
 
 	assert.NotEqual(t, segStat1, segStat2)

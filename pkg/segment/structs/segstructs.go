@@ -833,46 +833,11 @@ func (ss *SegStats) Merge(other *SegStats) {
 
 	if ss.NumStats == nil {
 		ss.NumStats = other.NumStats
-	} else {
-		ss.NumStats.Merge(other.NumStats)
-	}
-	if ss.StringStats == nil {
-		ss.StringStats = other.StringStats
-	} else {
-		ss.StringStats.Merge(other.StringStats)
 	}
 	if ss.TimeStats == nil {
 		ss.TimeStats = other.TimeStats
 	} else {
 		ss.TimeStats.Merge(other.TimeStats)
-	}
-}
-
-func (ss *StringStats) Merge(other *StringStats) {
-	if other == nil {
-		return
-	}
-	if ss.StrSet != nil {
-		for key, value := range other.StrSet {
-			ss.StrSet[key] = value
-		}
-	} else if other.StrSet != nil {
-		ss.StrSet = make(map[string]struct{})
-		for key, value := range other.StrSet {
-			ss.StrSet[key] = value
-		}
-	}
-
-	if ss.StrList != nil {
-		ss.StrList = append(ss.StrList, other.StrList...)
-	} else if other.StrList != nil {
-		if len(other.StrList) > sutils.MAX_SPL_LIST_SIZE {
-			ss.StrList = make([]string, sutils.MAX_SPL_LIST_SIZE)
-			copy(ss.StrList, other.StrList[:sutils.MAX_SPL_LIST_SIZE])
-		} else {
-			ss.StrList = make([]string, len(other.StrList))
-			copy(ss.StrList, other.StrList)
-		}
 	}
 }
 

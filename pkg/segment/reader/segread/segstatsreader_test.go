@@ -140,12 +140,12 @@ func TestGetSegList(t *testing.T) {
 			runningSegStat: nil,
 			currSegStat: &structs.SegStats{
 				StringStats: &structs.StringStats{
-					StrList: generateStringList(sutils.MAX_SPL_LIST_SIZE + 5),
+					StrList: generateStringList(100 + 5),
 				},
 			},
 			expectedRes: &sutils.CValueEnclosure{
 				Dtype: sutils.SS_DT_STRING_SLICE,
-				CVal:  generateStringList(sutils.MAX_SPL_LIST_SIZE),
+				CVal:  generateStringList(100),
 			},
 			expectedErr: nil,
 		},

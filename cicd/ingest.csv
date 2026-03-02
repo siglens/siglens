@@ -402,12 +402,6 @@ invalidColumn=123,now-1d,now,*,total,eq,0,Splunk QL
 invalidColumn<123,now-1d,now,*,total,eq,0,Splunk QL
 invalidColumn!=123,now-1d,now,*,total,gt,99,Splunk QL
 NOT invalidColumn=123,now-1d,now,*,total,gt,99,Splunk QL
-"app_name=Grayeye | stats list(http_status) as list", now-1d,now,*,group:list:*,eq,[301],Splunk QL
-"app_name=Grayeye | stats list(eval(gender=""female"")) as list",now-1d,now,*,group:list:*,eq,[1],Splunk QL
-"app_name=Grayeye | stats list(eval(""abc"")) as list",now-1d,now,*,group:list:*,eq,"[abc]",Splunk QL
-"app_name=Grayeye | stats list(eval(http_status + 10)) as list",now-1d,now,*,group:list:*,eq,[311],Splunk QL
-"app_name=Grayeye | stats list(eval(if(http_status > 300, 100, ""abc""))) as list",now-1d,now,*,group:list:*,eq,[100],Splunk QL
-"app_name=Grayeye | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
 "app_name=Grayeye | sort http_status | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
 "app_name=Bracecould | stats list(eval(if(http_status > 400, 1, 1))) as list BY http_method",now-1d,now,*,group:list:HEAD,eq,"1,1",Splunk QL
 app_name=Bracecould | stats list(http_status) as list BY http_method,now-1d,now,*,group:list:PUT,eq,302,Splunk QL
