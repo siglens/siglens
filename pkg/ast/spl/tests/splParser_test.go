@@ -20,7 +20,7 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"math/rand"
 	"os"
@@ -96,8 +96,8 @@ func extractExpressionFilter(t *testing.T, node *ast.Node) *structs.ExpressionFi
 
 // Initial setup.
 func TestMain(m *testing.M) {
-	// Supress log output.
-	log.SetOutput(ioutil.Discard)
+	// Suppress log output.
+	log.SetOutput(io.Discard)
 
 	// Run the tests.
 	os.Exit(m.Run())

@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -116,7 +115,7 @@ func sendSingleOTSDBRequest(client *http.Client, mqType metricsQueryTypes, url s
 		log.Fatalf("sendRequest: client.Do ERROR: %v", err)
 	}
 	defer resp.Body.Close()
-	rawBody, err := ioutil.ReadAll(resp.Body)
+	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatalf("sendRequest: client.Do ERROR: %v", err)
 	}
