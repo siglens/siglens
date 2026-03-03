@@ -273,6 +273,7 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name=Bracecould | stats values(eval(http_status > 400)) as values",now-1d,now,*,group:values:*,eq,[1],Splunk QL
 "app_name=Bracecould | stats values(eval(""abc"")) as values",now-1d,now,*,group:values:*,eq,"[abc]",Splunk QL
 "app_name=Bracecould | stats values(eval(http_status+10)) as values",now-1d,now,*,group:values:*,eq,"[311 312 410 510]",Splunk QL
+NOP,,,,,,,
 "app_name=Bracecould | stats values(eval(if(http_status > 400, 100, ""abc""))) as values",now-1d,now,*,group:values:*,eq,"[100 abc]",Splunk QL
 "app_name=Bracecould | stats values(eval(if(http_method = ""POST"", ""HEAD"", http_method))) as values",now-1d,now,*,group:values:*,eq,"[HEAD PATCH PUT]",Splunk QL
 "city=Boston | stats avg(eval(if(http_status > 400, ""100"", ""10""))) as avg BY http_method",now-1d,now,*,group:avg:GET,eq,44.5,Splunk QL
@@ -401,6 +402,12 @@ invalidColumn=123,now-1d,now,*,total,eq,0,Splunk QL
 invalidColumn<123,now-1d,now,*,total,eq,0,Splunk QL
 invalidColumn!=123,now-1d,now,*,total,gt,99,Splunk QL
 NOT invalidColumn=123,now-1d,now,*,total,gt,99,Splunk QL
+NOP,,,,,,,
+NOP,,,,,,,
+NOP,,,,,,,
+NOP,,,,,,,
+NOP,,,,,,,
+NOP,,,,,,,
 NOP,,,,,,,
 "app_name=Bracecould | stats list(eval(if(http_status > 400, 1, 1))) as list BY http_method",now-1d,now,*,group:list:HEAD,eq,"1,1",Splunk QL
 app_name=Bracecould | stats list(http_status) as list BY http_method,now-1d,now,*,group:list:PUT,eq,302,Splunk QL
