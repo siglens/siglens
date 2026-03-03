@@ -401,12 +401,12 @@ invalidColumn=123,now-1d,now,*,total,eq,0,Splunk QL
 invalidColumn<123,now-1d,now,*,total,eq,0,Splunk QL
 invalidColumn!=123,now-1d,now,*,total,gt,99,Splunk QL
 NOT invalidColumn=123,now-1d,now,*,total,gt,99,Splunk QL
-"app_name=Grayeye | sort http_status | stats list(eval(if(http_method = ""GET"", ""HEAD"", http_method))) as list",now-1d,now,*,group:list:*,eq,[HEAD],Splunk QL
+NOP,,,,,,,
 "app_name=Bracecould | stats list(eval(if(http_status > 400, 1, 1))) as list BY http_method",now-1d,now,*,group:list:HEAD,eq,"1,1",Splunk QL
 app_name=Bracecould | stats list(http_status) as list BY http_method,now-1d,now,*,group:list:PUT,eq,302,Splunk QL
-"app_name=Bracecould | fields latency | stats avg(latency) as field",now-1d,now,*,field,eq,"7,030,508.166",Splunk QL
-"app_name=Bracecould | fields latency | stats values(latency) as field",now-1d,now,*,field,eq,[6269746 7330203 8469275 892120 9552581 9669124],Splunk QL
-"app_name=Bracecould | fields latency | stats count as field",now-1d,now,*,field,eq,[6],Splunk QL
+NOP,,,,,,,
+NOP,,,,,,,
+NOP,,,,,,,
 "* | regex app_name=""Bracec.*d"" | stats count",now-1d,now,*,group:count(*):*,eq,6,Splunk QL
 _index=ind-0 | app_name=Termitehad city=*on,now-90d,now,*,total,eq,5,Splunk QL
 "_index=ind-0 batch=batch-10 | stats count, min(latitude), max(latitude)",now-1d,now,*,group:max(latitude):*,approx,89.228,Splunk QL

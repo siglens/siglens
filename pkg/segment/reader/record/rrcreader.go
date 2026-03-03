@@ -200,7 +200,6 @@ func GetJsonFromAllRrcOldPipeline(allrrc []*sutils.RecordResultContainer, esResp
 	var resultRecMap map[string]bool
 
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
-	hasStatsAggregator := aggs.IsStatsAggPresentInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
 	recsAggRecords := make([]map[string]interface{}, 0)
 
@@ -231,7 +230,7 @@ func GetJsonFromAllRrcOldPipeline(allrrc []*sutils.RecordResultContainer, esResp
 
 		nodeRes.ColumnsOrder = colsIndexMap
 
-		if hasQueryAggergatorBlock || transactionArgsExist || hasStatsAggregator {
+		if hasQueryAggergatorBlock || transactionArgsExist {
 
 			numTotalSegments, _, resultCount, rawSearchFinished, err := query.GetQuerySearchStateForQid(qid)
 			if err != nil {

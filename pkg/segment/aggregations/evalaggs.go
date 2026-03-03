@@ -982,23 +982,10 @@ func ComputeAggEvalForEstdcError(measureAgg *structs.MeasureAggregator, sstMap m
 	return nil
 }
 
-func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
+func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]sutils.CValueEnclosure, strSet map[string]struct{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
-
-	var valueSet map[string]struct{}
-	_, ok := runningEvalStats[measureAgg.String()]
-	if !ok {
-		valueSet = make(map[string]struct{}, 0)
-		runningEvalStats[measureAgg.String()] = valueSet
-	} else {
-		valueSet, ok = runningEvalStats[measureAgg.String()].(map[string]struct{})
-		if !ok {
-			return fmt.Errorf("ComputeAggEvalForValues: can not convert strSet for measureAgg: %v", measureAgg.String())
-		}
-	}
-
 	if len(fields) == 0 {
-		_, err := PerformAggEvalForValues(measureAgg, valueSet, nil)
+		_, err := PerformAggEvalForValues(measureAgg, strSet, nil)
 		if err != nil {
 			return fmt.Errorf("ComputeAggEvalForValues: Error while performing eval agg for values, err: %v", err)
 		}
@@ -1016,7 +1003,7 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 				return fmt.Errorf("ComputeAggEvalForValues: Error while populating fieldToValue from sstMap, err: %v", err)
 			}
 
-			_, err = PerformAggEvalForValues(measureAgg, valueSet, fieldToValue)
+			_, err = PerformAggEvalForValues(measureAgg, strSet, fieldToValue)
 			if err != nil {
 				return fmt.Errorf("ComputeAggEvalForValues: Error while performing eval agg for values, err: %v", err)
 			}
@@ -1024,12 +1011,10 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 	}
 
 	uniqueStrings := make([]string, 0)
-	for str := range valueSet {
+	for str := range strSet {
 		uniqueStrings = append(uniqueStrings, str)
 	}
 	sort.Strings(uniqueStrings)
-
-	runningEvalStats[measureAgg.String()] = valueSet
 
 	measureResults[measureAgg.String()] = sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_STRING_SLICE,
