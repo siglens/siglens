@@ -434,7 +434,7 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 		case sutils.Avg:
 			err = aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		// case sutils.Values:
-			// err = aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		// err = aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Perc:
 			err = aggregations.ComputeAggEvalForPerc(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		default:

@@ -800,7 +800,6 @@ func (rr *RunningBucketResults) AddEvalResultsForValues(runningStats *[]runningS
 	return len(fieldToValue) - 1, nil
 }
 
-
 func (rr *RunningBucketResults) GetRunningStatsBucketValues() ([]sutils.CValueEnclosure, uint64) {
 	retVal := make([]sutils.CValueEnclosure, len(rr.runningStats))
 	for i := 0; i < len(rr.runningStats); i++ {
