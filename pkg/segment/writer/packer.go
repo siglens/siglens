@@ -177,7 +177,7 @@ func (ss *SegStore) encodeRawJsonObject(currKey string, data []byte, tsKey *stri
 		case jp.Null:
 			matchedCol = ss.encodeSingleNull(finalKey, tsKey, matchedCol)
 		default:
-			return fmt.Errorf("currKey: %v, received unknown type of %+s", currKey, valueType)
+			return fmt.Errorf("currKey: %v, recieved unknown type of %+s", currKey, valueType)
 		}
 		return nil
 	}
@@ -266,7 +266,7 @@ func (ss *SegStore) encodeNonJaegerRawJsonArray(currKey string, data []byte, tsK
 		case jp.Null:
 			matchedCol = ss.encodeSingleNull(finalKey, tsKey, matchedCol)
 		default:
-			finalErr = fmt.Errorf("received unknown type of %+s", valueType)
+			finalErr = fmt.Errorf("recieved unknown type of %+s", valueType)
 			return
 		}
 	})
@@ -355,7 +355,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 				colWip.cbuf.Append(keyVal)
 				colWip.cbufidx += uint32(keyValLen)
 			default:
-				finalErr = fmt.Errorf("encodeSingleDictArray : received unknown key  %+s", keyType)
+				finalErr = fmt.Errorf("encodeSingleDictArray : recieved unknown key  %+s", keyType)
 			}
 			keyNameStr := string(keyName)
 			if bi != nil {
@@ -367,7 +367,7 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte,
 			keyValBytes := colWip.cbuf.Slice(int(colWip.cbufidx-uint32(keyValLen)), colWip.cbuf.Len())
 			addSegStatsStrIngestion(ss.AllSst, keyNameStr, keyValBytes)
 		default:
-			finalErr = fmt.Errorf("encodeSingleDictArray : received unknown type of %+s", valueType)
+			finalErr = fmt.Errorf("encodeSingleDictArray : recieved unknown type of %+s", valueType)
 			return
 		}
 	})
@@ -403,7 +403,7 @@ func getNestedDictEntries(data []byte) ([]byte, string, []byte, error) {
 		case "value":
 			nvalue = value
 		default:
-			err := fmt.Errorf("getNestedDictEntries: received unknown key of %+s", key)
+			err := fmt.Errorf("getNestedDictEntries: recieved unknown key of %+s", key)
 			return err
 		}
 		return nil
@@ -1705,7 +1705,7 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		// Do nothing. We'll handle this later.
 	}
 
-	// we just use the Min stats for stored val comparison but apply the same
+	// we just use the Min stats for stored val comparision but apply the same
 	// logic to max and sum
 	switch inNumType {
 	case SS_FLOAT64:

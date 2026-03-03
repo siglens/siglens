@@ -30,28 +30,14 @@ type Number interface {
 	constraints.Integer | constraints.Float
 }
 
-func FindPercentileData[T Number](arr []T, percentile int) float64 {
+func FindPercentileData(arr []uint64, percentile int) uint64 {
 	if len(arr) == 0 {
 		log.Error("FindPercentileData: no duration exists")
 		return 0
 	}
-	if percentile > 100 || percentile < 0 {
-		log.Error("FindPercentileData: percentile should in this period: [0, 100]")
-		return 0
-	}
 
-	k := float64(percentile*(len(arr)-1)) / float64(100)
-	floorK := int(math.Floor(k))
-	ceilK := int(math.Ceil(k))
-
-	if floorK == ceilK {
-		return float64(quickSelect(arr, floorK, &rand.Rand{}))
-	} else {
-		lower := float64(quickSelect(arr, floorK, &rand.Rand{}))
-		upper := float64(quickSelect(arr, ceilK, &rand.Rand{}))
-		weight := k - float64(floorK)
-		return lower + (upper-lower)*weight
-	}
+	k := math.Floor(float64(percentile*(len(arr))) / float64(100))
+	return quickSelect(arr, int(k), &rand.Rand{})
 }
 
 // https://rcoh.me/posts/linear-time-median-finding/

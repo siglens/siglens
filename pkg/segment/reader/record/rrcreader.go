@@ -292,21 +292,21 @@ func GetJsonFromAllRrcOldPipeline(allrrc []*sutils.RecordResultContainer, esResp
 					if exists {
 						// Reset the TransactionEventRecords and update aggs with NextQueryAgg to loop for next Aggs processing.
 						delete(nodeRes.TransactionEventRecords, "CHECK_NEXT_AGG")
-						aggs = &structs.QueryAggregators{Next: nodeRes.RecsAggregator.NextQueryAgg.Next}
+						aggs = &structs.QueryAggregators{Next: nodeRes.NextQueryAgg.Next}
 						nodeRes.CurrentSearchResultCount = len(recs)
 					} else {
 						break // Break out of the loop to process next segment.
 					}
-				} else if nodeRes.RecsAggregator.PerformAggsOnRecs {
+				} else if nodeRes.PerformAggsOnRecs {
 					resultRecMap = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, finishesSegment, qid)
 					// By default reset PerformAggsOnRecs flag, otherwise the execution will immediately return here from PostQueryBucketCleaning;
 					// Without performing the aggs from the start for the next segment or next bulk.
-					nodeRes.RecsAggregator.PerformAggsOnRecs = false
+					nodeRes.PerformAggsOnRecs = false
 					if len(resultRecMap) > 0 {
 						boolVal, exists := resultRecMap["CHECK_NEXT_AGG"]
 						if exists && boolVal {
 							// Update aggs with NextQueryAgg to loop for additional cleaning.
-							aggs = nodeRes.RecsAggregator.NextQueryAgg
+							aggs = nodeRes.NextQueryAgg
 							nodeRes.CurrentSearchResultCount = len(recs)
 						} else {
 							break

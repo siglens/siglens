@@ -20,10 +20,8 @@ package startup
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	htmltemplate "html/template"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -370,23 +368,22 @@ func startIngestServer(serverAddr string) {
 	log.Infof(siglensStartupLog)
 	cfg := config.DefaultIngestionHttpConfig()
 	s := ingestserver.ConstructIngestServer(cfg, serverAddr)
-	go func() {
-		var err error
-		if config.IsSafeMode() {
-			err = s.RunSafeServer()
-		} else {
-			err = s.Run()
-		}
-		if err != nil {
-			var opErr *net.OpError
-			if errors.As(err, &opErr) {
-				if opErr.Op == "listen" {
-					StdOutLogger.Errorf("Failed to start server: %v", err)
-					os.Exit(1)
-				}
+	if config.IsSafeMode() {
+		go func() {
+			err := s.RunSafeServer()
+			if err != nil {
+				log.Errorf("Failed to start mock server! Error: %v", err)
+				return
 			}
-		}
-	}()
+		}()
+	} else {
+		go func() {
+			err := s.Run()
+			if err != nil {
+				log.Errorf("Failed to start server! Error: %v", err)
+			}
+		}()
+	}
 
 	metrics.RecoverWALData()
 	metrics.RecoverMNameWALData()
@@ -408,11 +405,17 @@ func startQueryServer(serverAddr string) {
 	log.Infof(siglensUIStartupLog)
 	cfg := config.DefaultQueryServerHttpConfig()
 	s := queryserver.ConstructQueryServer(cfg, serverAddr)
-	go func() {
-		var err error
-		if config.IsSafeMode() {
-			err = s.RunSafeServer()
-		} else {
+	var err error
+	if config.IsSafeMode() {
+		go func() {
+			err := s.RunSafeServer()
+			if err != nil {
+				log.Errorf("Failed to start mock server! Error: %v", err)
+				return
+			}
+		}()
+	} else {
+		go func() {
 			htmlTemplate := htmltemplate.New("html").Funcs(htmltemplate.FuncMap{
 				"safeHTML": func(htmlContent string) htmltemplate.HTML {
 					return htmltemplate.HTML(htmlContent)
@@ -434,17 +437,11 @@ func startQueryServer(serverAddr string) {
 			parseTemplatesHook(htmlTemplate, textTemplate)
 
 			err = s.Run(htmlTemplate, textTemplate)
-		}
-		if err != nil {
-			var opErr *net.OpError
-			if errors.As(err, &opErr) {
-				if opErr.Op == "listen" {
-					StdOutLogger.Errorf("Failed to start server: %v", err)
-					os.Exit(1)
-				}
+			if err != nil {
+				log.Errorf("Failed to start server! Error: %v", err)
 			}
-		}
-	}()
+		}()
+	}
 
 	query.InitMaxRunningQueries()
 

@@ -350,24 +350,6 @@ type IncludeValue struct {
 	Label   string //new label of value in record
 }
 
-type AppendRequest struct {
-	ExtendTimeRange bool
-	MaxTime         int
-	MaxOut          int
-	Subsearch       interface{}
-}
-
-type AppendCmdOptions struct {
-	ExtendTimeRange bool
-	MaxTime         int
-	MaxOut          int
-}
-
-type AppendCmdOption struct {
-	OptionType string
-	Value      interface{}
-}
-
 type ToJsonExpr struct {
 	FieldsDtypes    []*ToJsonFieldsDtypeOptions
 	DefaultType     *ToJsonFieldsDtypeOptions
@@ -411,7 +393,6 @@ type LetColumnsRequest struct {
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
 	BinRequest           *BinCmdOptions
 	FillNullRequest      *FillNullExpr
-	AppendRequest        *AppendRequest
 }
 
 type FillNullExpr struct {
@@ -514,20 +495,6 @@ type Progress struct {
 	TotalRecords    uint64
 }
 
-type RecsAggregator struct {
-	PerformAggsOnRecs bool            // if true, perform aggregations on records that are returned from rrcreader.go
-	RecsAggsType      PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
-	GroupByRequest    *GroupByRequest
-	MeasureOperations []*MeasureAggregator
-	NextQueryAgg      *QueryAggregators
-}
-
-type RecsAggResults struct {
-	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
-	RecsAggsProcessedSegments uint64
-	RecsRunningSegStats       []*SegStats
-}
-
 // A helper struct to keep track of errors and results together
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
@@ -547,11 +514,17 @@ type NodeResult struct {
 	Qtype                       string          `json:"qtype,omitempty"`
 	BucketCount                 int             `json:"bucketCount,omitempty"`
 	SegStatsMap                 map[string]*SegStats
-	GroupByBuckets              interface{} // *blockresults.GroupByBuckets
-	TimeBuckets                 interface{} // *blockresults.TimeBuckets
-	RecsAggregator              RecsAggregator
-	RecsAggResults              RecsAggResults
+	GroupByBuckets              interface{}     // *blockresults.GroupByBuckets
+	TimeBuckets                 interface{}     // *blockresults.TimeBuckets
+	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
+	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
+	GroupByRequest              *GroupByRequest
+	MeasureOperations           []*MeasureAggregator
+	NextQueryAgg                *QueryAggregators
+	RecsAggsBlockResults        interface{}              // Evaluates to *blockresults.BlockResults
 	RecsAggsColumnKeysMap       map[string][]interface{} // map of column name to column keys for GroupBy Recs
+	RecsAggsProcessedSegments   uint64
+	RecsRunningSegStats         []*SegStats
 	TransactionEventRecords     map[string]map[string]interface{}
 	TransactionsProcessed       map[string]map[string]interface{}
 	ColumnsOrder                map[string]int
@@ -996,16 +969,7 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
 			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil ||
-			qa.OutputTransforms.LetColumns.FillNullRequest != nil || qa.OutputTransforms.LetColumns.AppendRequest != nil)
-}
-
-func (qa *QueryAggregators) hasAppendRequest() bool {
-	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
-		qa.OutputTransforms.LetColumns.AppendRequest != nil
-}
-
-func (qa *QueryAggregators) HasAppendInChain() bool {
-	return qa.HasInChain((*QueryAggregators).hasAppendRequest)
+			qa.OutputTransforms.LetColumns.FillNullRequest != nil)
 }
 
 func (qa *QueryAggregators) hasHeadBlock() bool {

@@ -34,7 +34,8 @@ require (
 	github.com/rogpeppe/fastuuid v1.2.0
 	github.com/segmentio/analytics-go/v3 v3.2.1
 	github.com/seiflotfy/cuckoofilter v0.0.0-20240715131351-a2f2c23f1771
-	github.com/shirou/gopsutil/v4 v4.24.12
+	github.com/shirou/gopsutil v3.21.11+incompatible
+	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/siglens/go-hll v0.0.0-20250702141534-039cd711c944
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
@@ -62,7 +63,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/dennwc/varint v1.0.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20200812162917-85c65e2d0165 // indirect
-	github.com/ebitengine/purego v0.8.1 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
@@ -76,6 +76,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
+	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240116215550-a9fa1716bcac // indirect
 	google.golang.org/grpc v1.61.1 // indirect

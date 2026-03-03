@@ -734,7 +734,7 @@ func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism i
 		return nil, errors.New("invalid fileParallelism - must be > 0")
 	} else if req == nil {
 		log.Errorf("qid=%d, RawComputeSegmentStats: received a nil search request for %s", qid, req.SegmentKey)
-		return nil, errors.New("received a nil search request")
+		return nil, errors.New("recieved a nil search request")
 	} else if req.SearchMetadata == nil {
 		log.Errorf("qid=%d, RawComputeSegmentStats: search metadata not provided for %s", qid, req.SegmentKey)
 		return nil, errors.New("search metadata not provided")

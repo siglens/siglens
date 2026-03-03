@@ -71,7 +71,7 @@ var WAL_BLOCK_FLUSH_SIZE = 10000
 const MAX_RAW_DATAPOINTS_IN_RESULT = 5_000_000
 
 // leave some room for column name/value meta
-// since we use 2 bytes for record len, columnname-len, we can accommodate 65535
+// since we use 2 bytes for record len, columnname-len, we can accomodate 65535
 const MAX_RECORD_SIZE = 63_000
 const MAX_RECS_PER_WIP = 65_534
 const BLOOM_COLL_PROBABILITY = 0.001

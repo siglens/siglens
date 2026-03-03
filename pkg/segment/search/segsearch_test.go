@@ -108,7 +108,7 @@ func Test_simpleRawSearch(t *testing.T) {
 
 	// Call rawSearchColumnar
 	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary, &structs.NodeResult{})
-	// We need to sleep because pqmr files are written in background go routines
+	// We need to sleep because pqmr files are written in backgroud go routines
 	time.Sleep(1 * time.Second)
 	// Now make sure filename exists
 	_, err = os.Stat(pqidFname)

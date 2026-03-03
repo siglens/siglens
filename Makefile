@@ -40,7 +40,7 @@ run:
 
 gofmt :
 	$(GO) install golang.org/x/tools/cmd/goimports@latest
-	~/go/bin/goimports -w .
+	goimports -w .
 
 %.go: %.peg
 	$(GO) install github.com/mna/pigeon@v1.1.0

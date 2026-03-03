@@ -31,7 +31,7 @@ import (
 )
 
 /*
-	Exports utility functions for limiting the amount of open file descriptors across siglens
+	Exports utilitiy functions for limiting the amount of open file descriptors across siglens
 */
 
 var GLOBAL_FD_LIMITER *semaphore.WeightedSemaphore

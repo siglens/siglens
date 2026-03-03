@@ -649,12 +649,12 @@ func getPQSSummary() map[string]interface{} {
 	return response
 }
 
-// writes the json converted search node
+// writes the json coverted search node
 func GetPQSById(ctx *fasthttp.RequestCtx) {
 	pqid := utils.ExtractParamAsString(ctx.UserValue("pqid"))
 	finalResult := getPqsById(pqid)
 	if finalResult == nil {
-		err := fillAggPQS(ctx, pqid)
+		err := getAggPQSById(ctx, pqid)
 		if err != nil {
 			var httpResp utils.HttpServerResponse
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -701,15 +701,7 @@ func getPqsById(pqid string) map[string]interface{} {
 	return finalResult
 }
 
-func fillAggPQS(ctx *fasthttp.RequestCtx, pqid string) error {
-	finalResult, err := getAggPQSById(pqid)
-	utils.WriteJsonResponse(ctx, &finalResult)
-	ctx.Response.Header.Set("Content-Type", "application/json")
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	return err
-}
-
-func getAggPQSById(pqid string) (map[string]interface{}, error) {
+func getAggPQSById(ctx *fasthttp.RequestCtx, pqid string) error {
 	pqinfo, exists := localPersistentAggs[pqid]
 	if !exists {
 		for _, info := range allPersistentAggsSorted {
@@ -720,7 +712,7 @@ func getAggPQSById(pqid string) (map[string]interface{}, error) {
 	}
 
 	if pqinfo == nil {
-		return nil, fmt.Errorf("pqid %+s does not exist in aggs", pqid)
+		return fmt.Errorf("pqid %+s does not exist in aggs", pqid)
 	}
 	sNode := pqinfo.QueryAggs
 	var convertedAggs map[string]interface{}
@@ -734,7 +726,11 @@ func getAggPQSById(pqid string) (map[string]interface{}, error) {
 	finalResult["total_usage"] = pqinfo.TotalUsage
 	finalResult["virtual_tables"] = pqinfo.AllTables
 	finalResult["search_aggs"] = convertedAggs
-	return finalResult, nil
+
+	utils.WriteJsonResponse(ctx, &finalResult)
+	ctx.Response.Header.Set("Content-Type", "application/json")
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	return nil
 }
 
 func RefreshExternalPQInfo(fNames []string) error {
@@ -953,16 +949,12 @@ func parsePostPqsAggBody(jsonSource map[string]interface{}) error {
 				}
 			}
 		default:
-			err := fmt.Errorf("PostPqsAggCols: Invalid key=[%v] with value of type [%T]", key, value)
-			log.Error(err)
-			return err
+			log.Errorf("PostPqsAggCols: Invalid key=[%v]", key)
+			err := fmt.Sprintf("PostPqsAggCols: Invalid key=[%v]", key)
+			return errors.New(err)
 		}
 	}
-	if len(tableName) == 0 {
-		err := errors.New("PostPqsAggCols: No tableName specified")
-		log.Errorf("%+v", err)
-		return err
-	}
+
 	if _, ok := localGroupByOverride[tableName]; ok {
 		entry := localGroupByOverride[tableName]
 		for cname := range entry.GroupByCols {
@@ -979,7 +971,6 @@ func parsePostPqsAggBody(jsonSource map[string]interface{}) error {
 }
 
 func processPostAggs(inputValueParam interface{}) (map[string]bool, error) {
-	// asserts that inputValueParam is a slice of strings
 	switch inputValueParam.(type) {
 	case []interface{}:
 		break
