@@ -96,7 +96,7 @@ func extractExpressionFilter(t *testing.T, node *ast.Node) *structs.ExpressionFi
 
 // Initial setup.
 func TestMain(m *testing.M) {
-	// Supress log output.
+	// Suppress log output.
 	log.SetOutput(io.Discard)
 
 	// Run the tests.

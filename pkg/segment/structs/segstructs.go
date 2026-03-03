@@ -495,20 +495,6 @@ type Progress struct {
 	TotalRecords    uint64
 }
 
-type RecsAggregator struct {
-	PerformAggsOnRecs bool            // if true, perform aggregations on records that are returned from rrcreader.go
-	RecsAggsType      PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
-	GroupByRequest    *GroupByRequest
-	MeasureOperations []*MeasureAggregator
-	NextQueryAgg      *QueryAggregators
-}
-
-type RecsAggResults struct {
-	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
-	RecsAggsProcessedSegments uint64
-	RecsRunningSegStats       []*SegStats
-}
-
 // A helper struct to keep track of errors and results together
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
@@ -528,11 +514,17 @@ type NodeResult struct {
 	Qtype                       string          `json:"qtype,omitempty"`
 	BucketCount                 int             `json:"bucketCount,omitempty"`
 	SegStatsMap                 map[string]*SegStats
-	GroupByBuckets              interface{} // *blockresults.GroupByBuckets
-	TimeBuckets                 interface{} // *blockresults.TimeBuckets
-	RecsAggregator              RecsAggregator
-	RecsAggResults              RecsAggResults
+	GroupByBuckets              interface{}     // *blockresults.GroupByBuckets
+	TimeBuckets                 interface{}     // *blockresults.TimeBuckets
+	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
+	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
+	GroupByRequest              *GroupByRequest
+	MeasureOperations           []*MeasureAggregator
+	NextQueryAgg                *QueryAggregators
+	RecsAggsBlockResults        interface{}              // Evaluates to *blockresults.BlockResults
 	RecsAggsColumnKeysMap       map[string][]interface{} // map of column name to column keys for GroupBy Recs
+	RecsAggsProcessedSegments   uint64
+	RecsRunningSegStats         []*SegStats
 	TransactionEventRecords     map[string]map[string]interface{}
 	TransactionsProcessed       map[string]map[string]interface{}
 	ColumnsOrder                map[string]int
@@ -956,33 +948,26 @@ func (qa *QueryAggregators) hasHeadBlock() bool {
 	return qa.OutputTransforms.HeadRequest != nil
 }
 
-type queryAggregatorsBoolFunc func(_ *QueryAggregators) bool
-
-func (qa *QueryAggregators) HasInChain(hasInCur queryAggregatorsBoolFunc) bool {
-	if qa == nil {
-		return false
-	}
-
-	if hasInCur(qa) {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasInChain(hasInCur)
-	}
-	return false
-
-}
-
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
-	if qa.HasStreamStatsInChain() || qa.HasGenerateEvent() {
+	if qa.HasStreamStatsInChain() {
 		return true
 	}
 	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.TailRequest != nil || qa.OutputTransforms.FilterRows != nil || qa.hasHeadBlock())
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
-	return qa.HasInChain((*QueryAggregators).HasQueryAggergatorBlock)
+	if qa == nil {
+		return false
+	}
+
+	if qa.HasQueryAggergatorBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasQueryAggergatorBlockInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) HasGenerateEvent() bool {
@@ -1016,7 +1001,17 @@ func (qa *QueryAggregators) HasDedupBlock() bool {
 }
 
 func (qa *QueryAggregators) HasDedupBlockInChain() bool {
-	return qa.HasInChain((*QueryAggregators).HasDedupBlock)
+	if qa == nil {
+		return false
+	}
+
+	if qa.HasDedupBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasDedupBlockInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) GetSortLimit() uint64 {
@@ -1042,7 +1037,16 @@ func (qa *QueryAggregators) HasSortBlock() bool {
 }
 
 func (qa *QueryAggregators) HasSortBlockInChain() bool {
-	return qa.HasInChain((*QueryAggregators).HasSortBlock)
+	if qa == nil {
+		return false
+	}
+	if qa.HasSortBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasSortBlockInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) HasTail() bool {
@@ -1054,7 +1058,16 @@ func (qa *QueryAggregators) HasTail() bool {
 }
 
 func (qa *QueryAggregators) HasTailInChain() bool {
-	return qa.HasInChain((*QueryAggregators).HasTail)
+	if qa == nil {
+		return false
+	}
+	if qa.HasTail() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasTailInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) HasBinBlock() bool {
@@ -1066,7 +1079,16 @@ func (qa *QueryAggregators) HasBinBlock() bool {
 }
 
 func (qa *QueryAggregators) HasBinInChain() bool {
-	return qa.HasInChain((*QueryAggregators).HasBinBlock)
+	if qa == nil {
+		return false
+	}
+	if qa.HasBinBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasBinInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) HasStreamStats() bool {
@@ -1078,7 +1100,16 @@ func (qa *QueryAggregators) HasStreamStats() bool {
 }
 
 func (qa *QueryAggregators) HasStreamStatsInChain() bool {
-	return qa.HasInChain((*QueryAggregators).HasStreamStats)
+	if qa == nil {
+		return false
+	}
+	if qa.HasStreamStats() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasStreamStatsInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) HasTransactionArguments() bool {
@@ -1086,7 +1117,17 @@ func (qa *QueryAggregators) HasTransactionArguments() bool {
 }
 
 func (qa *QueryAggregators) HasTransactionArgumentsInChain() bool {
-	return qa.HasInChain((*QueryAggregators).HasTransactionArguments)
+	if qa == nil {
+		return false
+	}
+
+	if qa.HasTransactionArguments() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasTransactionArgumentsInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) HasRexBlockInQA() bool {
@@ -1135,7 +1176,16 @@ func (qa *QueryAggregators) HasFillNullExpr() bool {
 }
 
 func (qa *QueryAggregators) HasFillNullExprInChain() bool {
-	return qa.HasInChain((*QueryAggregators).HasFillNullExpr)
+	if qa == nil {
+		return false
+	}
+	if qa.HasFillNullExpr() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasFillNullExprInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) AttachColumnsRequestToFillNullExprInChain(colRequest *ColumnsRequest) {
@@ -1230,7 +1280,16 @@ func (qa *QueryAggregators) UsedByTimechart() bool {
 }
 
 func (qa *QueryAggregators) HasTimechartInChain() bool {
-	return qa.HasInChain((*QueryAggregators).UsedByTimechart)
+	if qa == nil {
+		return false
+	}
+	if qa.UsedByTimechart() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasTimechartInChain()
+	}
+	return false
 }
 
 func (qa *QueryAggregators) CanLimitBuckets() bool {
@@ -1303,7 +1362,16 @@ func (qa *QueryAggregators) HasStatsBlock() bool {
 }
 
 func (qa *QueryAggregators) HasStatsBlockInChain() bool {
-	return qa.HasInChain((*QueryAggregators).HasStatsBlock)
+	if qa == nil {
+		return false
+	}
+	if qa.HasStatsBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasStatsBlockInChain()
+	}
+	return false
 }
 
 // returns all columns in the query aggregators if stats are present.
@@ -1707,10 +1775,23 @@ func (br *BucketResult) SetBucketValueForGivenField(fieldName string, value inte
 }
 
 func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
-	statsAggPresentInCur := func(obj *QueryAggregators) bool {
-		return obj.GroupByRequest != nil || obj.MeasureOperations != nil
+	if qa == nil {
+		return false
 	}
-	return qa.HasInChain(statsAggPresentInCur)
+
+	if qa.GroupByRequest != nil {
+		return true
+	}
+
+	if qa.MeasureOperations != nil {
+		return true
+	}
+
+	if qa.Next != nil {
+		return qa.Next.IsStatsAggPresentInChain()
+	}
+
+	return false
 }
 
 func (qa *QueryAggregators) GetAllMeasureAggsInChain() [][]*MeasureAggregator {
