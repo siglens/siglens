@@ -695,7 +695,7 @@ func ConvertToSameType(leftType, rightType interface{}) (interface{}, interface{
 
 // If you add a new field here or change the order of LogFileData, update the columnNames in logfileutils.go
 type LogFileData struct {
-	QueryID     uint64
+	QueryID uint64
 }
 
 func CompareValues(leftVal interface{}, rightVal interface{}, Op string) bool {
