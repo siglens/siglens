@@ -20,7 +20,6 @@ package fileutils
 import (
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -85,13 +84,7 @@ func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Tim
 
 	// Update the column names const accordingly if you change the data structure
 	data := dtypeutils.LogFileData{
-		TimeStamp:   startTime.Format("2006-01-02 15:04:05"),
-		UserName:    user,
-		QueryID:     qid,
-		URI:         uri,
-		RequestBody: requestBody,
-		StatusCode:  statusCodeFunc(),
-		Duration:    endTimeFunc().Sub(startTime).Milliseconds(),
+		QueryID: qid,
 	}
 	AddLogEntry(data, allowWebsocket, logFile)
 }
@@ -106,25 +99,12 @@ func AddLogEntry(data dtypeutils.LogFileData, allowWebsocket bool, logFile *os.F
 	defer fileMutex.Unlock()
 
 	// Do not log websocket connections, unless explicitly allowed.
-	if data.StatusCode == 101 && !allowWebsocket {
-		return
-	}
-
-	// Do not log internal search requests for trace data
-	if (strings.TrimSpace(data.URI) == "http:///" || strings.TrimSpace(data.URI) == "https:///") && strings.Contains(data.RequestBody, "\"indexName\":\"traces\"") {
+	if !allowWebsocket {
 		return
 	}
 
 	// Update the column names const accordingly if you change the data structure
-	_, err := logFile.WriteString(fmt.Sprintf("%s %s %d %s %s %d %d\n",
-		data.TimeStamp,
-		data.UserName, // TODO : Add logged in user when user auth is implemented
-		data.QueryID,
-		data.URI,
-		data.RequestBody,
-		data.StatusCode,
-		data.Duration),
-	)
+	_, err := logFile.WriteString(fmt.Sprintf("%d\n", data.QueryID))
 	if err != nil {
 		log.Errorf("AddLogEntry: Unable to write to access.log file, err: %v", err)
 		return
