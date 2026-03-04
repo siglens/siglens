@@ -556,12 +556,6 @@ func updateAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func alertHistoryHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessAlertHistoryRequest(ctx)
-	}
-}
-
 func deleteAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		alertsHandler.ProcessDeleteAlertRequest(ctx)

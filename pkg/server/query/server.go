@@ -234,7 +234,6 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.API_PREFIX+"/allalerts", hs.Recovery(getAllAlertsHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/update", hs.Recovery(updateAlertHandler()))
 	hs.Router.DELETE(server_utils.API_PREFIX+"/alerts/delete", hs.Recovery(deleteAlertHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/alerts/{alertID}/history", hs.Recovery(alertHistoryHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/createContact", hs.Recovery(createContactHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/alerts/allContacts", hs.Recovery(getAllContactsHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/updateContact", hs.Recovery(updateContactHandler()))

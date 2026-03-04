@@ -106,20 +106,6 @@ func updateAlertStateAndCreateAlertHistory(alertDetails *alertutils.AlertDetails
 		log.Errorf("ALERTSERVICE: updateAlertStateAndCreateAlertHistory: could not update the state to %v. Alert=%+v & err=%+v.", alertState, alertDetails.AlertName, err)
 		return err
 	}
-
-	alertEvent := alertutils.AlertHistoryDetails{
-		AlertId:          alertDetails.AlertId,
-		AlertType:        alertDetails.AlertType,
-		AlertState:       alertState,
-		EventDescription: eventDesc,
-		UserName:         alertutils.SystemGeneratedAlert,
-		EventTriggeredAt: time.Now().UTC(),
-	}
-	_, err = databaseObj.CreateAlertHistory(&alertEvent)
-	if err != nil {
-		log.Errorf("ALERTSERVICE: updateAlertStateAndCreateAlertHistory: could not create alert event in alert history. found error = %v", err)
-		return err
-	}
 	return nil
 }
 
@@ -141,45 +127,7 @@ func shouldUpdateAlertStateToFiring(alertDetails *alertutils.AlertDetails, curre
 		return true
 	}
 
-	alertHistoryList, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
-		AlertId:   alertDetails.AlertId,
-		Limit:     intervalCount - 1,
-		SortOrder: alertutils.DESC,
-	})
-	if err != nil {
-		log.Errorf("ALERTSERVICE: shouldUpdateAlertStateToFiring: Error getting AlertHistory. Alert=%+v & err=%+v.", alertDetails.AlertName, err)
-		return false
-	}
-
-	if len(alertHistoryList) < int(intervalCount-1) {
-		return false
-	}
-
-	for _, alertHistory := range alertHistoryList {
-		if !alertutils.IsAlertStatePendingOrFiring(alertHistory.AlertState) {
-			return false
-		}
-	}
-
 	return true
-}
-
-func GetLatestAlertHistory(alertId string) (*alertutils.AlertHistoryDetails, error) {
-	alertHistoryList, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
-		AlertId:   alertId,
-		Limit:     1,
-		SortOrder: alertutils.DESC,
-	})
-	if err != nil {
-		log.Errorf("ALERTSERVICE: GetLatestAlertHistory: Error getting AlertHistory. AlertId=%v & err=%+v.", alertId, err)
-		return nil, err
-	}
-
-	if len(alertHistoryList) == 0 {
-		return nil, nil
-	}
-
-	return alertHistoryList[0], nil
 }
 
 func handleAlertCondition(alertToEvaluate *alertutils.AlertDetails, isAlertConditionMatched bool, alertDataMessage string) error {
@@ -194,7 +142,6 @@ func handleAlertCondition(alertToEvaluate *alertutils.AlertDetails, isAlertCondi
 
 		if shouldUpdateAlertStateToFiring(alertToEvaluate, newAlertState) {
 			newAlertState = alertutils.Firing
-			eventDesc = alertutils.AlertFiring
 		}
 
 		// If the Alert State is updated to Firing, then we should send the Alert Notification.
@@ -207,7 +154,6 @@ func handleAlertCondition(alertToEvaluate *alertutils.AlertDetails, isAlertCondi
 		}
 	} else {
 		newAlertState = alertutils.Normal
-		eventDesc = alertutils.AlertNormal
 
 		// The Alert state is Normal, then we should send the Alert Notification.
 		// The cooldown period on the Notification Handler will decide if the notification should be sent. So that false positives are avoided.
@@ -471,20 +417,6 @@ func updateMinionSearchStateAndCreateAlertHistory(msToEvaluate *alertutils.Minio
 		log.Errorf("MinionSearch: updateMinionSearchStateAndCreateAlertHistory: could not update the state to %v. Alert=%+v & err=%+v.", alertState, msToEvaluate.AlertName, err)
 		return err
 	}
-
-	alertEvent := alertutils.AlertHistoryDetails{
-		AlertId:          msToEvaluate.AlertId,
-		AlertType:        alertutils.AlertTypeMinion,
-		AlertState:       alertState,
-		EventDescription: eventDesc,
-		UserName:         alertutils.SystemGeneratedAlert,
-		EventTriggeredAt: time.Now().UTC(),
-	}
-	_, err = databaseObj.CreateAlertHistory(&alertEvent)
-	if err != nil {
-		log.Errorf("MinionSearch: updateMinionSearchStateAndCreateAlertHistory: could not create alert event in alert history. found error = %v", err)
-		return err
-	}
 	return nil
 }
 
@@ -502,7 +434,7 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 	}
 
 	if isFiring {
-		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Firing, alertutils.AlertFiring)
+		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Firing, alertutils.AlertPending)
 		if err != nil {
 			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Firing, msToEvaluate.AlertName, err)
 		}
@@ -513,7 +445,7 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 			return
 		}
 	} else {
-		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Normal, alertutils.AlertNormal)
+		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Normal, alertutils.AlertPending)
 		if err != nil {
 			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Normal, msToEvaluate.AlertName, err)
 		}
