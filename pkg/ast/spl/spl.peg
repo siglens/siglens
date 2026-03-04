@@ -1320,7 +1320,7 @@ ClauseLevel1 <- L_PAREN clause:ClauseLevel4 R_PAREN {
 
 // Parsing the text of a Number as a String would succeed, so we need to try
 // parsing as a FieldWithNumberValue first.
-SearchTerm <- term:(FieldWithNumberValue / FieldWithBooleanValue / FieldWithStringValue) {
+SearchTerm <- term:(FieldWithNumberValue/ FieldWithBooleanExpr/ FieldWithStringValue) {
     return term, nil
 }
 
@@ -4189,21 +4189,24 @@ UnnamedFieldWithNumberValue <- value:Number {
     return node, nil
 }
 
-FieldWithBooleanValue <- key:FieldName op:EqualityOperator value:Boolean {
-    node := &ast.Node{
-        NodeType: ast.NodeTerminal,
-        Comparison:ast.Comparison{
-            Op: op.(string),
-            Field: key.(string),
-            Values: value,
-        },
-    }
-
-    return node, nil
-}
-
 FieldWithStringValue <- keyValuePair:(NamedFieldWithStringValue / UnnamedFieldWithStringValue) {
     return keyValuePair, nil
+}
+
+FieldWithBooleanExpr <- key:FieldName op:EqualityOperator value:Boolean {
+    fieldName := key.(string)
+    operator := op.(string)
+    
+    comparison := ast.Comparison{
+        Field: fieldName,
+        Op: operator,
+        Values: value,
+    }
+    
+    return &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison: comparison,
+    }, nil
 }
 
 NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(CaseSensitiveString / CaseInsensitiveString) {
@@ -4550,8 +4553,7 @@ UnquotedStringWithTemplateWildCard <- (AllowedChar / !(MAJOR_BREAK / "|" / EOF) 
 }
 
 Boolean <- ("true" / "false") {
-    boolValue, _ := strconv.ParseBool(string(c.text))
-    return boolValue, nil
+    return string(c.text) == "true", nil
 }
 
 //Can recognize fieldName or Regex Pattern for Rename Block
