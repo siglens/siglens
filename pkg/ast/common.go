@@ -149,6 +149,11 @@ func ProcessSingleFilter(colName string, colValue interface{}, originalColValue 
 		} else {
 			return nil, errors.New("ProcessSingleFilter: colValue/ search Text can not be empty ")
 		}
+	case bool:
+		andFilterCondition = append(
+			andFilterCondition,
+			CreateTermFilterCriteria(colName, colValue, opr, qid, caseConversion),
+		)
 	case json.Number:
 		if colValue.(json.Number) != "" {
 			if colName == "" {
