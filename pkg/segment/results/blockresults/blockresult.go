@@ -162,7 +162,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 		var mFunc sutils.AggregateFunctions
 		var overrodeMeasureAgg *structs.MeasureAggregator
 		switch m.MeasureFunc {
-		case sutils.Sum, sutils.Max, sutils.Min:
+		case sutils.Sum, sutils.Max, sutils.Min, sutils.List:
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.SetupMeasureAgg(m, &allConvertedMeasureOps, m.MeasureFunc, &allReverseIndex, colToIdx, idx)
 				if err != nil {
@@ -1010,6 +1010,32 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 
 		eVal.Dtype = sutils.SS_DT_STRING_SLICE
 		eVal.CVal = uniqueStrings
+	case sutils.List:
+		incrementIdxBy = 1
+
+		if mInfo.ValueColRequest != nil {
+			requiredFields := mInfo.ValueColRequest.GetFields()
+			if len(requiredFields) == 0 {
+				batchErr.AddError("GroupByBuckets.AddResultToStatRes:LIST", fmt.Errorf("zero fields of ValueColRequest for list: %v", mInfoStr))
+				return
+			}
+		}
+
+		statsIdx := gb.reverseMeasureIndex[idx]
+		runningStats[statsIdx].syncRawValue()
+
+		listValues, ok := runningStats[statsIdx].rawVal.CVal.([]string)
+		if !ok {
+			currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
+			return
+		}
+
+		if len(listValues) > 100 {
+			listValues = listValues[:100]
+		}
+
+		eVal.Dtype = sutils.SS_DT_STRING_SLICE
+		eVal.CVal = listValues
 	case sutils.Sum, sutils.Max, sutils.Min:
 		incrementIdxBy = 1
 

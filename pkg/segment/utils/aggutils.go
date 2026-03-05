@@ -146,6 +146,18 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 				return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for hll", fun)
 			}
 		}
+	case SS_DT_STRING_SLICE:
+		{
+			if fun == List {
+				firstList := e1.CVal.([]string)
+				secondList := e2.CVal.([]string)
+				firstList = append(firstList, secondList...)
+				e1.CVal = firstList
+				return e1, nil
+			} else {
+				return e1, fmt.Errorf("Reduce: aggregation function %v not supported for slice type", fun)
+			}
+		}
 	default:
 		return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
 	}

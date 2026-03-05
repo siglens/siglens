@@ -236,6 +236,12 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Values", err)
 			}
 			i += step
+		case sutils.List:
+			step, err := rr.AddEvalResultsForList(runningStats, measureResults, i, fieldToValue)
+			if err != nil {
+				batchErr.AddError("RunningBucketResults.AddMeasureResults:List", err)
+			}
+			i += step
 		default:
 			err := rr.ProcessReduce(runningStats, measureResults[i], i)
 			if err != nil {
@@ -365,6 +371,20 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			}
 			if rr.currStats[i].ValueColRequest != nil {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
+				i += (len(fields) - 1)
+			}
+		case sutils.List:
+			if rr.currStats[i].ValueColRequest == nil {
+				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
+				if err != nil {
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:List", err)
+				}
+			} else {
+				fields := rr.currStats[i].ValueColRequest.GetFields()
+				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
+				if err != nil {
+					batchErr.AddError("RunningBucketResults.mergeRunningStats:List", err)
+				}
 				i += (len(fields) - 1)
 			}
 		case sutils.Cardinality, sutils.EstdcError:
@@ -798,6 +818,48 @@ func (rr *RunningBucketResults) AddEvalResultsForValues(runningStats *[]runningS
 	(*runningStats)[i].number = nil
 
 	return len(fieldToValue) - 1, nil
+}
+
+func (rr *RunningBucketResults) AddEvalResultsForList(activeStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldMapping map[string]sutils.CValueEnclosure) (int, error) {
+	(*activeStats)[i].syncRawValue()
+
+	// Initialize list if not present
+	if (*activeStats)[i].rawVal.CVal == nil {
+		(*activeStats)[i].rawVal = sutils.CValueEnclosure{
+			Dtype: sutils.SS_DT_STRING_SLICE,
+			CVal:  make([]string, 0),
+		}
+	}
+
+	currentList, ok := (*activeStats)[i].rawVal.CVal.([]string)
+	if !ok {
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: type conversion to list failed, value: %v", (*activeStats)[i].rawVal.CVal)
+	}
+
+	if rr.currStats[i].ValueColRequest == nil {
+		stringValue, err := measureResults[i].GetString()
+		if err != nil {
+			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: unable to add measurement to stats, err: %v", err)
+		}
+		currentList = append(currentList, stringValue)
+		(*activeStats)[i].rawVal.CVal = currentList
+		(*activeStats)[i].number = nil
+		return 0, nil
+	}
+
+	evaluatedList, err := agg.PerformAggEvalForList(rr.currStats[i], currentList, fieldMapping)
+	if err != nil {
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: ValueColRequest evaluation failed, err: %v", err)
+	}
+
+	if len(evaluatedList) > 100 {
+		evaluatedList = evaluatedList[:100]
+	}
+
+	(*activeStats)[i].rawVal.CVal = evaluatedList
+	(*activeStats)[i].number = nil
+
+	return len(fieldMapping) - 1, nil
 }
 
 func (rr *RunningBucketResults) GetRunningStatsBucketValues() ([]sutils.CValueEnclosure, uint64) {

@@ -592,29 +592,54 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 				continue
 			}
 
-			if !dtypeVal.IsNumeric() && mOp.MeasureFunc != sutils.Count {
-				floatVal, err := dtu.ConvertToFloat(record[mOp.MeasureCol], 64)
-				if err != nil {
-					log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
-					continue
+			// Initialize base segment statistics structure for storing aggregation results
+			segmentStats := &structs.SegStats{
+				IsNumeric: dtypeVal.IsNumeric(),
+				Count:     1,
+			}
+
+			// Handle numeric aggregation functions
+			if sutils.IsNumTypeAgg(mOp.MeasureFunc) {
+				if !dtypeVal.IsNumeric() {
+					convertedFloat, err := dtu.ConvertToFloat(record[mOp.MeasureCol], 64)
+					if err != nil {
+						log.Errorf("PerformMeasureAggsOnRecs: float conversion failed: %v", err)
+						continue
+					}
+					dtypeVal = &sutils.DtypeEnclosure{Dtype: sutils.SS_DT_FLOAT, FloatVal: convertedFloat}
+					segmentStats.IsNumeric = true
 				}
-				dtypeVal = &sutils.DtypeEnclosure{Dtype: sutils.SS_DT_FLOAT, FloatVal: floatVal}
+
+				// Build numeric stats structure if value is now numeric
+				if dtypeVal.IsNumeric() {
+					numericEnclosure := &sutils.NumTypeEnclosure{
+						Ntype:    dtypeVal.Dtype,
+						IntgrVal: int64(dtypeVal.FloatVal),
+						FloatVal: dtypeVal.FloatVal,
+					}
+					segmentStats.NumStats = &structs.NumericStats{
+						Sum: *numericEnclosure,
+					}
+				}
+			} else if mOp.MeasureFunc != sutils.Count {
+				// Process string stats aggregations
+				stringStatistics := &structs.StringStats{
+					StrSet:  make(map[string]struct{}),
+					StrList: make([]string, 0),
+				}
+
+				if dtypeVal.Dtype == sutils.SS_DT_STRING_SLICE {
+					stringStatistics.StrList = dtypeVal.StringSliceVal
+				} else {
+					stringStatistics.StrList = append(stringStatistics.StrList, dtypeVal.StringVal)
+				}
+
+				stringStatistics.StrSet[dtypeVal.StringVal] = struct{}{}
+				segmentStats.StringStats = stringStatistics
 			}
 
-			nTypeEnclosure := &sutils.NumTypeEnclosure{
-				Ntype:    dtypeVal.Dtype,
-				IntgrVal: int64(dtypeVal.FloatVal),
-				FloatVal: dtypeVal.FloatVal,
-			}
-
-			sstMap[mOp.MeasureCol] = &structs.SegStats{
-				IsNumeric:   dtypeVal.IsNumeric(),
-				Count:       1,
-				Hll:         nil,
-				NumStats:    &structs.NumericStats{Sum: *nTypeEnclosure},
-				StringStats: nil,
-				Records:     nil,
-			}
+			// Store result mapped to the measure column
+			sstMap[mOp.MeasureCol] = segmentStats
 
 		}
 
@@ -657,15 +682,31 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			finalSegment[nodeResult.MeasureOperations[anyCountStat].String()] = humanize.Comma(int64(nodeResult.TotalRRCCount))
 		}
 
-		for colName, value := range searchResults.GetSegmentStatsMeasureResults() {
-			finalCols[colName] = true
-			if value.Dtype == sutils.SS_DT_FLOAT {
-				value.CVal = humanize.CommafWithDigits(value.CVal.(float64), 3)
-			} else {
-				value.CVal = humanize.Comma(value.CVal.(int64))
+		for columnName, enclosedValue := range searchResults.GetSegmentStatsMeasureResults() {
+			finalCols[columnName] = true
+			switch enclosedValue.Dtype {
+			case sutils.SS_DT_FLOAT:
+				enclosedValue.CVal = humanize.CommafWithDigits(enclosedValue.CVal.(float64), 3)
+			case sutils.SS_DT_STRING_SLICE:
+				stringRepr, err := enclosedValue.GetString()
+				if err != nil {
+					log.Errorf("PerformMeasureAggsOnRecs: string representation conversion failed for slice %v: %v", enclosedValue, err)
+					enclosedValue.Dtype = sutils.SS_INVALID
+				} else {
+					enclosedValue.CVal = stringRepr
+				}
+			case sutils.SS_DT_SIGNED_NUM:
+				enclosedValue.CVal = humanize.Comma(enclosedValue.CVal.(int64))
+			default:
+				log.Errorf("PerformMeasureAggsOnRecs: unsupported data type %v ", enclosedValue.Dtype)
+				enclosedValue.Dtype = sutils.SS_INVALID
 			}
-			finalSegment[colName] = value.CVal
 
+			if enclosedValue.Dtype != sutils.SS_INVALID {
+				finalSegment[columnName] = enclosedValue.CVal
+			} else {
+				finalSegment[columnName] = ""
+			}
 		}
 		recs[firstRecInden] = finalSegment
 	}

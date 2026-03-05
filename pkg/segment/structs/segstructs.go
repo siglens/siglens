@@ -825,11 +825,54 @@ func (ss *SegStats) Merge(other *SegStats) {
 
 	if ss.NumStats == nil {
 		ss.NumStats = other.NumStats
+	} else {
+		ss.NumStats.Merge(other.NumStats)
 	}
+	
+	if ss.StringStats == nil {
+		ss.StringStats = other.StringStats
+	} else {
+		ss.StringStats.Merge(other.StringStats)
+	}
+
 	if ss.TimeStats == nil {
 		ss.TimeStats = other.TimeStats
 	} else {
 		ss.TimeStats.Merge(other.TimeStats)
+	}
+}
+
+func (ss *StringStats) Merge(other *StringStats) {
+	if other == nil {
+		return
+	}
+
+	if ss.StrSet != nil {
+		for item, val := range other.StrSet {
+			ss.StrSet[item] = val
+		}
+	} else if other.StrSet != nil {
+		ss.StrSet = make(map[string]struct{})
+		for item, val := range other.StrSet {
+			ss.StrSet[item] = val
+		}
+	}
+
+	if ss.StrList != nil {
+		ss.StrList = append(ss.StrList, other.StrList...)
+	} else if other.StrList != nil {
+		sourceList := other.StrList
+		var targetList []string
+
+		if len(sourceList) > 100 {
+			targetList = make([]string, 100)
+			copy(targetList, sourceList[:100])
+		} else {
+			targetList = make([]string, len(sourceList))
+			copy(targetList, sourceList)
+		}
+
+		ss.StrList = targetList
 	}
 }
 
