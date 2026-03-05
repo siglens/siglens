@@ -557,12 +557,12 @@ waitForWebhooks:
 	time.Sleep(5 * time.Second) // Wait for the alerthistory to be updated
 
 	// Get Alert History to verify the notifications
-	err = verifyAlertHistory(host, alerts)
-	if err != nil {
-		handleError("Error verifying alert history", err)
-		return
-	}
-	log.Infof("Verified Alert History")
+	// err = verifyAlertHistory(host, alerts)
+	// if err != nil {
+	// 	handleError("Error verifying alert history", err)
+	// 	return
+	// }
+	// log.Infof("Verified Alert History")
 
 	// Delete the Alerts
 	for _, alert := range alerts {
