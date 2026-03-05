@@ -342,29 +342,19 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		sstResult, err = segread.GetSegVarp(runningSegStat, incomingSegStat)
 	case sutils.Avg:
 		sstResult, err = segread.GetSegAvg(runningSegStat, incomingSegStat)
-	case sutils.Values:
-		// Use GetSegValue to process and get the segment value
-		res, err := segread.GetSegValue(runningSegStat, incomingSegStat)
-		if err != nil {
-			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
-		}
+	// case sutils.Values:
+	// 	// Use GetSegValue to process and get the segment value
+	// 	res, err := segread.GetSegValue(runningSegStat, incomingSegStat)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
+	// 	}
 
-		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+	// 	sr.segStatsResults.measureResults[measureAgg.String()] = *res
 
-		if runningSegStat == nil {
-			return incomingSegStat, nil
-		}
-		return runningSegStat, nil
-	case sutils.List:
-		res, err := segread.GetSegList(runningSegStat, incomingSegStat)
-		if err != nil {
-			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
-		}
-		sr.segStatsResults.measureResults[measureAgg.String()] = *res
-		if runningSegStat == nil {
-			return incomingSegStat, nil
-		}
-		return runningSegStat, nil
+	// 	if runningSegStat == nil {
+	// 		return incomingSegStat, nil
+	// 	}
+	// 	return runningSegStat, nil
 	default:
 		return nil, fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", measureAgg.String(), sr.qid)
 	}
@@ -443,10 +433,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			err = aggregations.ComputeAggEvalForVarp(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Avg:
 			err = aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-		case sutils.Values:
-			err = aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
-		case sutils.List:
-			err = aggregations.ComputeAggEvalForList(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
+		// case sutils.Values:
+		// err = aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		case sutils.Perc:
 			err = aggregations.ComputeAggEvalForPerc(measureAgg, sstMap, sr.segStatsResults.measureResults, sr.runningEvalStats)
 		default:
@@ -1191,7 +1179,7 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 				return fmt.Errorf("MergeSegmentStats: String list not found for list agg %v, qid=%v", measureAgg.String(), sr.qid)
 			}
 			remoteList := remoteRes.StrList
-			currList = sutils.AppendWithLimit(currList, remoteList, sutils.MAX_SPL_LIST_SIZE)
+			currList = sutils.AppendWithLimit(currList, remoteList, 100)
 
 			sr.runningEvalStats[measureAgg.String()] = currList
 			sr.segStatsResults.measureResults[measureAgg.String()] = sutils.CValueEnclosure{

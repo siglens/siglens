@@ -592,52 +592,30 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 				continue
 			}
 
-			// Create a base structure for SegStats to store result aggregates.
-			segStat := &structs.SegStats{
-				IsNumeric: dtypeVal.IsNumeric(),
-				Count:     1,
+			if !dtypeVal.IsNumeric() && mOp.MeasureFunc != sutils.Count {
+				floatVal, err := dtu.ConvertToFloat(record[mOp.MeasureCol], 64)
+				if err != nil {
+					log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
+					continue
+				}
+				dtypeVal = &sutils.DtypeEnclosure{Dtype: sutils.SS_DT_FLOAT, FloatVal: floatVal}
 			}
 
-			// Convert to float if necessary and perform numeric aggregation.
-			if sutils.IsNumTypeAgg(mOp.MeasureFunc) {
-				if !dtypeVal.IsNumeric() {
-					floatVal, err := dtu.ConvertToFloat(record[mOp.MeasureCol], 64)
-					if err != nil {
-						log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
-						continue
-					}
-					dtypeVal = &sutils.DtypeEnclosure{Dtype: sutils.SS_DT_FLOAT, FloatVal: floatVal}
-					segStat.IsNumeric = true
-				}
-
-				// Populate numeric stats if dtypeVal holds a numeric type now.
-				if dtypeVal.IsNumeric() {
-					nTypeEnclosure := &sutils.NumTypeEnclosure{
-						Ntype:    dtypeVal.Dtype,
-						IntgrVal: int64(dtypeVal.FloatVal),
-						FloatVal: dtypeVal.FloatVal,
-					}
-					segStat.NumStats = &structs.NumericStats{
-						Sum: *nTypeEnclosure,
-					}
-				}
-			} else if mOp.MeasureFunc != sutils.Count {
-				// Handle string stats aggregation.
-				stringStat := &structs.StringStats{
-					StrSet:  make(map[string]struct{}),
-					StrList: make([]string, 0),
-				}
-
-				if dtypeVal.Dtype == sutils.SS_DT_STRING_SLICE {
-					stringStat.StrList = dtypeVal.StringSliceVal
-				} else {
-					stringStat.StrList = append(stringStat.StrList, dtypeVal.StringVal)
-				}
-				stringStat.StrSet[dtypeVal.StringVal] = struct{}{}
-				segStat.StringStats = stringStat
+			nTypeEnclosure := &sutils.NumTypeEnclosure{
+				Ntype:    dtypeVal.Dtype,
+				IntgrVal: int64(dtypeVal.FloatVal),
+				FloatVal: dtypeVal.FloatVal,
 			}
-			// Map the result to the measure column.
-			sstMap[mOp.MeasureCol] = segStat
+
+			sstMap[mOp.MeasureCol] = &structs.SegStats{
+				IsNumeric:   dtypeVal.IsNumeric(),
+				Count:       1,
+				Hll:         nil,
+				NumStats:    &structs.NumericStats{Sum: *nTypeEnclosure},
+				StringStats: nil,
+				Records:     nil,
+			}
+
 		}
 
 		err := searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations)
@@ -681,28 +659,13 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 
 		for colName, value := range searchResults.GetSegmentStatsMeasureResults() {
 			finalCols[colName] = true
-			switch value.Dtype {
-			case sutils.SS_DT_FLOAT:
+			if value.Dtype == sutils.SS_DT_FLOAT {
 				value.CVal = humanize.CommafWithDigits(value.CVal.(float64), 3)
-			case sutils.SS_DT_STRING_SLICE:
-				strVal, err := value.GetString()
-				if err != nil {
-					log.Errorf("PerformMeasureAggsOnRecs: failed to obtain string representation of slice %v: %v", value, err)
-					value.Dtype = sutils.SS_INVALID
-				} else {
-					value.CVal = strVal
-				}
-			case sutils.SS_DT_SIGNED_NUM:
-				value.CVal = humanize.Comma(value.CVal.(int64))
-			default:
-				log.Errorf("PerformMeasureAggsOnRecs: Unexpected type %v ", value.Dtype)
-				value.Dtype = sutils.SS_INVALID
-			}
-			if value.Dtype != sutils.SS_INVALID {
-				finalSegment[colName] = value.CVal
 			} else {
-				finalSegment[colName] = ""
+				value.CVal = humanize.Comma(value.CVal.(int64))
 			}
+			finalSegment[colName] = value.CVal
+
 		}
 		recs[firstRecInden] = finalSegment
 	}

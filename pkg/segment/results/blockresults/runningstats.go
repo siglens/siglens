@@ -236,12 +236,6 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Values", err)
 			}
 			i += step
-		case sutils.List:
-			step, err := rr.AddEvalResultsForList(runningStats, measureResults, i, fieldToValue)
-			if err != nil {
-				batchErr.AddError("RunningBucketResults.AddMeasureResults:List", err)
-			}
-			i += step
 		default:
 			err := rr.ProcessReduce(runningStats, measureResults[i], i)
 			if err != nil {
@@ -371,20 +365,6 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			}
 			if rr.currStats[i].ValueColRequest != nil {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
-				i += (len(fields) - 1)
-			}
-		case sutils.List:
-			if rr.currStats[i].ValueColRequest == nil {
-				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
-				if err != nil {
-					batchErr.AddError("RunningBucketResults.mergeRunningStats:List", err)
-				}
-			} else {
-				fields := rr.currStats[i].ValueColRequest.GetFields()
-				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
-				if err != nil {
-					batchErr.AddError("RunningBucketResults.mergeRunningStats:List", err)
-				}
 				i += (len(fields) - 1)
 			}
 		case sutils.Cardinality, sutils.EstdcError:
@@ -815,43 +795,6 @@ func (rr *RunningBucketResults) AddEvalResultsForValues(runningStats *[]runningS
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValues: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
 	(*runningStats)[i].rawVal.CVal = strSet
-	(*runningStats)[i].number = nil
-
-	return len(fieldToValue) - 1, nil
-}
-
-func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningStats, measureResults []sutils.CValueEnclosure, i int, fieldToValue map[string]sutils.CValueEnclosure) (int, error) {
-
-	(*runningStats)[i].syncRawValue()
-	if (*runningStats)[i].rawVal.CVal == nil {
-		(*runningStats)[i].rawVal = sutils.CValueEnclosure{
-			Dtype: sutils.SS_DT_STRING_SLICE,
-			CVal:  make([]string, 0),
-		}
-	}
-	strList, ok := (*runningStats)[i].rawVal.CVal.([]string)
-	if !ok {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to convert CVal to list, err: %v", (*runningStats)[i].rawVal.CVal)
-	}
-	if rr.currStats[i].ValueColRequest == nil {
-		strVal, err := measureResults[i].GetString()
-		if err != nil {
-			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to add measurement to running stats, err: %v", err)
-		}
-		strList = append(strList, strVal)
-		(*runningStats)[i].rawVal.CVal = strList
-		(*runningStats)[i].number = nil
-		return 0, nil
-	}
-
-	result, err := agg.PerformAggEvalForList(rr.currStats[i], strList, fieldToValue)
-	if err != nil {
-		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to evaluate ValueColRequest to string, err: %v", err)
-	}
-	if len(result) > sutils.MAX_SPL_LIST_SIZE {
-		result = result[:sutils.MAX_SPL_LIST_SIZE]
-	}
-	(*runningStats)[i].rawVal.CVal = result
 	(*runningStats)[i].number = nil
 
 	return len(fieldToValue) - 1, nil
