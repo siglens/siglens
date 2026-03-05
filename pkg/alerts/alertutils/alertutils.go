@@ -82,13 +82,9 @@ func (AlertLabel) TableName() string {
 }
 
 type AlertHistoryDetails struct {
-	ID               uint       `gorm:"primaryKey;autoIncrement:true"`
-	AlertId          string     `json:"alert_id"`
-	AlertType        AlertType  `json:"alert_type"`
-	AlertState       AlertState `json:"alert_state"`
-	EventDescription string     `json:"event_description"`
-	UserName         string     `json:"user_name"`
-	EventTriggeredAt time.Time  `json:"event_triggered_at"`
+	ID         uint       `gorm:"primaryKey;autoIncrement:true"`
+	AlertType  AlertType  `json:"alert_type"`
+	AlertState AlertState `json:"alert_state"`
 }
 
 func (AlertHistoryDetails) TableName() string {
@@ -202,12 +198,8 @@ const (
 	Normal
 	Pending
 	Firing
-	SystemGeneratedAlert = "System Generated"
-	UserModified         = "User Modified"
-	AlertFiring          = "Alert Firing"
-	AlertNormal          = "Alert Normal"
-	AlertPending         = "Alert Pending"
-	ConfigChange         = "Config Modified"
+	AlertPending = "Alert Pending"
+	ConfigChange = "Config Modified"
 )
 
 type AlertSilenceRequest struct {

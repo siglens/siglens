@@ -43,8 +43,6 @@ type database interface {
 	SetDB(db *gorm.DB)
 	CreateAlert(alertInfo *alertutils.AlertDetails) (alertutils.AlertDetails, error)
 	GetAlert(alert_id string) (*alertutils.AlertDetails, error)
-	CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error)
-	GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error)
 	GetAllAlerts(orgId int64) ([]*alertutils.AlertDetails, error)
 	CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
 	GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
@@ -439,18 +437,6 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// TODO: Update Username with specific user who changed the config. Username can be fetched from "ctx" when the authentication is implemented.
-	alertEvent := alertutils.AlertHistoryDetails{
-		AlertId:          alertToBeUpdated.AlertId,
-		EventDescription: alertutils.ConfigChange,
-		UserName:         alertutils.UserModified,
-		EventTriggeredAt: time.Now().UTC(),
-	}
-	_, err = databaseObj.CreateAlertHistory(&alertEvent)
-	if err != nil {
-		log.Errorf("ProcessUpdateAlertRequest: could not create alert event in alert history. found error = %v", err)
-	}
-
 	err = RemoveCronJob(alertToBeUpdated.AlertId)
 	if err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Failed to remove cron job for alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertToBeUpdated.AlertName), err)
@@ -465,39 +451,6 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 	responseBody["message"] = "Alert updated successfully"
 	utils.WriteJsonResponse(ctx, responseBody)
 	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
-func ProcessAlertHistoryRequest(ctx *fasthttp.RequestCtx) {
-	if databaseObj == nil {
-		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
-		return
-	}
-
-	responseBody := make(map[string]interface{})
-	alertId := utils.ExtractParamAsString(ctx.UserValue("alertID"))
-	limit := ctx.QueryArgs().GetUintOrZero("limit")
-	offset := ctx.QueryArgs().GetUintOrZero("offset")
-	sortOrder := string(ctx.QueryArgs().Peek("sort_order"))
-
-	if sortOrder != string(alertutils.ASC) && sortOrder != string(alertutils.DESC) {
-		sortOrder = string(alertutils.DESC)
-	}
-
-	alertHistory, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
-		AlertId:   alertId,
-		SortOrder: alertutils.DB_SORT_ORDER(sortOrder),
-		Limit:     uint64(limit),
-		Offset:    uint64(offset),
-	})
-	if err != nil {
-		utils.SendError(ctx, fmt.Sprintf("Failed to get alert history. Error=%v", err), fmt.Sprintf("alert ID: %v", alertId), err)
-		return
-	}
-
-	responseBody["count"] = len(alertHistory)
-	responseBody["alertHistory"] = alertHistory
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	utils.WriteJsonResponse(ctx, responseBody)
 }
 
 // request body should contain alert_id only
