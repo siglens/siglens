@@ -828,7 +828,7 @@ func (ss *SegStats) Merge(other *SegStats) {
 	} else {
 		ss.NumStats.Merge(other.NumStats)
 	}
-	
+
 	if ss.StringStats == nil {
 		ss.StringStats = other.StringStats
 	} else {
