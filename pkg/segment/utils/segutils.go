@@ -339,6 +339,7 @@ func IsNumTypeAgg(aggFunc AggregateFunctions) bool {
 	switch aggFunc {
 	case Avg, Min, Max, Sum, Range:
 		return true
+	default:
+		return false
 	}
-	return false
 }
