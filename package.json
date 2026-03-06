@@ -5,6 +5,7 @@
     "@eslint/js": "^9.6.0",
     "@playwright/test": "^1.47.1",
     "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
     "globals": "^15.8.0",
     "prettier": "^3.3.2"
   },
