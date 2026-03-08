@@ -80,10 +80,10 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 			e1.CVal = e1.CVal.(uint64) + e2.CVal.(uint64)
 			return e1, nil
 		case Min, EarliestTime:
-			e1.CVal = min(e1.CVal.(uint64), e2.CVal.(uint64))
+			e1.CVal = MinUint64(e1.CVal.(uint64), e2.CVal.(uint64))
 			return e1, nil
 		case Max, LatestTime:
-			e1.CVal = max(e1.CVal.(uint64), e2.CVal.(uint64))
+			e1.CVal = MaxUint64(e1.CVal.(uint64), e2.CVal.(uint64))
 			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for unsigned int", fun)
@@ -94,10 +94,10 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 			e1.CVal = e1.CVal.(int64) + e2.CVal.(int64)
 			return e1, nil
 		case Min:
-			e1.CVal = min(e1.CVal.(int64), e2.CVal.(int64))
+			e1.CVal = MinInt64(e1.CVal.(int64), e2.CVal.(int64))
 			return e1, nil
 		case Max:
-			e1.CVal = max(e1.CVal.(int64), e2.CVal.(int64))
+			e1.CVal = MaxInt64(e1.CVal.(int64), e2.CVal.(int64))
 			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for signed int", fun)
@@ -149,13 +149,13 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	case SS_DT_STRING_SLICE:
 		{
 			if fun == List {
-				list1 := e1.CVal.([]string)
-				list2 := e2.CVal.([]string)
-				list1 = append(list1, list2...)
-				e1.CVal = list1
+				firstList := e1.CVal.([]string)
+				secondList := e2.CVal.([]string)
+				firstList = append(firstList, secondList...)
+				e1.CVal = firstList
 				return e1, nil
 			} else {
-				return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for slice", fun)
+				return e1, fmt.Errorf("Reduce: aggregation function %v not supported for slice type", fun)
 			}
 		}
 	default:
@@ -229,10 +229,10 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 			self.IntgrVal = self.IntgrVal + e2int64
 			return nil
 		case Min:
-			self.IntgrVal = min(self.IntgrVal, e2int64)
+			self.IntgrVal = MinInt64(self.IntgrVal, e2int64)
 			return nil
 		case Max:
-			self.IntgrVal = max(self.IntgrVal, e2int64)
+			self.IntgrVal = MaxInt64(self.IntgrVal, e2int64)
 			return nil
 		case Count:
 			self.IntgrVal = self.IntgrVal + e2int64

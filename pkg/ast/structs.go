@@ -115,7 +115,7 @@ type TimeModifiers struct {
 	EndEpoch   uint64
 }
 
-// Comparison is an individual comparison operation on a terminal node
+// Comparison is an individual comparision operation on a terminal node
 type Comparison struct {
 	Op              string
 	Field           string

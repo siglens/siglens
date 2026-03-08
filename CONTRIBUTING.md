@@ -50,20 +50,6 @@ join our slack [SigLens Community](https://www.siglens.com/slack)
 Once you see an issue that you'd like to work on, please post a comment saying
 that you want to work on it. Something like `"I want to work on this"` is fine.
 
-## Open an Issue
-
-### Check for existing Issues
-
-* Before you create a new issue, please search on the [open issues](https://github.com/siglens/siglens/issues) page to see if the issue or feature request has already been filed.
-* If you can not find your issue exists, [choose a specific issue type](https://github.com/siglens/siglens/issues/new/choose) and open a new issue.
-
-### Issue Types
-
-* **Bug report**: You’ve found a bug with the code, and want to report or track the bug. Show more details, and let us know about an unexpected error, a crash, or an incorrect behavior.
-* **New feature request**: Suggest a new feature. This allows feedback from others before the code is written.
-* **Story**: Clearly describe the task. Break it down as much as you can so it's easier to implement. Link to existing issues if appropriate using #issue-number.
-* **Report a security vulnerability**: Review our security policy first and then report a vulnerability.
-
 ## Ask for Help
 
 The best way to reach us with a question when contributing is to ask on:
@@ -75,21 +61,19 @@ The best way to reach us with a question when contributing is to ask on:
 
 Once you have found the issue to be fixed or feature to be added, you can comment on the issue and put the approach you want to follow to solve the issue. Once we agree upon the approach, you can open a PR.
 
-If its your first time on github, please read [FIRST_TIME_GIT_USERS_GUIDE.md](FIRST_TIME_GIT_USERS_GUIDE.md) to understand terms like `fork`, `clone`, `create a repo`, and others.
+1. Fork Siglens repo and clone it on your local machine.
 
-Steps to open a PR:
+- If its your first time on github, please read [FIRST_TIME_GIT_USERS_GUIDE.md](FIRST_TIME_GIT_USERS_GUIDE.md) to fork, clone, create a repo.
 
-1. Fork Siglens repo and clone it on your local machine.  
 2. Make your desired code changes
 3. Make sure local tests work. (`make all`)
-4. Make sure go code is formatted correctly. (`make pr`)
+4. Make sure go code is formatted correctly (`make pr`)
 5. Commit your changes to your fork.
-6. Create a pull request. (Automated CI tests will run)
-7. Once the change has been approved and merged, we will inform you in a comment.
-
+6. Verify that all automated CI tests pass for this PR.
+7. Send us a pull request you just created.
+8. Once the change has been approved and merged, we will inform you in a comment.
 
 ## Development Environment Setup
-
 VS Code is the recomended IDE and offers good extensions and tools that will help developers write code.
 
 The easiest way to make sure you have the correct dependencies is to use Nix.
@@ -104,19 +88,15 @@ Download golang version that is defined in `go.mod` and make sure git is install
 To run the Go linter locally, install it from [here](https://golangci-lint.run/welcome/install/#local-installation).
 Note that you must install the version used in .github/workflows/uts.yml or else you may see lint errors unrelated to your code changes.
 
-Siglens currently support `Linux` and `macOS` for development purposes.
+For Linux systems, the `build-essential` package is necessary. If it's already installed, no action is needed. Otherwise, please execute the following commands:
 
-- To setup project locally on macOS please jump to [Start up Siglens](#start-up-siglens) section.
-- For Linux systems, the `build-essential` package is necessary. If it's already installed, no action is needed. Otherwise, please execute the following commands:
-
-    - For Debian/Ubuntu:
+  - For Debian/Ubuntu:
 
     ```bash
     sudo apt update
     sudo apt install build-essential
-    ```
-    
-    - For Fedora/CentOS/RHEL:
+    ```  
+  - For Fedora/CentOS/RHEL:
    ```bash
    sudo yum groupinstall "Development Tools"
    sudo yum install gcc g++ make

@@ -1014,24 +1014,28 @@ func (gb *GroupByBuckets) updateEValFromRunningBuckets(mInfo *structs.MeasureAgg
 		incrementIdxBy = 1
 
 		if mInfo.ValueColRequest != nil {
-			if len(mInfo.ValueColRequest.GetFields()) == 0 {
+			requiredFields := mInfo.ValueColRequest.GetFields()
+			if len(requiredFields) == 0 {
 				batchErr.AddError("GroupByBuckets.AddResultToStatRes:LIST", fmt.Errorf("zero fields of ValueColRequest for list: %v", mInfoStr))
 				return
 			}
 		}
-		valIdx := gb.reverseMeasureIndex[idx]
-		runningStats[valIdx].syncRawValue()
-		strList, ok := runningStats[valIdx].rawVal.CVal.([]string)
+
+		statsIdx := gb.reverseMeasureIndex[idx]
+		runningStats[statsIdx].syncRawValue()
+
+		listValues, ok := runningStats[statsIdx].rawVal.CVal.([]string)
 		if !ok {
 			currRes[mInfoStr] = sutils.CValueEnclosure{CVal: nil, Dtype: sutils.SS_INVALID}
 			return
 		}
-		if len(strList) > sutils.MAX_SPL_LIST_SIZE {
-			strList = strList[:sutils.MAX_SPL_LIST_SIZE]
+
+		if len(listValues) > 100 {
+			listValues = listValues[:100]
 		}
 
 		eVal.Dtype = sutils.SS_DT_STRING_SLICE
-		eVal.CVal = strList
+		eVal.CVal = listValues
 	case sutils.Sum, sutils.Max, sutils.Min:
 		incrementIdxBy = 1
 

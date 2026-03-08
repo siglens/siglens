@@ -71,7 +71,7 @@ var WAL_BLOCK_FLUSH_SIZE = 10000
 const MAX_RAW_DATAPOINTS_IN_RESULT = 5_000_000
 
 // leave some room for column name/value meta
-// since we use 2 bytes for record len, columnname-len, we can accommodate 65535
+// since we use 2 bytes for record len, columnname-len, we can accomodate 65535
 const MAX_RECORD_SIZE = 63_000
 const MAX_RECS_PER_WIP = 65_534
 const BLOOM_COLL_PROBABILITY = 0.001
@@ -105,11 +105,6 @@ const BLOCK_BLOOM_SEPARATOR = ":"
 const MS_IN_MIN = 60_000     // 60 * 1000
 const MS_IN_HOUR = 3_600_000 // 60 * 60 * 1000
 const MS_IN_DAY = 86_400_000 // 24 * 60 * 60 * 1000
-
-// Splunk limits the number of values returned by stat list to 100 values.
-// We can use similar limit for stat list
-// https://docs.splunk.com/Documentation/SplunkCloud/9.1.2312/SearchReference/Multivaluefunctions
-const MAX_SPL_LIST_SIZE = 100
 
 var BYTE_SPACE = []byte(" ")
 var BYTE_SPACE_LEN = len(BYTE_SPACE)

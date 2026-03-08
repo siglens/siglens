@@ -52,11 +52,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	)
 
 	fileutils.AddLogEntry(dtypeutils.LogFileData{
-		TimeStamp:   time.Now().Format("2006-01-02 15:04:05"),
-		UserName:    "No-user", // TODO : Add logged in user when user auth is implemented
-		QueryID:     qid,
-		URI:         ctx.Request.URI().String(),
-		RequestBody: fmt.Sprintf("%+v", event),
+		QueryID: qid,
 	}, true, fileutils.QueryLogFile)
 
 	if err != nil {
@@ -94,7 +90,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	}
 
 	ti := structs.InitTableInfo(indexNameIn, orgid, false, ctx)
-	log.Infof("qid=%v, ProcessPipeSearchWebsocket: index=[%v] searchString=[%v] scrollFrom=[%v]",
+	log.Infof("qid=%v, ProcessPipeSearchWSRequest: index=[%v] searchString=[%v] scrollFrom=[%v]",
 		qid, ti.String(), searchText, scrollFrom)
 
 	var timechartSimpleNode *structs.ASTNode

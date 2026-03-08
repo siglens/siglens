@@ -844,7 +844,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock / ToJsonBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / ToJsonBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -1320,7 +1320,7 @@ ClauseLevel1 <- L_PAREN clause:ClauseLevel4 R_PAREN {
 
 // Parsing the text of a Number as a String would succeed, so we need to try
 // parsing as a FieldWithNumberValue first.
-SearchTerm <- term:(FieldWithNumberValue / FieldWithBooleanValue / FieldWithStringValue) {
+SearchTerm <- term:(FieldWithNumberValue/ FieldWithBooleanExpr/ FieldWithStringValue) {
     return term, nil
 }
 
@@ -4189,21 +4189,24 @@ UnnamedFieldWithNumberValue <- value:Number {
     return node, nil
 }
 
-FieldWithBooleanValue <- key:FieldName op:EqualityOperator value:Boolean {
-    node := &ast.Node{
-        NodeType: ast.NodeTerminal,
-        Comparison:ast.Comparison{
-            Op: op.(string),
-            Field: key.(string),
-            Values: value,
-        },
-    }
-
-    return node, nil
-}
-
 FieldWithStringValue <- keyValuePair:(NamedFieldWithStringValue / UnnamedFieldWithStringValue) {
     return keyValuePair, nil
+}
+
+FieldWithBooleanExpr <- key:FieldName op:EqualityOperator value:Boolean {
+    fieldName := key.(string)
+    operator := op.(string)
+    
+    comparison := ast.Comparison{
+        Field: fieldName,
+        Op: operator,
+        Values: value,
+    }
+    
+    return &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison: comparison,
+    }, nil
 }
 
 NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(CaseSensitiveString / CaseInsensitiveString) {
@@ -4550,8 +4553,7 @@ UnquotedStringWithTemplateWildCard <- (AllowedChar / !(MAJOR_BREAK / "|" / EOF) 
 }
 
 Boolean <- ("true" / "false") {
-    boolValue, _ := strconv.ParseBool(string(c.text))
-    return boolValue, nil
+    return string(c.text) == "true", nil
 }
 
 //Can recognize fieldName or Regex Pattern for Rename Block
@@ -5406,116 +5408,6 @@ InputLookupAggBlock <- inputLookupBlock:InputLookupBlock {
     return inputLookup, nil
 }
 
-// Definitions for append command options
-AppendCmdOption <- option:(ExtendTimeRangeOption / MaxTimeOption / MaxOutOption) {
-    return option, nil
-}
-
-// Definitions for the individual options within append
-ExtendTimeRangeOption <- "extendtimerange" EQUAL boolean:Boolean {
-    return &structs.AppendCmdOption{
-        OptionType: "extendtimerange",
-        Value:      boolean == "true",
-    }, nil
-}
-
-MaxTimeOption <- "maxtime" EQUAL time:IntegerAsString {
-    maxTimeInt, err := strconv.ParseUint(time.(string), 10, 64)
-    if err != nil {
-        return nil, fmt.Errorf("Invalid maxtime (%v): %v", time.(string), err)
-    }
-    return &structs.AppendCmdOption{
-        OptionType: "maxtime",
-        Value:      maxTimeInt,
-    }, nil
-}
-
-MaxOutOption <- "maxout" EQUAL max:IntegerAsString {
-    maxOutInt, err := strconv.ParseUint(max.(string), 10, 64)
-    if err != nil {
-        return nil, fmt.Errorf("Invalid maxout (%v): %v", max.(string), err)
-    }
-    return &structs.AppendCmdOption{
-        OptionType: "maxout",
-        Value:      maxOutInt,
-    }, nil
-}
-
-// Subsearch definition using the existing SearchBlock rule
-Subsearch <- "[" SPACE? search:SearchBlock SPACE? "]" {
-    return search, nil
-}
-
-// Append command options extended to handle subsearches
-AppendCmdOptionsList <- first:AppendCmdOption rest:(SPACE AppendCmdOption)* {
-    restSlice := rest.([]any)
-    numOptions := 1 + len(restSlice)
-    appendCmdOptions := &structs.AppendCmdOptions{}
-
-    for i := 0; i < numOptions; i++ {
-        var option *structs.AppendCmdOption
-        if i == 0 {
-            option = first.(*structs.AppendCmdOption)
-        } else {
-            option = restSlice[i-1].([]any)[1].(*structs.AppendCmdOption)
-        }
-
-        switch option.OptionType {
-            case "extendtimerange":
-                appendCmdOptions.ExtendTimeRange = option.Value.(bool)
-            case "maxtime":
-                appendCmdOptions.MaxTime = option.Value.(int)
-            case "maxout":
-                appendCmdOptions.MaxOut = option.Value.(int)
-        }
-    }
-
-    return appendCmdOptions, nil
-}
-
-// AppendBlock with subsearch handling
-AppendBlock <- PIPE CMD_APPEND options:(AppendCmdOption SPACE?)* subsearch:Subsearch {
-    appendOptions := &structs.AppendCmdOptions{
-        ExtendTimeRange: false,
-        MaxTime:         60,
-        MaxOut:          50000,
-    }
-
-    for _, opt := range options.([]interface{}) {
-        if optSlice, ok := opt.([]interface{}); ok {
-            for _, appendOption := range optSlice {
-                if option, ok := appendOption.(*structs.AppendCmdOption); ok {
-                    switch option.OptionType {
-                        case "extendtimerange":
-                            appendOptions.ExtendTimeRange = option.Value.(bool)
-                        case "maxtime":
-                            appendOptions.MaxTime = int(option.Value.(uint64))
-                        case "maxout":
-                            appendOptions.MaxOut = int(option.Value.(uint64))
-                        default:
-                            return nil, fmt.Errorf("AppendBlock: Unknown OptionType: %v", option.OptionType)
-                    }
-                } 
-            }
-        } 
-    }
-
-    letColReq := &structs.LetColumnsRequest{
-        AppendRequest: &structs.AppendRequest{
-            ExtendTimeRange: appendOptions.ExtendTimeRange,
-            MaxTime:         appendOptions.MaxTime,
-            MaxOut:          appendOptions.MaxOut,
-            Subsearch:       subsearch,
-        },
-    }
-    return &structs.QueryAggregators{
-        PipeCommandType: structs.OutputTransformType,
-        OutputTransforms: &structs.OutputTransforms{
-            LetColumns: letColReq,
-        },
-    }, nil
-}
-
 ToJsonOption <- SPACE option:(ToJsonFunctionOption / DefaultTypeOption / FillNullOption / IncludeInternalOption / OutputFieldOption / ToJsonFunctionPostProcess) {
     return option, nil
 }
@@ -5658,7 +5550,7 @@ ToJsonBlock <- PIPE CMD_TOJSON options:(ToJsonOption)* {
 
 
 // All commands except CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP / CMD_APPEND / CMD_TOJSON)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP / CMD_TOJSON)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -5692,7 +5584,6 @@ CMD_GENTIMES <- "gentimes"
 CMD_INPUTLOOKUP <- "inputlookup" SPACE
 EVAL_CONCAT <- SPACE? ("." / "+") SPACE?
 CMD_MVEXPAND <- "mvexpand"
-CMD_APPEND <- "append" SPACE
 CMD_TOJSON <- "tojson"
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

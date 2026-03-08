@@ -231,7 +231,6 @@ let orgUpperNavTabs = [
     { name: 'PQS', url: './pqs-settings.html', class: 'pqs-settings' },
     { name: 'Query Stats', url: './query-stats.html', class: 'query-stats' },
     {{ end }}
-    { name: 'Version', url: './application-version.html', class: 'application-version' },
     { name: 'Diagnostics', url: './diagnostics.html', class: 'diagnostics' },
 ];
 
@@ -414,13 +413,6 @@ const orgPages = {
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Org Settings' }
-        ]
-    },
-    'application-version.html': {
-        name: 'Version',
-        breadcrumbs: [
-            { name: 'My Org', noLink: true},
-            { name: 'Version' }
         ]
     },
     'query-stats.html': {

@@ -61,7 +61,7 @@ func (e EarlyExitType) String() string {
 	}
 }
 
-// Stores information received by remote nodes for a query
+// Stores information recieved by remote nodes for a query
 type remoteSearchResult struct {
 
 	// for RRCs in BlockResults that come from remote nodes, this map stores the raw logs
@@ -360,7 +360,9 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		if err != nil {
 			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
 		}
+
 		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+
 		if runningSegStat == nil {
 			return incomingSegStat, nil
 		}
@@ -1191,7 +1193,7 @@ func (sr *SearchResults) MergeSegmentStats(measureOps []*structs.MeasureAggregat
 				return fmt.Errorf("MergeSegmentStats: String list not found for list agg %v, qid=%v", measureAgg.String(), sr.qid)
 			}
 			remoteList := remoteRes.StrList
-			currList = sutils.AppendWithLimit(currList, remoteList, sutils.MAX_SPL_LIST_SIZE)
+			currList = sutils.AppendWithLimit(currList, remoteList, 100)
 
 			sr.runningEvalStats[measureAgg.String()] = currList
 			sr.segStatsResults.measureResults[measureAgg.String()] = sutils.CValueEnclosure{

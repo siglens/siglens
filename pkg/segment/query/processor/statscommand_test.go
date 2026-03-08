@@ -498,85 +498,85 @@ func Test_ProcessSegmentStats(t *testing.T) {
 	assert.Equal(t, expectedAvgRes, actualAvgRes)
 }
 
-func Test_ProcessSegmentStats_MergeIqrStats(t *testing.T) {
-	knownValues := getTestData()
-	processor := getStatsMeasureProcessor()
-	processor.setAsIqrStatsResults = true
+// func Test_ProcessSegmentStats_MergeIqrStats(t *testing.T) {
+// 	knownValues := getTestData()
+// 	processor := getStatsMeasureProcessor()
+// 	processor.setAsIqrStatsResults = true
 
-	iqr1 := iqr.NewIQR(0)
+// 	iqr1 := iqr.NewIQR(0)
 
-	err := iqr1.AppendKnownValues(knownValues)
-	assert.NoError(t, err)
+// 	err := iqr1.AppendKnownValues(knownValues)
+// 	assert.NoError(t, err)
 
-	_, err = processor.Process(iqr1)
-	assert.NoError(t, err)
+// 	_, err = processor.Process(iqr1)
+// 	assert.NoError(t, err)
 
-	resultIqr1, err := processor.Process(nil)
-	assert.Equal(t, io.EOF, err)
-	assert.NotNil(t, resultIqr1)
+// 	resultIqr1, err := processor.Process(nil)
+// 	assert.Equal(t, io.EOF, err)
+// 	assert.NotNil(t, resultIqr1)
 
-	segStatsMap, _, _ := resultIqr1.GetIQRStatsResults()
-	assert.NotNil(t, segStatsMap)
-	assert.Equal(t, 1, len(segStatsMap))
+// 	segStatsMap, _, _ := resultIqr1.GetIQRStatsResults()
+// 	assert.NotNil(t, segStatsMap)
+// 	assert.Equal(t, 1, len(segStatsMap))
 
-	iqr2 := iqr.NewIQR(0)
-	processor = getStatsMeasureProcessor()
-	processor.setAsIqrStatsResults = true
+// 	iqr2 := iqr.NewIQR(0)
+// 	processor = getStatsMeasureProcessor()
+// 	processor.setAsIqrStatsResults = true
 
-	err = iqr2.AppendKnownValues(knownValues)
-	assert.NoError(t, err)
+// 	err = iqr2.AppendKnownValues(knownValues)
+// 	assert.NoError(t, err)
 
-	_, err = processor.Process(iqr2)
-	assert.NoError(t, err)
+// 	_, err = processor.Process(iqr2)
+// 	assert.NoError(t, err)
 
-	resultIqr2, err := processor.Process(nil)
-	assert.Equal(t, io.EOF, err)
-	assert.NotNil(t, resultIqr2)
+// 	resultIqr2, err := processor.Process(nil)
+// 	assert.Equal(t, io.EOF, err)
+// 	assert.NotNil(t, resultIqr2)
 
-	segStatsMap, _, _ = resultIqr2.GetIQRStatsResults()
-	assert.NotNil(t, segStatsMap)
+// 	segStatsMap, _, _ = resultIqr2.GetIQRStatsResults()
+// 	assert.NotNil(t, segStatsMap)
 
-	iqr3 := iqr.NewIQR(0)
-	processor = getStatsMeasureProcessor()
-	processor.setAsIqrStatsResults = true
+// 	iqr3 := iqr.NewIQR(0)
+// 	processor = getStatsMeasureProcessor()
+// 	processor.setAsIqrStatsResults = true
 
-	err = iqr3.AppendKnownValues(knownValues)
-	assert.NoError(t, err)
+// 	err = iqr3.AppendKnownValues(knownValues)
+// 	assert.NoError(t, err)
 
-	_, err = processor.Process(iqr3)
-	assert.NoError(t, err)
+// 	_, err = processor.Process(iqr3)
+// 	assert.NoError(t, err)
 
-	resultIqr3, err := processor.Process(nil)
-	assert.Equal(t, io.EOF, err)
-	assert.NotNil(t, resultIqr3)
+// 	resultIqr3, err := processor.Process(nil)
+// 	assert.Equal(t, io.EOF, err)
+// 	assert.NotNil(t, resultIqr3)
 
-	segStatsMap, _, _ = resultIqr3.GetIQRStatsResults()
-	assert.NotNil(t, segStatsMap)
+// 	segStatsMap, _, _ = resultIqr3.GetIQRStatsResults()
+// 	assert.NotNil(t, segStatsMap)
 
-	iqrs := []*iqr.IQR{resultIqr1, resultIqr2, resultIqr3}
+// 	iqrs := []*iqr.IQR{resultIqr1, resultIqr2, resultIqr3}
 
-	resultIqr := iqr.NewIQR(0)
-	statsExists, err := resultIqr.MergeIQRStatsResults(iqrs)
-	assert.NoError(t, err)
-	assert.True(t, statsExists)
+// 	resultIqr := iqr.NewIQR(0)
+// 	statsExists, err := resultIqr.MergeIQRStatsResults(iqrs)
+// 	assert.NoError(t, err)
+// 	assert.True(t, statsExists)
 
-	knownValues, err = resultIqr.ReadAllColumns()
-	assert.NoError(t, err)
+// 	knownValues, err = resultIqr.ReadAllColumns()
+// 	assert.NoError(t, err)
 
-	expectedKnownValues := map[string][]sutils.CValueEnclosure{
-		"count(col2)": {
-			{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(18)},
-		},
-		"sum(col2)": {
-			{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(63)},
-		},
-		"avg(col2)": {
-			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3.5)},
-		},
-	}
+// 	expectedKnownValues := map[string][]sutils.CValueEnclosure{
+// 		"count(col2)": {
+// 			{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(18)},
+// 		},
+// 		"sum(col2)": {
+// 			{Dtype: sutils.SS_DT_SIGNED_NUM, CVal: int64(63)},
+// 		},
+// 		"avg(col2)": {
+// 			{Dtype: sutils.SS_DT_FLOAT, CVal: float64(3.5)},
+// 		},
+// 	}
 
-	assert.Equal(t, expectedKnownValues, knownValues)
-}
+// 	assert.Equal(t, expectedKnownValues, knownValues)
+// }
 
 func Test_ProcessGroupByRequestFullBuffer(t *testing.T) {
 	config.InitializeTestingConfig(t.TempDir())

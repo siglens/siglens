@@ -609,7 +609,7 @@ func GetSegCount(runningSegStat *structs.SegStats,
 	return &rSst, nil
 }
 
-func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
+func GetSegAvg(accumulatedStats *structs.SegStats, currSegStat *structs.SegStats) (*sutils.NumTypeEnclosure, error) {
 	// Initialize result with default values
 	rSst := sutils.NumTypeEnclosure{
 		Ntype:    sutils.SS_DT_FLOAT,
@@ -625,40 +625,48 @@ func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) 
 		return &rSst, fmt.Errorf("GetSegAvg: current segStats is non-numeric")
 	}
 
-	// If running segment statistics are nil, return the current segment's average
-	if runningSegStat == nil {
-		avg, err := getAverage(currSegStat.NumStats.Sum, currSegStat.NumStats.NumericCount)
-		rSst.FloatVal = avg
+	// If accumulated statistics are nil, compute average from current segment only
+	if accumulatedStats == nil {
+		meanValue, err := computeAverage(currSegStat.NumStats.Sum, currSegStat.NumStats.NumericCount)
+		rSst.FloatVal = meanValue
 		return &rSst, err
 	}
 
-	// Update running segment statistics
-	runningSegStat.NumStats.NumericCount += currSegStat.NumStats.NumericCount
-	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, sutils.Sum)
+	// Merge current segment statistics into accumulated statistics
+	accumulatedStats.NumStats.NumericCount += currSegStat.NumStats.NumericCount
+	err := accumulatedStats.NumStats.Sum.ReduceFast(
+		currSegStat.NumStats.Sum.Ntype,
+		currSegStat.NumStats.Sum.IntgrVal,
+		currSegStat.NumStats.Sum.FloatVal,
+		sutils.Sum,
+	)
 	if err != nil {
-		return &rSst, fmt.Errorf("GetSegAvg: error in reducing sum, err: %+v", err)
+		return &rSst, fmt.Errorf("GetSegAvg: sum reduction failed, err: %+v", err)
 	}
-	// Calculate and return the average
-	avg, err := getAverage(runningSegStat.NumStats.Sum, runningSegStat.NumStats.NumericCount)
-	rSst.FloatVal = avg
+
+	// Compute and return the final average
+	meanValue, err := computeAverage(accumulatedStats.NumStats.Sum, accumulatedStats.NumStats.NumericCount)
+	rSst.FloatVal = meanValue
 	return &rSst, err
 }
 
-// Helper function to calculate the average
-func getAverage(sum sutils.NumTypeEnclosure, count uint64) (float64, error) {
-	avg := 0.0
-	if count == 0 {
-		return avg, fmt.Errorf("getAverage: count is 0, cannot divide by 0")
+// Helper function to compute Average
+func computeAverage(total sutils.NumTypeEnclosure, numElements uint64) (float64, error) {
+	if numElements == 0 {
+		return 0.0, fmt.Errorf("computeAverage: division by zero - element count is 0")
 	}
-	switch sum.Ntype {
+
+	var mean float64
+	switch total.Ntype {
 	case sutils.SS_DT_FLOAT:
-		avg = sum.FloatVal / float64(count)
+		mean = total.FloatVal / float64(numElements)
 	case sutils.SS_DT_SIGNED_NUM:
-		avg = float64(sum.IntgrVal) / float64(count)
+		mean = float64(total.IntgrVal) / float64(numElements)
 	default:
-		return avg, fmt.Errorf("getAverage: invalid data type: %v", sum.Ntype)
+		return 0.0, fmt.Errorf("computeAverage: unsupported numeric type: %v", total.Ntype)
 	}
-	return avg, nil
+
+	return mean, nil
 }
 
 func GetSegVar(runningSegStat *structs.SegStats,
@@ -775,78 +783,85 @@ func getVarp(sum sutils.NumTypeEnclosure, sumsq float64, count uint64) (float64,
 	return variance, nil
 }
 
-func GetSegList(runningSegStat *structs.SegStats,
-	currSegStat *structs.SegStats) (*sutils.CValueEnclosure, error) {
-	res := sutils.CValueEnclosure{
+func GetSegList(accumulatedStats *structs.SegStats,
+	currentSegStats *structs.SegStats) (*sutils.CValueEnclosure, error) {
+	result := sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_STRING_SLICE,
 		CVal:  make([]string, 0),
 	}
-	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrList == nil {
-		return &res, fmt.Errorf("GetSegList: currSegStat does not contain string list %v", currSegStat)
+
+	if currentSegStats == nil || currentSegStats.StringStats == nil || currentSegStats.StringStats.StrList == nil {
+		return &result, fmt.Errorf("GetSegList: current segment stats missing string list %v", currentSegStats)
 	}
 
-	// if this is the first segment, then running will be nil, and we return the first seg's stats
-	if runningSegStat == nil {
-		if len(currSegStat.StringStats.StrList) > sutils.MAX_SPL_LIST_SIZE {
-			finalStringList := make([]string, sutils.MAX_SPL_LIST_SIZE)
-			copy(finalStringList, currSegStat.StringStats.StrList[:sutils.MAX_SPL_LIST_SIZE])
-			res.CVal = finalStringList
+	// Handle first segment case - no accumulated stats yet
+	if accumulatedStats == nil {
+		sourceList := currentSegStats.StringStats.StrList
+		var finalList []string
+
+		if len(sourceList) > 100 {
+			finalList = make([]string, 100)
+			copy(finalList, sourceList[:100])
 		} else {
-			finalStringList := make([]string, len(currSegStat.StringStats.StrList))
-			copy(finalStringList, currSegStat.StringStats.StrList)
-			res.CVal = finalStringList
+			finalList = make([]string, len(sourceList))
+			copy(finalList, sourceList)
 		}
-		return &res, nil
+
+		result.CVal = finalList
+		return &result, nil
 	}
 
-	// Limit list size to match splunk.
-	strList := make([]string, 0, sutils.MAX_SPL_LIST_SIZE)
+	// Merge accumulated and current lists with size limit
+	mergedList := make([]string, 0, 100)
 
-	if runningSegStat.StringStats != nil && runningSegStat.StringStats.StrList != nil {
-		strList = sutils.AppendWithLimit(strList, runningSegStat.StringStats.StrList, sutils.MAX_SPL_LIST_SIZE)
+	if accumulatedStats.StringStats != nil && accumulatedStats.StringStats.StrList != nil {
+		mergedList = sutils.AppendWithLimit(mergedList, accumulatedStats.StringStats.StrList, 100)
 	}
+	mergedList = sutils.AppendWithLimit(mergedList, currentSegStats.StringStats.StrList, 100)
 
-	strList = sutils.AppendWithLimit(strList, currSegStat.StringStats.StrList, sutils.MAX_SPL_LIST_SIZE)
+	result.CVal = mergedList
 
-	res.CVal = strList
-	if runningSegStat.StringStats == nil {
-		runningSegStat.StringStats = &structs.StringStats{
-			StrList: strList,
+	// Update accumulated stats with merged list
+	if accumulatedStats.StringStats == nil {
+		accumulatedStats.StringStats = &structs.StringStats{
+			StrList: mergedList,
 		}
 	} else {
-		runningSegStat.StringStats.StrList = strList
+		accumulatedStats.StringStats.StrList = mergedList
 	}
-	return &res, nil
+
+	return &result, nil
 }
 
-// Get merged values from running segement stats and current segment stats
-func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*sutils.CValueEnclosure, error) {
-	res := sutils.CValueEnclosure{
+// Merge distinct values from accumulated and current segment statistics
+func GetSegValue(accumulatedStats *structs.SegStats, currentSegStats *structs.SegStats) (*sutils.CValueEnclosure, error) {
+	result := sutils.CValueEnclosure{
 		Dtype: sutils.SS_DT_STRING_SLICE,
 		CVal:  make([]string, 0),
 	}
 
-	if currSegStat == nil || currSegStat.StringStats == nil || currSegStat.StringStats.StrSet == nil {
-		return &res, fmt.Errorf("GetSegValue: currSegStat does not contain string set %v", currSegStat)
+	if currentSegStats == nil || currentSegStats.StringStats == nil || currentSegStats.StringStats.StrSet == nil {
+		return &result, fmt.Errorf("GetSegValue: current segment stats missing string set %v", currentSegStats)
 	}
-	// Initialize or retrieve the string set from running segment stats
-	strSet := currSegStat.StringStats.StrSet
 
-	// Update running segment stats with the merged string set
-	if runningSegStat != nil {
-		if runningSegStat.StringStats == nil {
-			runningSegStat.StringStats = &structs.StringStats{
-				StrSet: strSet,
+	distinctValues := currentSegStats.StringStats.StrSet
+
+	// Merge with accumulated statistics if available
+	if accumulatedStats != nil {
+		if accumulatedStats.StringStats == nil {
+			accumulatedStats.StringStats = &structs.StringStats{
+				StrSet: distinctValues,
 			}
 		} else {
-			for str := range runningSegStat.StringStats.StrSet {
-				strSet[str] = struct{}{}
+			// Merge accumulated set into current set
+			for value := range accumulatedStats.StringStats.StrSet {
+				distinctValues[value] = struct{}{}
 			}
-			runningSegStat.StringStats.StrSet = strSet
+			accumulatedStats.StringStats.StrSet = distinctValues
 		}
 	}
 
-	// Convert the string set to a sorted slice
-	res.CVal = utils.GetSortedStringKeys(strSet)
-	return &res, nil
+	// Convert set to sorted slice
+	result.CVal = utils.GetSortedStringKeys(distinctValues)
+	return &result, nil
 }

@@ -51,16 +51,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type VersionResponse struct {
-	Version string `json:"version"`
-}
-
-func getVersionHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		systemconfig.ProcessVersionInfo(ctx)
-	}
-}
-
 func getHealthHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		health.ProcessGetHealth(ctx)
@@ -563,12 +553,6 @@ func getAllMinionSearchesHandler() func(ctx *fasthttp.RequestCtx) {
 func updateAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		alertsHandler.ProcessUpdateAlertRequest(ctx)
-	}
-}
-
-func alertHistoryHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessAlertHistoryRequest(ctx)
 	}
 }
 

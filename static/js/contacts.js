@@ -593,7 +593,7 @@ function getAllContactPoints(contactName) {
 }
 
 function deleteContactPrompt(data) {
-    $('#contact-name-placeholder').html('<strong>' + data.contactName + '</strong>');
+    $('#contact-name-placeholder').html(`<strong>${data.contactName}</strong>`);
     $('.popupOverlay, .popupContent').addClass('active');
     $('#cancel-btn, .popupOverlay').click(function () {
         $('.popupOverlay, .popupContent').removeClass('active');
@@ -653,7 +653,7 @@ class btnRenderer {
 }
 
 function showDeleteContactDialog(data, matchingAlertNames) {
-    $('#contact-name-placeholder-delete-dialog').html('<strong>' + data.contactName + '</strong>');
+    $('#contact-name-placeholder-delete-dialog').html(`<strong>${data.contactName}</strong>`);
     $('.popupOverlay, .delete-dialog').addClass('active');
     let el = $('#associated-alerts');
     el.html(``);

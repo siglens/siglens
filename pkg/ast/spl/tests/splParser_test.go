@@ -289,40 +289,6 @@ func Test_searchFieldGreaterThanOrEqualToQuotedString(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func Test_searchFieldEqualToBooleanTrue(t *testing.T) {
-	query := []byte(`search status=true`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-
-	assert.NotNil(t, filterNode)
-	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "status", filterNode.Comparison.Field)
-	assert.Equal(t, true, filterNode.Comparison.Values)
-
-	expressionFilter := extractExpressionFilter(t, filterNode)
-	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
-	assert.Equal(t, uint8(1), expressionFilter.RightInput.Expression.LeftInput.ColumnValue.BoolVal)
-}
-
-func Test_searchFieldEqualToBooleanFalse(t *testing.T) {
-	query := []byte(`search status=false`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-
-	assert.NotNil(t, filterNode)
-	assert.Equal(t, "=", filterNode.Comparison.Op)
-	assert.Equal(t, "status", filterNode.Comparison.Field)
-	assert.Equal(t, false, filterNode.Comparison.Values)
-
-	expressionFilter := extractExpressionFilter(t, filterNode)
-	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
-	assert.Equal(t, sutils.Equals, expressionFilter.FilterOperator)
-	assert.Equal(t, uint8(0), expressionFilter.RightInput.Expression.LeftInput.ColumnValue.BoolVal)
-}
-
 func Test_searchFieldEqualToUnquotedString(t *testing.T) {
 	query := []byte(`search status=ok`)
 	res, err := spl.Parse("", query)
@@ -11457,61 +11423,6 @@ func Test_RemoveRedundantSearches(t *testing.T) {
 	astNode, aggregator = parseWithoutError(t, query)
 	assert.Equal(t, expectedAstNode, astNode)
 	assert.Equal(t, expectedAggregator, aggregator)
-}
-
-func Test_Append_1(t *testing.T) {
-	query := `* | append [ search foo=bar ]`
-	res, err := spl.Parse("", []byte(query))
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
-	assert.NotNil(t, aggregator.OutputTransforms)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
-
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch)
-
-	subSearch, _ := aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch.(*ast.Node)
-	assert.Equal(t, "foo", subSearch.Comparison.Field)
-	assert.Equal(t, "=", subSearch.Comparison.Op)
-	assert.Equal(t, "bar", strings.Trim(subSearch.Comparison.Values.(string), `"`))
-
-	assert.Equal(t, 60, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxTime)
-	assert.Equal(t, 50000, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxOut)
-
-}
-
-func Test_Append_2(t *testing.T) {
-	query := `* | append maxtime=30 maxout=10000 [ search foo=bar ] `
-	res, err := spl.Parse("", []byte(query))
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	astNode, aggregator, _, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
-	assert.NotNil(t, aggregator.OutputTransforms)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch)
-
-	assert.Equal(t, 30, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxTime)
-	assert.Equal(t, 10000, aggregator.OutputTransforms.LetColumns.AppendRequest.MaxOut)
-
-	subSearch, _ := aggregator.OutputTransforms.LetColumns.AppendRequest.Subsearch.(*ast.Node)
-	assert.Equal(t, "foo", subSearch.Comparison.Field)
-	assert.Equal(t, "=", subSearch.Comparison.Op)
-	assert.Equal(t, "bar", strings.Trim(subSearch.Comparison.Values.(string), `"`))
-
 }
 
 func Test_Index(t *testing.T) {

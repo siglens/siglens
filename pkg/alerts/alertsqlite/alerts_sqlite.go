@@ -891,22 +891,6 @@ func (p Sqlite) verifyMinionSearchExists(alert_id string) (bool, string, error) 
 	return true, "", nil
 }
 
-func (p Sqlite) CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error) {
-	if !isValid(alertHistoryDetails.AlertId) || !isValid(alertHistoryDetails.EventDescription) || !isValid(alertHistoryDetails.UserName) {
-		err := fmt.Errorf("CreateAlertHistory: data validation check failed. AlertId=%v or Event Description=%v or Username=%v is/are not valid", alertHistoryDetails.AlertId, alertHistoryDetails.EventDescription, alertHistoryDetails.UserName)
-		log.Error(err.Error())
-		return nil, err
-	}
-
-	result := p.db.Create(alertHistoryDetails)
-	if result.Error != nil && result.RowsAffected != 1 {
-		err := fmt.Errorf("CreateAlert: unable to create alert, AlertId=%v, Alert Name=%v, Error=%v", alertHistoryDetails.AlertId, alertHistoryDetails.UserName, result.Error)
-		log.Error(err.Error())
-		return &alertutils.AlertHistoryDetails{}, err
-	}
-	return alertHistoryDetails, nil
-}
-
 func (p Sqlite) GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error) {
 	if !isValid(alertHistoryParams.AlertId) {
 		err := fmt.Errorf("GetAlertHistory: Data Validation Check Failed: Alert Id: %v is not valid", alertHistoryParams.AlertId)
