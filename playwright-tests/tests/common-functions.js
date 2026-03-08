@@ -1,3 +1,6 @@
+// Copyright (c) 2026 The SigScalr Authors.
+// SPDX-License-Identifier: Apache-2.0
+
 const { expect } = require('@playwright/test');
 
 async function testThemeToggle(page) {
