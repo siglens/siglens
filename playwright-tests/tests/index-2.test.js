@@ -15,25 +15,25 @@ test.describe('Logs Page Tests', () => {
         await expect(page.locator('#logs-result-container')).toBeVisible();
     });
 
-    test('should add to alert', async ({ page, context }) => {
-        await page.click('#alert-from-logs-btn');
-        await expect(page.locator('.addrulepopupContent')).toBeVisible();
+    // test('should add to alert', async ({ page, context }) => {
+    //     await page.click('#alert-from-logs-btn');
+    //     await expect(page.locator('.addrulepopupContent')).toBeVisible();
 
-        await page.fill('#rule-name', 'Test Alert');
+    //     await page.fill('#rule-name', 'Test Alert');
 
-        // Wait for the new page to be created
-        const newPagePromise = context.waitForEvent('page');
+    //     // Wait for the new page to be created
+    //     const newPagePromise = context.waitForEvent('page');
 
-        await page.click('#addrule-save-btn');
+    //     await page.click('#addrule-save-btn');
 
-        const newPage = await newPagePromise;
-        await newPage.waitForLoadState();
+    //     const newPage = await newPagePromise;
+    //     await newPage.waitForLoadState();
 
-        // Verify that the new page's URL contains 'alert.html'
-        expect(newPage.url()).toContain('alert.html');
+    //     // Verify that the new page's URL contains 'alert.html'
+    //     expect(newPage.url()).toContain('alert.html');
 
-        await newPage.close();
-    });
+    //     await newPage.close();
+    // });
 
     test('should add to dashboard', async ({ page, context }) => {
         await page.click('#add-logs-to-db-btn');

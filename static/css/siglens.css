@@ -18,10 +18,6 @@
 
     --error-trace: #E93125;
     --color-danger: #d1242f;
-    --color-normal: #40C463;
-    --color-pending: #FB9E04;
-    --color-firing: #EF364F;
-    --color-inactive: #364fef;
 
     --lavender-1: #B4A6E6;
     --lavender-2: #826CE1;
@@ -2197,14 +2193,6 @@ table.dataTable thead td {
 
 .rule-name-error {
     display: none;
-}
-
-.rule-name-error.active {
-    display: block;
-    color: #6449D6;
-    font-size: 11px;
-    font-weight: 500;
-    margin-bottom: 4px;
 }
 
 .popupContent,
@@ -6110,15 +6098,6 @@ p#versionInfo {
     top: -6px;
     right: 2px;
     border: 1px solid #fff;
-}
-
-#addrule-save-btn:hover {
-    background-color: #4F38CC;
-}
-
-#addrule-save-btn img {
-    width: 10px;
-    margin-left: 8px;
 }
 
 .btncontainer {

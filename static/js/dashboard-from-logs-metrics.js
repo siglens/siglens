@@ -25,47 +25,6 @@ $(document).ready(function () {
         }
     });
 
-    $('#alert-from-logs-btn').click(function () {
-        $('.popupOverlay, .addrulepopupContent').addClass('active');
-    });
-
-    $('#addrule-cancel-btn').click(function () {
-        $('#rule-name').tooltip('hide');
-        $('#rule-name').val('');
-        $('.rule-name-error').removeClass('active').text('');
-        $('.popupOverlay, .addrulepopupContent').removeClass('active');
-    });
-    $('#addrule-save-btn').click(function () {
-        var ruleName = $('#rule-name').val().trim(); // Trim whitespace
-
-        if (!ruleName) {
-            $('.rule-name-error').addClass('active').text('Rule name cannot be empty!');
-            return;
-        }
-        $('.rule-name-error').removeClass('active').text(''); // Clear error message if ruleName is not empty
-
-        var encodedRuleName = encodeURIComponent(ruleName);
-        const urlParams = new URLSearchParams(window.location.search);
-        const filterTab = urlParams.get('filterTab');
-
-        $('#rule-name').tooltip('hide');
-        $('#rule-name').val('');
-        $('.rule-name-error').removeClass('active').text('');
-        $('.popupOverlay, .addrulepopupContent').removeClass('active');
-
-        var queryParams = {
-            type: 'logs',
-            queryLanguage: data.queryLanguage,
-            searchText: data.searchText,
-            startEpoch: data.startEpoch,
-            endEpoch: data.endEpoch,
-            filterTab: filterTab,
-            ruleName: encodedRuleName,
-        };
-
-        var queryString = $.param(queryParams);
-        window.open('../alert.html?' + queryString, '_blank');
-    });
     var currentPage = window.location.pathname;
     if (currentPage === '/metrics-explorer.html') {
         //eslint-disable-next-line no-undef
