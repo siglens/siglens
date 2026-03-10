@@ -759,14 +759,7 @@ function displayQueryLangToolTip(selectedQueryLangID) {
             break;
     }
 }
-function toggleClearButtonVisibility() {
-    var filterInputValue = $('#filter-input').val().trim();
-    if (filterInputValue === '') {
-        $('#clearInput').hide();
-    } else {
-        $('#clearInput').show();
-    }
-}
+
 //eslint-disable-next-line no-unused-vars
 function initializeFilterInputEvents() {
     // Function to check the visibility of the Format button
@@ -880,14 +873,8 @@ function initializeFilterInputEvents() {
     // Initial setup for textarea
     updateTextarea();
 
-    // Toggle visibility of the clear button
-    $('#filter-input').on('input', function () {
-        toggleClearButtonVisibility();
-    });
-
     $('#clearInput').click(function () {
         $('#filter-input').val('').focus();
-        toggleClearButtonVisibility();
     });
 
     // Format button click event
@@ -907,10 +894,6 @@ function initializeFilterInputEvents() {
 
         input.val(formattedValue);
         updateTextarea();
-    });
-
-    $('#filter-input').keydown(function (e) {
-        toggleClearButtonVisibility();
     });
 }
 

@@ -6,7 +6,6 @@ let originalIndexValues = [];
 let indexValues = [];
 
 $(document).ready(async () => {
-    toggleClearButtonVisibility();
 
     // Call the function for each tooltip
     createTooltip('#add-index', 'Add index or regex pattern (e.g., log-*, app-*)');
