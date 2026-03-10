@@ -4151,11 +4151,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: var(--timepicker-text-color) !important;
 }
 
-.test-contact-btn.disabled {
-    pointer-events: all;
-    cursor: not-allowed;
-}
-
 .myOrg-inner-container input[type="submit"] {
     width: 120px;
 }
