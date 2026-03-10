@@ -45,14 +45,14 @@ let currentSearchTerm = '';
 $(document).ready(async function () {
     setupEventHandlers();
     var currentPage = window.location.pathname;
-    if (currentPage.startsWith('/alert.html') || currentPage === '/alert-details.html') {
+    if (currentPage === '/alert.html' || currentPage === '/alert-details.html') {
         isAlertScreen = true;
     }
     filterStartDate = 'now-1h';
     filterEndDate = 'now';
     $('.inner-range #' + filterStartDate).addClass('active');
     datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
-    if (currentPage.startsWith('/dashboard.html')) {
+    if (currentPage === '/dashboard.html')  {
         isDashboardScreen = true;
     }
     if (currentPage === '/metrics-explorer.html') {
@@ -2956,14 +2956,6 @@ async function alertsDatePickerHandler() {
 function updateChartColorsBasedOnTheme() {
     const { gridLineColor, tickColor } = getGraphGridColors();
 
-    if (mergedGraph) {
-        mergedGraph.options.scales.x.ticks.color = tickColor;
-        mergedGraph.options.scales.y.ticks.color = tickColor;
-        mergedGraph.options.scales.x.grid.color = gridLineColor;
-        mergedGraph.options.scales.y.grid.color = gridLineColor;
-        mergedGraph.update();
-    }
-
     for (const queryName in chartDataCollection) {
         if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             const lineChart = lineCharts[queryName];
@@ -2975,6 +2967,14 @@ function updateChartColorsBasedOnTheme() {
                 lineChart.update();
             }
         }
+    }
+    
+    if (mergedGraph) {
+        mergedGraph.options.scales.x.ticks.color = tickColor;
+        mergedGraph.options.scales.y.ticks.color = tickColor;
+        mergedGraph.options.scales.x.grid.color = gridLineColor;
+        mergedGraph.options.scales.y.grid.color = gridLineColor;
+        mergedGraph.update();
     }
 }
 
