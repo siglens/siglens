@@ -80,15 +80,6 @@
     background-color: var(--black1-to-white0) !important;
 }
 
-.ag-root-wrapper-body.ag-layout-normal {
-    flex: 1 1 auto;
-    height: 0;
-    min-height: 0;
-    border: 1px solid var(--search-input-border);
-    box-shadow: var(--box-shadow);
-    border-radius: 5px;
-}
-
 #tracing-container #ag-grid .ag-row:hover {
     background: var(--alerting-table-hover);
     cursor: pointer;
