@@ -6069,37 +6069,6 @@ p#versionInfo {
     width: 464px !important;
 }
 
-.form-control.error-border {
-    border: 1px solid #EB364B !important;
-    border-left: none;
-}
-
-.evaluation-error-message .icon-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    width: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-}
-
-.evaluation-error-message {
-    display: none;
-    background-color: #EB364B;
-    border-radius: 50%;
-    height: 16px;
-    width: 16px;
-    color: #fff;
-    font-weight: bolder;
-    justify-content: center;
-    position: absolute;
-    top: -6px;
-    right: 2px;
-    border: 1px solid #fff;
-}
-
 .btncontainer {
     display: flex;
     flex-direction: row;
