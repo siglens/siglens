@@ -160,16 +160,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
                 };
             });
 
-            let xData = hits.map((item) => {
-                let groupByValue = formatGroupByValues(item.GroupByValues, multipleGroupBy);
-
-                // If groupByValue is null, set it to "NULL" or any other default label
-                if (groupByValue === null || groupByValue === undefined || groupByValue === '') {
-                    groupByValue = 'NULL'; // or "Unknown", "N/A", etc.
-                }
-
-                return groupByValue;
-            });
+            let xData = hits.map((item) => formatGroupByValues(item.GroupByValues, multipleGroupBy));
 
             $(panelChartEl).html('<canvas class="bar-chart-canvas"></canvas>');
             const canvasEl = $(panelChartEl).find('canvas')[0];
@@ -211,10 +202,6 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
                 let yAxisValue;
                 let measureVal = hit.MeasureVal;
                 yAxisValue = Object.values(measureVal)[0];
-
-                if (xAxisValue === null || xAxisValue === undefined || xAxisValue === '') {
-                    xAxisValue = 'NULL'; // or "Unknown", "N/A", etc.
-                }
 
                 xAxisData.push(xAxisValue);
                 yAxisData.push(yAxisValue);
