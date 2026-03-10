@@ -144,29 +144,6 @@ function getAllAlerts() {
             console.error('Failed to fetch alerts:', error);
         });
 }
-// Custom cell renderer for State field
-function getCssVariableValue(variableName) {
-    return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
-}
-
-function stateCellRenderer(params) {
-    let state = params.value;
-    let color;
-    switch (state) {
-        case 'Normal':
-            color = getCssVariableValue('--color-normal');
-            break;
-        case 'Pending':
-            color = getCssVariableValue('--color-pending');
-            break;
-        case 'Firing':
-            color = getCssVariableValue('--color-firing');
-            break;
-        default:
-            color = getCssVariableValue('--color-inactive');
-    }
-    return `<div style="background-color: ${color}; padding: 2px 10px; border-radius: 3px; color: white">${state}</div>`;
-}
 
 function labelsCellRenderer(params) {
     if (!params.value) return '';
@@ -554,8 +531,6 @@ let alertColumnDefs = [
     {
         headerName: 'State',
         field: 'alertState',
-        width: 100,
-        cellRenderer: stateCellRenderer,
     },
     {
         headerName: 'Silenced For',
