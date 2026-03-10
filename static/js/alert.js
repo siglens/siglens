@@ -44,7 +44,6 @@ $(document).ready(async function () {
     setupEventHandlers();
 
     setupAlertEventHandlers();
-    setupValidationHandlers();
     setupTooltips();
     initializeBreadcrumbs([
         { name: 'Alerting', url: './alerting.html' },
@@ -106,42 +105,6 @@ function setupAlertEventHandlers() {
 
     $('.label-main-container').on('click', '.delete-icon', function () {
         $(this).closest('.label-container').remove();
-    });
-}
-
-function setupValidationHandlers() {
-    $('#evaluate-for').tooltip({
-        title: 'Evaluate For must be greater than or equal to Evaluate Interval',
-        placement: 'top',
-        trigger: 'manual',
-    });
-    let evaluateForValue = 0;
-
-    function checkEvaluateConditions() {
-        let evaluateEveryValue = parseInt($('#evaluate-every').val());
-        evaluateForValue = parseInt($('#evaluate-for').val());
-        let submitbtn = $('#save-alert-btn');
-        let errorMessage = $('.evaluation-error-message');
-
-        if (evaluateForValue < evaluateEveryValue) {
-            $('#evaluate-for').addClass('error-border');
-            errorMessage.show();
-            $('#evaluate-for').tooltip('show');
-            submitbtn.prop('disabled', true);
-        } else {
-            $('#evaluate-for').removeClass('error-border');
-            errorMessage.hide();
-            $('#evaluate-for').tooltip('hide');
-            submitbtn.prop('disabled', false);
-        }
-    }
-
-    $('#evaluate-for').on('input', function () {
-        checkEvaluateConditions();
-    });
-
-    $('#evaluate-every').on('input', function () {
-        checkEvaluateConditions();
     });
 }
 
