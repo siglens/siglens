@@ -967,8 +967,6 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     }
 
     var currentMetricsValue = queryElement.find('.metrics').val();
-    const input = queryElement.find('.metrics');
-    adjustInputWidth(input[0]);
     if (currentMetricsValue) {
         queryDetails.metrics = currentMetricsValue;
 
@@ -1017,9 +1015,6 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
 
                 $(this).blur();
-                setTimeout(() => {
-                    adjustInputWidth(this);
-                }, 10);
             },
             open: function () {
                 const menu = $(this).autocomplete('widget');
@@ -1062,7 +1057,6 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             if (selectedValue === '') {
                 $(this).val(queryDetails.metrics);
             }
-            adjustInputWidth(this);
         })
         .on('keydown', function (event) {
             if (event.keyCode === 27) {
@@ -1076,7 +1070,6 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                     queryDetails.metrics = selectedValue;
                 }
                 $(this).blur();
-                adjustInputWidth(this);
             }
         })
         .on('change', function () {
@@ -1087,7 +1080,6 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 queryDetails.metrics = selectedValue;
             }
             $(this).blur();
-            adjustInputWidth(this);
         });
 
     // Everywhere input (tag:value)
@@ -3363,17 +3355,6 @@ function generateEmptyChartLabels(timeUnit, startTime, endTime) {
     }
 
     return labels;
-}
-function adjustInputWidth(input) {
-    const minWidth = 230;
-    const charWidth = 8;
-    const padding = 5;
-
-    // Check if the input has a value
-    if (input.value.length > 0) {
-        const width = Math.max(minWidth, input.value.length * charWidth + padding);
-        input.style.width = width + 'px';
-    }
 }
 
 //eslint-disable-next-line no-unused-vars
