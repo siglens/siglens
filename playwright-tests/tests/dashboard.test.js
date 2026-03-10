@@ -1,3 +1,6 @@
+// Copyright (c) 2026 The SigScalr Authors.
+// SPDX-License-Identifier: Apache-2.0
+
 const { test, expect } = require('@playwright/test');
 
 let createdDashboardIds = [];

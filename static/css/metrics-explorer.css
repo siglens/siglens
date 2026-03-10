@@ -1,3 +1,6 @@
+/* Copyright (c) 2026 The SigScalr Authors. */
+/* SPDX-License-Identifier: Apache-2.0 */
+
 :root {
     --db-options-bg-color: var(--black-3);
     --container-focus-bg-color: var(--black-1);

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 The SigScalr Authors.
+// SPDX-License-Identifier: Apache-2.0
+
 let currentPage = 1;
 let pageSize = 50; // Default page size
 let totalLoadedRecords = 0;
