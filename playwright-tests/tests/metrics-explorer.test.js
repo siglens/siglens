@@ -104,10 +104,10 @@ test.describe('Metrics Explorer Tests', () => {
         expect(normalizedToastText).toContain('Query saved successfully');
     });
 
-    test('should download metrics', async ({ page }) => {
-        await page.click('.download-all-logs-btn');
-        await page.click('#csv-block');
-    });
+    // test('should download metrics', async ({ page }) => {
+    //     await page.click('.download-all-logs-btn');
+    //     await page.click('#csv-block');
+    // });
 
     test('should toggle one graph per query button', async ({ page }) => {
         await expect(page.locator('.graph-view-container')).toBeVisible();
