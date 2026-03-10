@@ -42,45 +42,7 @@ let isLoadingMore = false;
 const ITEMS_PER_PAGE = 20;
 let currentSearchTerm = '';
 
-// Function to check if CSV can be downloaded
-function canDownloadCSV() {
-    for (let key in chartDataCollection) {
-        if (Object.prototype.hasOwnProperty.call(chartDataCollection, key) && chartDataCollection[key].datasets) {
-            return true; // If any data is present, enable download
-        }
-    }
-    return false; // No data found
-}
-
-// Function to check if JSON can be downloaded
-function canDownloadJSON() {
-    for (let key in chartDataCollection) {
-        if (Object.prototype.hasOwnProperty.call(chartDataCollection, key) && chartDataCollection[key].datasets) {
-            return true; // If any data is present, enable download
-        }
-    }
-    return false; // No data found
-}
-
-// Update button states based on data availability
-function updateDownloadButtons() {
-    let csvButton = $('#csv-block');
-    let jsonButton = $('#json-block');
-
-    if (canDownloadCSV()) {
-        csvButton.removeClass('disabled-tab');
-    } else {
-        csvButton.addClass('disabled-tab');
-    }
-
-    if (canDownloadJSON()) {
-        jsonButton.removeClass('disabled-tab');
-    } else {
-        jsonButton.addClass('disabled-tab');
-    }
-}
 $(document).ready(async function () {
-    updateDownloadButtons();
     setupEventHandlers();
     var currentPage = window.location.pathname;
     if (currentPage.startsWith('/alert.html') || currentPage === '/alert-details.html') {
@@ -2182,100 +2144,6 @@ function updateLineCharts(lineStyle, stroke) {
         mergedGraph.update();
     }
 }
-function convertToCSV(obj) {
-    let csv = 'Queries, Timestamp, Value\n';
-    for (let key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key].datasets) {
-            let formulaId = key.startsWith('formula_') ? key : '';
-
-            // Find formula name in formulaCache
-            let formulaDetails = formulaCache.find((item) => item.formulaId === formulaId);
-
-            obj[key].datasets.forEach((dataset) => {
-                for (let timestamp in dataset.data) {
-                    if (dataset.data[timestamp] !== null) {
-                        // Use formulaDetails.formulaName as the formula name
-                        let formulaName = formulaDetails ? formulaDetails.formulaName : formulaId;
-                        let queryLabel = dataset.label.replace(',', ''); // Remove comma if present
-                        if (formulaName == '') {
-                            csv += `${queryLabel}, ${timestamp}, ${dataset.data[timestamp]}\n`;
-                        } else {
-                            csv += `${formulaName}, ${timestamp}, ${dataset.data[timestamp]}\n`;
-                        }
-                    }
-                }
-            });
-        }
-    }
-    return csv;
-}
-
-// Function to download CSV file
-function downloadCSV() {
-    let csvContent = convertToCSV(chartDataCollection);
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    let url = URL.createObjectURL(blob);
-    let link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'data.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-// Function to download JSON file
-function downloadJSON() {
-    let formattedData = {};
-
-    for (let key in chartDataCollection) {
-        if (Object.prototype.hasOwnProperty.call(chartDataCollection, key) && chartDataCollection[key].datasets) {
-            let formulaId = key.startsWith('formula_') ? key : '';
-            let formulaDetails = formulaCache.find((item) => item.formulaId === formulaId);
-
-            formattedData[key] = {
-                formulaName: formulaDetails ? formulaDetails.formulaName : formulaId,
-                datasets: [],
-            };
-
-            chartDataCollection[key].datasets.forEach((dataset) => {
-                let formattedDataset = {
-                    label: dataset.label,
-                    data: {},
-                };
-
-                for (let timestamp in dataset.data) {
-                    if (dataset.data[timestamp] !== null) {
-                        formattedDataset.data[timestamp] = dataset.data[timestamp];
-                    }
-                }
-
-                formattedData[key].datasets.push(formattedDataset);
-            });
-        }
-    }
-
-    let jsonContent = JSON.stringify(formattedData, null, 2);
-    let blob = new Blob([jsonContent], { type: 'application/json' });
-    let url = URL.createObjectURL(blob);
-    let link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'data.json');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-$('#csv-block').on('click', function () {
-    if (canDownloadCSV()) {
-        downloadCSV();
-    }
-});
-
-$('#json-block').on('click', function () {
-    if (canDownloadJSON()) {
-        downloadJSON();
-    }
-});
 
 function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
@@ -2493,7 +2361,6 @@ function mergeGraphs(chartType, panelId = -1) {
     }
 
     mergedGraph = mergedLineChart;
-    updateDownloadButtons();
 }
 
 // Converting the response in form to use to create graphs
@@ -2732,7 +2599,6 @@ async function getMetricsData(queryName, metricName, state) {
 
     // Update global state if successful
     rawTimeSeriesData = result;
-    updateDownloadButtons();
     updateMetricsQueryParamsInUrl();
     metricsQueryParams = data; // For alerts page
 
@@ -2805,7 +2671,6 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             } else {
                 addVisualizationContainer(formulaId, chartData, formulaString);
             }
-            updateDownloadButtons();
             updateMetricsQueryParamsInUrl();
         }
     } catch (error) {
@@ -3234,7 +3099,6 @@ async function addQueryElementForAlertAndPanel(queryName, queryDetails) {
     setupQueryElementEventListeners(queryElement);
 
     queryIndex++;
-    updateDownloadButtons();
 }
 
 async function populateQueryElement(queryElement, queryDetails) {
