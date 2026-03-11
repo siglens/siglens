@@ -31,7 +31,6 @@ $(document).ready(async function () {
 
     initializeFilterInputEvents();
 
-    $('#dbSet-save-json').on('click', saveJsonChanges);
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
     setupEventHandlers();
@@ -102,74 +101,6 @@ $(document).ready(async function () {
 
     $('#favbutton').on('click', toggleFavorite);
 });
-function saveJsonChanges() {
-    try {
-        const jsonText = aceEditor.getValue();
-        const updatedData = JSON.parse(jsonText); // Parse to validate
-
-        // Update local variables
-        dbName = updatedData.name;
-        dbDescr = updatedData.description;
-        timeRange = updatedData.timeRange;
-        localPanels = updatedData.panels;
-        dbRefresh = updatedData.refresh;
-        const isFavorite = updatedData.isFavorite;
-
-        // Update the dbData object
-        dbData = updatedData;
-
-        return fetch('/api/dashboards/update', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                id: dbId,
-                name: dbName,
-                details: {
-                    name: dbName,
-                    description: dbDescr,
-                    timeRange: timeRange,
-                    panels: localPanels.map((panel) => ({
-                        ...panel,
-                        style: {
-                            display: panel.style.display,
-                            color: panel.style.color,
-                            lineStyle: panel.style.lineStyle,
-                            lineStroke: panel.style.lineStroke,
-                        },
-                    })),
-                    refresh: dbRefresh,
-                    isFavorite: isFavorite,
-                    panelFlag: `{{ .PanelFlag }}`,
-                    folder: dbData.folder,
-                },
-            }),
-        })
-            .then((res) => {
-                if (res.status === 409) {
-                    showToast('Dashboard name already exists', 'error');
-                    throw new Error('Dashboard name already exists');
-                }
-                if (res.status == 200) {
-                    showToast('Dashboard Updated Successfully', 'success');
-                    return true;
-                }
-                return res.json().then((err) => {
-                    showToast('Request failed: ' + err.message, 'error');
-                    throw new Error('Request failed: ' + err.message);
-                });
-            })
-            .catch((error) => {
-                console.error(error);
-                alert('Failed to save the dashboard. Please try again.');
-                return false;
-            });
-    } catch (e) {
-        console.error(e);
-        alert('Invalid JSON format. Please correct the JSON and try again.');
-    }
-}
 
 // Initialize Gridstack
 var options = {
@@ -1102,8 +1033,6 @@ function saveDbSetting() {
 
             $('#new-dashboard').show();
             $('.dbSet-container').hide();
-            // Refresh the dashboard data to reflect changes immediately
-            getDashboardData();
         }
     });
 }
