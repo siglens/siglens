@@ -111,20 +111,6 @@ function getUrlParameter(name) {
     let results = regex.exec(location.search);
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
-// Updates saved Metrics Url on changing in metrics Explorer
-//eslint-disable-next-line no-unused-vars
-function updateMetricsQueryParamsInUrl() {
-    if (!isAlertScreen && !isDashboardScreen) {
-        let metricsQueryParamsData = getMetricsQData();
-        const formattedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
-        const transformedMetricsQueryParams = JSON.stringify(formattedMetricsQueryParams);
-        const encodedMetricsQueryParams = encodeURIComponent(transformedMetricsQueryParams);
-        const currentUrl = window.location.href;
-        const baseUrl = currentUrl.split('?')[0];
-        const newUrl = `${baseUrl}?queryString=${encodedMetricsQueryParams}`;
-        window.history.replaceState(null, '', newUrl);
-    }
-}
 
 let formulaDetailsMap = {};
 
@@ -217,8 +203,6 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
             formulaElement.remove();
             removeVisualizationContainer(uniqueId);
             $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
-
-            updateMetricsQueryParamsInUrl();
         }
     });
 }
@@ -311,8 +295,6 @@ function onFormulaErased(uniqueId) {
     delete formulas[uniqueId];
     removeVisualizationContainer(uniqueId);
     updateCloseIconVisibility();
-    // Update the URL when a formula is erased
-    updateMetricsQueryParamsInUrl();
 }
 
 function validateFormula(formula, _uniqueId) {
@@ -527,9 +509,6 @@ function setupQueryElementEventListeners(queryElement) {
 
             // Show or hide the close icon based on the number of queries
             updateCloseIconVisibility();
-
-            // Update the URL when a query is removed
-            updateMetricsQueryParamsInUrl();
 
             // For Alerts Screen
             if (isAlertScreen) {
@@ -2374,7 +2353,6 @@ async function getMetricsData(queryName, metricName, state) {
 
     // Update global state if successful
     rawTimeSeriesData = result;
-    updateMetricsQueryParamsInUrl();
     metricsQueryParams = data; // For alerts page
 
     return result;
@@ -2438,7 +2416,6 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             } else {
                 addVisualizationContainer(formulaId, chartData, formulaString);
             }
-            updateMetricsQueryParamsInUrl();
         }
     } catch (error) {
         if (isAlertScreen) {
