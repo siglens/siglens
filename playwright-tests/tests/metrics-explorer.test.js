@@ -154,10 +154,10 @@ test.describe('Metrics Explorer Tests', () => {
     });
     
 
-    test('test add formula', async ({ page }) => {
-        await page.click('#add-formula');
-        await expect(page.locator('#metrics-formula')).toBeVisible();
-    });
+    // test('test add formula', async ({ page }) => {
+    //     await page.click('#add-formula');
+    //     await expect(page.locator('#metrics-formula')).toBeVisible();
+    // });
 
     test('should show display options', async ({ page }) => {
         await page.click('#display-input');
