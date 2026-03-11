@@ -540,7 +540,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
             }
             for (const formulaData of data.formulasData) {
                 let uniqueId = generateUniqueId();
-                addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
+                // addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
             }
             disableQueryRemoval();
         } else {
@@ -891,22 +891,9 @@ function getMetricsQData() {
                     qlType: 'promql',
                 };
             });
-            let functionsArray = formulaDetailsMap[key].functions || [];
-            // Update the formula by wrapping it with each function in the functionsArray
-            let formula = formulas[key].formula;
 
-            for (let func of functionsArray) {
-                // Create a regex to match the function being applied
-                const funcRegex = new RegExp(`\\b${func}\\(`);
-
-                // Check if the formula does not already contain the function
-                if (!funcRegex.test(formula)) {
-                    formula = `${func}(${formula})`;
-                }
-            }
             formulasData.push({
                 end: endDate,
-                formulas: [{ formula: formula }],
                 queries: queriesInFormula,
                 start: stDate,
             });
