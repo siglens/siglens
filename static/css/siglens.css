@@ -6635,35 +6635,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     text-decoration: none;
 }
 
-
-.format-icon {
-    cursor: pointer;
-    display: none;
-    background-color: var(--alert-background);
-    font-size: 10px !important;
-    padding: 2px 5px;
-    color: grey;
-    margin-right: -43px;
-    margin-left: 10px;
-    border: none;
-    border-radius: 5px;
-    height: 22px;
-}
-
-.logcontainer {
-    margin-bottom: 6px !important;
-    width: 94px;
-    height: 26px;
-    border-radius: 5px;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-}
-
-.format-icon:hover {
-    color: var(--text-color);
-}
-
 .applyBtn {
     width: 100%;
 }
