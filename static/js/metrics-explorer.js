@@ -3008,14 +3008,9 @@ $('#alert-from-metrics-btn').click(function () {
     if (Object.keys(formulas).length > 0) {
         mformulas = [];
         Object.keys(formulas).forEach(function (formulaId) {
-            let formulaDetails = formulaDetailsMap[formulaId];
-            let functionsArray = formulaDetails?.functions || [];
-            let formulaWithFunc = formulaDetails.formula;
-            for (let func of functionsArray) {
-                formulaWithFunc = `${func}(${formulaWithFunc})`;
-            }
+            let formulaDetails = formulas[formulaId];
             const formula = {
-                formula: formulaWithFunc,
+                formula: formulaDetails.formula,
             };
             mformulas.push(formula);
         });
