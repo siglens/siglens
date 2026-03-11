@@ -160,7 +160,6 @@ class linkCellRenderer {
         this.eGui = document.createElement('span');
         let href;
         if (params.data.dataSource === 'metrics') {
-            let href = 'metrics-explorer.html?queryString=' + encodeURIComponent(params.data.metricsQueryParams);
             this.eGui.innerHTML = '<a class="query-link" href="' + href + '" style="display:block;">' + params.data.qname + '</a>';
         } else {
             href = 'index.html?searchText=' + encodeURIComponent(params.data.searchText) + '&startEpoch=' + encodeURIComponent(params.data.startTime) + '&endEpoch=' + encodeURIComponent(params.data.endTime) + '&indexName=' + encodeURIComponent(params.data.indexName) + '&filterTab=' + encodeURIComponent(params.data.filterTab) + '&queryLanguage=' + encodeURIComponent(params.data.queryLanguage);
@@ -282,18 +281,6 @@ let queriesColumnDefs = [
         },
     },
     {
-        field: 'type',
-        headerName: 'Type',
-        resizable: true,
-        valueFormatter: (params) => {
-            if (params.value) {
-                return params.value.charAt(0).toUpperCase() + params.value.slice(1).toLowerCase();
-            } else {
-                return '';
-            }
-        },
-    },
-    {
         field: 'queryLanguage',
         headerName: 'Query Language',
         resizable: true,
@@ -399,7 +386,7 @@ function displaySavedQueries(res, flag) {
                 newRow.set('queryLanguage', value.queryLanguage);
             }
             newRow.set('filterTab', value.filterTab);
-            newRow.set('type', value.dataSource);
+            // newRow.set('type', value.dataSource);
             newRow.set('dataSource', value.dataSource);
             newRow.set('metricsQueryParams', value.metricsQueryParams);
             newRow.set('startTime', value.startTime);

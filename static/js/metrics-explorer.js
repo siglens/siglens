@@ -3112,44 +3112,7 @@ function generateEmptyChartLabels(timeUnit, startTime, endTime) {
 }
 
 //eslint-disable-next-line no-unused-vars
-function formatMetricsForUrlParams(panelMetricsQueryParams) {
-    const transformedQueries = [];
-    const transformedFormulas = [];
-
-    // Loop through `queriesData` to extract queries only (no formulas)
-    panelMetricsQueryParams.queriesData.forEach((queryData) => {
-        queryData.queries.forEach((query) => {
-            transformedQueries.push({
-                name: query.name,
-                query: query.query,
-                qlType: query.qlType,
-                state: query.state || 'builder',
-            });
-        });
-        // Exclude formulas from `queriesData`
-    });
-
-    // Combine formulas from `formulasData` only
-    panelMetricsQueryParams.formulasData.forEach((formulaData) => {
-        formulaData.formulas.forEach((formula) => {
-            transformedFormulas.push({
-                formula: formula.formula,
-            });
-        });
-    });
-
-    return {
-        start: panelMetricsQueryParams.queriesData[0]?.start || 'now-90d',
-        end: panelMetricsQueryParams.queriesData[0]?.end || 'now',
-        queries: transformedQueries,
-        formulas: transformedFormulas,
-    };
-}
-//eslint-disable-next-line no-unused-vars
 function getMetricsDataForSave(qname, qdesc) {
-    let metricsQueryParamsData = getMetricsQData();
-    // Transform the structure to match `metricsQueryParams`
-    const transformedMetricsQueryParams = formatMetricsForUrlParams(metricsQueryParamsData);
 
     return {
         dataSource: 'metrics',
@@ -3157,7 +3120,6 @@ function getMetricsDataForSave(qname, qdesc) {
         queryDescription: qdesc || '',
         startTime: filterStartDate,
         endTime: filterEndDate,
-        metricsQueryParams: JSON.stringify(transformedMetricsQueryParams),
     };
 }
 
