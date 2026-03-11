@@ -46,7 +46,6 @@ let navbarComponent = `
             </div>
             <ul class="metrics-dropdown">
                 <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
-                <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinality</li></a>
             </ul>
         </div>
         {{ if .ShowSLO }}
