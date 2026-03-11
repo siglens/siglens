@@ -2653,8 +2653,8 @@ async function refreshMetricsGraphs() {
     if (queries[firstKey].metrics || queries[firstKey].state === 'raw') {
         // only if the first query is not empty
         // Update graph for each query
-        for (const queryName of Object.keys(queries)) {
-            const queryDetails = queries[queryName];
+        Object.keys(queries).forEach(async function (queryName) {
+            var queryDetails = queries[queryName];
             if (queryDetails.metrics) {
                 const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
                 availableEverywhere = tagsAndValue.availableEverywhere.sort();
@@ -2665,17 +2665,7 @@ async function refreshMetricsGraphs() {
             }
 
             await handleQueryAndVisualize(queryName, queryDetails);
-        }
-    }
-
-    // Second if block: This will execute only after the first one
-    if (Object.keys(formulas).length > 0) {
-        // Update graph for each formula
-        for (const formulaId of Object.keys(formulas)) {
-            const formulaDetails = formulas[formulaId];
-            formulaDetails.functions = formulaDetailsMap[formulaId].functions;
-            getMetricsDataForFormula(formulaId, formulaDetails);
-        }
+        });
     }
 }
 
