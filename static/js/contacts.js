@@ -125,16 +125,7 @@ $(document).ready(function () {
 
 $(document).on('click', '.contact-option', setContactTypes);
 
-function updateDeleteButtonVisibility() {
-    const contactContainers = $('.contact-container');
-    if (contactContainers.length > 1) {
-        contactContainers.find('.del-contact-type').show();
-    } else {
-        contactContainers.find('.del-contact-type').hide();
-    }
-}
-
-function initializeContactForm(contactId) {
+function initializeContactForm(_contactId) {
     $('#new-contact-point').css('display', 'none');
     $('#alert-grid-container').css('display', 'none');
     $('#contact-form-container').css('display', 'block');
@@ -148,12 +139,12 @@ function initializeContactForm(contactId) {
     const formContainer = $('#contact-form-container');
 
     if (formContainer) {
-        formContainer.html(contactFormHTML); // Use .html() to replace the content to avoid appending multiple times.
+        formContainer.append(contactFormHTML);
         $('.slack-container').css('display', 'block');
         $('.webhook-container').css('display', 'none');
         $('.headers-labels').css('display', 'none'); 
         if (contactEditFlag) {
-            showContactFormForEdit(contactId);
+            // showContactFormForEdit(contactId);
         } else {
             $('.contact-container').first().find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
         }
@@ -172,15 +163,38 @@ function initializeContactForm(contactId) {
         }
     });
 
-    updateDeleteButtonVisibility();
-
     $('.add-new-contact-type').on('click', function () {
-        addNewContactTypeContainer();
+        if (hasUnconfirmedHeaders()) {
+            alert('Please confirm or cancel all headers before adding a new contact type.');
+            return;
+        }
+
+        let newContactContainer = $('.contact-container').first().clone();
+        newContactContainer.find('.form-control').val('');
+        newContactContainer.find('.headers-main-container').empty();
+        newContactContainer.find('.headers-labels').css('display', 'none');
+        newContactContainer.find('.del-contact-type').remove(); // Remove any existing delete buttons
+        newContactContainer.find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
+        newContactContainer.appendTo('#main-container');
+
+        const newChannelIdInfoId = 'info-slack-channel-id-' + Date.now();
+        const newTokenInfoId = 'info-slack-token-' + Date.now();
+
+        newContactContainer.find('.fa-info-circle').eq(0).attr('id', newChannelIdInfoId);
+        newContactContainer.find('.fa-info-circle').eq(1).attr('id', newTokenInfoId);
+
+        [newChannelIdInfoId, newTokenInfoId].forEach((id) => {
+            $(`#${id}`).tooltip({
+                delay: { show: 0, hide: 300 },
+                trigger: 'hover',
+            });
+        });
+
+        $('.add-new-contact-type').appendTo('#main-container'); // Move the button to the end
     });
 
     $('#main-container').on('click', '.del-contact-type', function () {
         $(this).closest('.contact-container').remove();
-        updateDeleteButtonVisibility();
     });
 
     $('#main-container').on('click', '.test-contact-btn', function () {
@@ -364,37 +378,6 @@ function setContactForm() {
     contactData.pager_duty = '';
 }
 
-function addNewContactTypeContainer() {
-    if (hasUnconfirmedHeaders()) {
-        alert('Please confirm or cancel all headers before adding a new contact type.');
-        return;
-    }
-
-    let newContactContainer = $('.contact-container').first().clone();
-    newContactContainer.find('.form-control').val('');
-    newContactContainer.find('.headers-main-container').empty();
-    newContactContainer.find('.headers-labels').css('display', 'none');
-    newContactContainer.find('.del-contact-type').remove(); // Remove any existing delete buttons
-    newContactContainer.find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
-    newContactContainer.appendTo('#main-container');
-
-    const newChannelIdInfoId = 'info-slack-channel-id-' + Date.now();
-    const newTokenInfoId = 'info-slack-token-' + Date.now();
-
-    newContactContainer.find('.fa-info-circle').eq(0).attr('id', newChannelIdInfoId);
-    newContactContainer.find('.fa-info-circle').eq(1).attr('id', newTokenInfoId);
-
-    [newChannelIdInfoId, newTokenInfoId].forEach((id) => {
-        $(`#${id}`).tooltip({
-            delay: { show: 0, hide: 300 },
-            trigger: 'hover',
-        });
-    });
-
-    $('.add-new-contact-type').appendTo('#main-container'); // Move the button to the end
-    updateDeleteButtonVisibility();
-}
-
 function setContactTypes() {
     const selectedOption = $(this).html();
     const container = $(this).closest('.contact-container');
@@ -414,16 +397,12 @@ function setContactTypes() {
     container.find('.contact-option').removeClass('active');
     container.find('#contact-types span').html(selectedOption);
     $(this).addClass('active');
-    // Remove invalid class from all inputs
-    container.find('.slack-container input, .webhook-container input').removeClass('is-invalid').val('');
-
-    // Hide all contact type containers
+    container.find('.slack-container input, .webhook-container input').removeAttr('required').val();
     container.find('.slack-container, .webhook-container').css('display', 'none');
 
     container.find('.headers-main-container').empty();
     container.find('.headers-labels').css('display', 'none');
 
-    // Show and set invalid class based on selected option
     if (selectedOption === 'Slack') {
         container.find('.slack-container').css('display', 'block');
     } else if (selectedOption === 'Webhook') {
@@ -448,11 +427,6 @@ function submitAddContactPointForm(e) {
 
     if (hasUnconfirmedHeaders()) {
         alert('Please confirm or cancel all headers before saving.');
-        return;
-    }
-
-    if (!validateContactForm()) {
-        alert('Please fill out all required fields.');
         return;
     }
 
@@ -699,40 +673,6 @@ function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function validateContactForm() {
-    let isValid = true;
-
-    $('.contact-container').each(function () {
-        const contactType = $(this).find('#contact-types span').text();
-        if (contactType === 'Slack') {
-            const slackValue = $(this).find('#slack-channel-id').val();
-            const slackToken = $(this).find('#slack-token').val();
-            if (!slackValue || !slackToken) {
-                isValid = false;
-                $(this)
-                    .find('#slack-channel-id, #slack-token')
-                    .each(function () {
-                        if (!$(this).val()) {
-                            $(this).addClass('is-invalid');
-                        } else {
-                            $(this).removeClass('is-invalid');
-                        }
-                    });
-            }
-        } else if (contactType === 'Webhook') {
-            const webhookValue = $(this).find('#webhook-id').val();
-            if (!webhookValue) {
-                isValid = false;
-                $(this).find('#webhook-id').addClass('is-invalid');
-            } else {
-                $(this).find('#webhook-id').removeClass('is-invalid');
-            }
-        }
-    });
-
-    return isValid;
-}
-
 function displayAllContacts(res) {
     if (contactGridDiv === null) {
         contactGridDiv = document.querySelector('.all-contacts-grid');
@@ -759,96 +699,6 @@ function displayAllContacts(res) {
     contactGridOptions.api.sizeColumnsToFit();
 }
 
-//Edit Contact Point
-function showContactFormForEdit(contactId) {
-    let data = allContactsArray.find(function (obj) {
-        return obj.contact_id === contactId;
-    });
-    $('#contact-name').val(data.contact_name);
-    initializeBreadcrumbs([
-        { name: 'Alerting', url: './alerting.html' },
-        { name: 'Contact Points', url: './contacts.html' },
-        { name: data.contact_name? data.contact_name : 'New Contact Point', url: '#' },
-    ]);
-    let isFirst = true;
-    let containerCount = 0;
-
-    Object.keys(data).forEach(function (key) {
-        if (key === 'contact_name' || key === 'contact_id') {
-            return;
-        }
-
-        let value = data[key];
-        if (value != null && value.length > 0) {
-            value.forEach(function (value) {
-                let contactContainer;
-                if (isFirst) {
-                    contactContainer = $('.contact-container').first(); // Select the first container directly
-                    isFirst = false;
-                } else {
-                    contactContainer = $('.contact-container').first().clone().removeClass('d-none'); // Clone the first container for subsequent ones
-                    contactContainer.find('.button-container .del-contact-type').remove(); // Remove existing delete buttons from the cloned container
-                    contactContainer.find('.headers-main-container').empty(); 
-                    contactContainer.find('.headers-labels').css('display', 'none');
-                    contactContainer.appendTo('#main-container');
-                }
-
-                contactContainer.find('#contact-types span').text(key.charAt(0).toUpperCase() + key.slice(1));
-                if (key === 'slack') {
-                    contactContainer.find('.webhook-container').css('display', 'none');
-                    contactContainer.find('.slack-container').css('display', 'block');
-                    contactContainer.find('.slack-container #slack-channel-id').val(value.channel_id);
-                    contactContainer.find('.slack-container #slack-token').val(value.slack_token);
-                }
-                if (key === 'webhook') {
-                    contactContainer.find('.webhook-container').css('display', 'block');
-                    contactContainer.find('.slack-container').css('display', 'none');
-                    contactContainer.find('.webhook-container #webhook-id').val(value.webhook);
-                    if (value.headers && Object.keys(value.headers).length > 0) {
-                        Object.entries(value.headers).forEach(([headerKey, headerValue]) => {
-                            const displayHeader = `
-                                <div class="headers-container">
-                                    <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="${headerKey}" readonly>
-                                    <span class="headers-gap"></span>
-                                        <input type="text" id="header-value" class="form-control" placeholder="Header Value" tabindex="8" value="${headerValue}" readonly>
-                                    <button class="edit-icon" type="button" id="edit-header"></button>
-                                    <button class="delete-icon" type="button" id="delete-header"></button>
-                                </div>
-                            `;
-                            contactContainer.find('.headers-main-container').append(displayHeader);
-                        });
-                        contactContainer.find('.headers-labels').css('display', 'flex'); 
-                    }
-                }
-                if (key != 'slack' && key != 'webhook') {
-                    contactContainer.find(`.${key}-container .form-control`).val(value);
-                }
-
-                containerCount++;
-            });
-        }
-    });
-
-    // Add delete button to all containers if there are multiple containers
-    if (containerCount > 1) {
-        $('.contact-container').each(function () {
-            if (!$(this).find('.del-contact-type').length) {
-                $(this).find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
-            }
-        });
-    } else {
-        // Ensure delete button is removed if only one container
-        $('.contact-container').find('.del-contact-type').remove();
-    }
-
-    $('.add-new-contact-type').appendTo('#main-container'); // Move the button to the end
-
-    updateDeleteButtonVisibility(); // Ensure delete buttons are updated after form initialization
-
-    if (contactEditFlag) {
-        contactData.contact_id = data.contact_id;
-    }
-}
 
 function getContactPointTestData(container) {
     let contactData = {};
