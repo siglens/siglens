@@ -22,7 +22,6 @@ let dayCnt2 = 0;
 let isAlertScreen, isMetricsURL, isDashboardScreen;
 //eslint-disable-next-line no-unused-vars
 let metricsQueryParams;
-let funcApplied = false;
 let selectedTheme = 'Palette';
 let selectedLineStyle = 'Solid';
 let selectedStroke = 'Normal';
@@ -128,98 +127,6 @@ function updateMetricsQueryParamsInUrl() {
 }
 
 let formulaDetailsMap = {};
-async function initializeFormulaFunction(formulaElement, uniqueId) {
-    if (!formulaDetailsMap[uniqueId] || !formulaDetailsMap[uniqueId].formula) {
-        // Initialize the formula details for the given uniqueId if it does not exist or is empty
-        formulaDetailsMap[uniqueId] = {
-            formula: '',
-            queryNames: [],
-            functions: [],
-        };
-        funcApplied = false;
-    }
-
-    formulaElement
-        .find('#functions-search-box-formula')
-        .autocomplete({
-            source: allFunctions.map(function (item) {
-                return item.name;
-            }),
-            minLength: 0,
-            select: async function (event, ui) {
-                var selectedFunction = allFunctions.find(function (item) {
-                    return item.name === ui.item.value;
-                });
-                var formulaDetails = formulaDetailsMap[uniqueId];
-
-                // Check if the selected function is already in formulaDetails.functions
-                var indexToRemove = formulaDetails.functions.indexOf(selectedFunction.fn);
-                if (indexToRemove !== -1) {
-                    formulaDetails.functions.splice(indexToRemove, 1); // Remove it
-                    $(this)
-                        .closest('.formula-box')
-                        .find('.selected-function-formula:contains(' + selectedFunction.fn + ')')
-                        .remove();
-                }
-
-                formulaDetails.functions.push(selectedFunction.fn);
-
-                appendFormulaFunctionDiv(formulaElement, selectedFunction.fn || formulaDetails.functions);
-                let formula = formulaElement.find('.formula').val().trim();
-                formulaDetailsMap[uniqueId].formula = formula;
-                let validationResult = validateFormula(formula, uniqueId);
-                if (validationResult !== false) {
-                    await getMetricsDataForFormula(uniqueId, validationResult);
-                }
-                $(this).val('');
-            },
-            classes: {
-                'ui-autocomplete': 'metrics-ui-widget',
-            },
-        })
-        .on('click', function () {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
-            } else {
-                $(this).autocomplete('search', '');
-            }
-        })
-        .on('click', function () {
-            $(this).select();
-        });
-
-    formulaElement.on('click', '.selected-function-formula .close', async function () {
-        var fnToRemove = $(this)
-            .parent('.selected-function-formula')
-            .contents()
-            .filter(function () {
-                return this.nodeType === 3;
-            })
-            .text()
-            .trim();
-
-        var formulaDetails = formulaDetailsMap[uniqueId];
-        var indexToRemove = formulaDetails.functions.indexOf(fnToRemove);
-        if (indexToRemove !== -1) {
-            formulaDetails.functions.splice(indexToRemove, 1);
-        }
-        $(this).parent('.selected-function-formula').remove();
-
-        // Get the updated formula and validate it
-        let formula = formulaElement.find('.formula').val().trim();
-        let validationResult = validateFormula(formula, uniqueId);
-
-        // If the validation passes, call the getMetricsDataForFormula with the updated details
-        if (validationResult !== false) {
-            await getMetricsDataForFormula(uniqueId, validationResult);
-        }
-    });
-}
-
-function appendFormulaFunctionDiv(formulaElement, fnName) {
-    var newDiv = $('<div class="selected-function-formula">' + fnName + '<span class="close">×</span></div>');
-    formulaElement.find('.all-selected-functions-formula').append(newDiv);
-}
 
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
@@ -252,14 +159,7 @@ $('#add-formula').on('click', function () {
         addMetricsFormulaElement();
     }
 });
-function addOrUpdateFormulaCache(formulaId, formulaName, formulaDetails) {
-    let existingIndex = formulaCache.findIndex((item) => item.formulaId === formulaId);
-    if (existingIndex !== -1) {
-        formulaCache[existingIndex] = { formulaId, formulaName, formulaDetails };
-    } else {
-        formulaCache.push({ formulaId, formulaName, formulaDetails });
-    }
-}
+
 $('.refresh-btn').on('click', refreshMetricsGraphs);
 
 // Toggle switch between merged graph and single graphs
@@ -290,17 +190,6 @@ function createFormulaElementTemplate(uniqueId, initialValue = '') {
                     <div class="d-flex justify-content-center align-items-center"><i class="fas fa-exclamation"></i></div>
                 </div>
             </div>
-            <div class="formula-functions-container">
-                    <div class="all-selected-functions-formula">
-                    </div>
-                    <div class="position-container">
-                        <div class="show-functions-formula">
-                        </div>
-                        <div class="options-container-formula">
-                            <input type="text" id="functions-search-box-formula" class="search-box" placeholder="Search...">
-                        </div>
-                    </div>
-            </div>
         </div>
         <div class="remove-query">×</div>
         </div>`);
@@ -330,17 +219,6 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
             $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
 
             updateMetricsQueryParamsInUrl();
-        }
-    });
-
-    // Hide the functions dropdown
-    $('body').on('click', function (event) {
-        var optionsContainer = formulaElement.find('.options-container-formula');
-        var showFunctionsButton = formulaElement.find('.show-functions-formula');
-
-        // Check if the clicked element is not part of the options container or the show-functions button
-        if (!$(event.target).closest(optionsContainer).length && !$(event.target).is(showFunctionsButton)) {
-            optionsContainer.hide(); // Hide the options container if clicked outside of it
         }
     });
 }
@@ -444,7 +322,6 @@ async function addAlertsFormulaElement(formulaInput) {
     appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
     updateTooltipForFormulaFunctions(uniqueId, validationResult);
     disableQueryRemoval();
-    funcApplied = false;
     getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
 
     let formulaElements = $('.formula-arrow');
@@ -461,7 +338,6 @@ async function addAlertsFormulaElement(formulaInput) {
 
         $('#metrics-queries .metrics-query .query-name').removeClass('active');
     }
-    initializeFormulaFunction(formulaElement, uniqueId);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
 }
@@ -480,7 +356,6 @@ async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaIn
         formulaElement = createFormulaElementTemplate(uniqueId, formulaAndFunction.formula);
         $('#metrics-formula').append(formulaElement);
         updateTooltipForFormulaFunctions(uniqueId, validationResult);
-        funcApplied = false;
         getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
         appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
     } else {
@@ -488,7 +363,6 @@ async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaIn
         $('#metrics-formula').append(formulaElement);
     }
 
-    initializeFormulaFunction(formulaElement, uniqueId);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
 }
@@ -510,7 +384,7 @@ function onFormulaErased(uniqueId) {
     updateMetricsQueryParamsInUrl();
 }
 
-function validateFormula(formula, uniqueId) {
+function validateFormula(formula, _uniqueId) {
     // Regular expression to include numbers and query names
     let pattern = /^(\s*\w+\s*|\s*\d+\s*)(\s*[-+*/]\s*(\s*\w+\s*|\s*\d+\s*))*$/;
     let matches = formula.match(pattern);
@@ -541,16 +415,10 @@ function validateFormula(formula, uniqueId) {
             usedQueryNames = queryNames;
         }
     }
-    // Nest the formula within the functions present in formulaDetails.functions
-    let functionsArray = formulaDetailsMap[uniqueId]?.functions || [];
-    for (let func of functionsArray) {
-        formula = `${func}(${formula})`;
-    }
-    funcApplied = true;
+
     return {
         formula: formula,
         queryNames: usedQueryNames,
-        functions: functionsArray,
         isNumeric: isNumeric,
     };
 }
@@ -1890,8 +1758,6 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
         updateGraphWidth();
         mergeGraphs(chartType);
     }
-
-    addOrUpdateFormulaCache(queryName, queryString);
 }
 
 function removeVisualizationContainer(queryName) {
@@ -2629,19 +2495,11 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
 
-    let formwithfun = formulaDetails.formula;
-    if (!funcApplied) {
-        let functions = formulaDetailsMap[formulaId].functions;
-        functions.forEach((fn) => {
-            formulaString = `${fn}(${formulaString})`;
-            formwithfun = `${fn}(${formwithfun})`;
-        });
-    }
+    
     const formula = {
-        formula: formwithfun,
+        formula: formulaDetails.formula,
     };
     formulas.push(formula);
-    addOrUpdateFormulaCache(formulaId, formulaString, formulaDetails);
 
     const data = {
         start: filterStartDate,
@@ -2811,9 +2669,6 @@ async function getQueryDetails(queryName, queryDetails) {
     for (let formulaId in formulas) {
         if (formulas[formulaId].queryNames.includes(queryName)) {
             const formulaDetails = formulas[formulaId];
-            // Update the formula with the corresponding functions from formulaDetailsMap
-            funcApplied = false;
-            formulaDetails.functions = formulaDetailsMap[formulaId].functions;
             await getMetricsDataForFormula(formulaId, formulaDetails);
         }
     }
@@ -2901,7 +2756,6 @@ async function refreshMetricsGraphs() {
         // Update graph for each formula
         for (const formulaId of Object.keys(formulas)) {
             const formulaDetails = formulas[formulaId];
-            funcApplied = false;
             formulaDetails.functions = formulaDetailsMap[formulaId].functions;
             getMetricsDataForFormula(formulaId, formulaDetails);
         }
@@ -2919,7 +2773,6 @@ async function alertsDatePickerHandler() {
     if (Object.keys(formulas).length > 0) {
         for (const formulaId of Object.keys(formulas)) {
             const formulaDetails = formulas[formulaId];
-            funcApplied = false;
             formulaDetails.functions = formulaDetailsMap[formulaId].functions;
             getMetricsDataForFormula(formulaId, formulaDetails);
         }
@@ -2971,7 +2824,6 @@ function updateChartColorsBasedOnTheme() {
 }
 
 function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
-    addOrUpdateFormulaCache(queryName, queryString);
     var existingContainer = $(`.metrics-graph`);
     var canvas;
     if (existingContainer.length === 0) {

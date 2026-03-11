@@ -117,22 +117,6 @@ input:checked+.slider:before {
     margin-top: 8px;
 }
 
-.formula-functions-container div {
-    position: relative;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    padding: 0px 12px;
-}
-
-.show-functions-formula {
-    border: 1px solid var(--border-btn-color) !important;
-}
-
-.selected-function-formula {
-    border: 1px solid var(--border-btn-color);
-}
-
 .metrics-query {
     width: 100%;
 }
