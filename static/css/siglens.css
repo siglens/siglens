@@ -941,10 +941,6 @@ body {
     position: relative;
 }
 
-#app-side-nav .nav-main-menu {
-    margin-right: 8px;
-}
-
 #app-side-nav .menu:hover {
     border-radius: 0 5px 5px 0;
     cursor: pointer;
