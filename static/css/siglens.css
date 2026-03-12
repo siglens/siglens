@@ -4861,15 +4861,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     margin-left: 32px
 }
 
-#history-search-container {
-    margin-top: 16px;
-    height: 44px;
-}
-
-#history-filter-input {
-    margin: 5px 0 0 5px;
-}
-
 #alerting .circle {
     height: 24px;
     width: 24px;
