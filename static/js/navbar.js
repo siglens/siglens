@@ -131,8 +131,6 @@ let navbarComponent = `
             </div>
             <ul class="ingestion-dropdown ">
                 <a href="./log-ingestion.html"><li class="ingestion-link">Log Ingestion</li></a>
-                <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
-                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>
             </ul>
         </div>
     </div>
@@ -162,24 +160,15 @@ let navbarComponent = `
             </div>
             <div class="help-options">
                 <div class="nav-docs">
-                    <a href="https://www.siglens.com/siglens-docs/"  target="_blank" class="help-links"><span class="icon-docs"></span><span class="nav-link-text">Documentation</span></a>
                 </div>
                 <div class="nav-slack">
-                    <a href="https://www.siglens.com/slack.html"  target="_blank" class="help-links"><span class="icon-slack"></span><span class="nav-link-text">Join Slack Community</span></a>
                 </div>
                 <div class="nav-linkedin">
-                    <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://siglens.com" target="_blank" class="help-links"><span class="icon-linkedin"></span><span class="nav-link-text">Share on LinkedIn</span></a>
                 </div>
                 <div class="nav-twitter">
-                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ"
-                    target="_blank" class="help-links"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
                 </div>
                 <hr>
                 <div class="nav-feedback">
-                    <a href="https://docs.google.com/forms/d/e/1FAIpQLSfs_mxeX4LKbjAdX22cOknFaoi2TJcoOGD3OKj2RmZl7evD6A/viewform"
-                        target="_blank" class="help-links">
-                        <span class="icon-feedback"></span><span class="nav-link-text feedback">Feedback</span>
-                    </a>
                 </div>
             </div>
         </div>
@@ -359,20 +348,20 @@ const navigationStructure = {
             { name: 'Ingestion', url: './ingestion.html' },
             { name: 'Log Ingestion Methods'}]
     },
-    'metrics-ingestion.html': {
-        activeClass: 'nav-ingest',
-        breadcrumbs: [
-            { name: 'Ingestion', url: './ingestion.html' },
-            { name: 'Metrics Ingestion Methods'}
-        ]
-    },
-    'traces-ingestion.html': {
-        activeClass: 'nav-ingest',
-        breadcrumbs: [
-            { name: 'Ingestion', url: './ingestion.html' },
-            { name: 'Traces Ingestion Methods'}
-        ]
-    },
+    // 'metrics-ingestion.html': {
+    //     activeClass: 'nav-ingest',
+    //     breadcrumbs: [
+    //         { name: 'Ingestion', url: './ingestion.html' },
+    //         { name: 'Metrics Ingestion Methods'}
+    //     ]
+    // },
+    // 'traces-ingestion.html': {
+    //     activeClass: 'nav-ingest',
+    //     breadcrumbs: [
+    //         { name: 'Ingestion', url: './ingestion.html' },
+    //         { name: 'Traces Ingestion Methods'}
+    //     ]
+    // },
     'usage-stats.html': {
         activeClass: 'nav-usage-stats',
         breadcrumbs: [{ name: 'Usage Stats'}]
