@@ -1001,7 +1001,6 @@ function goToDashboard() {
 
 function resetEditPanelScreen() {
     resetEditPanel();
-    panelGridDiv = null;
     $('.dropDown-unit span').html('Unit');
     $('.dropDown-logLinesView span').html('Single line display view');
     $('.index-container').css('display', 'none');
@@ -1059,7 +1058,6 @@ async function runQueryBtnHandler() {
     // reset the current panel's queryRes attribute
     delete currentPanel.queryRes;
     resetEditPanel();
-    panelGridDiv = null;
     $('.panelDisplay .ag-root-wrapper').remove();
     $('.panelDisplay #empty-response').empty();
     $('.panelDisplay #empty-response').hide();
@@ -1087,8 +1085,6 @@ async function runQueryBtnHandler() {
         }
         availColNames = [];
 
-        //eslint-disable-next-line no-undef
-        initialSearchDashboardData = data;
         await runPanelLogsQuery(data, -1, currentPanel);
     }
 }
@@ -1135,8 +1131,6 @@ function displayPanelView(panelIndex) {
             responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div><div id="empty-response"></div>`;
             panEl.append(responseDiv);
             $('#panelLogResultsGrid').show();
-            //eslint-disable-next-line no-undef
-            initialSearchDashboardData = localPanel.queryData;
             runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
             break;
 

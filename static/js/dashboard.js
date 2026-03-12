@@ -189,8 +189,8 @@ function viewPanelInit() {
     $('.panelEditor-container').css('display', 'flex');
     $('.panelDisplay #panelLogResultsGrid').empty();
     $('.panelDisplay .big-number-display-container').hide();
-    $('.popupOverlay').addClass('active');
     $('.panelDisplay #empty-response').hide();
+    $('.popupOverlay').addClass('active');
     editPanelInit(-1);
 }
 
