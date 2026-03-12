@@ -183,8 +183,7 @@ async function initializeFromUrl() {
         const searchText = params.get('searchText');
         const startEpoch = params.get('startEpoch');
         const endEpoch = params.get('endEpoch');
-        const filterTab = params.get('filterTab');
-        createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab);
+        createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
         alertData.alert_type = 2;
         alertType = 'logs';
     }
@@ -444,7 +443,7 @@ async function fillAlertForm(res) {
     });
 }
 
-function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab) {
+function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch) {
     const urlParams = new URLSearchParams(window.location.search);
     const ruleName = decodeURIComponent(urlParams.get('ruleName'));
     $('#alert-rule-name').val(ruleName);
@@ -455,22 +454,8 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
         { name: ruleName ? ruleName : 'New Alert Rule', url: '#' },
     ]);
 
-    if (filterTab === '0') {
-        codeToBuilderParsing(searchText);
-        $('#filter-input').val(searchText);
-        isQueryBuilderSearch = true;
-    } else if (filterTab === '1') {
-        $('#custom-code-tab').tabs('option', 'active', 1);
-        $('#filter-input').val(searchText);
-    }
     datePickerHandler(startEpoch, endEpoch, startEpoch);
-    let data = {
-        searchText: searchText,
-        startEpoch: startEpoch,
-        endEpoch: endEpoch,
-        indexName: selectedSearchIndex,
-        queryLanguage: queryLanguage,
-    };
+
     showLogsLoading();
     fetchLogsPanelData(data, -1)
         .then((res) => {
