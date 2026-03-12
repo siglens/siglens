@@ -278,12 +278,6 @@ function createPanel(panelIndex, startEpoch) {
             panelId: panelId,
             panelIndex: panelIndex,
             queryData: panelMetricsQueryParams,
-            style: {
-                display: chartType,
-                color: selectedTheme,
-                lineStyle: selectedLineStyle,
-                lineStroke: selectedStroke,
-            },
         };
     } else {
         const queryMode = new URLSearchParams(window.location.search).get('filterTab') === '0' ? 'Builder' : 'Code';

@@ -135,15 +135,7 @@ async function updateDashboard() {
                 name: dbName,
                 description: dbDescr,
                 timeRange: timeRange,
-                panels: tempPanels.map((panel) => ({
-                    ...panel,
-                    style: {
-                        display: panel.style?.display || 'Line chart',
-                        color: panel.style?.color || 'Classic',
-                        lineStyle: panel.style?.lineStyle || 'Solid',
-                        lineStroke: panel.style?.lineStroke || 'Normal',
-                    },
-                })),
+                panels: tempPanels,
                 refresh: dbRefresh,
                 panelFlag: `{{ .PanelFlag }}`,
                 isFavorite: isFavorite,
