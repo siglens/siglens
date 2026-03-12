@@ -39,29 +39,12 @@ function createLogsCellRenderer() {
     };
 }
 
-let panelLogsColumnDefs = [
-    {
-        field: 'timestamp',
-        headerName: 'timestamp',
-        cellRenderer: (params) => {
-            return moment(params.value).format(timestampDateFmt);
-        },
-        maxWidth: 250,
-        minWidth: 250,
-    },
-    {
-        field: 'logs',
-        headerName: 'logs',
-        cellRenderer: createLogsCellRenderer(),
-    },
-];
-
-var panelLogsRowData = [];
 let panelGridOptions;
+let panelLogsColumnDefs = [];
 
-function createPanelGridOptions(currentPanel) {
+function _createPanelGridOptions(currentPanel) {
     panelGridOptions = {
-        columnDefs: panelLogsColumnDefs,
+        columnDefs: [],
         rowData: panelLogsRowData,
         animateRows: true,
         readOnlyEdit: true,
@@ -96,17 +79,16 @@ function createPanelGridOptions(currentPanel) {
                         data = getQueryParamsData(scrollingTrigger);
                         //eslint-disable-next-line no-undef
                         if (data.searchText !== initialSearchDashboardData.searchText || data.indexName !== initialSearchDashboardData.indexName || data.startEpoch !== initialSearchDashboardData.startEpoch || data.endEpoch !== initialSearchDashboardData.endEpoch || data.queryLanguage !== initialSearchDashboardData.queryLanguage) {
-                            scrollingErrorPopup();
+                            // scrollingErrorPopup();
                             return; // Prevent further scrolling
                         }
                         isFetching = true;
-                        showLoadingIndicator();
-                        if (data && data.searchText == 'error') {
-                            alert('Error');
-                            hideLoadingIndicator(); // Hide loading indicator on error
-                            isFetching = false;
-                            return;
-                        }
+                        // showLoadingIndicator();
+                        // if (data && data.searchText == 'error') {
+                        //     alert('Error');
+                        //     hideLoadingIndicator(); // Hide loading indicator on error
+                        //     return;
+                        // }
                         runPanelLogsQuery(data, panelID, currentPanel)
                             .then(() => {
                                 isFetching = false;
@@ -116,7 +98,7 @@ function createPanelGridOptions(currentPanel) {
                                 isFetching = false;
                             })
                             .finally(() => {
-                                hideLoadingIndicator();
+                                // hideLoadingIndicator();
                                 isFetching = false;
                             });
                     }
@@ -177,37 +159,12 @@ function createPanelGridOptions(currentPanel) {
     return panelGridOptions;
 }
 
-function showLoadingIndicator() {
-    panelGridOptions.api.showLoadingOverlay();
-}
-
-function hideLoadingIndicator() {
-    panelGridOptions.api.hideOverlay();
-}
 
 //eslint-disable-next-line no-unused-vars
 function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
-    panelID = panelId;
     $(`.panelDisplay .big-number-display-container`).hide();
     let logLinesViewType = currentPanel.logLinesViewType;
 
-    if (panelId == -1 && panelGridDiv == null) {
-        // for panel on the editPanelScreen page
-        panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
-        panelGridOptions = createPanelGridOptions(currentPanel);
-
-        //eslint-disable-next-line no-undef
-        new agGrid.Grid(panelGridDiv, panelGridOptions);
-    }
-    if (panelId != -1) {
-        panelLogsRowData = [];
-
-        panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
-        panelGridOptions = createPanelGridOptions(currentPanel);
-
-        //eslint-disable-next-line no-undef
-        new agGrid.Grid(panelGridDiv, panelGridOptions);
-    }
 
     let cols = columnOrder.map((colName, index) => {
         let hideCol = false;
@@ -453,15 +410,6 @@ function toggleAllAvailableFieldsHandler(_evt) {
     updatedSelFieldList = true;
 }
 
-function scrollingErrorPopup() {
-    $('.mypopupOverlay').addClass('active');
-    $('#error-popup.popupContent').addClass('active');
-
-    $('#okay-button').on('click', function () {
-        $('.mypopupOverlay').removeClass('active');
-        $('#error-popup.popupContent').removeClass('active');
-    });
-}
 
 //eslint-disable-next-line no-unused-vars
 function resetPanelLogsColumnDefs() {
