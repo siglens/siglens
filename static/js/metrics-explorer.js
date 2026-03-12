@@ -22,19 +22,14 @@ let dayCnt2 = 0;
 let isAlertScreen, isMetricsURL, isDashboardScreen;
 //eslint-disable-next-line no-unused-vars
 let metricsQueryParams;
-let selectedTheme = 'Palette';
-let selectedLineStyle = 'Solid';
-let selectedStroke = 'Normal';
-var colorPalette = {
-    Classic: ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'],
-    Purple: ['#dbcdfa', '#c8b3fb', '#a082fa', '#8862eb', '#764cd8', '#5f36ac', '#27064c'],
-    Cool: ['#cce9be', '#a5d9b6', '#89c4c2', '#6cabc9', '#5491c8', '#4078b1', '#2f5a9f', '#213e7d'],
-    Green: ['#d0ebc2', '#c4eab7', '#aed69e', '#87c37d', '#5daa64', '#45884a', '#2e6a34', '#1a431f'],
-    Warm: ['#f7e288', '#fadb84', '#f1b65d', '#ec954d', '#f65630', '#cf3926', '#aa2827', '#761727'],
-    Orange: ['#f8ddbd', '#f4d2a9', '#f0b077', '#ec934f', '#e0722f', '#c85621', '#9b4116', '#72300e'],
-    Gray: ['#c6ccd1', '#adb1b9', '#8d8c96', '#93969e', '#7d7c87', '#656571', '#62636a', '#4c4d57'],
-    Palette: ['#5795e4', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'],
-};
+let classic = ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'];
+let purple = ['#dbcdfa', '#c8b3fb', '#a082fa', '#8862eb', '#764cd8', '#5f36ac', '#27064c'];
+let cool = ['#cce9be', '#a5d9b6', '#89c4c2', '#6cabc9', '#5491c8', '#4078b1', '#2f5a9f', '#213e7d'];
+let green = ['#d0ebc2', '#c4eab7', '#aed69e', '#87c37d', '#5daa64', '#45884a', '#2e6a34', '#1a431f'];
+let warm = ['#f7e288', '#fadb84', '#f1b65d', '#ec954d', '#f65630', '#cf3926', '#aa2827', '#761727'];
+let orange = ['#f8ddbd', '#f4d2a9', '#f0b077', '#ec934f', '#e0722f', '#c85621', '#9b4116', '#72300e'];
+let gray = ['#c6ccd1', '#adb1b9', '#8d8c96', '#93969e', '#7d7c87', '#656571', '#62636a', '#4c4d57'];
+let palette = ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'];
 
 let cachedMetrics = [];
 let isLoadingMore = false;
@@ -1223,8 +1218,8 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
             return {
                 label: series.seriesName,
                 data: series.values,
-                borderColor: colorPalette.Palette[index % colorPalette.Palette.length],
-                backgroundColor: colorPalette.Palette[index % colorPalette.Palette.length] + '70',
+                borderColor: classic[index % classic.length],
+                backgroundColor: classic[index % classic.length] + '70',
                 borderWidth: 2,
                 fill: false,
             };
@@ -1302,7 +1297,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
     let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
     const { gridLineColor, tickColor } = getGraphGridColors();
-    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Palette;
 
     // Calculate max value from data
     const maxDataValue = Math.max(...chartData.datasets.flatMap((d) => Object.values(d.data).filter((v) => v !== null)));
@@ -1492,13 +1486,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         $('#threshold-value').on('input', updateChartThresholds);
         $('.alert-condition-options li').on('click', updateChartThresholds);
     }
-
-    chartData.datasets.forEach(function (dataset, index) {
-        dataset.borderColor = selectedPalette[index % selectedPalette.length];
-        dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70';
-        dataset.borderDash = selectedLineStyle === 'Dash' ? [5, 5] : selectedLineStyle === 'Dotted' ? [1, 3] : [];
-        dataset.borderWidth = selectedStroke === 'Thin' ? 1 : selectedStroke === 'Thick' ? 3 : 2;
-    });
 
     // Modify the fill property based on the chart type after chart initialization
     if (chartType === 'Area chart') {
@@ -1750,8 +1737,18 @@ $('#color-input')
     });
 
 function updateChartTheme(theme) {
-    selectedTheme = theme; // Store the selected theme
-    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Palette;
+    var colorPalette = {
+        Classic: classic,
+        Purple: purple,
+        Cool: cool,
+        Green: green,
+        Warm: warm,
+        Orange: orange,
+        Gray: gray,
+        Palette: palette,
+    };
+
+    var selectedPalette = colorPalette[theme] || classic;
 
     // Loop through each chart data
     for (var queryName in chartDataCollection) {
@@ -1763,30 +1760,20 @@ function updateChartTheme(theme) {
             });
 
             var lineChart = lineCharts[queryName];
-            if (lineChart) {
-                lineChart.update();
-                // Regenerate the legend after updating chart colors
-                var legendContainer = $(`.metrics-graph[data-query="${queryName}"] .legend-container`)[0];
-                if (legendContainer) {
-                    generateCustomLegend(lineChart, legendContainer);
-                }
+            // Regenerate the legend after updating chart colors
+            var legendContainer = $(`.metrics-graph[data-query="${queryName}"] .legend-container`)[0];
+            if (legendContainer) {
+                generateCustomLegend(lineChart, legendContainer);
             }
+            
         }
     }
 
-    if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
-        mergedGraph.data.datasets.forEach(function (dataset, index) {
-            dataset.borderColor = selectedPalette[index % selectedPalette.length];
-            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70';
-        });
-        mergedGraph.update();
-
-        // Regenerate the legend for merged graph
-        var mergedLegendContainer = $('.merged-graph .legend-container')[0];
-        if (mergedLegendContainer) {
-            generateCustomLegend(mergedGraph, mergedLegendContainer);
-        }
-    }
+    mergedGraph.data.datasets.forEach(function (dataset, index) {
+        dataset.borderColor = selectedPalette[index % selectedPalette.length];
+        dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
+    });
+    mergedGraph.update();
 }
 
 var lineStyleOptions = ['Solid', 'Dash', 'Dotted'];
@@ -1838,8 +1825,6 @@ $('#stroke-input')
 
 // Function to update all line charts based on selected line style and stroke
 function updateLineCharts(lineStyle, stroke) {
-    selectedLineStyle = lineStyle;
-    selectedStroke = stroke;
     // Loop through each chart data
     for (var queryName in chartDataCollection) {
         if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
@@ -1852,25 +1837,20 @@ function updateLineCharts(lineStyle, stroke) {
             });
 
             var lineChart = lineCharts[queryName];
-            if (lineChart) {
-                lineChart.update();
-            }
+            lineChart.update();
         }
     }
 
-    if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
-        mergedGraph.data.datasets.forEach(function (dataset) {
-            dataset.borderDash = lineStyle === 'Dash' ? [5, 5] : lineStyle === 'Dotted' ? [1, 3] : [];
-            dataset.borderWidth = stroke === 'Thin' ? 1 : stroke === 'Thick' ? 3 : 2;
-        });
+    mergedGraph.data.datasets.forEach(function (dataset) {
+        dataset.borderDash = lineStyle === 'Dash' ? [5, 5] : lineStyle === 'Dotted' ? [1, 3] : [];
+        dataset.borderWidth = stroke === 'Thin' ? 1 : stroke === 'Thick' ? 3 : 2;
+    });
 
-        mergedGraph.update();
-    }
+    mergedGraph.update();
 }
 
 function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
-    var colorIndex = 0;
     var mergedCanvas, legendContainer;
 
     if (isDashboardScreen) {
@@ -1920,6 +1900,7 @@ function mergeGraphs(chartType, panelId = -1) {
         datasets: [],
     };
     var graphNames = [];
+    let colorIndex = 0;
 
     // Loop through chartDataCollection to merge datasets
     for (var queryName in chartDataCollection) {
@@ -1928,21 +1909,17 @@ function mergeGraphs(chartType, panelId = -1) {
             var datasets = chartDataCollection[queryName].datasets;
             graphNames.push(`${datasets[0]?.label}`);
 
-            datasets.forEach(function (dataset) {
+            datasets.forEach(function (dataset, datasetIndex) {
                 // Calculate color for the dataset
-                let datasetColor = colorPalette[selectedTheme][colorIndex % colorPalette[selectedTheme].length];
-
+                let datasetColor = classic[(colorIndex + datasetIndex) % classic.length];
                 mergedData.datasets.push({
                     label: dataset.label,
                     data: dataset.data,
                     borderColor: datasetColor,
                     borderWidth: dataset.borderWidth,
-                    backgroundColor: datasetColor + '70', // opacity
+                    backgroundColor: datasetColor + '70',
                     fill: chartType === 'Area chart' ? true : false,
-                    borderDash: selectedLineStyle === 'Dash' ? [5, 5] : selectedLineStyle === 'Dotted' ? [1, 3] : [],
                 });
-
-                colorIndex++;
             });
             // Update labels(same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
