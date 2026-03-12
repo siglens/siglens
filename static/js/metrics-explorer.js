@@ -1387,24 +1387,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                 legend: {
                     display: false,
                 },
-                tooltip: {
-                    enabled: true,
-                    position: 'nearest',
-                    events: ['mousemove'],
-                    mode: 'nearest',
-                    intersect: true,
-                    callbacks: {
-                        title: function (tooltipItems) {
-                            if (!tooltipItems || tooltipItems.length === 0) return '';
-                            const date = new Date(tooltipItems[0].parsed.x);
-                            const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
-                            return formattedDate;
-                        },
-                        label: function (tooltipItem) {
-                            return `${tooltipItem.dataset.label}: ${tooltipItem.formattedValue}`;
-                        },
-                    },
-                },
                 ...annotationConfig,
                 crosshair: {},
             },
@@ -1962,7 +1944,7 @@ function mergeGraphs(chartType, panelId = -1) {
 
                 colorIndex++;
             });
-            // Update labels (same for all graphs)
+            // Update labels(same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
     }
@@ -1978,26 +1960,6 @@ function mergeGraphs(chartType, panelId = -1) {
             plugins: {
                 legend: {
                     display: false,
-                },
-                tooltip: {
-                    enabled: true,
-                    position: 'nearest',
-                    events: ['mousemove'],
-                    mode: 'nearest',
-                    intersect: true,
-                    callbacks: {
-                        title: function (tooltipItems) {
-                            if (!tooltipItems || tooltipItems.length === 0) return '';
-                            // Display formatted timestamp in the title
-                            const date = new Date(tooltipItems[0].parsed.x);
-                            const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
-                            return formattedDate;
-                        },
-                        label: function (tooltipItem) {
-                            // Display dataset label and value
-                            return `${tooltipItem.dataset.label}: ${tooltipItem.formattedValue}`;
-                        },
-                    },
                 },
                 crosshair: {},
             },
