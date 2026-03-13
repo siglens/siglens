@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -17,6 +18,8 @@ import (
 type entry struct {
 	NextSuffix uint64 `json:"suffix"`
 }
+
+var suffixWriteLock sync.Mutex
 
 func getSuffix(fileName string) (*entry, error) {
 	jsonBytes, err := os.ReadFile(fileName)
@@ -50,6 +53,9 @@ func writeSuffix(fileName string, entry *entry) error {
 		log.Errorf("writeSuffix: Cannot marshal entry=%v to json; err=%v", entry, err)
 		return err
 	}
+
+	suffixWriteLock.Lock()
+	defer suffixWriteLock.Unlock()
 
 	tempFileName := fileName + ".tmp"
 	err = os.WriteFile(tempFileName, jsonBytes, 0644)
